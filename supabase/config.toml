@@ -1,0 +1,12 @@
+# Supabase: Edge Function の既定（JWT 検証で未ログイン呼び出しを拒否）
+[functions.cleanup-chat-media]
+verify_jwt = true
+
+[functions.stripe-connect-account-link]
+verify_jwt = true
+
+[functions.create-payment-intent]
+verify_jwt = true
+
+[functions.stripe-webhook]
+verify_jwt = false

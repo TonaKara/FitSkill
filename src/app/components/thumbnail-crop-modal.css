@@ -1,0 +1,25 @@
+/* react-image-crop を黒×赤のダーク UI に合わせる */
+.thumbnail-crop-modal .ReactCrop {
+  --rc-border-color: rgba(248, 113, 113, 0.95);
+  --rc-drag-handle-bg-colour: rgba(220, 38, 38, 0.85);
+  --rc-focus-color: #f87171;
+}
+
+.thumbnail-crop-modal .ReactCrop__crop-selection:focus {
+  outline-color: #ef4444;
+}
+
+/* ラッパーを画像より広くしない（座標ずれ防止）。ステージで中央寄せ */
+.thumbnail-crop-modal .thumbnail-crop-react {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: top;
+}
+
+.thumbnail-crop-modal .thumbnail-crop-react .ReactCrop__child-wrapper {
+  overflow: hidden;
+}
+
+.thumbnail-crop-modal .thumbnail-crop-source {
+  vertical-align: middle;
+}

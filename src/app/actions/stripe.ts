@@ -1,0 +1,123 @@
+"use server"
+
+import { createServerClient } from "@supabase/ssr"
+import { cookies } from "next/headers"
+import Stripe from "stripe"
+
+type StripeProfileRow = {
+  stripe_connect_account_id: string | null
+}
+
+function getStripeClient() {
+  const secretKey = process.env.STRIPE_SECRET_KEY
+  if (!secretKey) {
+    throw new Error("STRIPE_SECRET_KEY is not set")
+  }
+  return new Stripe(secretKey)
+}
+
+async function getAuthedSupabase() {
+  const cookieStore = await cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
+        },
+      },
+    },
+  )
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) {
+    throw new Error("Unauthorized")
+  }
+
+  return { supabase, user }
+}
+
+export async function getStripeOnboardingUrl() {
+  const { supabase, user } = await getAuthedSupabase()
+  const stripe = getStripeClient()
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("stripe_connect_account_id")
+    .eq("id", user.id)
+    .single<StripeProfileRow>()
+  if (profileError) {
+    throw new Error(profileError.message)
+  }
+
+  let accountId = profile?.stripe_connect_account_id?.trim() || ""
+  if (!accountId) {
+    const account = await stripe.accounts.create({
+      type: "express",
+      metadata: { user_id: user.id },
+    })
+    accountId = account.id
+
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({ stripe_connect_account_id: accountId })
+      .eq("id", user.id)
+    if (updateError) {
+      throw new Error(updateError.message)
+    }
+  }
+
+  const accountLink = await stripe.accountLinks.create({
+    account: accountId,
+    type: "account_onboarding",
+    return_url: `${baseUrl}/mypage?tab=payout`,
+    refresh_url: `${baseUrl}/mypage?tab=payout`,
+  })
+
+  console.log("[Stripe onboarding URL]", accountLink.url)
+  return accountLink.url
+}
+
+export async function checkAndFinalizeStripeStatus() {
+  const { supabase, user } = await getAuthedSupabase()
+  const stripe = getStripeClient()
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("stripe_connect_account_id")
+    .eq("id", user.id)
+    .single<StripeProfileRow>()
+  if (profileError) {
+    throw new Error(profileError.message)
+  }
+
+  const accountId = profile?.stripe_connect_account_id?.trim() || ""
+  if (!accountId) {
+    return { finalized: false }
+  }
+
+  const account = await stripe.accounts.retrieve(accountId)
+  if (!account.charges_enabled) {
+    return { finalized: false }
+  }
+
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({
+      is_stripe_registered: true,
+      stripe_connect_charges_enabled: true,
+    })
+    .eq("id", user.id)
+  if (updateError) {
+    throw new Error(updateError.message)
+  }
+
+  return { finalized: true }
+}

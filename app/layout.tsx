@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ConditionalFooter } from "@/components/layout/ConditionalFooter";
+import { MaintenanceGuard } from "@/components/MaintenanceGuard";
+import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -24,10 +27,25 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="ja"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <div className="flex min-h-full flex-col">
+            <MaintenanceGuard>
+              <div className="flex-1">{children}</div>
+            </MaintenanceGuard>
+            <ConditionalFooter />
+          </div>
+        </ThemeProvider>
+      </body>
     </html>
   );
 }
