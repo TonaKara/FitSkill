@@ -21,6 +21,7 @@ export function BottomNav() {
   const [isCreateChecking, setIsCreateChecking] = useState(false)
   const [isFavoritesChecking, setIsFavoritesChecking] = useState(false)
   const [isMessagesChecking, setIsMessagesChecking] = useState(false)
+  const [isProfileChecking, setIsProfileChecking] = useState(false)
   const leftItems = navItems.slice(0, 2)
   const createItem = navItems.find((item) => item.id === "create")
   const rightItems = navItems.slice(3)
@@ -100,6 +101,24 @@ export function BottomNav() {
     router.push("/mypage?tab=learning")
   }
 
+  const handleProfileClick = async () => {
+    if (isProfileChecking) {
+      return
+    }
+
+    setActiveItem("profile")
+    setIsProfileChecking(true)
+    const { data } = await supabase.auth.getUser()
+    setIsProfileChecking(false)
+
+    if (data.user) {
+      router.push("/mypage")
+      return
+    }
+
+    router.push("/login")
+  }
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden">
       <div className="mx-auto grid h-16 max-w-lg grid-cols-5 items-center px-4">
@@ -113,6 +132,11 @@ export function BottomNav() {
               onClick={() => {
                 if (item.id === "favorites") {
                   void handleFavoritesClick()
+                  return
+                }
+                if (item.id === "home") {
+                  setActiveItem(item.id)
+                  router.push("/")
                   return
                 }
                 setActiveItem(item.id)
@@ -162,9 +186,15 @@ export function BottomNav() {
                   void handleMessagesClick()
                   return
                 }
+                if (item.id === "profile") {
+                  void handleProfileClick()
+                  return
+                }
                 setActiveItem(item.id)
               }}
-              disabled={item.id === "messages" && isMessagesChecking}
+              disabled={
+                (item.id === "messages" && isMessagesChecking) || (item.id === "profile" && isProfileChecking)
+              }
               className="flex flex-col items-center gap-1 transition-colors"
             >
               <Icon
