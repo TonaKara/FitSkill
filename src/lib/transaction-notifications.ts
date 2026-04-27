@@ -124,15 +124,26 @@ function logRpcFailure(
   })
 }
 
+function logSupabaseError(label: string, err: { message: string; code?: string; details?: string; hint?: string }) {
+  console.error(label, {
+    message: err.message,
+    code: err.code ?? null,
+    details: err.details ?? null,
+    hint: err.hint ?? null,
+  })
+}
+
 /**
- * `create_notification` RPC を呼び出す（例の sendNotification 相当）。
- * 送信者は常に `supabase.auth.getUser()` のユーザー（＝p_sender_id と一致必須）。
+ * 取引・チャット向けの通常通知（非管理者発信）。
+ * `create_notification` RPC は旧スキーマ向けのため、RLS 可能な `notifications` 直接 INSERT を使う。
+ * 送信者は常に `supabase.auth.getUser()` のユーザーと一致する必要がある（`notifications_insert_as_sender`）。
  */
 export async function sendNotification(
   supabase: SupabaseClient,
   recipientId: string,
   type: string,
   content: string,
+  options?: { reason?: string | null },
 ): Promise<{ error: NotificationError | null }> {
   const {
     data: { user },
@@ -141,16 +152,23 @@ export async function sendNotification(
     console.error("通知作成失敗: 未ログイン")
     return { error: { message: "未ログインです" } }
   }
-  const { error } = await supabase.rpc("create_notification", {
-    p_recipient_id: recipientId,
-    p_sender_id: user.id,
-    p_type: type,
-    p_content: content,
+  if (recipientId === user.id) {
+    return { error: { message: "invalid_recipient" } }
+  }
+
+  const { error } = await supabase.from("notifications").insert({
+    recipient_id: recipientId,
+    sender_id: user.id,
+    type,
+    content,
+    is_read: false,
+    is_admin_origin: false,
+    title: null,
+    reason: options?.reason != null && String(options.reason).trim() ? String(options.reason).trim() : null,
   })
+
   if (error) {
-    console.error("通知作成失敗:", error)
-  } else {
-    console.log("通知を作成しました")
+    logSupabaseError("通知作成失敗", error)
   }
   return {
     error: error
@@ -173,14 +191,13 @@ export async function createTransactionNotification(
     recipient_id: string
     type: string
     content: string
+    /** 例: `transaction_id:` + UUID（通知タップでチャットへ遷移するのに使う） */
+    reason?: string | null
   },
 ): Promise<{ error: NotificationError | null }> {
-  return sendNotification(
-    supabase,
-    params.recipient_id,
-    params.type,
-    params.content,
-  )
+  return sendNotification(supabase, params.recipient_id, params.type, params.content, {
+    reason: params.reason,
+  })
 }
 
 export async function fetchGeneralNotifications(

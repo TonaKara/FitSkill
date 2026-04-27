@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useEffect, useMemo, useState } from "react"
 import { createPortal } from "react-dom"
+import type { Session } from "@supabase/supabase-js"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { getLogoutSuccessHref } from "@/components/logout-success-toast"
 
@@ -45,7 +46,7 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event: string, session: Session | null) => {
       setIsAuthenticated(Boolean(session?.user))
       setIsAuthLoading(false)
     })

@@ -35,7 +35,7 @@ export function SkillCardFavorite({ skillId }: SkillCardFavoriteProps) {
   useEffect(() => {
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
+    } = supabase.auth.onAuthStateChange((event: string) => {
       if (event === "INITIAL_SESSION") {
         return
       }
@@ -55,7 +55,7 @@ export function SkillCardFavorite({ skillId }: SkillCardFavoriteProps) {
           table: "favorites",
           filter: `skill_id=eq.${skillId}`,
         },
-        (payload) => {
+        (payload: { eventType: string }) => {
           if (payload.eventType === "INSERT") {
             setCount((n) => n + 1)
           }

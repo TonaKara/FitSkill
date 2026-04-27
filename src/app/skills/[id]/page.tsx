@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import Image from "next/image"
 import Link from "next/link"
@@ -16,6 +16,7 @@ import { resolveSkillThumbnailUrl } from "@/lib/skill-thumbnail"
 import { getIsAdminFromProfile } from "@/lib/admin"
 import { formatErrorMessageOnly } from "@/lib/notifications"
 import type { AppNotice } from "@/lib/notifications"
+import { createCheckoutSession, finalizeCheckoutSessionAfterSuccess } from "@/actions/checkout"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { countActiveTransactionsForSkill, createSkillPurchaseTransaction } from "@/lib/transactions"
 import { createGeneralNotification } from "@/lib/transaction-notifications"
@@ -26,7 +27,6 @@ import {
   type ConsultationAnswerRow,
   type ConsultationSettingsRow,
 } from "@/lib/consultation"
-import { isStripePaymentsConfigured } from "@/lib/stripe-config"
 import { cn } from "@/lib/utils"
 
 type ProfileEmbed = {
@@ -78,6 +78,7 @@ const CHECKABLE_TRANSACTION_STATUSES = [
   ...CHAT_TRANSITION_STATUSES,
   ...TERMINAL_REPURCHASE_STATUSES,
 ] as const
+const PRIORITIZED_TRANSACTION_STATUSES = ["awaiting_payment", ...CHAT_TRANSITION_STATUSES] as const
 
 function normalizeProfile(profiles: SkillDetailRow["profiles"]): ProfileEmbed | null {
   if (!profiles) {
@@ -141,36 +142,74 @@ export default function SkillDetailPage() {
     a3: "",
     free: "",
   })
+  const checkoutFinalizeStateRef = useRef<{
+    sessionId: string | null
+    attempts: number
+    stopped: boolean
+  }>({
+    sessionId: null,
+    attempts: 0,
+    stopped: false,
+  })
 
   useEffect(() => {
     setLegalPortalReady(true)
   }, [])
 
-  /** DB と一致させる: このスキル・自分に紐づく取引を最新1件 */
-  const fetchActiveTransaction = useCallback(async (): Promise<ActiveTransactionRow[] | undefined> => {
+  const fetchLatestRelevantTransaction = useCallback(async (): Promise<ActiveTransactionRow[] | undefined> => {
     if (!skillId || !userId) {
       return []
     }
-    const { data, error } = await supabase
+
+    const { data: prioritizedData, error: prioritizedError } = await supabase
       .from("transactions")
       .select("*")
       .eq("skill_id", skillId)
       .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
-      .in("status", [...CHECKABLE_TRANSACTION_STATUSES])
+      .in("status", [...PRIORITIZED_TRANSACTION_STATUSES])
       .order("created_at", { ascending: false })
       .limit(1)
-    if (error) {
-      console.error("[skills:fetchActiveTransaction] query error", {
+    if (prioritizedError) {
+      console.error("[skills:fetchLatestRelevantTransaction] prioritized query error", {
         skillId,
         userId,
-        statuses: CHECKABLE_TRANSACTION_STATUSES,
-        message: error.message,
+        statuses: PRIORITIZED_TRANSACTION_STATUSES,
+        message: prioritizedError.message,
       })
+      return undefined
+    }
+    const prioritizedRows = (prioritizedData ?? []) as ActiveTransactionRow[]
+    if (prioritizedRows.length > 0) {
+      return prioritizedRows
+    }
+
+    const { data: terminalData, error: terminalError } = await supabase
+      .from("transactions")
+      .select("*")
+      .eq("skill_id", skillId)
+      .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+      .in("status", [...TERMINAL_REPURCHASE_STATUSES])
+      .order("created_at", { ascending: false })
+      .limit(1)
+    if (terminalError) {
+      console.error("[skills:fetchLatestRelevantTransaction] terminal query error", {
+        skillId,
+        userId,
+        statuses: TERMINAL_REPURCHASE_STATUSES,
+        message: terminalError.message,
+      })
+      return undefined
+    }
+    return (terminalData ?? []) as ActiveTransactionRow[]
+  }, [skillId, supabase, userId])
+
+  /** DB と一致させる: このスキル・自分に紐づく取引を最新1件 */
+  const fetchActiveTransaction = useCallback(async (): Promise<ActiveTransactionRow[] | undefined> => {
+    const rows = await fetchLatestRelevantTransaction()
+    if (rows === undefined) {
       // 一時的な取得失敗時は既存 state を維持し、ボタンの誤切り替えを防ぐ
       return undefined
     }
-
-    const rows = (data ?? []) as ActiveTransactionRow[]
     const firstStatus = rows.length > 0 ? rows[0]?.status : null
     console.log("[skills:fetchActiveTransaction] rows", {
       skillId,
@@ -181,66 +220,135 @@ export default function SkillDetailPage() {
       rows,
     })
     return rows
-  }, [supabase, skillId, userId])
+  }, [fetchLatestRelevantTransaction, skillId, userId])
 
   const startStripePaymentForTransaction = useCallback(
-    async (transactionId: string): Promise<boolean> => {
+    async (targetSkillId: string): Promise<boolean> => {
+      console.log("[skills:startStripePaymentForTransaction] start", { skillId: targetSkillId })
       setPurchaseProgressLabel("決済を準備中...")
-      const { data, error } = await supabase.functions.invoke("create-payment-intent", {
-        body: { transactionId },
-      })
-      if (error) {
+      try {
+        const result = await createCheckoutSession(targetSkillId)
+        if (!result.ok) {
+          setPurchaseError(
+            formatErrorMessageOnly({ message: result.error }, isAdmin, {
+              unknownErrorMessage: "決済の準備に失敗しました。",
+            }),
+          )
+          console.error("[skills:startStripePaymentForTransaction] createCheckoutSession failed", {
+            skillId: targetSkillId,
+            error: result.error,
+          })
+          return false
+        }
+        const { url } = result
+        console.log("[skills:startStripePaymentForTransaction] createCheckoutSession result", {
+          skillId: targetSkillId,
+          hasUrl: Boolean(url),
+          url,
+        })
+        if (!url) {
+          setPurchaseError("決済ページを作成できませんでした。")
+          return false
+        }
+        window.location.href = url
+        return true
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "決済の準備に失敗しました。"
         setPurchaseError(
-          formatErrorMessageOnly({ message: error.message }, isAdmin, {
+          formatErrorMessageOnly({ message: msg }, isAdmin, {
             unknownErrorMessage: "決済の準備に失敗しました。",
           }),
         )
+        console.error("[skills:startStripePaymentForTransaction] createCheckoutSession error", {
+          skillId: targetSkillId,
+          message: msg,
+        })
         return false
       }
-      const payload = data as { clientSecret?: string; publishableKey?: string; error?: string }
-      if (payload?.error) {
-        setPurchaseError(
-          formatErrorMessageOnly({ message: String(payload.error) }, isAdmin, {
-            unknownErrorMessage: "決済の準備に失敗しました。",
-          }),
-        )
-        return false
-      }
-      if (!payload?.clientSecret) {
-        setPurchaseError("決済情報を取得できませんでした。")
-        return false
-      }
-      const pk =
-        (typeof payload.publishableKey === "string" && payload.publishableKey.trim()) ||
-        process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim() ||
-        ""
-      if (!pk) {
-        setPurchaseError("公開鍵が未設定のため決済できません。")
-        return false
-      }
-      setStripeClientSecret(payload.clientSecret)
-      setStripePublishableKey(pk)
-      setStripePaymentOpen(true)
-      return true
     },
-    [supabase, isAdmin],
+    [isAdmin],
   )
 
   const paymentRedirectStatus = searchParams.get("redirect_status")
   const paymentIntentParam = searchParams.get("payment_intent")
+  const checkoutStatus = searchParams.get("checkout")
+  const checkoutSessionId = searchParams.get("session_id")
+  const checkoutAutoRedirectStorageKey = checkoutSessionId
+    ? `skills_checkout_redirect_handled:${checkoutSessionId}`
+    : null
+  const checkoutReturnKey = [
+    paymentRedirectStatus ?? "",
+    paymentIntentParam ?? "",
+    checkoutStatus ?? "",
+    checkoutSessionId ?? "",
+  ].join("|")
 
   useEffect(() => {
     if (!skillId || !userId || loading) {
       return
     }
-    if (paymentRedirectStatus !== "succeeded" || !paymentIntentParam) {
+    const paidByPaymentIntent = paymentRedirectStatus === "succeeded" && Boolean(paymentIntentParam)
+    const paidByCheckout = checkoutStatus === "success"
+    if (!paidByPaymentIntent && !paidByCheckout) {
       return
+    }
+    if (checkoutAutoRedirectStorageKey && typeof window !== "undefined") {
+      const alreadyHandled = window.sessionStorage.getItem(checkoutAutoRedirectStorageKey) === "1"
+      if (alreadyHandled) {
+        router.replace(`/skills/${skillId}`)
+        return
+      }
     }
     let cancelled = false
     void (async () => {
-      for (let i = 0; i < 25; i += 1) {
+      if (!paidByCheckout || !checkoutSessionId) {
+        checkoutFinalizeStateRef.current = { sessionId: null, attempts: 0, stopped: false }
+      } else if (checkoutFinalizeStateRef.current.sessionId !== checkoutSessionId) {
+        checkoutFinalizeStateRef.current = { sessionId: checkoutSessionId, attempts: 0, stopped: false }
+      }
+
+      for (let i = 0; i < 40; i += 1) {
         if (cancelled) {
           return
+        }
+        if (paidByCheckout && checkoutSessionId) {
+          const finalizeState = checkoutFinalizeStateRef.current
+          if (
+            !finalizeState.stopped &&
+            finalizeState.sessionId === checkoutSessionId &&
+            finalizeState.attempts < 5
+          ) {
+            finalizeState.attempts += 1
+            const finalized = await finalizeCheckoutSessionAfterSuccess(checkoutSessionId)
+            if (cancelled) {
+              return
+            }
+            if (finalized.ok) {
+              finalizeState.stopped = true
+              if (CHAT_TRANSITION_STATUSES.includes(finalized.status as (typeof CHAT_TRANSITION_STATUSES)[number])) {
+                if (checkoutAutoRedirectStorageKey && typeof window !== "undefined") {
+                  window.sessionStorage.setItem(checkoutAutoRedirectStorageKey, "1")
+                }
+                router.replace(`/skills/${skillId}`)
+                router.push(`/chat/${finalized.transactionId}`)
+                return
+              }
+            } else {
+              const isMissingColumn = finalized.error.includes("stripe_payment_intent_id")
+              if (isMissingColumn || finalizeState.attempts >= 5) {
+                finalizeState.stopped = true
+                if (isMissingColumn) {
+                  setPurchaseError("決済情報の反映に失敗しました。時間をおいて再度お試しください。")
+                }
+              }
+              console.warn("[skills:checkout-finalize] pending", {
+                checkoutSessionId,
+                message: finalized.error,
+                attempt: finalizeState.attempts,
+                stopped: finalizeState.stopped,
+              })
+            }
+          }
         }
         const rows = await fetchActiveTransaction()
         const latest = rows?.[0]
@@ -251,11 +359,14 @@ export default function SkillDetailPage() {
           CHAT_TRANSITION_STATUSES.includes(st as (typeof CHAT_TRANSITION_STATUSES)[number])
         ) {
           const tid = String(latest.id)
+          if (checkoutAutoRedirectStorageKey && typeof window !== "undefined") {
+            window.sessionStorage.setItem(checkoutAutoRedirectStorageKey, "1")
+          }
           router.replace(`/skills/${skillId}`)
           router.push(`/chat/${tid}`)
           return
         }
-        await new Promise((r) => setTimeout(r, 350))
+        await new Promise((r) => setTimeout(r, 300))
       }
       if (!cancelled) {
         setPurchaseError("決済後の取引反映に時間がかかっています。マイページからチャットを開いてください。")
@@ -269,8 +380,8 @@ export default function SkillDetailPage() {
     skillId,
     userId,
     loading,
-    paymentRedirectStatus,
-    paymentIntentParam,
+    checkoutReturnKey,
+    checkoutAutoRedirectStorageKey,
     router,
     fetchActiveTransaction,
   ])
@@ -530,8 +641,7 @@ export default function SkillDetailPage() {
     Boolean(
       userId &&
         latestTransaction?.buyer_id === userId &&
-        latestTransactionStatus === "awaiting_payment" &&
-        isStripePaymentsConfigured(),
+        latestTransactionStatus === "awaiting_payment",
     )
   const consultationEnabled = consultationSettings?.is_enabled === true
   const consultationAccepted = consultationAnswer?.status === "accepted"
@@ -582,18 +692,11 @@ export default function SkillDetailPage() {
     setPurchaseProgressLabel("取引を作成中...")
     try {
       // insert 前の最終確認（ボタン表示の遅延と DB のずれ対策）
-      const { data: latestActive, error: latestActiveError } = await supabase
-        .from("transactions")
-        .select("*")
-        .eq("skill_id", skill.id)
-        .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
-        .in("status", [...CHECKABLE_TRANSACTION_STATUSES])
-        .order("created_at", { ascending: false })
-        .limit(1)
+      const latestActive = await fetchLatestRelevantTransaction()
 
-      if (latestActiveError) {
+      if (latestActive === undefined) {
         setPurchaseError(
-          formatErrorMessageOnly({ message: latestActiveError.message }, isAdmin, {
+          formatErrorMessageOnly({ message: "取引の確認に失敗しました。" }, isAdmin, {
             unknownErrorMessage: "取引の確認に失敗しました。",
           }),
         )
@@ -620,15 +723,26 @@ export default function SkillDetailPage() {
         latestActiveRow &&
         latestActiveRow.id &&
         latestStatus === "awaiting_payment" &&
-        latestActiveRow.buyer_id === userId &&
-        isStripePaymentsConfigured()
+        latestActiveRow.buyer_id === userId
       ) {
         setTransactionRows([latestActiveRow])
         setTransactionStatus(latestStatus)
-        const ok = await startStripePaymentForTransaction(String(latestActiveRow.id))
-        if (ok) {
-          setPurchaseConfirmOpen(false)
+        const ok = await startStripePaymentForTransaction(String(skill.id))
+        if (!ok) {
+          setPurchaseError("決済の開始に失敗しました。もう一度お試しください。")
+          return
         }
+        setPurchaseConfirmOpen(false)
+        return
+      }
+
+      if (Number(skill.price) > 0) {
+        const ok = await startStripePaymentForTransaction(String(skill.id))
+        if (!ok) {
+          setPurchaseError("決済の開始に失敗しました。もう一度お試しください。")
+          return
+        }
+        setPurchaseConfirmOpen(false)
         return
       }
 
@@ -654,11 +768,17 @@ export default function SkillDetailPage() {
         return
       }
 
-      if (requiresPayment && transactionId && isStripePaymentsConfigured()) {
-        const ok = await startStripePaymentForTransaction(transactionId)
-        if (ok) {
-          setPurchaseConfirmOpen(false)
+      if (requiresPayment && transactionId) {
+        const ok = await startStripePaymentForTransaction(String(skill.id))
+        if (!ok) {
+          setPurchaseError("決済の開始に失敗しました。もう一度お試しください。")
+          return
         }
+        setPurchaseConfirmOpen(false)
+        return
+      } else if (transactionId) {
+        setPurchaseProgressLabel("チャットへ移動中...")
+        router.push(`/chat/${transactionId}`)
         return
       }
 
@@ -869,7 +989,7 @@ export default function SkillDetailPage() {
           </Link>
         </Button>
 
-        <div className="overflow-hidden rounded-2xl border border-red-500/30 bg-zinc-950 shadow-[0_0_60px_rgba(225,29,72,0.15)]">
+        <div className="overflow-hidden rounded-2xl border border-red-500/30 bg-zinc-950 shadow-[0_0_60px_rgba(198,40,40,0.15)]">
           <div className="relative aspect-[16/10] w-full bg-zinc-900">
             <Image
               src={thumbSrc}

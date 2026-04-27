@@ -158,6 +158,7 @@ export async function createSkillPurchaseTransaction(
       recipient_id: params.sellerId,
       type: NOTIFICATION_TYPE.purchase,
       content: "あなたのスキルに新しい購入がありました。チャットを確認してください。",
+      reason: `transaction_id:${txIdStr}`,
     })
     if (nErr) {
       console.error("[createSkillPurchaseTransaction] createTransactionNotification failed", nErr)

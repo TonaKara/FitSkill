@@ -143,7 +143,7 @@ export default function ProfileSetupPage() {
         </div>
 
         <form onSubmit={(e) => void handleSubmit(e)} className="space-y-8">
-          <div className="rounded-2xl border border-red-500/25 bg-zinc-950/80 p-6 shadow-[0_0_40px_rgba(225,29,72,0.12)]">
+          <div className="rounded-2xl border border-red-500/25 bg-zinc-950/80 p-6 shadow-[0_0_40px_rgba(198,40,40,0.12)]">
             <label htmlFor="bio" className="text-sm font-bold text-zinc-200">
               自己紹介
             </label>
@@ -157,7 +157,7 @@ export default function ProfileSetupPage() {
             />
           </div>
 
-          <div className="rounded-2xl border border-red-500/25 bg-zinc-950/80 p-6 shadow-[0_0_40px_rgba(225,29,72,0.12)]">
+          <div className="rounded-2xl border border-red-500/25 bg-zinc-950/80 p-6 shadow-[0_0_40px_rgba(198,40,40,0.12)]">
             <label htmlFor="fitness_history" className="text-sm font-bold text-zinc-200">
               フィットネス歴
             </label>
@@ -171,7 +171,7 @@ export default function ProfileSetupPage() {
             />
           </div>
 
-          <div className="rounded-2xl border border-red-500/25 bg-zinc-950/80 p-6 shadow-[0_0_40px_rgba(225,29,72,0.12)]">
+          <div className="rounded-2xl border border-red-500/25 bg-zinc-950/80 p-6 shadow-[0_0_40px_rgba(198,40,40,0.12)]">
             <p className="text-sm font-bold text-zinc-200">興味のある分野</p>
             <p className="mt-1 text-xs text-zinc-500">複数選択できます</p>
             <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">

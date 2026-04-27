@@ -188,7 +188,7 @@ export default function PublicProfilePage() {
         </Button>
 
         {/* ヘッダー */}
-        <header className="overflow-hidden rounded-2xl border border-red-500/30 bg-zinc-950 p-8 shadow-[0_0_60px_rgba(225,29,72,0.15)] md:flex md:items-center md:gap-8 md:p-10">
+        <header className="overflow-hidden rounded-2xl border border-red-500/30 bg-zinc-950 p-8 shadow-[0_0_60px_rgba(198,40,40,0.15)] md:flex md:items-center md:gap-8 md:p-10">
           <div className="relative mx-auto h-28 w-28 shrink-0 overflow-hidden rounded-full ring-2 ring-red-500/40 md:mx-0 md:h-32 md:w-32">
             <Image src={avatarSrc} alt="" fill className="object-cover" unoptimized sizes="128px" />
           </div>

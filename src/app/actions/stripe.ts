@@ -16,6 +16,21 @@ function getStripeClient() {
   return new Stripe(secretKey)
 }
 
+async function disableAutomaticPayouts(
+  stripe: Stripe,
+  accountId: string,
+): Promise<void> {
+  await stripe.accounts.update(accountId, {
+    settings: {
+      payouts: {
+        schedule: {
+          interval: "manual",
+        },
+      },
+    },
+  })
+}
+
 async function getAuthedSupabase() {
   const cookieStore = await cookies()
   const supabase = createServerClient(
@@ -65,6 +80,8 @@ export async function getStripeOnboardingUrl() {
     })
     accountId = account.id
 
+    await disableAutomaticPayouts(stripe, accountId)
+
     const { error: updateError } = await supabase
       .from("profiles")
       .update({ stripe_connect_account_id: accountId })
@@ -74,11 +91,15 @@ export async function getStripeOnboardingUrl() {
     }
   }
 
+  // オンボーディングに進む時点で、自動振込を常に無効化しておく。
+  // 既存口座にも毎回適用することで、設定ドリフトを防ぐ。
+  await disableAutomaticPayouts(stripe, accountId)
+
   const accountLink = await stripe.accountLinks.create({
     account: accountId,
     type: "account_onboarding",
-    return_url: `${baseUrl}/mypage?tab=payout`,
-    refresh_url: `${baseUrl}/mypage?tab=payout`,
+    return_url: `${baseUrl}/mypage?tab=payout&stripe=return`,
+    refresh_url: `${baseUrl}/mypage?tab=payout&stripe=return`,
   })
 
   console.log("[Stripe onboarding URL]", accountLink.url)
@@ -107,6 +128,7 @@ export async function checkAndFinalizeStripeStatus() {
   if (!account.charges_enabled) {
     return { finalized: false }
   }
+  await disableAutomaticPayouts(stripe, accountId)
 
   const { error: updateError } = await supabase
     .from("profiles")

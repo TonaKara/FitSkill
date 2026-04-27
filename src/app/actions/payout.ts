@@ -3,8 +3,6 @@
 import { createServerClient } from "@supabase/ssr"
 import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
-import Stripe from "stripe"
-import { computeSellerFeePreview } from "@/lib/seller-fee-preview"
 
 type AdminProfileRow = {
   is_admin: boolean | null
@@ -12,25 +10,11 @@ type AdminProfileRow = {
 
 type TransactionRow = {
   id: string
-  seller_id: string
   buyer_id: string
-  price: number
   status: string
 }
 
-type SellerStripeRow = {
-  stripe_connect_account_id: string | null
-}
-
 export type CompleteTransactionWithPayoutMode = "standard" | "dispute_rejection"
-
-function getStripeClient() {
-  const secretKey = process.env.STRIPE_SECRET_KEY
-  if (!secretKey) {
-    throw new Error("STRIPE_SECRET_KEY is not set")
-  }
-  return new Stripe(secretKey)
-}
 
 function getSupabaseAdminClient() {
   const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -67,46 +51,6 @@ async function getAuthedSupabase() {
   return { supabase, user }
 }
 
-async function notifyAllAdminsPayoutFailure(
-  supabaseAdmin: ReturnType<typeof getSupabaseAdminClient>,
-  transactionId: string,
-  content: string,
-) {
-  const { data: admins, error: adminListError } = await supabaseAdmin
-    .from("profiles")
-    .select("id")
-    .eq("is_admin", true)
-
-  if (adminListError) {
-    console.error("[payout] failed to list admins for failure notification", adminListError)
-    return
-  }
-
-  const adminIds = (admins ?? [])
-    .map((r) => (r as { id?: string }).id)
-    .filter((id): id is string => typeof id === "string" && id.length > 0)
-
-  for (const recipientId of adminIds) {
-    const { error } = await supabaseAdmin.from("notifications").insert({
-      recipient_id: recipientId,
-      sender_id: null,
-      type: "admin_payout_failed",
-      title: "送金に失敗しました",
-      reason: `transaction_id:${transactionId}`,
-      content,
-      is_admin_origin: true,
-      is_read: false,
-    })
-    if (error) {
-      console.error("[payout] failed to notify admin", { recipientId, error })
-    }
-  }
-}
-
-/**
- * 送金（Stripe Transfers）成功後にのみ取引を `completed` に更新する。
- * 異議棄却（取引完了）は `dispute_rejection` を指定する。
- */
 export async function completeTransactionWithPayout(
   transactionId: string,
   mode: CompleteTransactionWithPayoutMode = "standard",
@@ -122,16 +66,19 @@ export async function completeTransactionWithPayout(
     .eq("id", user.id)
     .maybeSingle<AdminProfileRow>()
 
-  if (adminError || !adminProfile?.is_admin) {
+  if (adminError) {
+    throw new Error(adminError.message)
+  }
+  const isAdmin = adminProfile?.is_admin === true
+  if (mode === "dispute_rejection" && !isAdmin) {
     throw new Error("Admin permission required")
   }
 
   const supabaseAdmin = getSupabaseAdminClient()
-  const stripe = getStripeClient()
 
   const { data: tx, error: txError } = await supabaseAdmin
     .from("transactions")
-    .select("id, seller_id, buyer_id, price, status")
+    .select("id, buyer_id, status")
     .eq("id", transactionId)
     .maybeSingle<TransactionRow>()
 
@@ -143,6 +90,12 @@ export async function completeTransactionWithPayout(
     return { success: true as const, transactionId: tx.id, alreadyCompleted: true as const }
   }
 
+  if (mode === "standard" && tx.buyer_id !== user.id) {
+    throw new Error("この取引を完了できるのは購入者のみです。")
+  }
+  if (mode === "standard" && tx.status !== "approval_pending") {
+    throw new Error("取引は完了承認待ち状態ではありません。")
+  }
   if (mode === "standard" && tx.status === "disputed") {
     throw new Error("異議申立て中の取引は管理画面の「棄却（取引完了）」から完了してください。")
   }
@@ -150,63 +103,7 @@ export async function completeTransactionWithPayout(
     throw new Error("この取引は異議申立て中ではありません。")
   }
 
-  const { data: sellerProfile, error: sellerError } = await supabaseAdmin
-    .from("profiles")
-    .select("stripe_connect_account_id")
-    .eq("id", tx.seller_id)
-    .maybeSingle<SellerStripeRow>()
-
-  if (sellerError || !sellerProfile?.stripe_connect_account_id) {
-    throw new Error(sellerError?.message ?? "Seller Stripe account is not configured")
-  }
-
-  const connectId = sellerProfile.stripe_connect_account_id.trim()
-  if (!connectId) {
-    throw new Error("Seller Stripe account is not configured")
-  }
-
-  const gross = Math.max(0, Math.round(Number(tx.price)))
-  if (gross < 1) {
-    throw new Error("Invalid transaction price")
-  }
-
-  const feePreview = computeSellerFeePreview(gross)
-  if (!feePreview || feePreview.receiveYen < 1) {
-    throw new Error("Payout amount is too small")
-  }
-
-  const payoutAmount = feePreview.receiveYen
-  const feeYen = feePreview.feeYen
-
   const nowIso = new Date().toISOString()
-
-  let transferId: string
-  try {
-    const transfer = await stripe.transfers.create(
-      {
-        amount: payoutAmount,
-        currency: "jpy",
-        destination: connectId,
-        metadata: {
-          transaction_id: tx.id,
-          buyer_id: tx.buyer_id,
-          seller_id: tx.seller_id,
-          gross_amount: String(gross),
-          fee_amount: String(feeYen),
-        },
-      },
-      { idempotencyKey: `payout-transfer-${tx.id}` },
-    )
-    transferId = transfer.id
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    await notifyAllAdminsPayoutFailure(
-      supabaseAdmin,
-      tx.id,
-      `取引送金（Stripe）に失敗しました: ${message}`,
-    )
-    throw new Error(`Payout failed: ${message}`)
-  }
 
   if (mode === "dispute_rejection") {
     const { data: updated, error: updateError } = await supabaseAdmin
@@ -222,47 +119,65 @@ export async function completeTransactionWithPayout(
       .select("id")
 
     if (updateError) {
-      await notifyAllAdminsPayoutFailure(
-        supabaseAdmin,
-        tx.id,
-        `送金は成功しました（transfer: ${transferId}）が、取引のDB更新に失敗しました: ${updateError.message}`,
-      )
-      throw new Error(`Database update failed after transfer: ${updateError.message}`)
+      throw new Error(updateError.message)
     }
     if (!updated?.length) {
-      await notifyAllAdminsPayoutFailure(
-        supabaseAdmin,
-        tx.id,
-        `送金は成功しました（transfer: ${transferId}）が、取引ステータスが異議中ではないためDBを更新できませんでした。手作業で整合性を確認してください。`,
-      )
-      throw new Error("Transaction was not in disputed status; payout may require manual review.")
+      throw new Error("Transaction was not in disputed status.")
     }
   } else {
-    const { error: updateError } = await supabaseAdmin
+    const { data: updated, error: updateError } = await supabaseAdmin
       .from("transactions")
       .update({
         status: "completed",
         completed_at: nowIso,
+        auto_complete_at: null,
       })
       .eq("id", tx.id)
-      .neq("status", "completed")
+      .eq("status", "approval_pending")
+      .select("id")
 
     if (updateError) {
-      await notifyAllAdminsPayoutFailure(
-        supabaseAdmin,
-        tx.id,
-        `送金は成功しました（transfer: ${transferId}）が、取引のDB更新に失敗しました: ${updateError.message}`,
-      )
-      throw new Error(`Database update failed after transfer: ${updateError.message}`)
+      throw new Error(updateError.message)
+    }
+    if (!updated?.length) {
+      throw new Error("Transaction was not in approval_pending status.")
     }
   }
 
   return {
     success: true as const,
     transactionId: tx.id,
-    transferId,
-    grossAmount: gross,
-    feeAmount: feeYen,
-    payoutAmount,
   }
+}
+
+export async function autoCompleteMyPendingTransactionsWithPayout() {
+  const { user } = await getAuthedSupabase()
+  const supabaseAdmin = getSupabaseAdminClient()
+  const cutoffIso = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+
+  const { data: targets, error } = await supabaseAdmin
+    .from("transactions")
+    .select("id")
+    .eq("buyer_id", user.id)
+    .eq("status", "approval_pending")
+    .not("applied_at", "is", null)
+    .lt("applied_at", cutoffIso)
+    .order("applied_at", { ascending: true })
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  const rows = (targets ?? []) as Array<{ id?: string | null }>
+  let completedCount = 0
+  for (const row of rows) {
+    const txId = row.id?.trim()
+    if (!txId) {
+      continue
+    }
+    await completeTransactionWithPayout(txId, "standard")
+    completedCount += 1
+  }
+
+  return { completedCount }
 }

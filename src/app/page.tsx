@@ -25,10 +25,11 @@ export default function HomePage() {
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient()
-    supabase.storage.listBuckets().then(({ data, error }) => {
+    void (async () => {
+      const { data, error } = await supabase.storage.listBuckets()
       console.log("実際に認識されているバケット一覧:", data)
       console.log("エラーがあれば表示:", error)
-    })
+    })()
   }, [])
 
   /** 詳細→一覧（またはブラウザ戻る）で戻ったとき、一覧上の直前のスクロール位置に復元 */

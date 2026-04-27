@@ -2,6 +2,17 @@ import type { NotificationRow } from "@/lib/transaction-notifications"
 
 export const NOTIFICATION_TYPE_ANNOUNCEMENT = "announcement" as const
 
+/** `reason` 欄の `transaction_id:<uuid>` から取引ID（チャット遷移用） */
+export function parseTransactionIdFromNotificationReason(reason: string | null | undefined): string | null {
+  const t = (reason ?? "").trim()
+  if (!t) {
+    return null
+  }
+  const m = /^transaction_id:([0-9a-fA-F-]+)$/.exec(t)
+  const id = m?.[1]?.trim() ?? ""
+  return id.length > 0 ? id : null
+}
+
 const TYPE_SUBJECT: Record<string, string> = {
   purchase: "取引の開始",
   message: "新着メッセージ",

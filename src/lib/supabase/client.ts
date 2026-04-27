@@ -1,8 +1,15 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js"
+import { createBrowserClient } from "@supabase/ssr"
+import type { SupabaseClient } from "@supabase/supabase-js"
 
 let browserClient: SupabaseClient | null = null
 
-export function getSupabaseBrowserClient() {
+/**
+ * ブラウザ用 Supabase クライアント。
+ * `@supabase/ssr` の `createBrowserClient` により、セッションが Cookie にも保持され、
+ * Server Actions / Route Handler の `createServerClient` と同じセッションを共有できる。
+ * （`@supabase/supabase-js` の `createClient` だけだと主に localStorage になり、サーバー側は未ログインになる）
+ */
+export function getSupabaseBrowserClient(): SupabaseClient {
   if (browserClient) {
     return browserClient
   }
@@ -14,7 +21,8 @@ export function getSupabaseBrowserClient() {
     throw new Error("Supabase環境変数が不足しています")
   }
 
-  browserClient = createClient(supabaseUrl, supabaseAnonKey)
-
+  browserClient = createBrowserClient(supabaseUrl, supabaseAnonKey, {
+    isSingleton: true,
+  })
   return browserClient
 }

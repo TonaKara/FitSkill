@@ -148,7 +148,7 @@ export function ThumbnailCropModal({
       aria-modal="true"
       aria-labelledby="thumbnail-crop-title"
     >
-      <div className="thumbnail-crop-modal relative flex max-h-[92vh] w-[min(78vw,1320px)] min-w-0 flex-col overflow-hidden rounded-2xl border border-red-500/40 bg-zinc-950 shadow-[0_0_80px_rgba(225,29,72,0.25)]">
+      <div className="thumbnail-crop-modal relative flex max-h-[92vh] w-[min(78vw,1320px)] min-w-0 flex-col overflow-hidden rounded-2xl border border-red-500/40 bg-zinc-950 shadow-[0_0_80px_rgba(198,40,40,0.25)]">
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-800 px-4 py-3 md:px-6">
           <div>
             <h2 id="thumbnail-crop-title" className="text-base font-bold text-white md:text-lg">

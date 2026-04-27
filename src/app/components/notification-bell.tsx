@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import type { Session, User } from "@supabase/supabase-js"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { countUnreadNotifications } from "@/lib/transaction-notifications"
 import { GeneralNotificationsList } from "@/components/GeneralNotificationsList"
@@ -23,10 +24,10 @@ export function NotificationBell() {
   useEffect(() => {
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event: string, session: Session | null) => {
       setUserId(session?.user?.id ?? null)
     })
-    void supabase.auth.getUser().then(({ data }) => {
+    void supabase.auth.getUser().then(({ data }: { data: { user: User | null } }) => {
       setUserId(data.user?.id ?? null)
     })
     return () => subscription.unsubscribe()

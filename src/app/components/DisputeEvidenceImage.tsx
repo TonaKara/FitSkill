@@ -78,7 +78,9 @@ export function DisputeEvidenceImage({
     void supabase.storage
       .from(DISPUTE_EVIDENCE_BUCKET)
       .createSignedUrl(raw, SIGNED_URL_TTL_SEC)
-      .then(({ data, error: signError }) => {
+      .then(
+        (result: { data: { signedUrl: string } | null; error: { message: string } | null }) => {
+        const { data, error: signError } = result
         if (cancelled) {
           return
         }

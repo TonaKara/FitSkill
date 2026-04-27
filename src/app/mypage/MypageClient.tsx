@@ -164,6 +164,15 @@ type SentConsultationRequestItem = {
   rejectionReason: string
 }
 
+type ConnectBalanceResponse = {
+  registered: boolean
+  total: number
+  pending: number
+  available: number
+  currency: string
+  error?: string
+}
+
 function parseSkillIdFromNotificationReason(reason: string | null): number | null {
   const value = reason?.trim()
   if (!value) {
@@ -231,6 +240,7 @@ export default function MypageClient() {
 
   const sectionParam = searchParams.get("tab")
   const section: MypageSection = isMypageSection(sectionParam) ? sectionParam : "profile"
+  const stripeReturnParam = searchParams.get("stripe")
 
   const [profileLoading, setProfileLoading] = useState(true)
   const [profileSaving, setProfileSaving] = useState(false)
@@ -282,6 +292,9 @@ export default function MypageClient() {
   const [isStripeRegistered, setIsStripeRegistered] = useState(false)
   const [stripeConnectAccountId, setStripeConnectAccountId] = useState("")
   const [payoutLinkBusy, setPayoutLinkBusy] = useState(false)
+  const [connectBalanceLoading, setConnectBalanceLoading] = useState(false)
+  const [connectBalanceError, setConnectBalanceError] = useState<string | null>(null)
+  const [connectBalance, setConnectBalance] = useState<ConnectBalanceResponse | null>(null)
   const filteredReviewComments =
     selectedReviewStars == null
       ? reviewComments
@@ -388,6 +401,45 @@ export default function MypageClient() {
     }
 
     let cancelled = false
+    const loadConnectBalance = async () => {
+      setConnectBalanceLoading(true)
+      setConnectBalanceError(null)
+      try {
+        const response = await fetch("/api/stripe/connect-balance", { method: "GET" })
+        const payload = (await response.json()) as ConnectBalanceResponse
+        if (cancelled) {
+          return
+        }
+        if (!response.ok) {
+          setConnectBalance(null)
+          setConnectBalanceError(payload.error ?? "残高の取得に失敗しました。")
+          return
+        }
+        setConnectBalance(payload)
+      } catch {
+        if (!cancelled) {
+          setConnectBalance(null)
+          setConnectBalanceError("残高の取得に失敗しました。")
+        }
+      } finally {
+        if (!cancelled) {
+          setConnectBalanceLoading(false)
+        }
+      }
+    }
+
+    void loadConnectBalance()
+    return () => {
+      cancelled = true
+    }
+  }, [userId, section, isStripeRegistered, stripeConnectAccountId])
+
+  useEffect(() => {
+    if (!userId || section !== "payout" || stripeReturnParam !== "return") {
+      return
+    }
+
+    let cancelled = false
     const finalizeStripeStatus = async () => {
       try {
         const result = await checkAndFinalizeStripeStatus()
@@ -395,7 +447,7 @@ export default function MypageClient() {
           return
         }
         setNotice({ variant: "success", message: "Stripe連携が完了しました。" })
-        router.replace("/mypage")
+        router.replace("/mypage?tab=payout")
       } catch {
         if (!cancelled) {
           setNotice({
@@ -410,7 +462,7 @@ export default function MypageClient() {
     return () => {
       cancelled = true
     }
-  }, [userId, section, router])
+  }, [userId, section, stripeReturnParam, router])
 
   const handleStripeLinkOpen = useCallback(async () => {
     setPayoutLinkBusy(true)
@@ -906,7 +958,7 @@ export default function MypageClient() {
 
         type ProfileLite = { id: string; display_name: string | null; avatar_url: string | null }
         const profileById = new Map<string, ProfileLite>(
-          (profileRows ?? []).map((p) => [p.id, p as ProfileLite]),
+          (profileRows ?? []).map((p: ProfileLite) => [p.id, p]),
         )
 
         const items: MypageTransactionItem[] = []
@@ -996,7 +1048,7 @@ export default function MypageClient() {
 
         type ProfileLite = { id: string; display_name: string | null; avatar_url: string | null }
         const profileById = new Map<string, ProfileLite>(
-          (profileRows ?? []).map((p) => [p.id, p as ProfileLite]),
+          (profileRows ?? []).map((p: ProfileLite) => [p.id, p]),
         )
 
         const items: MypageHistoryTransactionItem[] = []
@@ -1286,7 +1338,7 @@ export default function MypageClient() {
               <p className="mt-1 text-sm text-zinc-400">表示名・自己紹介・興味のある分野を管理します。</p>
 
               <form onSubmit={(e) => void handleProfileSubmit(e)} className="mt-8 space-y-8">
-                <div className="rounded-2xl border border-red-500/25 bg-zinc-900/80 p-6 shadow-[0_0_40px_rgba(225,29,72,0.12)]">
+                <div className="rounded-2xl border border-red-500/25 bg-zinc-900/80 p-6 shadow-[0_0_40px_rgba(198,40,40,0.12)]">
                   <label htmlFor="mypage-display-name" className="text-sm font-bold text-zinc-200">
                     表示名
                   </label>
@@ -1308,7 +1360,7 @@ export default function MypageClient() {
                   </p>
                 </div>
 
-                <div className="rounded-2xl border border-red-500/25 bg-zinc-900/80 p-6 shadow-[0_0_40px_rgba(225,29,72,0.12)]">
+                <div className="rounded-2xl border border-red-500/25 bg-zinc-900/80 p-6 shadow-[0_0_40px_rgba(198,40,40,0.12)]">
                   <label htmlFor="mypage-bio" className="text-sm font-bold text-zinc-200">
                     自己紹介
                   </label>
@@ -1322,7 +1374,7 @@ export default function MypageClient() {
                   />
                 </div>
 
-                <div className="rounded-2xl border border-red-500/25 bg-zinc-900/80 p-6 shadow-[0_0_40px_rgba(225,29,72,0.12)]">
+                <div className="rounded-2xl border border-red-500/25 bg-zinc-900/80 p-6 shadow-[0_0_40px_rgba(198,40,40,0.12)]">
                   <label htmlFor="mypage-fitness_history" className="text-sm font-bold text-zinc-200">
                     フィットネス歴
                   </label>
@@ -1336,7 +1388,7 @@ export default function MypageClient() {
                   />
                 </div>
 
-                <div className="rounded-2xl border border-red-500/25 bg-zinc-900/80 p-6 shadow-[0_0_40px_rgba(225,29,72,0.12)]">
+                <div className="rounded-2xl border border-red-500/25 bg-zinc-900/80 p-6 shadow-[0_0_40px_rgba(198,40,40,0.12)]">
                   <p className="text-sm font-bold text-zinc-200">興味のある分野</p>
                   <p className="mt-1 text-xs text-zinc-500">複数選択できます</p>
                   <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -2062,8 +2114,40 @@ export default function MypageClient() {
                 </>
               )}
 
+              {isStripeSetupComplete ? (
+                <div className="mt-6 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+                  <h2 className="text-sm font-semibold text-zinc-200">Stripe Connect 残高</h2>
+                  {connectBalanceLoading ? (
+                    <div className="mt-3 flex items-center text-sm text-zinc-400">
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin text-red-500" aria-hidden />
+                      残高を取得中...
+                    </div>
+                  ) : connectBalanceError ? (
+                    <p className="mt-3 text-sm text-red-400">{connectBalanceError}</p>
+                  ) : (
+                    <div className="mt-3 grid gap-2 text-sm text-zinc-300">
+                      <p>
+                        売上金（合計残高）: {(connectBalance?.total ?? 0).toLocaleString("ja-JP")}
+                        円
+                      </p>
+                      <p>
+                        保留金額（Pending）: {(connectBalance?.pending ?? 0).toLocaleString("ja-JP")}
+                        円
+                      </p>
+                      <p>
+                        振込可能残高（Available）: {(connectBalance?.available ?? 0).toLocaleString("ja-JP")}
+                        円
+                      </p>
+                      <p className="mt-2 text-xs leading-relaxed text-zinc-500">
+                        売上金は、Stripeの決済処理およびセキュリティ審査を経て、数日後に振込可能残高に反映されます。
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
               <p className="mt-6 text-xs text-zinc-500">
-                ※決済情報や本人確認の管理は、すべて決済代行会社Stripeのセキュアなシステム上で行われます。当アプリでクレジットカード情報等を保持することはありません。
+                ※決済情報や本人確認の管理は、すべて決済代行会社Stripeのシステム上で行われます。当アプリでクレジットカード情報等を保持することはありません。
               </p>
             </div>
           )}

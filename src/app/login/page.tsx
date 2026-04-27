@@ -181,9 +181,9 @@ export default function LoginPage() {
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-4 py-12 text-white">
       {notice && <NotificationToast notice={notice} onClose={() => setNotice(null)} />}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(225,29,72,0.35),transparent_45%),radial-gradient(circle_at_bottom,rgba(239,68,68,0.25),transparent_50%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(198,40,40,0.35),transparent_45%),radial-gradient(circle_at_bottom,rgba(198,40,40,0.25),transparent_50%)]" />
 
-      <Card className="relative z-10 w-full max-w-md border-red-500/40 bg-zinc-950/95 shadow-[0_0_60px_rgba(225,29,72,0.25)]">
+      <Card className="relative z-10 w-full max-w-md border-red-500/40 bg-zinc-950/95 shadow-[0_0_60px_rgba(198,40,40,0.25)]">
         <CardHeader className="space-y-4">
           <div className="inline-flex w-fit items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-300">
             <Flame className="h-4 w-4" />
@@ -217,7 +217,7 @@ export default function LoginPage() {
               className={cn(
                 "rounded-md px-3 py-2 text-sm font-semibold transition-colors",
                 mode === "login"
-                  ? "bg-red-600 text-white shadow-[0_0_22px_rgba(220,38,38,0.45)]"
+                  ? "bg-red-600 text-white shadow-[0_0_22px_rgba(198,40,40,0.45)]"
                   : "text-zinc-400 hover:text-zinc-200",
               )}
             >
@@ -233,7 +233,7 @@ export default function LoginPage() {
               className={cn(
                 "rounded-md px-3 py-2 text-sm font-semibold transition-colors",
                 mode === "signup"
-                  ? "bg-red-600 text-white shadow-[0_0_22px_rgba(220,38,38,0.45)]"
+                  ? "bg-red-600 text-white shadow-[0_0_22px_rgba(198,40,40,0.45)]"
                   : "text-zinc-400 hover:text-zinc-200",
               )}
             >

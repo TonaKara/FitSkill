@@ -5,7 +5,7 @@ import { createPortal } from "react-dom"
 import Link from "next/link"
 import Image from "next/image"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Loader2, MapPin } from "lucide-react"
+import { Loader2, MapPin, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -86,6 +86,23 @@ type SkillRow = {
   is_published: boolean | null
 }
 
+async function isStripeChargeEnabledForSeller(
+  supabase: ReturnType<typeof getSupabaseBrowserClient>,
+  userId: string,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("stripe_connect_charges_enabled")
+    .eq("id", userId)
+    .maybeSingle()
+
+  if (error) {
+    return false
+  }
+
+  return (data as { stripe_connect_charges_enabled?: boolean | null } | null)?.stripe_connect_charges_enabled === true
+}
+
 function revokeThumbnailPreviewIfBlob(url: string) {
   if (url.startsWith("blob:")) {
     URL.revokeObjectURL(url)
@@ -163,6 +180,13 @@ function CreateSkillPageContent() {
 
       const adminFlag = await getIsAdminFromProfile(supabase, data.user.id)
       setIsAdmin(adminFlag)
+
+      const stripeChargeEnabled = await isStripeChargeEnabledForSeller(supabase, data.user.id)
+      if (!stripeChargeEnabled) {
+        router.replace("/mypage?tab=payout")
+        return
+      }
+
       setUserId(data.user.id)
       setIsCheckingAuth(false)
     }
@@ -303,17 +327,21 @@ function CreateSkillPageContent() {
     setThumbnailPreview(URL.createObjectURL(blob))
   }
 
+  const clearThumbnailSelection = () => {
+    setThumbnailFile(null)
+    setThumbnailUrl("")
+    if (thumbnailPreview) {
+      revokeThumbnailPreviewIfBlob(thumbnailPreview)
+    }
+    setThumbnailPreview("")
+  }
+
   const handleThumbnailSelect = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     setNotice(null)
 
     if (!file) {
-      setThumbnailFile(null)
-      setThumbnailUrl("")
-      if (thumbnailPreview) {
-        revokeThumbnailPreviewIfBlob(thumbnailPreview)
-      }
-      setThumbnailPreview("")
+      clearThumbnailSelection()
       return
     }
 
@@ -490,6 +518,17 @@ function CreateSkillPageContent() {
       return
     }
 
+    const stripeChargeEnabled = await isStripeChargeEnabledForSeller(supabase, userId)
+    if (!stripeChargeEnabled) {
+      setNotice({
+        variant: "error",
+        message: "出品には口座登録が必要です。売上・振込設定からStripe登録を完了してください。",
+      })
+      setShowFinalConfirm(false)
+      router.replace("/mypage?tab=payout")
+      return
+    }
+
     const title = form.title.trim()
     const targetAudience = form.targetAudience.trim()
     const description = form.description.trim()
@@ -660,7 +699,7 @@ function CreateSkillPageContent() {
           </Button>
         </div>
 
-        <Card className="border-red-500/35 bg-zinc-950 shadow-[0_0_60px_rgba(225,29,72,0.18)]">
+        <Card className="border-red-500/35 bg-zinc-950 shadow-[0_0_60px_rgba(198,40,40,0.18)]">
           <CardHeader>
             <CardTitle className="text-white">{formTitle}</CardTitle>
           </CardHeader>
@@ -699,6 +738,14 @@ function CreateSkillPageContent() {
                         className="absolute inset-0 h-full w-full object-cover"
                       />
                     )}
+                    <button
+                      type="button"
+                      onClick={clearThumbnailSelection}
+                      className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-600/80 bg-black/70 text-zinc-100 transition-colors hover:border-red-500 hover:text-red-300"
+                      aria-label="サムネイル画像を削除"
+                    >
+                      <X className="h-4 w-4" aria-hidden />
+                    </button>
                   </div>
                 ) : null}
               </div>

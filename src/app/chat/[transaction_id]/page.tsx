@@ -25,12 +25,12 @@ import {
 } from "@/lib/chat-link-payload"
 import { resolveProfileAvatarUrl } from "@/lib/profile-avatar"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
-import { autoCompleteTransactions } from "@/lib/transactions"
+import { autoCompleteMyPendingTransactionsWithPayout, completeTransactionWithPayout } from "@/actions/payout"
 import { createTransactionNotification, NOTIFICATION_TYPE } from "@/lib/transaction-notifications"
 import { DisputeEvidenceImage } from "@/components/DisputeEvidenceImage"
 import { TransactionReviewCard } from "@/components/chat/TransactionReviewCard"
 import { fetchMyTransactionReview, type TransactionReviewRow } from "@/lib/transaction-reviews"
-import { cn } from "@/lib/utils"
+import { cn, getUnknownErrorMessage } from "@/lib/utils"
 import type { AppNotice } from "@/lib/notifications"
 
 /** `transactions` テーブル（定義どおり） */
@@ -156,6 +156,10 @@ function logDisputeEvidenceUploadError(
 
 const CHAT_MEDIA_SIGNED_URL_TTL_SEC = 3600
 const COMPLETION_PENDING_DAYS = 3
+
+/** 講師が取引完了申請を出せる status（Stripe 決済直後の `pending` や `in_progress` を含む） */
+const SELLER_APPLY_COMPLETION_STATUSES = new Set<string>(["active", "pending", "in_progress"])
+
 const DISPUTE_REASON_OPTIONS = [
   "提供内容が事前説明と異なる",
   "講師と連絡が取れない",
@@ -586,12 +590,12 @@ export default function ChatTransactionPage() {
       return
     }
     void (async () => {
-      const updated = await autoCompleteTransactions(supabase, { userId })
-      if (updated > 0) {
+      const result = await autoCompleteMyPendingTransactionsWithPayout()
+      if (result.completedCount > 0) {
         await loadTransactionAndPeer()
       }
     })()
-  }, [transaction, userId, supabase, loadTransactionAndPeer])
+  }, [transaction, userId, loadTransactionAndPeer])
 
   useEffect(() => {
     if (transaction?.status !== "approval_pending") {
@@ -754,7 +758,7 @@ export default function ChatTransactionPage() {
           table: "messages",
           filter: `transaction_id=eq.${transactionId}`,
         },
-        (payload) => {
+        (payload: { eventType: string; new: unknown; old: unknown }) => {
           if (payload.eventType === "INSERT") {
             const row = payload.new as MessageRow
             if (!row?.id) {
@@ -843,19 +847,23 @@ export default function ChatTransactionPage() {
         return { error: true as const }
       }
       setMessages((prev) => mergeMessageRow(prev, inserted as MessageRow))
-      if (transaction) {
-        const txNum = Number(transactionId)
-        if (Number.isFinite(txNum) && userId) {
-          const recipientId =
-            userId === String(transaction.buyer_id) ? transaction.seller_id : transaction.buyer_id
-          void createTransactionNotification(supabase, {
-            recipient_id: recipientId,
-            type: NOTIFICATION_TYPE.message,
-            content: "新しいメッセージが届いています。",
-          }).then(({ error: nErr }) => {
-            if (nErr) console.error("[chat] createTransactionNotification (message)", nErr)
-          })
-        }
+      if (transaction && userId) {
+        const recipientId =
+          userId === String(transaction.buyer_id) ? transaction.seller_id : transaction.buyer_id
+        void createTransactionNotification(supabase, {
+          recipient_id: String(recipientId),
+          type: NOTIFICATION_TYPE.message,
+          content: "新しいメッセージが届いています。",
+          reason: `transaction_id:${String(transactionId)}`,
+        }).then(({ error: nErr }) => {
+          if (nErr) {
+            console.error("[chat] createTransactionNotification (message)", {
+              message: nErr.message,
+              code: nErr.code,
+              details: nErr.details,
+            })
+          }
+        })
       }
       return { error: false as const }
     },
@@ -945,7 +953,14 @@ export default function ChatTransactionPage() {
   }
 
   const handleApplyCompletion = async () => {
-    if (!userId || !transactionId || !isSeller || completing || !transaction || transaction.status !== "active") {
+    if (
+      !userId ||
+      !transactionId ||
+      !isSeller ||
+      completing ||
+      !transaction ||
+      !SELLER_APPLY_COMPLETION_STATUSES.has(transaction.status)
+    ) {
       console.warn("[tx-apply] skipped", {
         userId,
         transactionId,
@@ -969,7 +984,7 @@ export default function ChatTransactionPage() {
         })
         .eq("id", transactionId)
         .eq("seller_id", userId)
-        .eq("status", "active")
+        .in("status", ["active", "pending", "in_progress"])
         .select("id, status")
         .maybeSingle()
 
@@ -979,11 +994,21 @@ export default function ChatTransactionPage() {
           .select("id, buyer_id, seller_id, status, applied_at, completed_at, auto_complete_at")
           .eq("id", transactionId)
           .maybeSingle()
+        const latestStatus = (latestRow as { status?: string } | null)?.status ?? null
+        if (latestStatus === "completed") {
+          setRequestAgreementOpen(false)
+          setNotice({ variant: "success", message: "この取引はすでに完了済みです" })
+          await loadTransactionAndPeer()
+          return
+        }
         console.error("[tx-apply] update verification failed", {
           transactionId,
           userId,
+          clientStatus: transaction?.status ?? null,
           expectedStatus: "approval_pending",
-          error: extractSupabaseErrorDetails(error),
+          supabaseError: error
+            ? { message: error.message, code: error.code, details: error.details, hint: error.hint }
+            : null,
           updateResult: data ?? null,
           latestRow: latestRow ?? null,
         })
@@ -993,14 +1018,20 @@ export default function ChatTransactionPage() {
 
       setRequestAgreementOpen(false)
       setNotice({ variant: "success", message: "申請が完了しました" })
-      const applyTxNum = Number(transactionId)
-      if (Number.isFinite(applyTxNum) && userId) {
+      if (userId) {
         void createTransactionNotification(supabase, {
-          recipient_id: transaction.buyer_id,
+          recipient_id: String(transaction.buyer_id),
           type: NOTIFICATION_TYPE.completion_request,
           content: "取引の完了申請が届いています。承認をお願いします。",
+          reason: `transaction_id:${String(transactionId)}`,
         }).then(({ error: nErr }) => {
-          if (nErr) console.error("[tx-apply] createTransactionNotification", nErr)
+          if (nErr) {
+            console.error("[tx-apply] createTransactionNotification", {
+              message: nErr.message,
+              code: nErr.code,
+              details: nErr.details,
+            })
+          }
         })
       }
       await loadTransactionAndPeer()
@@ -1022,11 +1053,6 @@ export default function ChatTransactionPage() {
         transactionId,
         completing,
       })
-      return
-    }
-    const transactionIdNumber = Number(transactionId)
-    if (!Number.isFinite(transactionIdNumber)) {
-      setCompleteError("取引IDの形式が不正です。")
       return
     }
     if (!userId) {
@@ -1069,46 +1095,8 @@ export default function ChatTransactionPage() {
         return
       }
 
-      const { data: targetTx, error: targetTxError } = await supabase
-        .from("transactions")
-        .select("id, buyer_id, status")
-        .eq("id", transactionIdNumber)
-        .maybeSingle()
-
-      if (targetTxError || !targetTx) {
-        console.error("[tx-complete] precheck select failed", {
-          transactionId,
-          transactionIdNumber,
-          error: extractSupabaseErrorDetails(targetTxError),
-          targetTx: targetTx ?? null,
-        })
-        setCompleteError("取引情報の確認に失敗しました。")
-        return
-      }
-
-      if ((targetTx as { buyer_id?: string }).buyer_id !== authUserId) {
-        setCompleteError("条件不一致（すでに完了済み、または権限なし）")
-        return
-      }
-
-      if ((targetTx as { status?: string }).status !== "approval_pending") {
-        setCompleteError("条件不一致（すでに完了済み、または権限なし）")
-        return
-      }
-
-      console.log("1. 処理開始: transactionId =", transactionId)
-
-      const { error: updateError } = await supabase
-        .from("transactions")
-        .update({ status: "completed" })
-        .eq("id", transactionIdNumber)
-
-      if (updateError) {
-        console.error("2. ステータス更新エラー:", updateError)
-        setCompleteError("取引の承認に失敗しました。")
-        return
-      }
-      console.log("2. ステータス更新完了")
+      await completeTransactionWithPayout(String(transactionId), "standard")
+      console.log("2. ステータス更新完了（server action）")
 
       // --- 削除処理（messages.file_url → chat-media） ---
       console.log("--- 削除処理開始 ---")
@@ -1155,7 +1143,7 @@ export default function ChatTransactionPage() {
       }
 
       console.log("[tx-complete] success", {
-        transactionId: transactionIdNumber,
+        transactionId: String(transactionId),
         mediaCleanup: {
           messageFileRows: messages?.length ?? 0,
         },
@@ -1165,8 +1153,15 @@ export default function ChatTransactionPage() {
           recipient_id: String(transaction.seller_id),
           type: NOTIFICATION_TYPE.completion_approved,
           content: "取引が買主により承認され、完了しました。",
+          reason: `transaction_id:${String(transactionId)}`,
         }).then(({ error: nErr }) => {
-          if (nErr) console.error("[tx-complete] createTransactionNotification (approved)", nErr)
+          if (nErr) {
+            console.error("[tx-complete] createTransactionNotification (approved)", {
+              message: nErr.message,
+              code: nErr.code,
+              details: nErr.details,
+            })
+          }
         })
       }
       setApproveAgreementOpen(false)
@@ -1177,12 +1172,13 @@ export default function ChatTransactionPage() {
         router.push("/login")
         return
       }
-      console.error("[tx-complete] unexpected exception", {
+      const userMsg = getUnknownErrorMessage(error, "取引の承認に失敗しました。時間を置いて再度お試しください。")
+      console.error("[tx-complete] error", {
         transactionId,
-        userId,
-        error: extractSupabaseErrorDetails(error),
+        message: userMsg,
+        raw: error instanceof Error ? { name: error.name, message: error.message } : String(error),
       })
-      setCompleteError("取引の承認に失敗しました。")
+      setCompleteError(userMsg)
     } finally {
       setCompleting(false)
     }
@@ -1262,14 +1258,20 @@ export default function ChatTransactionPage() {
     }
     setShowDisputeReasonPicker(false)
     setDisputeEvidenceFile(null)
-    const dTx = Number(transactionId)
-    if (Number.isFinite(dTx) && transaction) {
+    if (transaction) {
       void createTransactionNotification(supabase, {
         recipient_id: String(transaction.seller_id),
         type: NOTIFICATION_TYPE.dispute,
         content: "取引に異議申し立てがありました。内容を確認してください。",
+        reason: `transaction_id:${String(transactionId)}`,
       }).then(({ error: nErr }) => {
-        if (nErr) console.error("[dispute] createTransactionNotification", nErr)
+        if (nErr) {
+          console.error("[dispute] createTransactionNotification", {
+            message: nErr.message,
+            code: nErr.code,
+            details: nErr.details,
+          })
+        }
       })
     }
     await loadTransactionAndPeer()
@@ -1326,7 +1328,21 @@ export default function ChatTransactionPage() {
   }
 
   if (!userId) {
-    return null
+    const redirectTo = transactionId
+      ? `/login?redirect=${encodeURIComponent(`/chat/${String(transactionId)}`)}`
+      : "/login"
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black px-4 text-zinc-100">
+        <p className="text-center text-sm text-zinc-300">この取引チャットを開くにはログインが必要です。</p>
+        <Button
+          type="button"
+          className="bg-red-600 text-white hover:bg-red-500"
+          onClick={() => router.replace(redirectTo)}
+        >
+          ログインへ
+        </Button>
+      </div>
+    )
   }
 
   if (txLoading) {
@@ -1399,7 +1415,12 @@ export default function ChatTransactionPage() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={isClosed || completing || isApprovalPending}
+                  disabled={
+                    isClosed ||
+                    completing ||
+                    isApprovalPending ||
+                    !SELLER_APPLY_COMPLETION_STATUSES.has(transaction.status)
+                  }
                   onClick={() => setRequestAgreementOpen(true)}
                   className="border-amber-600/60 bg-amber-950/40 text-amber-100 hover:border-amber-500 hover:bg-amber-950/70"
                 >

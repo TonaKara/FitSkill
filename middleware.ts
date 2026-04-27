@@ -1,4 +1,4 @@
-import { createServerClient } from "@supabase/auth-helpers-nextjs"
+import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 import { shouldRedirectPublicUserToMaintenance } from "@/lib/maintenance-access"
 
@@ -40,7 +40,17 @@ export async function middleware(request: NextRequest) {
     },
   })
 
-  await supabase.auth.getUser()
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser()
+
+  // 取引チャットはログイン必須（未認証の場合は Server Action でもセッションが使えない）
+  if (pathname.startsWith("/chat/") && !authUser) {
+    const loginUrl = new URL("/login", request.nextUrl)
+    const redirectTo = `${pathname}${request.nextUrl.search}`
+    loginUrl.searchParams.set("redirect", redirectTo)
+    return NextResponse.redirect(loginUrl)
+  }
 
   if (pathname.startsWith("/admin") || pathname === "/maintenance") {
     return supabaseResponse

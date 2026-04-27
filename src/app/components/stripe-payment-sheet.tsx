@@ -59,7 +59,7 @@ export function StripePaymentSheet({
           appearance: {
             theme: "night",
             variables: {
-              colorPrimary: "#dc2626",
+              colorPrimary: "#C62828",
               borderRadius: "8px",
             },
           },

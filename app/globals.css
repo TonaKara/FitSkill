@@ -57,8 +57,8 @@
 :root {
   --radius: 0.625rem;
   /* ブランド赤（ライト時も同じトーンで統一） */
-  --brand-red: oklch(0.59 0.22 17);
-  --brand-red-deep: oklch(0.52 0.2 17);
+  --brand-red: #c62828;
+  --brand-red-deep: #a32121;
 
   --background: oklch(0.985 0 0);
   --foreground: oklch(0.145 0 0);

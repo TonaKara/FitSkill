@@ -206,7 +206,7 @@ export function DisputeAdminDetailModal({
     setActionBusy(true)
     try {
       await completeTransactionWithPayout(transactionId, "dispute_rejection")
-      onNotify("棄却（取引完了）を反映し、出品者へ売上送金（手数料12%控除後）を実行しました。", "success")
+      onNotify("棄却（取引完了）を反映しました。Stripe Connect の入金スケジュールに従って精算されます。", "success")
       if (sellerId) {
         await createAdminOriginNotification(supabase, {
           recipient_id: sellerId,
@@ -225,7 +225,7 @@ export function DisputeAdminDetailModal({
       onAfterMutation()
     } catch (error) {
       const message = error instanceof Error ? error.message : "棄却処理に失敗しました。"
-      console.error("[DisputeAdminDetailModal] reject dispute / payout", error)
+      console.error("[DisputeAdminDetailModal] reject dispute", error)
       onNotify(message, "error")
     } finally {
       setActionBusy(false)

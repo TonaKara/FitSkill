@@ -15,6 +15,7 @@ import {
   getAdminOpsListReason,
   getAdminOpsListSubject,
   getNotificationBodySectionLabel,
+  parseTransactionIdFromNotificationReason,
 } from "@/lib/notification-display"
 import { cn } from "@/lib/utils"
 
@@ -102,6 +103,18 @@ export function GeneralNotificationsList({ userId, adminOrigin, onRead }: Genera
         return `/skills/${m[1]}`
       }
       return "/mypage?tab=requests"
+    }
+    if (n.type === "completion_request" || n.type === "message" || n.type === "completion_approved" || n.type === "dispute") {
+      const txId = parseTransactionIdFromNotificationReason(n.reason)
+      if (txId) {
+        return `/chat/${txId}`
+      }
+    }
+    if (n.type === "purchase") {
+      const txId = parseTransactionIdFromNotificationReason(n.reason)
+      if (txId) {
+        return `/chat/${txId}`
+      }
     }
     return null
   }, [])
