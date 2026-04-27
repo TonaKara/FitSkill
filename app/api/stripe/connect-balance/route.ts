@@ -1,6 +1,6 @@
-import { createServerClient } from "@supabase/ssr"
-import { cookies } from "next/headers"
 import Stripe from "stripe"
+import { assertStripeConnectAccountOwnership } from "@/lib/stripe-account-ownership"
+import { requireApiUser } from "@/lib/api-auth"
 
 function getStripeClient() {
   const secretKey = process.env.STRIPE_SECRET_KEY
@@ -8,32 +8,6 @@ function getStripeClient() {
     throw new Error("STRIPE_SECRET_KEY is not set")
   }
   return new Stripe(secretKey)
-}
-
-async function getAuthedUserAndSupabase() {
-  const cookieStore = await cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
-        },
-      },
-    },
-  )
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    return { supabase, user: null }
-  }
-  return { supabase, user }
 }
 
 function sumBalanceAmounts(items: Array<{ amount?: number; currency?: string }>): number {
@@ -44,10 +18,11 @@ function sumBalanceAmounts(items: Array<{ amount?: number; currency?: string }>)
 
 export async function GET() {
   try {
-    const { supabase, user } = await getAuthedUserAndSupabase()
-    if (!user) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 })
+    const auth = await requireApiUser()
+    if (!auth.ok) {
+      return auth.response
     }
+    const { supabase, user } = auth.context
 
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
@@ -73,6 +48,11 @@ export async function GET() {
     }
 
     const stripe = getStripeClient()
+    await assertStripeConnectAccountOwnership({
+      stripe,
+      accountId,
+      expectedUserId: user.id,
+    })
     const balance = await stripe.balance.retrieve({}, { stripeAccount: accountId })
     const pending = sumBalanceAmounts(balance.pending)
     const available = sumBalanceAmounts(balance.available)

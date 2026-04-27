@@ -4,8 +4,12 @@ export async function getFavoriteCountAndMine(
   supabase: SupabaseClient,
   skillId: string,
 ): Promise<{ count: number; favorited: boolean }> {
-  const [{ count, error: countError }, authResult] = await Promise.all([
-    supabase.from("favorites").select("*", { count: "exact", head: true }).eq("skill_id", skillId),
+  const [{ data: countRow, error: countError }, authResult] = await Promise.all([
+    supabase
+      .from("skill_favorite_counts")
+      .select("favorites_count")
+      .eq("skill_id", skillId)
+      .maybeSingle<{ favorites_count: number }>(),
     supabase.auth.getUser(),
   ])
 
@@ -25,5 +29,5 @@ export async function getFavoriteCountAndMine(
     favorited = Boolean(data)
   }
 
-  return { count: count ?? 0, favorited }
+  return { count: Math.max(0, Number(countRow?.favorites_count ?? 0)), favorited }
 }

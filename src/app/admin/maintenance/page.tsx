@@ -86,7 +86,7 @@ export default function AdminMaintenancePage() {
 
     setAccessDenied(false)
 
-    const { data, error } = await supabase.from("settings").select("*").single()
+    const { data, error } = await supabase.from("settings").select("id, is_maintenance, updated_at").single()
 
     if (error) {
       logSupabaseError("settings の select('*').single() が失敗しました", error)
@@ -147,7 +147,7 @@ export default function AdminMaintenancePage() {
         const { data: inserted, error: insertError } = await supabase
           .from("settings")
           .insert({ is_maintenance: next })
-          .select("*")
+          .select("id, is_maintenance, updated_at")
           .single()
 
         if (insertError) {
@@ -165,7 +165,7 @@ export default function AdminMaintenancePage() {
           .from("settings")
           .update({ is_maintenance: next })
           .eq("id", row.id)
-          .select("*")
+          .select("id, is_maintenance, updated_at")
           .single()
 
         if (updateError) {

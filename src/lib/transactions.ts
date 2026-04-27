@@ -22,7 +22,7 @@ export async function countActiveTransactionsForSkill(
 ): Promise<number> {
   const { count, error } = await supabase
     .from("transactions")
-    .select("*", { count: "exact", head: true })
+    .select("id", { count: "exact", head: true })
     .eq("skill_id", skillId)
     .neq("status", "completed")
 
@@ -48,7 +48,7 @@ export async function getActivePurchaseTransactionIdForSkill(
 
   const { data, error } = await supabase
     .from("transactions")
-    .select("*")
+    .select("id")
     .eq("skill_id", params.skillId)
     .eq("buyer_id", params.buyerId)
     .eq("status", "active")
@@ -69,7 +69,7 @@ export async function getActivePurchaseTransactionIdForSkill(
 
 export async function createSkillPurchaseTransaction(
   supabase: SupabaseClient,
-  params: { skillId: string; buyerId: string; sellerId: string },
+  params: { skillId: string; buyerId: string },
 ): Promise<{
   inserted: boolean
   errorMessage: string | null
@@ -89,7 +89,7 @@ export async function createSkillPurchaseTransaction(
 
   const { data: skill, error: skillError } = await supabase
     .from("skills")
-    .select("price")
+    .select("price, user_id")
     .eq("id", params.skillId)
     .single()
 
@@ -97,8 +97,13 @@ export async function createSkillPurchaseTransaction(
     return { inserted: false, errorMessage: skillError.message }
   }
 
-  if (!skill || typeof (skill as { price: unknown }).price !== "number") {
+  const skillRow = skill as { price: unknown; user_id: string | null } | null
+  if (!skillRow || typeof skillRow.price !== "number") {
     return { inserted: false, errorMessage: "スキルの価格を取得できませんでした。" }
+  }
+  const sellerId = (skillRow.user_id ?? "").trim()
+  if (!sellerId) {
+    return { inserted: false, errorMessage: "講師情報の取得に失敗しました。" }
   }
 
   const stripeEnabled = isStripePaymentsConfigured()
@@ -108,7 +113,7 @@ export async function createSkillPurchaseTransaction(
     const { data: sellerProfile, error: spErr } = await supabase
       .from("profiles")
       .select("stripe_connect_account_id, stripe_connect_charges_enabled")
-      .eq("id", params.sellerId)
+      .eq("id", sellerId)
       .maybeSingle()
 
     if (spErr) {
@@ -136,8 +141,8 @@ export async function createSkillPurchaseTransaction(
     .insert({
       skill_id: params.skillId,
       buyer_id: params.buyerId,
-      seller_id: params.sellerId,
-      price: (skill as { price: number }).price,
+      seller_id: sellerId,
+      price: skillRow.price,
       status: initialStatus,
     })
     .select("id")
@@ -155,7 +160,7 @@ export async function createSkillPurchaseTransaction(
 
   if (initialStatus === "active" && txIdStr) {
     const { error: nErr } = await createTransactionNotification(supabase, {
-      recipient_id: params.sellerId,
+      recipient_id: sellerId,
       type: NOTIFICATION_TYPE.purchase,
       content: "あなたのスキルに新しい購入がありました。チャットを確認してください。",
       reason: `transaction_id:${txIdStr}`,

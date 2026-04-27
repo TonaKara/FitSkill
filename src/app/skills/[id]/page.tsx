@@ -163,7 +163,7 @@ export default function SkillDetailPage() {
 
     const { data: prioritizedData, error: prioritizedError } = await supabase
       .from("transactions")
-      .select("*")
+      .select("id, skill_id, buyer_id, seller_id, status, price, created_at, stripe_payment_intent_id")
       .eq("skill_id", skillId)
       .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
       .in("status", [...PRIORITIZED_TRANSACTION_STATUSES])
@@ -185,7 +185,7 @@ export default function SkillDetailPage() {
 
     const { data: terminalData, error: terminalError } = await supabase
       .from("transactions")
-      .select("*")
+      .select("id, skill_id, buyer_id, seller_id, status, price, created_at, stripe_payment_intent_id")
       .eq("skill_id", skillId)
       .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
       .in("status", [...TERMINAL_REPURCHASE_STATUSES])
@@ -751,7 +751,6 @@ export default function SkillDetailPage() {
         {
           skillId: skillId,
           buyerId: userId,
-          sellerId: skill.user_id,
         },
       )
 
@@ -895,7 +894,15 @@ export default function SkillDetailPage() {
         setPurchaseError("このスキルは承認待ちです。承認または拒否まで再送できません。")
         return
       }
-      const sellerId = skill?.user_id ?? null
+      const { data: sellerSkillRow, error: sellerSkillError } = await supabase
+        .from("skills")
+        .select("user_id")
+        .eq("id", skillIdNumber)
+        .maybeSingle()
+      const sellerId =
+        !sellerSkillError && sellerSkillRow && typeof sellerSkillRow.user_id === "string"
+          ? sellerSkillRow.user_id
+          : null
       if (!sellerId) {
         setPurchaseError("講師情報を確認できませんでした。ページを再読み込みして再度お試しください。")
         return

@@ -3,6 +3,7 @@
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import Stripe from "stripe"
+import { assertStripeConnectAccountOwnership } from "@/lib/stripe-account-ownership"
 
 type StripeProfileRow = {
   stripe_connect_account_id: string | null
@@ -93,6 +94,11 @@ export async function getStripeOnboardingUrl() {
 
   // オンボーディングに進む時点で、自動振込を常に無効化しておく。
   // 既存口座にも毎回適用することで、設定ドリフトを防ぐ。
+  await assertStripeConnectAccountOwnership({
+    stripe,
+    accountId,
+    expectedUserId: user.id,
+  })
   await disableAutomaticPayouts(stripe, accountId)
 
   const accountLink = await stripe.accountLinks.create({
@@ -124,6 +130,11 @@ export async function checkAndFinalizeStripeStatus() {
     return { finalized: false }
   }
 
+  await assertStripeConnectAccountOwnership({
+    stripe,
+    accountId,
+    expectedUserId: user.id,
+  })
   const account = await stripe.accounts.retrieve(accountId)
   if (!account.charges_enabled) {
     return { finalized: false }

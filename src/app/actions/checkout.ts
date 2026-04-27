@@ -6,6 +6,7 @@ import { cookies } from "next/headers"
 import Stripe from "stripe"
 import { canBuyerPurchaseSkill } from "@/lib/consultation"
 import { SELLER_FEE_RATE } from "@/lib/seller-fee-preview"
+import { assertStripeConnectAccountOwnership } from "@/lib/stripe-account-ownership"
 
 type SkillRow = {
   id: string
@@ -210,6 +211,11 @@ export async function createCheckoutSession(skillId: string | number): Promise<C
     }
 
     const sellerConnectAccountId = sp.stripe_connect_account_id.trim()
+    await assertStripeConnectAccountOwnership({
+      stripe,
+      accountId: sellerConnectAccountId,
+      expectedUserId: skill.user_id,
+    })
 
     // 決済後の資金は講師Connect口座へ移しつつ、銀行振込は取引完了まで手動保留にする。
     await holdSellerPayoutsManually(stripe, sellerConnectAccountId)

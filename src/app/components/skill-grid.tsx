@@ -428,7 +428,10 @@ export function SkillGrid({ filters, sortBy, searchKeyword }: SkillGridProps) {
         { data: favoriteData, error: favoriteError },
       ] = await Promise.all([
         supabase.from("transactions").select("skill_id, status").in("skill_id", skillIds).neq("status", "completed"),
-        supabase.from("favorites").select("skill_id").in("skill_id", skillIds),
+        supabase
+          .from("skill_favorite_counts")
+          .select("skill_id, favorites_count")
+          .in("skill_id", skillIds),
       ])
 
       if (txError) {
@@ -449,12 +452,12 @@ export function SkillGrid({ filters, sortBy, searchKeyword }: SkillGridProps) {
         setFavoriteCountBySkill({})
       } else {
         const favoriteMap: Record<string, number> = {}
-        for (const row of (favoriteData ?? []) as Array<{ skill_id: string | null }>) {
+        for (const row of (favoriteData ?? []) as Array<{ skill_id: string | null; favorites_count: number }>) {
           const sid = typeof row.skill_id === "string" ? row.skill_id : String(row.skill_id ?? "")
           if (!sid) {
             continue
           }
-          favoriteMap[sid] = (favoriteMap[sid] ?? 0) + 1
+          favoriteMap[sid] = Math.max(0, Number(row.favorites_count ?? 0))
         }
         setFavoriteCountBySkill(favoriteMap)
       }

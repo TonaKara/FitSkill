@@ -206,7 +206,13 @@ function CreateSkillPageContent() {
     let cancelled = false
 
     const load = async () => {
-      const { data, error } = await supabase.from("skills").select("*").eq("id", editParam).maybeSingle()
+      const { data, error } = await supabase
+        .from("skills")
+        .select(
+          "id, user_id, title, target_audience, description, category, price, duration_minutes, max_capacity, format, location_prefecture, thumbnail_url, is_published",
+        )
+        .eq("id", editParam)
+        .maybeSingle()
 
       if (cancelled) {
         return

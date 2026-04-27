@@ -60,8 +60,11 @@ export default function ProfileSetupPage() {
       return
     }
     setProfileLoading(true)
-    /** 存在しないカラムを列挙すると PostgREST がエラーになるため、* で取得してクライアント側で解釈する */
-    const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle()
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, bio, fitness_history, category")
+      .eq("id", userId)
+      .maybeSingle()
 
     if (error) {
       setNotice(

@@ -94,7 +94,11 @@ export default function PublicProfilePage() {
     setSkillsError(null)
 
     const [profileResult, skillsResult, ratingData] = await Promise.all([
-      supabase.from("profiles").select("*").eq("id", profileUserId).maybeSingle(),
+      supabase
+        .from("profiles_public")
+        .select("id, display_name, bio, fitness_history, category, avatar_url, rating_avg, review_count")
+        .eq("id", profileUserId)
+        .maybeSingle(),
       supabase
         .from("skills")
         .select("id, title, category, price, duration_minutes, max_capacity, thumbnail_url")

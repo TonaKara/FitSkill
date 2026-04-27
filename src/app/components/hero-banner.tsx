@@ -2,7 +2,11 @@ import Link from "next/link"
 import { ArrowRight, Flame, TrendingUp, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
-export function HeroBanner() {
+type HeroBannerProps = {
+  onBrowseSkillsClick?: () => void
+}
+
+export function HeroBanner({ onBrowseSkillsClick }: HeroBannerProps) {
   return (
     <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/20 via-background to-background border border-border">
       {/* Background Pattern */}
@@ -21,12 +25,11 @@ export function HeroBanner() {
             </div>
             
             {/* Title */}
-            <h1 className="mb-3 text-2xl font-bold tracking-tight text-foreground md:text-3xl lg:text-4xl">
-              <span className="text-balance">あなたの</span>
-              <span className="text-primary">フィットネススキル</span>
-              <span className="text-balance">を</span>
-              <br className="hidden md:block" />
-              <span className="text-balance">シェアしよう</span>
+            <h1 className="mb-3 text-xl font-bold tracking-tight leading-tight text-foreground sm:text-2xl md:text-3xl lg:text-4xl">
+              <span className="block text-balance">
+                あなたの<span className="text-primary">フィットネススキル</span>を
+              </span>
+              <span className="block text-balance">シェアしよう</span>
             </h1>
             
             {/* Description */}
@@ -58,7 +61,11 @@ export function HeroBanner() {
             
             {/* CTA */}
             <div className="flex flex-wrap gap-3">
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-lg shadow-primary/25">
+              <Button
+                type="button"
+                onClick={onBrowseSkillsClick}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-lg shadow-primary/25"
+              >
                 スキルを探す
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>

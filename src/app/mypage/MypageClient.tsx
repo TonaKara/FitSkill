@@ -348,7 +348,13 @@ export default function MypageClient() {
       return
     }
     setProfileLoading(true)
-    const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle()
+    const { data, error } = await supabase
+      .from("profiles")
+      .select(
+        "id, display_name, bio, fitness_history, category, last_name_change, rating_avg, review_count, stripe_connect_account_id, is_stripe_registered",
+      )
+      .eq("id", userId)
+      .maybeSingle()
 
     if (error) {
       setNotice(

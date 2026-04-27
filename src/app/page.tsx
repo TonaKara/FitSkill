@@ -95,6 +95,14 @@ export default function HomePage() {
     setFilters((prev) => ({ ...prev, maxDurationMinutes: parsed }))
   }
 
+  const handleBrowseSkillsClick = () => {
+    const listSection = document.getElementById("home-skill-list-section")
+    if (!listSection) {
+      return
+    }
+    listSection.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
+
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
       <LogoutSuccessToast />
@@ -103,11 +111,11 @@ export default function HomePage() {
       <main className="mx-auto max-w-7xl px-4 py-6">
         {/* Hero Banner */}
         <div className="mb-8">
-          <HeroBanner />
+          <HeroBanner onBrowseSkillsClick={handleBrowseSkillsClick} />
         </div>
 
         {/* Section Header */}
-        <div className="mb-6">
+        <div id="home-skill-list-section" className="mb-6 scroll-mt-20">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold text-foreground md:text-2xl">スキル一覧</h2>
