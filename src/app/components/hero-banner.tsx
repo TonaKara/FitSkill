@@ -3,16 +3,14 @@
 import Link from "next/link"
 import { ArrowRight, Flame, TrendingUp, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useEffect, useMemo, useState } from "react"
 
 type HeroBannerProps = {
   onBrowseSkillsClick?: () => void
-}
-
-type HeroStatsResponse = {
-  isAdmin: boolean
-  skillsCount?: number
-  activeUsersCount?: number
+  heroStats?: {
+    isAdmin: boolean
+    skillsCount: number
+    usersCount: number
+  } | null
 }
 
 type StatsProps = {
@@ -50,43 +48,7 @@ function Stats({ isAdmin, skillsCount, usersCount }: StatsProps) {
   )
 }
 
-export function HeroBanner({ onBrowseSkillsClick }: HeroBannerProps) {
-  const [statsLoading, setStatsLoading] = useState(true)
-  const [isAdmin, setIsAdmin] = useState(false)
-  const [skillsCount, setSkillsCount] = useState(0)
-  const [activeUsersCount, setActiveUsersCount] = useState(0)
-
-  useEffect(() => {
-    let cancelled = false
-    const loadStats = async () => {
-      setStatsLoading(true)
-      try {
-        const response = await fetch("/api/hero-stats", { method: "GET" })
-        if (!response.ok) {
-          if (!cancelled) {
-            setIsAdmin(false)
-          }
-          return
-        }
-        const payload = (await response.json()) as HeroStatsResponse
-        if (cancelled) {
-          return
-        }
-        setIsAdmin(payload.isAdmin === true)
-        setSkillsCount(Number(payload.skillsCount ?? 0))
-        setActiveUsersCount(Number(payload.activeUsersCount ?? 0))
-      } finally {
-        if (!cancelled) {
-          setStatsLoading(false)
-        }
-      }
-    }
-    void loadStats()
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
+export function HeroBanner({ onBrowseSkillsClick, heroStats }: HeroBannerProps) {
   return (
     <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/20 via-background to-background border border-border">
       {/* Background Pattern */}
@@ -118,29 +80,9 @@ export function HeroBanner({ onBrowseSkillsClick }: HeroBannerProps) {
             </p>
             
             {/* Stats (管理者のみ表示) */}
-            {statsLoading ? (
-              <div className="mb-6 flex flex-wrap gap-6">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                    <TrendingUp className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="h-6 w-16 animate-pulse rounded bg-muted" />
-                    <div className="h-3 w-20 animate-pulse rounded bg-muted" />
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                    <Zap className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="h-6 w-20 animate-pulse rounded bg-muted" />
-                    <div className="h-3 w-28 animate-pulse rounded bg-muted" />
-                  </div>
-                </div>
-              </div>
+            {heroStats ? (
+              <Stats isAdmin={heroStats.isAdmin} skillsCount={heroStats.skillsCount} usersCount={heroStats.usersCount} />
             ) : null}
-            {!statsLoading ? <Stats isAdmin={isAdmin} skillsCount={skillsCount} usersCount={activeUsersCount} /> : null}
             
             {/* CTA */}
             <div className="flex flex-wrap gap-3">

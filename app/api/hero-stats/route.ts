@@ -1,7 +1,5 @@
-import { createServerClient } from "@supabase/ssr"
 import { createClient } from "@supabase/supabase-js"
-import { cookies } from "next/headers"
-import { getIsAdminFromProfile } from "@/lib/admin"
+import { requireApiUser } from "@/lib/api-auth"
 
 function getSupabaseAdminClient() {
   const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -12,43 +10,25 @@ function getSupabaseAdminClient() {
   return createClient(supabaseUrl, serviceRoleKey)
 }
 
-async function getAuthedSupabase() {
-  const cookieStore = await cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
-        },
-      },
-    },
-  )
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  return { supabase, user }
-}
-
 export async function GET() {
   try {
-    const { supabase, user } = await getAuthedSupabase()
-    if (!user) {
+    const auth = await requireApiUser()
+    if (!auth.ok) {
       return Response.json({ isAdmin: false }, { status: 200 })
     }
-
-    const isAdmin = await getIsAdminFromProfile(supabase, user.id)
-    if (!isAdmin) {
-      return Response.json({ isAdmin: false }, { status: 200 })
-    }
+    const { user } = auth.context
 
     const supabaseAdmin = getSupabaseAdminClient()
+    const { data: adminRow, error: adminError } = await supabaseAdmin
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", user.id)
+      .maybeSingle<{ is_admin: boolean | null }>()
+
+    if (adminError || adminRow?.is_admin !== true) {
+      return Response.json({ isAdmin: false }, { status: 200 })
+    }
+
     const [{ count: skillsCount, error: skillsError }, { count: usersCount, error: usersError }] = await Promise.all([
       supabaseAdmin.from("skills").select("id", { count: "exact", head: true }),
       supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }),
