@@ -1,12 +1,92 @@
+"use client"
+
 import Link from "next/link"
 import { ArrowRight, Flame, TrendingUp, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useEffect, useMemo, useState } from "react"
 
 type HeroBannerProps = {
   onBrowseSkillsClick?: () => void
 }
 
+type HeroStatsResponse = {
+  isAdmin: boolean
+  skillsCount?: number
+  activeUsersCount?: number
+}
+
+type StatsProps = {
+  isAdmin: boolean
+  skillsCount: number
+  usersCount: number
+}
+
+function Stats({ isAdmin, skillsCount, usersCount }: StatsProps) {
+  if (!isAdmin) {
+    return null
+  }
+
+  return (
+    <div className="mb-6 flex flex-wrap gap-6">
+      <div className="flex items-center gap-2">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+          <TrendingUp className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <p className="text-lg font-bold text-foreground">{skillsCount.toLocaleString("ja-JP")}</p>
+          <p className="text-xs text-muted-foreground">登録スキル</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+          <Zap className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <p className="text-lg font-bold text-foreground">{usersCount.toLocaleString("ja-JP")}</p>
+          <p className="text-xs text-muted-foreground">アクティブユーザー</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function HeroBanner({ onBrowseSkillsClick }: HeroBannerProps) {
+  const [statsLoading, setStatsLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [skillsCount, setSkillsCount] = useState(0)
+  const [activeUsersCount, setActiveUsersCount] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+    const loadStats = async () => {
+      setStatsLoading(true)
+      try {
+        const response = await fetch("/api/hero-stats", { method: "GET" })
+        if (!response.ok) {
+          if (!cancelled) {
+            setIsAdmin(false)
+          }
+          return
+        }
+        const payload = (await response.json()) as HeroStatsResponse
+        if (cancelled) {
+          return
+        }
+        setIsAdmin(payload.isAdmin === true)
+        setSkillsCount(Number(payload.skillsCount ?? 0))
+        setActiveUsersCount(Number(payload.activeUsersCount ?? 0))
+      } finally {
+        if (!cancelled) {
+          setStatsLoading(false)
+        }
+      }
+    }
+    void loadStats()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   return (
     <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/20 via-background to-background border border-border">
       {/* Background Pattern */}
@@ -37,27 +117,30 @@ export function HeroBanner({ onBrowseSkillsClick }: HeroBannerProps) {
               プロのトレーナーから初心者まで、誰でもフィットネススキルを教えたり学んだりできるマーケットプレイス
             </p>
             
-            {/* Stats */}
-            <div className="mb-6 flex flex-wrap gap-6">
-              <div className="flex items-center gap-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                  <TrendingUp className="h-5 w-5 text-primary" />
+            {/* Stats (管理者のみ表示) */}
+            {statsLoading ? (
+              <div className="mb-6 flex flex-wrap gap-6">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                    <TrendingUp className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="h-6 w-16 animate-pulse rounded bg-muted" />
+                    <div className="h-3 w-20 animate-pulse rounded bg-muted" />
+                  </div>
                 </div>
-                <div>
-                  <p className="text-lg font-bold text-foreground">5,000+</p>
-                  <p className="text-xs text-muted-foreground">登録スキル</p>
+                <div className="flex items-center gap-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                    <Zap className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="h-6 w-20 animate-pulse rounded bg-muted" />
+                    <div className="h-3 w-28 animate-pulse rounded bg-muted" />
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                  <Zap className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-lg font-bold text-foreground">12,000+</p>
-                  <p className="text-xs text-muted-foreground">アクティブユーザー</p>
-                </div>
-              </div>
-            </div>
+            ) : null}
+            {!statsLoading ? <Stats isAdmin={isAdmin} skillsCount={skillsCount} usersCount={activeUsersCount} /> : null}
             
             {/* CTA */}
             <div className="flex flex-wrap gap-3">
