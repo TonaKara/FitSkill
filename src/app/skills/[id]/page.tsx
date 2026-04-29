@@ -22,6 +22,7 @@ import { countActiveTransactionsForSkill, createSkillPurchaseTransaction } from 
 import { createGeneralNotification } from "@/lib/transaction-notifications"
 import {
   fetchConsultationSettings,
+  fetchConsultationSettingsWithStatus,
   fetchMyConsultationAnswer,
   toConsultationSkillId,
   type ConsultationAnswerRow,
@@ -133,6 +134,7 @@ export default function SkillDetailPage() {
   const [reportModalOpen, setReportModalOpen] = useState(false)
   const [notice, setNotice] = useState<AppNotice | null>(null)
   const [consultationSettings, setConsultationSettings] = useState<ConsultationSettingsRow | null>(null)
+  const [consultationSettingsLoadError, setConsultationSettingsLoadError] = useState(false)
   const [consultationAnswer, setConsultationAnswer] = useState<ConsultationAnswerRow | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [consultationFormOpen, setConsultationFormOpen] = useState(false)
@@ -398,7 +400,7 @@ export default function SkillDetailPage() {
     const { data: userData } = await supabase.auth.getUser()
     const uid = userData.user?.id ?? null
 
-    const [skillResult, activePurchaseCount, consultationSetting] = await Promise.all([
+    const [skillResult, activePurchaseCount, consultationSettingResult] = await Promise.all([
       supabase
         .from("skills")
         .select(
@@ -407,7 +409,7 @@ export default function SkillDetailPage() {
         .eq("id", skillId)
         .maybeSingle(),
       countActiveTransactionsForSkill(supabase, skillId),
-      fetchConsultationSettings(supabase, skillId),
+      fetchConsultationSettingsWithStatus(supabase, skillId),
     ])
 
     setUserId(uid)
@@ -430,8 +432,9 @@ export default function SkillDetailPage() {
     }
 
     setEnrolledCount(Number(activePurchaseCount))
-    setConsultationSettings(consultationSetting)
-    if (uid && consultationSetting?.is_enabled) {
+    setConsultationSettings(consultationSettingResult.settings)
+    setConsultationSettingsLoadError(Boolean(consultationSettingResult.error))
+    if (uid && consultationSettingResult.settings?.is_enabled) {
       const myAnswer = await fetchMyConsultationAnswer(supabase, skillId, uid)
       setConsultationAnswer(myAnswer)
     } else {
@@ -643,12 +646,14 @@ export default function SkillDetailPage() {
         latestTransaction?.buyer_id === userId &&
         latestTransactionStatus === "awaiting_payment",
     )
-  const consultationEnabled = consultationSettings?.is_enabled === true
+  const consultationEnabled = !consultationSettingsLoadError && consultationSettings?.is_enabled === true
   const consultationAccepted = consultationAnswer?.status === "accepted"
-  const shouldShowConsultationAction = !isOwnSkill && consultationEnabled && !consultationAccepted
+  const shouldShowConsultationAction =
+    !isOwnSkill && !consultationSettingsLoadError && consultationEnabled && !consultationAccepted
   const shouldShowPurchaseButton =
     !isOwnSkill &&
     !transactionStatusLoading &&
+    !consultationSettingsLoadError &&
     (!consultationEnabled || consultationAccepted) &&
     (transactionRows.length === 0 || canRepurchaseByStatus || isBuyerAwaitingPayment)
 
@@ -660,6 +665,7 @@ export default function SkillDetailPage() {
     shouldShowPurchaseButton,
     consultationEnabled,
     consultationAccepted,
+    consultationSettingsLoadError,
   })
 
   const handlePurchaseIntent = () => {
@@ -1119,6 +1125,11 @@ export default function SkillDetailPage() {
         </div>
 
         <div className="sticky bottom-0 left-0 right-0 z-10 mt-8 border-t border-zinc-800 bg-black/90 py-4 backdrop-blur-md md:static md:border-0 md:bg-transparent md:py-0 md:backdrop-blur-none">
+          {consultationEnabled ? (
+            <p className="mb-3 rounded-lg border border-red-500/40 bg-red-950/30 px-3 py-2 text-sm text-red-200">
+              こちらのスキルには事前オファーが設定されています。ご購入前に申し込みが必要です。
+            </p>
+          ) : null}
           {purchaseError ? (
             <p className="mb-3 rounded-lg border border-red-500/40 bg-red-950/40 px-3 py-2 text-center text-sm text-red-300">
               {purchaseError}
@@ -1145,6 +1156,23 @@ export default function SkillDetailPage() {
                 プログラムを確認する（チャットへ）
               </Link>
             </Button>
+          ) : isFull ? (
+            <div className="space-y-3">
+              <Button
+                type="button"
+                disabled
+                className="h-12 w-full cursor-not-allowed rounded-md !bg-gray-600 !text-zinc-100 hover:!bg-gray-600 disabled:!opacity-100"
+              >
+                満枠対応中
+              </Button>
+              <button
+                type="button"
+                onClick={() => setReportModalOpen(true)}
+                className="w-full text-center text-xs text-zinc-500 underline-offset-4 transition-colors hover:text-zinc-300 hover:underline"
+              >
+                この商品を通報する
+              </button>
+            </div>
           ) : shouldShowConsultationAction ? (
             <div className="space-y-3 rounded-lg border border-zinc-700 bg-zinc-900/70 p-4">
               {consultationAnswer?.status === "pending" ? (
@@ -1158,16 +1186,22 @@ export default function SkillDetailPage() {
               ) : (
                 <Button
                   type="button"
-                  onClick={() => setConsultationFormOpen((prev) => !prev)}
+                  onClick={() => {
+                    if (!userId) {
+                      router.push(`/login?redirect=${encodeURIComponent(`/skills/${skillId}`)}`)
+                      return
+                    }
+                    setConsultationFormOpen((prev) => !prev)
+                  }}
                   className="h-11 w-full rounded-md bg-red-600 text-base font-bold text-white hover:bg-red-500"
                 >
-                  {consultationFormOpen ? "入力フォームを閉じる" : "申し込む"}
+                  {!userId ? "ログインして申し込む" : consultationFormOpen ? "入力フォームを閉じる" : "申し込む"}
                 </Button>
               )}
               {consultationAnswer?.status === "rejected" ? (
                 <p className="text-sm text-amber-300">リクエストは拒否されました。</p>
               ) : null}
-              {consultationFormOpen && consultationAnswer?.status !== "pending" ? (
+              {userId && consultationFormOpen && consultationAnswer?.status !== "pending" ? (
                 <div className="space-y-3 rounded-md border border-zinc-700 bg-black/30 p-3">
                   {showConsultationQ1 ? (
                     <div className="space-y-1">
@@ -1264,6 +1298,14 @@ export default function SkillDetailPage() {
                 この商品を通報する
               </button>
             </div>
+          ) : consultationSettingsLoadError ? (
+            <Button
+              type="button"
+              disabled
+              className="h-12 w-full rounded-md bg-zinc-700 text-base font-bold text-zinc-200"
+            >
+              購入条件を確認できませんでした
+            </Button>
           ) : transactionStatusLoading ? (
             <Button
               type="button"

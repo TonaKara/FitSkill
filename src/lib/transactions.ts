@@ -20,17 +20,19 @@ export async function countActiveTransactionsForSkill(
   supabase: SupabaseClient,
   skillId: string,
 ): Promise<number> {
-  const { count, error } = await supabase
-    .from("transactions")
-    .select("id", { count: "exact", head: true })
-    .eq("skill_id", skillId)
-    .neq("status", "completed")
-
-  if (error || count === null || count === undefined) {
+  const parsedSkillId = Number(skillId)
+  if (!Number.isFinite(parsedSkillId)) {
     return 0
   }
 
-  const n = Number(count)
+  const { data, error } = await supabase.rpc("count_active_transactions_for_skill", {
+    p_skill_id: Math.trunc(parsedSkillId),
+  })
+  if (error || data === null || data === undefined) {
+    return 0
+  }
+
+  const n = Number(data)
   return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0
 }
 
@@ -78,6 +80,9 @@ export async function createSkillPurchaseTransaction(
 }> {
   const consultationGate = await canBuyerPurchaseSkill(supabase, params.skillId, params.buyerId)
   if (!consultationGate.allowed) {
+    if (consultationGate.error) {
+      return { inserted: false, errorMessage: "購入条件の確認に失敗しました。時間をおいて再度お試しください。" }
+    }
     if (consultationGate.answerStatus === "pending") {
       return { inserted: false, errorMessage: "相談リクエストが承認待ちです。承認後に購入できます。" }
     }

@@ -93,6 +93,7 @@ type ListedSkill = {
   category: string | null
   price: number
   created_at: string | null
+  is_published: boolean | null
 }
 
 /** favorites 行 + 紐づく skills（一覧表示用） */
@@ -241,6 +242,7 @@ export default function MypageClient() {
   const sectionParam = searchParams.get("tab")
   const section: MypageSection = isMypageSection(sectionParam) ? sectionParam : "profile"
   const stripeReturnParam = searchParams.get("stripe")
+  const updatedParam = searchParams.get("updated")
 
   const [profileLoading, setProfileLoading] = useState(true)
   const [profileSaving, setProfileSaving] = useState(false)
@@ -256,6 +258,7 @@ export default function MypageClient() {
   const [listings, setListings] = useState<ListedSkill[]>([])
   const [listingsLoading, setListingsLoading] = useState(false)
   const [listingsError, setListingsError] = useState<string | null>(null)
+  const [publishingListingId, setPublishingListingId] = useState<string | null>(null)
 
   const [favoriteSkills, setFavoriteSkills] = useState<FavoriteSkillItem[]>([])
   const [favoritesLoading, setFavoritesLoading] = useState(false)
@@ -333,8 +336,14 @@ export default function MypageClient() {
         return
       }
       setUserId(data.user.id)
-      setIsAdmin(await getIsAdminFromProfile(supabase, data.user.id))
       setAuthLoading(false)
+      // 管理者判定は初期描画をブロックしないよう後段で反映する。
+      void getIsAdminFromProfile(supabase, data.user.id).then((adminFlag) => {
+        if (!mounted) {
+          return
+        }
+        setIsAdmin(adminFlag)
+      })
     }
 
     void checkAuth()
@@ -390,13 +399,11 @@ export default function MypageClient() {
   }, [supabase, userId, isAdmin])
 
   useEffect(() => {
-    if (userId) {
-      void loadProfile()
+    if (!userId) {
+      return
     }
-  }, [userId, loadProfile])
-
-  useEffect(() => {
-    if (userId && section === "payout") {
+    // プロフィール情報が必要なタブに入ったときのみ取得する。
+    if (section === "profile" || section === "payout" || section === "reviews") {
       void loadProfile()
     }
   }, [userId, section, loadProfile])
@@ -470,6 +477,17 @@ export default function MypageClient() {
     }
   }, [userId, section, stripeReturnParam, router])
 
+  useEffect(() => {
+    if (updatedParam !== "1") {
+      return
+    }
+    setNotice({ variant: "success", message: "更新しました。" })
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete("updated")
+    const query = params.toString()
+    router.replace(query ? `${pathname}?${query}` : pathname)
+  }, [updatedParam, searchParams, router, pathname])
+
   const handleStripeLinkOpen = useCallback(async () => {
     setPayoutLinkBusy(true)
     try {
@@ -488,7 +506,7 @@ export default function MypageClient() {
     setListingsError(null)
     const { data, error } = await supabase
       .from("skills")
-      .select("id, title, category, price, created_at")
+      .select("id, title, category, price, created_at, is_published")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
 
@@ -500,6 +518,36 @@ export default function MypageClient() {
     }
     setListingsLoading(false)
   }, [supabase, userId])
+
+  const handlePublishListing = useCallback(async (skillId: string) => {
+    if (!userId || publishingListingId) {
+      return
+    }
+    const target = listings.find((item) => item.id === skillId)
+    const confirmed = window.confirm(
+      `「${target?.title ?? "このスキル"}」を公開しますか？`,
+    )
+    if (!confirmed) {
+      return
+    }
+    setPublishingListingId(skillId)
+    const { error } = await supabase
+      .from("skills")
+      .update({ is_published: true })
+      .eq("id", skillId)
+      .eq("user_id", userId)
+    setPublishingListingId(null)
+
+    if (error) {
+      setNotice(toErrorNotice(error, isAdmin, { unknownErrorMessage: "スキルの公開に失敗しました。" }))
+      return
+    }
+
+    setListings((prev) =>
+      prev.map((item) => (item.id === skillId ? { ...item, is_published: true } : item)),
+    )
+    setNotice({ variant: "success", message: "スキルを公開しました。" })
+  }, [supabase, userId, publishingListingId, isAdmin, listings])
 
   useEffect(() => {
     if (userId && section === "listings") {
@@ -1279,7 +1327,10 @@ export default function MypageClient() {
     setHistoryPage((prev) => Math.min(prev, historyTotalPages))
   }, [historyTotalPages])
 
-  if (authLoading || (userId && profileLoading)) {
+  const shouldBlockByProfileLoading =
+    userId != null && (section === "profile" || section === "payout" || section === "reviews") && profileLoading
+
+  if (authLoading || shouldBlockByProfileLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-950 text-zinc-200">
         <Loader2 className="mr-2 h-5 w-5 animate-spin text-red-500" aria-hidden />
@@ -1472,23 +1523,54 @@ export default function MypageClient() {
                         className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
                       >
                         <div className="min-w-0 flex-1">
-                          <p className="font-semibold text-white">{skill.title}</p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-semibold text-white">{skill.title}</p>
+                            <span
+                              className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                                skill.is_published === false
+                                  ? "bg-zinc-700/70 text-zinc-200"
+                                  : "bg-emerald-900/40 text-emerald-300"
+                              }`}
+                            >
+                              {skill.is_published === false ? "非公開" : "公開中"}
+                            </span>
+                          </div>
                           <p className="mt-1 text-sm text-zinc-400">
                             {skill.category ?? "未分類"} · {Number(skill.price).toLocaleString("ja-JP")}
                             円
                           </p>
                         </div>
-                        <Button
-                          asChild
-                          variant="outline"
-                          size="sm"
-                          className="shrink-0 border-zinc-600 bg-zinc-950 text-zinc-100 hover:border-red-500 hover:bg-zinc-900"
-                        >
-                          <Link href={`/create-skill?edit=${encodeURIComponent(skill.id)}`}>
-                            <Pencil className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-                            編集
-                          </Link>
-                        </Button>
+                        <div className="flex shrink-0 items-center gap-2">
+                          {skill.is_published === false ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              disabled={publishingListingId === skill.id}
+                              onClick={() => void handlePublishListing(skill.id)}
+                              className="bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-60"
+                            >
+                              {publishingListingId === skill.id ? (
+                                <>
+                                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden />
+                                  公開中...
+                                </>
+                              ) : (
+                                "公開する"
+                              )}
+                            </Button>
+                          ) : null}
+                          <Button
+                            asChild
+                            variant="outline"
+                            size="sm"
+                            className="border-zinc-600 bg-zinc-950 text-zinc-100 hover:border-red-500 hover:bg-zinc-900"
+                          >
+                            <Link href={`/create-skill?edit=${encodeURIComponent(skill.id)}`}>
+                              <Pencil className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                              編集
+                            </Link>
+                          </Button>
+                        </div>
                       </li>
                     ))}
                   </ul>

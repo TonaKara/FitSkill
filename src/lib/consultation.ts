@@ -11,6 +11,11 @@ export type ConsultationSettingsRow = {
   is_enabled: boolean
 }
 
+export type ConsultationSettingsFetchResult = {
+  settings: ConsultationSettingsRow | null
+  error: string | null
+}
+
 export type ConsultationAnswerRow = {
   id: string
   skill_id: number
@@ -48,6 +53,28 @@ export async function fetchConsultationSettings(
     return null
   }
   return data as ConsultationSettingsRow
+}
+
+export async function fetchConsultationSettingsWithStatus(
+  supabase: SupabaseClient,
+  skillId: string | number,
+): Promise<ConsultationSettingsFetchResult> {
+  const n = toConsultationSkillId(skillId)
+  if (n == null) {
+    return { settings: null, error: "invalid_skill_id" }
+  }
+  const { data, error } = await supabase
+    .from("consultation_settings")
+    .select("skill_id, q1_label, q2_label, q3_label, free_label, is_enabled")
+    .eq("skill_id", n)
+    .maybeSingle()
+  if (error) {
+    return { settings: null, error: error.message }
+  }
+  if (!data) {
+    return { settings: null, error: null }
+  }
+  return { settings: data as ConsultationSettingsRow, error: null }
 }
 
 export async function fetchMyConsultationAnswer(
@@ -88,20 +115,70 @@ export async function canBuyerPurchaseSkill(
   allowed: boolean
   requiresConsultation: boolean
   answerStatus: ConsultationAnswerStatus | null
+  error: string | null
 }> {
-  const settings = await fetchConsultationSettings(supabase, skillId)
-  if (!settings?.is_enabled) {
+  const n = toConsultationSkillId(skillId)
+  if (n == null || !buyerId) {
+    return {
+      allowed: false,
+      requiresConsultation: true,
+      answerStatus: null,
+      error: "invalid_skill_or_buyer",
+    }
+  }
+
+  const { data: settings, error: settingsError } = await supabase
+    .from("consultation_settings")
+    .select("is_enabled")
+    .eq("skill_id", n)
+    .maybeSingle()
+  if (settingsError) {
+    return {
+      allowed: false,
+      requiresConsultation: true,
+      answerStatus: null,
+      error: settingsError.message,
+    }
+  }
+
+  const requiresConsultation = (settings as { is_enabled?: boolean | null } | null)?.is_enabled === true
+  if (!requiresConsultation) {
     return {
       allowed: true,
       requiresConsultation: false,
       answerStatus: null,
+      error: null,
     }
   }
-  const answer = await fetchMyConsultationAnswer(supabase, skillId, buyerId)
-  const status = answer?.status ?? null
+
+  const { data: answers, error: answersError } = await supabase
+    .from("consultation_answers")
+    .select("status")
+    .eq("skill_id", n)
+    .eq("buyer_id", buyerId)
+  if (answersError) {
+    return {
+      allowed: false,
+      requiresConsultation: true,
+      answerStatus: null,
+      error: answersError.message,
+    }
+  }
+
+  const rows = Array.isArray(answers) ? (answers as { status?: ConsultationAnswerStatus | null }[]) : []
+  const statuses = rows.map((row) => row.status).filter(Boolean) as ConsultationAnswerStatus[]
+  const status: ConsultationAnswerStatus | null = statuses.includes("pending")
+    ? "pending"
+    : statuses.includes("accepted")
+      ? "accepted"
+      : statuses.includes("rejected")
+        ? "rejected"
+        : null
+
   return {
     allowed: status === "accepted",
-    requiresConsultation: true,
+    requiresConsultation,
     answerStatus: status,
+    error: null,
   }
 }

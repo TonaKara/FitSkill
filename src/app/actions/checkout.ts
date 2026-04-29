@@ -175,6 +175,9 @@ export async function createCheckoutSession(skillId: string | number): Promise<C
 
     const consultationGate = await canBuyerPurchaseSkill(supabase, skill.id, user.id)
     if (!consultationGate.allowed) {
+      if (consultationGate.error) {
+        return { ok: false, error: "購入条件の確認に失敗しました。時間をおいて再度お試しください。" }
+      }
       if (consultationGate.answerStatus === "pending") {
         return { ok: false, error: "相談リクエストが承認待ちです。承認後に購入できます。" }
       }

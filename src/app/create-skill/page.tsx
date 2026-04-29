@@ -1,11 +1,11 @@
 "use client"
 
-import { ChangeEvent, FormEvent, Suspense, useEffect, useMemo, useState } from "react"
+import { ChangeEvent, FormEvent, Suspense, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import Link from "next/link"
 import Image from "next/image"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Loader2, MapPin, X } from "lucide-react"
+import { Info, Loader2, MapPin, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -139,6 +139,7 @@ function CreateSkillPageContent() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [consultationEnabled, setConsultationEnabled] = useState(false)
   const [consultationLabels, setConsultationLabels] = useState(DEFAULT_CONSULTATION_LABELS)
+  const thumbnailInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     setPortalReady(true)
@@ -507,6 +508,10 @@ function CreateSkillPageContent() {
     if (!validateForSubmit()) {
       return
     }
+    if (editSkillId) {
+      void executeSubmitAfterConfirm()
+      return
+    }
     setFinalConfirmKey((k) => k + 1)
     setShowFinalConfirm(true)
   }
@@ -593,9 +598,8 @@ function CreateSkillPageContent() {
           enabled: consultationEnabled,
         })
 
-        setNotice({ variant: "success", message: "スキルを更新しました。" })
         setPriceError("")
-        router.push("/mypage")
+        router.push("/mypage?tab=listings&updated=1")
         router.refresh()
       } else {
         const { data: insertedSkill, error } = await supabase
@@ -711,232 +715,264 @@ function CreateSkillPageContent() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="space-y-2">
-                <label htmlFor="thumbnail" className="text-sm font-semibold text-zinc-200">
-                  サムネイル画像
-                </label>
-                {!editSkillId ? (
-                  <p className="text-xs text-zinc-500">サムネイル画像は後から設定することも可能です。</p>
-                ) : null}
-                <Input
-                  id="thumbnail"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleThumbnailSelect}
-                  className="cursor-pointer border-zinc-700 bg-zinc-900 text-zinc-200 file:mr-4 file:rounded-md file:border-0 file:bg-red-600 file:px-3 file:py-1 file:text-sm file:font-semibold file:text-white hover:file:bg-red-500"
-                />
-                {thumbnailPreview ? (
-                  <div className="relative aspect-[16/10] w-full overflow-hidden rounded-lg border border-zinc-800">
-                    {thumbnailPreview.startsWith("blob:") ? (
-                      <Image
-                        src={thumbnailPreview}
-                        alt="サムネイルプレビュー"
-                        fill
-                        unoptimized
-                        className="object-cover"
-                        sizes="(max-width: 768px) 100vw, 48rem"
-                      />
-                    ) : (
-                      // eslint-disable-next-line @next/next/no-img-element -- 編集時は Supabase の https URL を表示するため
-                      <img
-                        src={thumbnailPreview}
-                        alt="サムネイルプレビュー"
-                        className="absolute inset-0 h-full w-full object-cover"
-                      />
-                    )}
-                    <button
-                      type="button"
-                      onClick={clearThumbnailSelection}
-                      className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-600/80 bg-black/70 text-zinc-100 transition-colors hover:border-red-500 hover:text-red-300"
-                      aria-label="サムネイル画像を削除"
-                    >
-                      <X className="h-4 w-4" aria-hidden />
-                    </button>
+              <section className="space-y-3 rounded-xl border border-zinc-800/80 bg-zinc-900/25 p-4">
+                <h2 className="text-sm font-semibold text-zinc-100">サムネイル設定</h2>
+                <div className="space-y-2">
+                  <label htmlFor="thumbnail" className="text-sm font-semibold text-zinc-200">
+                    サムネイル画像
+                  </label>
+                  {!editSkillId ? (
+                    <p className="text-xs text-zinc-500">サムネイル画像は後から設定することも可能です。</p>
+                  ) : null}
+                  <Input
+                    id="thumbnail"
+                    ref={thumbnailInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleThumbnailSelect}
+                    className="sr-only"
+                  />
+                  <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 sm:p-4">
+                    <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-3">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="h-10 w-full border-red-600 bg-red-600 text-white hover:border-red-500 hover:bg-red-500 sm:w-auto sm:px-5"
+                        onClick={() => thumbnailInputRef.current?.click()}
+                      >
+                        画像を選択
+                      </Button>
+                      <span className="block min-h-5 break-all text-xs text-zinc-400 sm:text-sm">
+                        {thumbnailFile?.name ?? "未選択"}
+                      </span>
+                    </div>
                   </div>
-                ) : null}
-              </div>
+                  {thumbnailPreview ? (
+                    <div className="relative mx-auto aspect-[4/3] w-full max-w-md overflow-hidden rounded-lg border border-zinc-800 sm:max-w-none sm:aspect-[16/10]">
+                      {thumbnailPreview.startsWith("blob:") ? (
+                        <Image
+                          src={thumbnailPreview}
+                          alt="サムネイルプレビュー"
+                          fill
+                          unoptimized
+                          className="object-cover"
+                          sizes="(max-width: 768px) 100vw, 48rem"
+                        />
+                      ) : (
+                        // eslint-disable-next-line @next/next/no-img-element -- 編集時は Supabase の https URL を表示するため
+                        <img
+                          src={thumbnailPreview}
+                          alt="サムネイルプレビュー"
+                          className="absolute inset-0 h-full w-full object-cover"
+                        />
+                      )}
+                      <button
+                        type="button"
+                        onClick={clearThumbnailSelection}
+                        className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-600/80 bg-black/70 text-zinc-100 transition-colors hover:border-red-500 hover:text-red-300"
+                        aria-label="サムネイル画像を削除"
+                      >
+                        <X className="h-4 w-4" aria-hidden />
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              </section>
 
-              <div className="space-y-2">
-                <label htmlFor="title" className="text-sm font-semibold text-zinc-200">
-                  題名
-                  <RequiredFieldMark />
-                </label>
-                <Input
-                  id="title"
-                  value={form.title}
-                  onChange={(event) => updateForm("title", event.target.value)}
-                  placeholder="例: 初心者向け自重トレーニング"
-                  className="border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-red-500"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="target_audience" className="text-sm font-semibold text-zinc-200">
-                  こんな人におすすめ
-                  <RequiredFieldMark />
-                </label>
-                <Input
-                  id="target_audience"
-                  value={form.targetAudience}
-                  onChange={(event) => updateForm("targetAudience", event.target.value)}
-                  placeholder="例：初心者の方、女性の方など"
-                  className="border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-red-500"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="description" className="text-sm font-semibold text-zinc-200">
-                  説明
-                  <RequiredFieldMark />
-                </label>
-                <textarea
-                  id="description"
-                  value={form.description}
-                  onChange={(event) => updateForm("description", event.target.value)}
-                  rows={5}
-                  placeholder="得られる効果、進行イメージなど"
-                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-500"
-                />
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
+              <section className="space-y-4 rounded-xl border border-zinc-800/80 bg-zinc-900/25 p-4">
+                <h2 className="text-sm font-semibold text-zinc-100">基本情報</h2>
                 <div className="space-y-2">
-                  <label htmlFor="category" className="text-sm font-semibold text-zinc-200">
-                    カテゴリー（50音順）
+                  <label htmlFor="title" className="text-sm font-semibold text-zinc-200">
+                    題名
                     <RequiredFieldMark />
                   </label>
-                  <select
-                    id="category"
-                    value={form.category}
-                    onChange={(event) => updateForm("category", event.target.value)}
-                    className="h-10 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
-                  >
-                    <option value="">選択してください</option>
-                    {CATEGORY_OPTIONS.map((category) => (
-                      <option key={category} value={category}>
-                        {category}
-                      </option>
-                    ))}
-                  </select>
+                  <Input
+                    id="title"
+                    value={form.title}
+                    onChange={(event) => updateForm("title", event.target.value)}
+                    placeholder="例: 初心者向け自重トレーニング"
+                    className="border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                  />
                 </div>
 
                 <div className="space-y-2">
-                  <label htmlFor="format" className="text-sm font-semibold text-zinc-200">
-                    形式
+                  <label htmlFor="target_audience" className="text-sm font-semibold text-zinc-200">
+                    こんな人におすすめ
                     <RequiredFieldMark />
                   </label>
-                  <select
-                    id="format"
-                    value={form.format}
-                    onChange={(event) => {
-                      const nextFormat = event.target.value as LessonFormat
-                      setForm((previous) => ({
-                        ...previous,
-                        format: nextFormat,
-                        prefecture: nextFormat === "online" ? "" : previous.prefecture,
-                      }))
-                    }}
-                    className="h-10 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
-                  >
-                    <option value="online">オンライン</option>
-                    <option value="onsite">対面</option>
-                  </select>
+                  <Input
+                    id="target_audience"
+                    value={form.targetAudience}
+                    onChange={(event) => updateForm("targetAudience", event.target.value)}
+                    placeholder="例：初心者の方、女性の方など"
+                    className="border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                  />
                 </div>
-              </div>
 
-              {form.format === "onsite" && (
                 <div className="space-y-2">
-                  <label htmlFor="prefecture" className="text-sm font-semibold text-zinc-200">
-                    場所（都道府県）
+                  <label htmlFor="description" className="text-sm font-semibold text-zinc-200">
+                    説明
                     <RequiredFieldMark />
                   </label>
-                  <div className="relative">
-                    <MapPin className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-red-400" />
+                  <textarea
+                    id="description"
+                    value={form.description}
+                    onChange={(event) => updateForm("description", event.target.value)}
+                    rows={7}
+                    placeholder="自己紹介、指導方針（ZoomやYouTube Liveを使った指導スタイルなど）、当日の流れ、準備していただくもの（運動できる服装、飲み物など）などを記載してください。※外部サービス（Zoom等）を利用する場合は、その旨を必ず明記してください。"
+                    className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm leading-relaxed text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  />
+                  <p className="inline-flex items-start gap-1.5 text-xs text-zinc-400">
+                    <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-400" aria-hidden />
+                    外部サービス（Zoom等）を利用する場合は、トラブル防止のため必ず説明欄に記載してください。
+                  </p>
+                </div>
+              </section>
+
+              <section className="space-y-4 rounded-xl border border-zinc-800/80 bg-zinc-900/25 p-4">
+                <h2 className="text-sm font-semibold text-zinc-100">提供方法</h2>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <label htmlFor="category" className="text-sm font-semibold text-zinc-200">
+                      カテゴリー（50音順）
+                      <RequiredFieldMark />
+                    </label>
                     <select
-                      id="prefecture"
-                      value={form.prefecture}
-                      onChange={(event) => updateForm("prefecture", event.target.value)}
-                      className="h-10 w-full rounded-md border border-zinc-700 bg-zinc-900 pl-9 pr-3 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+                      id="category"
+                      value={form.category}
+                      onChange={(event) => updateForm("category", event.target.value)}
+                      className="h-10 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
                     >
-                      <option value="">都道府県を選択してください</option>
-                      {PREFECTURE_OPTIONS.map((prefecture) => (
-                        <option key={prefecture} value={prefecture}>
-                          {prefecture}
+                      <option value="">選択してください</option>
+                      {CATEGORY_OPTIONS.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
                         </option>
                       ))}
                     </select>
                   </div>
-                </div>
-              )}
 
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="space-y-2">
-                  <label htmlFor="price" className="text-sm font-semibold text-zinc-200">
-                    値段（円）
-                    <RequiredFieldMark />
-                  </label>
-                  <Input
-                    id="price"
-                    type="number"
-                    min={MIN_PRICE_YEN}
-                    value={form.price}
-                    onChange={(event) => updateForm("price", event.target.value)}
-                    placeholder="例: 3500"
-                    className="border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-red-500"
-                    aria-invalid={Boolean(priceError)}
-                    aria-describedby={
-                      [priceError ? "price-error" : null, feePreview ? "price-fee-preview" : null]
-                        .filter(Boolean)
-                        .join(" ") || undefined
-                    }
-                  />
-                  {feePreview ? (
-                    <div id="price-fee-preview" className="mt-2 space-y-1 text-sm text-zinc-400">
-                      <p>
-                        手数料（{Math.round(SELLER_FEE_RATE * 100)}%）: {feePreview.feeYen.toLocaleString("ja-JP")}円
-                      </p>
-                      <p className="font-medium text-zinc-300">
-                        あなたの受取額: {feePreview.receiveYen.toLocaleString("ja-JP")}円
-                      </p>
+                  <div className="space-y-2">
+                    <label htmlFor="format" className="text-sm font-semibold text-zinc-200">
+                      形式
+                      <RequiredFieldMark />
+                    </label>
+                    <select
+                      id="format"
+                      value={form.format}
+                      onChange={(event) => {
+                        const nextFormat = event.target.value as LessonFormat
+                        setForm((previous) => ({
+                          ...previous,
+                          format: nextFormat,
+                          prefecture: nextFormat === "online" ? "" : previous.prefecture,
+                        }))
+                      }}
+                      className="h-10 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+                    >
+                      <option value="online">オンライン</option>
+                      <option value="onsite">対面</option>
+                    </select>
+                  </div>
+                </div>
+
+                {form.format === "onsite" && (
+                  <div className="space-y-2">
+                    <label htmlFor="prefecture" className="text-sm font-semibold text-zinc-200">
+                      場所（都道府県）
+                      <RequiredFieldMark />
+                    </label>
+                    <div className="relative">
+                      <MapPin className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-red-400" />
+                      <select
+                        id="prefecture"
+                        value={form.prefecture}
+                        onChange={(event) => updateForm("prefecture", event.target.value)}
+                        className="h-10 w-full rounded-md border border-zinc-700 bg-zinc-900 pl-9 pr-3 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+                      >
+                        <option value="">都道府県を選択してください</option>
+                        {PREFECTURE_OPTIONS.map((prefecture) => (
+                          <option key={prefecture} value={prefecture}>
+                            {prefecture}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                  ) : null}
-                  {priceError ? (
-                    <p id="price-error" className="text-sm font-medium text-red-500">
-                      {priceError}
-                    </p>
-                  ) : null}
+                  </div>
+                )}
+              </section>
+
+              <section className="space-y-4 rounded-xl border border-zinc-800/80 bg-zinc-900/25 p-4">
+                <h2 className="text-sm font-semibold text-zinc-100">価格・提供条件</h2>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="space-y-2">
+                    <label htmlFor="price" className="text-sm font-semibold text-zinc-200">
+                      値段（円）
+                      <RequiredFieldMark />
+                    </label>
+                    <Input
+                      id="price"
+                      type="number"
+                      min={MIN_PRICE_YEN}
+                      value={form.price}
+                      onChange={(event) => updateForm("price", event.target.value)}
+                      placeholder="例: 3500"
+                      className="border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                      aria-invalid={Boolean(priceError)}
+                      aria-describedby={
+                        [priceError ? "price-error" : null, feePreview ? "price-fee-preview" : null]
+                          .filter(Boolean)
+                          .join(" ") || undefined
+                      }
+                    />
+                    {feePreview ? (
+                      <div id="price-fee-preview" className="mt-2 space-y-1 text-sm text-zinc-400">
+                        <p>
+                          手数料（{Math.round(SELLER_FEE_RATE * 100)}%）: {feePreview.feeYen.toLocaleString("ja-JP")}円
+                        </p>
+                        <p className="font-medium text-zinc-300">
+                          あなたの受取額: {feePreview.receiveYen.toLocaleString("ja-JP")}円
+                        </p>
+                      </div>
+                    ) : null}
+                    {priceError ? (
+                      <p id="price-error" className="text-sm font-medium text-red-500">
+                        {priceError}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="duration" className="text-sm font-semibold text-zinc-200">
+                      1回あたりの時間（分）
+                      <RequiredFieldMark />
+                    </label>
+                    <Input
+                      id="duration"
+                      type="number"
+                      min={1}
+                      value={form.durationMinutes}
+                      onChange={(event) => updateForm("durationMinutes", event.target.value)}
+                      placeholder="例: 60"
+                      className="border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="max-capacity" className="text-sm font-semibold text-zinc-200">
+                      最大対応人数
+                      <RequiredFieldMark />
+                    </label>
+                    <Input
+                      id="max-capacity"
+                      type="number"
+                      min={1}
+                      value={form.maxCapacity}
+                      onChange={(event) => updateForm("maxCapacity", event.target.value)}
+                      placeholder="例: 5"
+                      className="border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label htmlFor="duration" className="text-sm font-semibold text-zinc-200">
-                    1回あたりの時間（分）
-                    <RequiredFieldMark />
-                  </label>
-                  <Input
-                    id="duration"
-                    type="number"
-                    min={1}
-                    value={form.durationMinutes}
-                    onChange={(event) => updateForm("durationMinutes", event.target.value)}
-                    placeholder="例: 60"
-                    className="border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-red-500"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="max-capacity" className="text-sm font-semibold text-zinc-200">
-                    最大対応人数
-                    <RequiredFieldMark />
-                  </label>
-                  <Input
-                    id="max-capacity"
-                    type="number"
-                    min={1}
-                    value={form.maxCapacity}
-                    onChange={(event) => updateForm("maxCapacity", event.target.value)}
-                    placeholder="例: 5"
-                    className="border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-red-500"
-                  />
-                </div>
-              </div>
+              </section>
 
               <fieldset className="space-y-3 rounded-lg border border-zinc-700 bg-zinc-900/50 p-4">
                 <legend className="px-1 text-sm font-semibold text-zinc-200">受講相談（事前オファー）設定</legend>
