@@ -20,7 +20,7 @@ function muteConsole() {
     if (!originalConsoleMethods.has(method)) {
       originalConsoleMethods.set(method, console[method])
     }
-    console[method] = (() => undefined) as Console[keyof Console]
+    ;(console as any)[method] = () => {}
   }
 }
 
@@ -28,7 +28,7 @@ function restoreConsole() {
   for (const method of CONSOLE_METHODS) {
     const original = originalConsoleMethods.get(method)
     if (original) {
-      console[method] = original
+      ;(console as any)[method] = original
     }
   }
 }
