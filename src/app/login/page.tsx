@@ -185,16 +185,19 @@ export default function LoginPage() {
 
       <Card className="relative z-10 w-full max-w-md border-red-500/40 bg-zinc-950/95 shadow-[0_0_60px_rgba(198,40,40,0.25)]">
         <CardHeader className="space-y-4">
-          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-300">
+          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs font-semibold">
             <Flame className="h-4 w-4" />
-            FitSkill
+            <span>
+              <span className="text-red-300">Grit</span>
+              <span className="text-white">Vib</span>
+            </span>
           </div>
           <div>
             <CardTitle className="text-2xl font-bold tracking-wide text-white">{title}</CardTitle>
             <CardDescription className="mt-1 text-zinc-400">
               {isSignup
                 ? "メールアドレスでアカウントを作成し、プロフィール設定に進みます。"
-                : "登録済みのアカウントでFitSkillにログインします。"}
+                : "登録済みのアカウントでGritVibにログインします。"}
             </CardDescription>
           </div>
 
@@ -411,3 +414,4 @@ export default function LoginPage() {
     </div>
   )
 }
+

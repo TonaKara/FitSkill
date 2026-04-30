@@ -7,7 +7,7 @@ export default function PrivacyPolicyPage() {
   return (
     <main className="mx-auto min-h-screen w-full max-w-4xl px-4 py-10 text-zinc-100">
       <div className="mb-6 flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-black text-white md:text-3xl">FitSkill プライバシーポリシー</h1>
+        <h1 className="text-2xl font-black text-white md:text-3xl">GritVib プライバシーポリシー</h1>
         <Button
           asChild
           variant="outline"
@@ -22,3 +22,4 @@ export default function PrivacyPolicyPage() {
     </main>
   )
 }
+

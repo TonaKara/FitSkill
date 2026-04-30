@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ConsoleGuard } from "@/components/ConsoleGuard";
 import { ConditionalFooter } from "@/components/layout/ConditionalFooter";
 import { MaintenanceGuard } from "@/components/MaintenanceGuard";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -38,6 +39,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <ConsoleGuard />
           <div className="flex min-h-full flex-col">
             <MaintenanceGuard>
               <div className="flex-1">{children}</div>

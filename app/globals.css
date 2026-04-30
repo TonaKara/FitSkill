@@ -50,7 +50,7 @@
 }
 
 /*
-  FitSkill / v0 モック寄せ:
+  GritVib / v0 モック寄せ:
   - Primary: 鮮やかな赤（#E11D48 / rose-600 相当, hsl 約 346 77% 50%）
   - ダーク時も primary を「赤のまま」にする（neutral テーマの白黒反転は使わない）
 */
@@ -139,3 +139,4 @@
     @apply bg-background text-foreground antialiased;
   }
 }
+

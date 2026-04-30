@@ -135,7 +135,7 @@ export default function ProfileSetupPage() {
         <div className="mb-8 flex flex-wrap items-start justify-between gap-4 border-b border-zinc-800 pb-6">
           <div>
             <h1 className="text-2xl font-black tracking-wide text-white md:text-3xl">プロフィール設定</h1>
-            <p className="mt-2 text-sm text-zinc-400">自己紹介や興味のある分野を登録して、FitSkill を始めましょう！</p>
+            <p className="mt-2 text-sm text-zinc-400">自己紹介や興味のある分野を登録して、GritVib を始めましょう！</p>
           </div>
           <Link
             href="/"
@@ -225,3 +225,4 @@ export default function ProfileSetupPage() {
     </div>
   )
 }
+

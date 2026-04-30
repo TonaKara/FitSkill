@@ -132,7 +132,8 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
               <Dumbbell className="h-5 w-5 text-primary-foreground sm:h-6 sm:w-6" />
             </div>
             <span className="text-base font-bold tracking-tight sm:text-lg md:text-xl">
-              Fit<span className="text-primary">Skill</span>
+              <span className="text-primary">Grit</span>
+              <span className="text-white">Vib</span>
             </span>
           </Link>
 
@@ -168,9 +169,9 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
             >
               スキルを出品
             </button>
-            <a href="#" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+            <Link href="/guide" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
               使い方
-            </a>
+            </Link>
           </nav>
 
           {/* Actions */}
@@ -221,9 +222,13 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
               >
                 スキルを出品
               </button>
-              <a href="#" className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-secondary transition-colors">
+              <Link
+                href="/guide"
+                onClick={() => setIsMenuOpen(false)}
+                className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-secondary transition-colors"
+              >
                 使い方
-              </a>
+              </Link>
               <Button
                 className="mt-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
                 onClick={handleAuthButtonClick}

@@ -19,8 +19,8 @@ type LegalDocumentModalProps = {
 }
 
 const TITLES: Record<LegalDocumentKind, string> = {
-  terms: "FitSkill 利用規約",
-  privacy: "FitSkill プライバシーポリシー",
+  terms: "GritVib 利用規約",
+  privacy: "GritVib プライバシーポリシー",
 }
 
 export function LegalDocumentModal({ open, kind, onClose, zClassName = "z-[10050]" }: LegalDocumentModalProps) {
@@ -88,3 +88,4 @@ export function LegalDocumentModal({ open, kind, onClose, zClassName = "z-[10050
     document.body,
   )
 }
+

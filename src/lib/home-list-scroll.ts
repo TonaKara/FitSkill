@@ -1,4 +1,4 @@
-const STORAGE_KEY = "fitskill:home-list-scroll-y"
+const STORAGE_KEY = "gritvib:home-list-scroll-y"
 
 /**
  * トップのスキル一覧から詳細へ進む前に、現在のスクロール位置を保存する
@@ -36,3 +36,4 @@ export function consumeHomeListScrollY(): number | null {
     return null
   }
 }
+

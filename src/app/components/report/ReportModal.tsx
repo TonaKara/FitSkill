@@ -101,12 +101,8 @@ export function ReportModal({ open, onClose, type, targetId, onSuccess }: Report
       resetForm()
       onSuccess?.("通報を受け付けました")
       onClose()
-    } catch (error) {
-      const message =
-        error instanceof Error && error.message
-          ? error.message
-          : "通報の送信に失敗しました。時間を置いて再度お試しください。"
-      setErrorMessage(message)
+    } catch {
+      setErrorMessage("通報の送信に失敗しました。時間を置いて再度お試しください。")
     } finally {
       setIsSubmitting(false)
     }

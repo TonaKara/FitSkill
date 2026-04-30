@@ -7,7 +7,8 @@ const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 }
 
-const FEE_RATE = 0.12
+/** アプリの `SELLER_FEE_RATE`（src/lib/seller-fee-preview.ts）と一致させること */
+const FEE_RATE = 0.16
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -149,7 +150,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    const applicationFeeAmount = Math.round(amount * FEE_RATE)
+    const applicationFeeAmount = Math.floor(amount * FEE_RATE)
 
     const pi = await stripe.paymentIntents.create({
       amount,

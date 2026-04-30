@@ -118,7 +118,7 @@ export default function HomePageClient({ heroStats }: HomePageClientProps) {
       <Header searchKeyword={searchKeyword} onSearchKeywordChange={setSearchKeyword} />
 
       <main className="mx-auto max-w-7xl px-4 py-6">
-        <div className="mb-8">
+        <div className="mb-6">
           <HeroBanner onBrowseSkillsClick={handleBrowseSkillsClick} heroStats={heroStats} />
         </div>
 

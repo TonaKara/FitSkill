@@ -77,9 +77,9 @@ export function StripePaymentSheet({
         if (!cancelled) {
           setReady(true)
         }
-      } catch (e) {
+      } catch {
         if (!cancelled) {
-          setErrorMessage(e instanceof Error ? e.message : "決済フォームの初期化に失敗しました。")
+          setErrorMessage("決済フォームの初期化に失敗しました。")
         }
       }
     })()
@@ -109,7 +109,7 @@ export function StripePaymentSheet({
     })
     setBusy(false)
     if (error) {
-      setErrorMessage(error.message ?? "決済を完了できませんでした。")
+      setErrorMessage("決済を完了できませんでした。時間を置いて再度お試しください。")
       return
     }
     onPaid()

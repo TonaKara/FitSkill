@@ -1,8 +1,11 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowRight, Flame, TrendingUp, Zap } from "lucide-react"
+import { Anton } from "next/font/google"
+import { ArrowRight, TrendingUp, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
+
+const anton = Anton({ subsets: ["latin"], weight: "400" })
 
 type HeroBannerProps = {
   onBrowseSkillsClick?: () => void
@@ -60,18 +63,17 @@ export function HeroBanner({ onBrowseSkillsClick, heroStats }: HeroBannerProps) 
       <div className="relative px-6 py-10 md:px-10 md:py-14">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="max-w-2xl">
-            {/* Badge */}
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary">
-              <Flame className="h-4 w-4" />
-              <span>今週の人気スキル</span>
-            </div>
-            
             {/* Title */}
-            <h1 className="mb-3 text-xl font-bold tracking-tight leading-tight text-foreground sm:text-2xl md:text-3xl lg:text-4xl">
+            <h1
+              className={`${anton.className} mb-3 text-2xl font-black italic uppercase leading-tight tracking-tighter text-foreground sm:text-3xl md:text-4xl lg:text-5xl`}
+            >
               <span className="block text-balance">
-                あなたの<span className="text-primary">フィットネススキル</span>を
+                本気の努力が、
+                <span className="inline-block bg-gradient-to-r from-orange-500 to-red-600 bg-clip-text text-transparent">
+                  共鳴
+                </span>
+                する場所。
               </span>
-              <span className="block text-balance">シェアしよう</span>
             </h1>
             
             {/* Description */}

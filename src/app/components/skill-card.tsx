@@ -163,8 +163,16 @@ export function SkillCard({ skill, favoriteSkillId }: SkillCardProps) {
               </Link>
             </Button>
           ) : (
-            <Button size="sm" className="bg-primary font-semibold text-primary-foreground hover:bg-primary/90">
-              詳細を見る
+            <Button
+              size="sm"
+              disabled
+              className="h-auto max-w-[11.5rem] whitespace-normal px-2 py-1 text-[11px] leading-tight text-center cursor-not-allowed bg-zinc-700 font-semibold text-zinc-300 opacity-100 hover:bg-zinc-700"
+            >
+              <span>
+                参考データのため、
+                <br />
+                ご購入いただけません
+              </span>
             </Button>
           )}
         </div>
