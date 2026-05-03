@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
+import { normalizeSkillBigIntId } from "@/lib/skill-id-bigint"
 
 export type ConsultationAnswerStatus = "pending" | "accepted" | "rejected"
 
@@ -8,7 +9,10 @@ export type ConsultationSettingsRow = {
   q2_label: string | null
   q3_label: string | null
   free_label: string | null
+  /** 事前オファー（質問フォーム・承認フロー） */
   is_enabled: boolean
+  /** 取引前チャット（inquiry_messages） */
+  is_chat_enabled: boolean
 }
 
 export type ConsultationSettingsFetchResult = {
@@ -36,6 +40,21 @@ export function toConsultationSkillId(value: string | number): number | null {
   return Math.trunc(n)
 }
 
+const CONSULTATION_SETTINGS_SELECT =
+  "skill_id, q1_label, q2_label, q3_label, free_label, is_enabled, is_chat_enabled"
+
+function mapConsultationSettingsRow(data: Record<string, unknown>): ConsultationSettingsRow {
+  return {
+    skill_id: Number(data.skill_id ?? 0),
+    q1_label: (data.q1_label as string | null) ?? null,
+    q2_label: (data.q2_label as string | null) ?? null,
+    q3_label: (data.q3_label as string | null) ?? null,
+    free_label: (data.free_label as string | null) ?? null,
+    is_enabled: Boolean(data.is_enabled),
+    is_chat_enabled: Boolean(data.is_chat_enabled),
+  }
+}
+
 export async function fetchConsultationSettings(
   supabase: SupabaseClient,
   skillId: string | number,
@@ -46,13 +65,33 @@ export async function fetchConsultationSettings(
   }
   const { data, error } = await supabase
     .from("consultation_settings")
-    .select("skill_id, q1_label, q2_label, q3_label, free_label, is_enabled")
+    .select(CONSULTATION_SETTINGS_SELECT)
     .eq("skill_id", n)
     .maybeSingle()
   if (error || !data) {
     return null
   }
-  return data as ConsultationSettingsRow
+  return mapConsultationSettingsRow(data as Record<string, unknown>)
+}
+
+/** 取引前チャット（inquiry）が有効か */
+export async function fetchConsultationChatEnabled(
+  supabase: SupabaseClient,
+  skillId: string | number,
+): Promise<boolean> {
+  const sid = normalizeSkillBigIntId(skillId)
+  if (sid == null) {
+    return false
+  }
+  const { data, error } = await supabase
+    .from("consultation_settings")
+    .select("is_chat_enabled")
+    .eq("skill_id", sid)
+    .maybeSingle()
+  if (error || !data) {
+    return false
+  }
+  return Boolean((data as { is_chat_enabled?: boolean | null }).is_chat_enabled)
 }
 
 export async function fetchConsultationSettingsWithStatus(
@@ -65,7 +104,7 @@ export async function fetchConsultationSettingsWithStatus(
   }
   const { data, error } = await supabase
     .from("consultation_settings")
-    .select("skill_id, q1_label, q2_label, q3_label, free_label, is_enabled")
+    .select(CONSULTATION_SETTINGS_SELECT)
     .eq("skill_id", n)
     .maybeSingle()
   if (error) {
@@ -74,7 +113,7 @@ export async function fetchConsultationSettingsWithStatus(
   if (!data) {
     return { settings: null, error: null }
   }
-  return { settings: data as ConsultationSettingsRow, error: null }
+  return { settings: mapConsultationSettingsRow(data as Record<string, unknown>), error: null }
 }
 
 export async function fetchMyConsultationAnswer(

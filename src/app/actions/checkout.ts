@@ -51,7 +51,7 @@ function getStripeClient() {
 }
 
 function computeApplicationFeeAmount(totalAmountYen: number): number {
-  // 規約の手数料率 16% を円単位で適用（小数点以下は切り捨て）
+  // 規約の手数料率 15% を円単位で適用（小数点以下は切り捨て）
   return Math.floor(totalAmountYen * SELLER_FEE_RATE)
 }
 

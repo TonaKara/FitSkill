@@ -8,7 +8,7 @@ const corsHeaders: Record<string, string> = {
 }
 
 /** アプリの `SELLER_FEE_RATE`（src/lib/seller-fee-preview.ts）と一致させること */
-const FEE_RATE = 0.16
+const FEE_RATE = 0.15
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {

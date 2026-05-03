@@ -1,0 +1,584 @@
+"use client"
+
+import { useCallback, useEffect, useMemo, useState } from "react"
+import Image from "next/image"
+import Link from "next/link"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
+import { ArrowLeft, Loader2 } from "lucide-react"
+import { Header } from "@/components/header"
+import { Button } from "@/components/ui/button"
+import { InquiryInboxList, type InquiryPeerProfile } from "@/components/inquiry/InquiryInboxList"
+import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import {
+  fetchInquiryInboxList,
+  fetchInquiryThreadMessages,
+  insertInquiryMessage,
+  markInquiryThreadRead,
+  type InquiryInboxListRow,
+  type InquiryMessageRow,
+} from "@/lib/inquiry-messages"
+import { resolveSkillThumbnailUrl } from "@/lib/skill-thumbnail"
+import { normalizeSkillBigIntId, uniqueSkillBigIntIds } from "@/lib/skill-id-bigint"
+import { fetchConsultationChatEnabled } from "@/lib/consultation"
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+type SkillHeaderRow = {
+  id: string
+  title: string
+  price: number
+  category: string
+  thumbnail_url: string | null
+}
+
+function isUuid(value: string): boolean {
+  return UUID_RE.test(value.trim())
+}
+
+export function InquiryChatClient() {
+  const params = useParams()
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const supabase = useMemo(() => getSupabaseBrowserClient(), [])
+
+  const peerRaw =
+    typeof params.recipient_id === "string" ? params.recipient_id : params.recipient_id?.[0] ?? ""
+  const peerId = peerRaw.trim()
+
+  const [authLoading, setAuthLoading] = useState(true)
+  const [userId, setUserId] = useState<string | null>(null)
+
+  const [threads, setThreads] = useState<InquiryInboxListRow[]>([])
+  const [inboxLoading, setInboxLoading] = useState(true)
+  const [inboxError, setInboxError] = useState<string | null>(null)
+  const [peerProfiles, setPeerProfiles] = useState<Record<string, InquiryPeerProfile>>({})
+  const [skillTitles, setSkillTitles] = useState<Record<string, string>>({})
+
+  const [messages, setMessages] = useState<InquiryMessageRow[]>([])
+  const [messagesLoading, setMessagesLoading] = useState(true)
+  const [messagesError, setMessagesError] = useState<string | null>(null)
+
+  const [headerSkill, setHeaderSkill] = useState<SkillHeaderRow | null>(null)
+  const [headerSkillLoading, setHeaderSkillLoading] = useState(false)
+
+  const [text, setText] = useState("")
+  const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState<string | null>(null)
+
+  const skillIdFromQuery = useMemo(() => {
+    const raw = searchParams.get("skill_id")
+    return normalizeSkillBigIntId(raw)
+  }, [searchParams])
+
+  const [preChatGuardPending, setPreChatGuardPending] = useState(() => Boolean(skillIdFromQuery))
+
+  const loadInbox = useCallback(async () => {
+    setInboxLoading(true)
+    setInboxError(null)
+    const { rows, error } = await fetchInquiryInboxList(supabase)
+    if (error) {
+      setThreads([])
+      setInboxError(error)
+      setInboxLoading(false)
+      return
+    }
+    setThreads(rows)
+
+    const peerIds = [...new Set(rows.map((r) => r.peer_id))]
+    const skillIds = uniqueSkillBigIntIds(rows.map((r) => r.last_origin_skill_id))
+
+    if (peerIds.length > 0) {
+      const { data: profData } = await supabase
+        .from("profiles")
+        .select("id, display_name, avatar_url")
+        .in("id", peerIds)
+      const nextProf: Record<string, InquiryPeerProfile> = {}
+      for (const row of (profData ?? []) as { id: string; display_name: string | null; avatar_url: string | null }[]) {
+        nextProf[row.id] = { display_name: row.display_name, avatar_url: row.avatar_url }
+      }
+      setPeerProfiles(nextProf)
+    } else {
+      setPeerProfiles({})
+    }
+
+    if (skillIds.length > 0) {
+      const { data: skillData } = await supabase.from("skills").select("id, title").in("id", skillIds)
+      const nextTitles: Record<string, string> = {}
+      for (const row of skillData ?? []) {
+        const rec = row as { id: unknown; title: unknown }
+        const sid = normalizeSkillBigIntId(rec.id)
+        if (sid != null) {
+          nextTitles[sid] = String(rec.title ?? "")
+        }
+      }
+      setSkillTitles(nextTitles)
+    } else {
+      setSkillTitles({})
+    }
+
+    setInboxLoading(false)
+  }, [supabase])
+
+  const loadMessages = useCallback(async () => {
+    if (!userId || !isUuid(peerId) || peerId === userId) {
+      setMessages([])
+      setMessagesLoading(false)
+      return
+    }
+    setMessagesLoading(true)
+    setMessagesError(null)
+    const { rows, error } = await fetchInquiryThreadMessages(supabase, peerId)
+    if (error) {
+      setMessages([])
+      setMessagesError(error)
+    } else {
+      setMessages(rows)
+      const { error: readErr } = await markInquiryThreadRead(supabase, userId, peerId)
+      if (readErr) {
+        console.warn("[inquiry] mark read", readErr)
+      }
+    }
+    setMessagesLoading(false)
+  }, [supabase, userId, peerId])
+
+  useEffect(() => {
+    let mounted = true
+    void (async () => {
+      const { data } = await supabase.auth.getUser()
+      if (!mounted) {
+        return
+      }
+      if (!data.user) {
+        setUserId(null)
+        setAuthLoading(false)
+        return
+      }
+      setUserId(data.user.id)
+      setAuthLoading(false)
+    })()
+    return () => {
+      mounted = false
+    }
+  }, [supabase])
+
+  useEffect(() => {
+    if (userId) {
+      void loadInbox()
+    }
+  }, [userId, loadInbox])
+
+  useEffect(() => {
+    void loadMessages()
+  }, [loadMessages])
+
+  useEffect(() => {
+    if (!skillIdFromQuery) {
+      setPreChatGuardPending(false)
+      return
+    }
+    if (!userId || !isUuid(peerId) || peerId === userId) {
+      return
+    }
+
+    let cancelled = false
+    setPreChatGuardPending(true)
+
+    void (async () => {
+      const { data: sk, error } = await supabase
+        .from("skills")
+        .select("user_id")
+        .eq("id", skillIdFromQuery)
+        .maybeSingle()
+      if (cancelled) {
+        return
+      }
+      if (error || !sk) {
+        router.replace("/inquiry/list")
+        return
+      }
+      const ownerId = String((sk as { user_id: string }).user_id)
+      if (ownerId !== peerId) {
+        router.replace(`/skills/${encodeURIComponent(skillIdFromQuery)}`)
+        return
+      }
+      const enabled = await fetchConsultationChatEnabled(supabase, skillIdFromQuery)
+      if (cancelled) {
+        return
+      }
+      if (!enabled) {
+        router.replace(`/skills/${encodeURIComponent(skillIdFromQuery)}`)
+        return
+      }
+      setPreChatGuardPending(false)
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [skillIdFromQuery, userId, peerId, supabase, router])
+
+  const effectiveOriginSkillId = useMemo((): string | null => {
+    if (messages.length > 0) {
+      return messages[messages.length - 1]?.origin_skill_id ?? null
+    }
+    if (skillIdFromQuery != null) {
+      return skillIdFromQuery
+    }
+    return null
+  }, [messages, skillIdFromQuery])
+
+  useEffect(() => {
+    if (effectiveOriginSkillId == null) {
+      setHeaderSkill(null)
+      return
+    }
+    let cancelled = false
+    setHeaderSkillLoading(true)
+    void (async () => {
+      const { data, error } = await supabase
+        .from("skills")
+        .select("id, title, price, category, thumbnail_url")
+        .eq("id", effectiveOriginSkillId)
+        .maybeSingle()
+      if (cancelled) {
+        return
+      }
+      if (error || !data) {
+        setHeaderSkill(null)
+      } else {
+        const rec = data as Record<string, unknown>
+        const sid = normalizeSkillBigIntId(rec.id)
+        if (sid == null) {
+          setHeaderSkill(null)
+        } else {
+          setHeaderSkill({
+            id: sid,
+            title: String(rec.title ?? ""),
+            price: Number(rec.price ?? 0),
+            category: String(rec.category ?? ""),
+            thumbnail_url: (rec.thumbnail_url as string | null) ?? null,
+          })
+        }
+      }
+      setHeaderSkillLoading(false)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [supabase, effectiveOriginSkillId])
+
+  const peerProfile = peerProfiles[peerId]
+  const peerName = peerProfile?.display_name?.trim() || "ユーザー"
+
+  useEffect(() => {
+    if (!peerId || !isUuid(peerId) || peerProfile) {
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, display_name, avatar_url")
+        .eq("id", peerId)
+        .maybeSingle()
+      if (cancelled || !data) {
+        return
+      }
+      const row = data as { id: string; display_name: string | null; avatar_url: string | null }
+      setPeerProfiles((prev) => ({
+        ...prev,
+        [row.id]: { display_name: row.display_name, avatar_url: row.avatar_url },
+      }))
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [peerId, peerProfile, supabase])
+
+  useEffect(() => {
+    if (!userId || !isUuid(peerId) || peerId === userId) {
+      return
+    }
+
+    const refreshIfThread = (row: Record<string, unknown>) => {
+      const sid = String(row.sender_id ?? "")
+      const rid = String(row.recipient_id ?? "")
+      const inThread =
+        (sid === userId && rid === peerId) || (sid === peerId && rid === userId)
+      if (inThread) {
+        void loadMessages()
+        void loadInbox()
+      }
+    }
+
+    const ch = supabase
+      .channel(`inquiry-dm:${userId}:${peerId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "inquiry_messages", filter: `sender_id=eq.${peerId}` },
+        (payload) => {
+          refreshIfThread(payload.new as Record<string, unknown>)
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "inquiry_messages", filter: `sender_id=eq.${userId}` },
+        (payload) => {
+          refreshIfThread(payload.new as Record<string, unknown>)
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "inquiry_messages", filter: `sender_id=eq.${userId}` },
+        (payload) => {
+          refreshIfThread(payload.new as Record<string, unknown>)
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "inquiry_messages", filter: `sender_id=eq.${peerId}` },
+        (payload) => {
+          refreshIfThread(payload.new as Record<string, unknown>)
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(ch)
+    }
+  }, [userId, peerId, supabase, loadMessages, loadInbox])
+
+  const handleSend = async () => {
+    if (!userId || !isUuid(peerId) || peerId === userId) {
+      return
+    }
+    const trimmed = text.trim()
+    if (!trimmed) {
+      return
+    }
+    if (effectiveOriginSkillId == null) {
+      setSendError("相談対象のスキルを特定できません。スキルページから「出品者に質問する」で開き直してください。")
+      return
+    }
+
+    setSendError(null)
+    setSending(true)
+    const { row, error } = await insertInquiryMessage(supabase, {
+      sender_id: userId,
+      recipient_id: peerId,
+      origin_skill_id: effectiveOriginSkillId,
+      content: trimmed,
+    })
+    setSending(false)
+    if (error || !row) {
+      setSendError(error ?? "送信に失敗しました。")
+      return
+    }
+    setText("")
+    setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row]))
+    void loadInbox()
+  }
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-zinc-950 text-zinc-200">
+        <Loader2 className="h-8 w-8 animate-spin text-red-500" aria-hidden />
+      </div>
+    )
+  }
+
+  if (!userId) {
+    const path = `/inquiry/${encodeURIComponent(peerId)}`
+    const qs = searchParams.toString()
+    const full = qs ? `${path}?${qs}` : path
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-zinc-950 px-4 text-zinc-100">
+        <p className="text-center text-sm text-zinc-300">相談チャットを開くにはログインが必要です。</p>
+        <Button
+          type="button"
+          className="bg-red-600 text-white hover:bg-red-500"
+          onClick={() => router.replace(`/login?redirect=${encodeURIComponent(full)}`)}
+        >
+          ログインへ
+        </Button>
+      </div>
+    )
+  }
+
+  if (!isUuid(peerId)) {
+    return (
+      <div className="min-h-screen bg-zinc-950 px-4 py-16 text-center text-zinc-200">
+        <p className="text-sm text-zinc-400">URL が不正です。</p>
+        <Button asChild className="mt-6 bg-red-600 text-white hover:bg-red-500">
+          <Link href="/inquiry/list">一覧へ</Link>
+        </Button>
+      </div>
+    )
+  }
+
+  if (peerId === userId) {
+    return (
+      <div className="min-h-screen bg-zinc-950 px-4 py-16 text-center text-zinc-200">
+        <p className="text-sm text-zinc-400">自分自身とはチャットできません。</p>
+        <Button asChild className="mt-6 bg-red-600 text-white hover:bg-red-500">
+          <Link href="/inquiry/list">一覧へ</Link>
+        </Button>
+      </div>
+    )
+  }
+
+  if (preChatGuardPending) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-zinc-950 text-zinc-200">
+        <Loader2 className="h-8 w-8 animate-spin text-red-500" aria-hidden />
+        <p className="text-sm text-zinc-400">相談設定を確認しています…</p>
+      </div>
+    )
+  }
+
+  const thumb = headerSkill ? resolveSkillThumbnailUrl(headerSkill.thumbnail_url) : resolveSkillThumbnailUrl(null)
+  const purchaseHref = effectiveOriginSkillId != null ? `/skills/${effectiveOriginSkillId}` : null
+
+  return (
+    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+      <Header />
+      <div className="mx-auto flex max-h-[calc(100dvh-4rem)] min-h-[calc(100dvh-4rem)] max-w-6xl flex-col md:flex-row md:border-x md:border-zinc-800">
+        <aside className="hidden w-full max-w-sm shrink-0 flex-col border-zinc-800 md:flex md:border-r">
+          <div className="border-b border-zinc-800 px-4 py-3">
+            <h2 className="text-sm font-bold text-zinc-200">相談一覧</h2>
+            <p className="mt-0.5 text-xs text-zinc-500">profiles の表示名・アイコンで識別</p>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <InquiryInboxList
+              threads={threads}
+              peerProfiles={peerProfiles}
+              skillTitles={skillTitles}
+              currentUserId={userId}
+              loading={inboxLoading}
+              error={inboxError}
+              activePeerId={peerId}
+            />
+          </div>
+        </aside>
+
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className="flex shrink-0 items-center gap-2 border-b border-zinc-800 px-3 py-2 md:px-4">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              onClick={() => router.push("/inquiry/list")}
+              aria-label="一覧へ戻る"
+            >
+              <ArrowLeft className="h-5 w-5 text-zinc-300" />
+            </Button>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs text-zinc-500">相手</p>
+              <p className="truncate text-sm font-semibold text-white">{peerName}</p>
+            </div>
+          </div>
+
+          <div className="shrink-0 border-b border-zinc-800 bg-zinc-900/40 px-3 py-3 md:px-4">
+            {headerSkillLoading ? (
+              <div className="flex items-center gap-2 text-xs text-zinc-500">
+                <Loader2 className="h-4 w-4 animate-spin text-red-500" />
+                スキル情報を読み込み中...
+              </div>
+            ) : headerSkill ? (
+              <div className="flex gap-3">
+                <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-zinc-800">
+                  <Image src={thumb} alt="" fill className="object-cover" sizes="96px" unoptimized />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="inline-block rounded-full border border-red-500/35 bg-red-950/40 px-2 py-0.5 text-[10px] font-medium text-red-200">
+                    {headerSkill.category}
+                  </span>
+                  <p className="mt-1 line-clamp-2 text-sm font-semibold text-white">{headerSkill.title}</p>
+                  <p className="mt-0.5 text-xs text-zinc-400">
+                    ¥{Number(headerSkill.price ?? 0).toLocaleString()} / 回
+                  </p>
+                  {purchaseHref ? (
+                    <Button
+                      asChild
+                      size="sm"
+                      className="mt-2 h-8 bg-red-600 text-xs font-bold text-white hover:bg-red-500"
+                    >
+                      <Link href={purchaseHref}>このスキルで取引を始める（購入ページへ）</Link>
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-amber-200/90">
+                表示するスキルがありません。スキル詳細の「出品者に質問する」から開くか、メッセージを送信すると文脈が表示されます。
+              </p>
+            )}
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 md:px-4">
+            {messagesLoading ? (
+              <div className="flex justify-center py-12 text-zinc-500">
+                <Loader2 className="h-6 w-6 animate-spin text-red-500" />
+              </div>
+            ) : messagesError ? (
+              <p className="text-center text-sm text-red-400">{messagesError}</p>
+            ) : messages.length === 0 ? (
+              <p className="text-center text-sm text-zinc-500">メッセージはまだありません。下の欄から送信してください。</p>
+            ) : (
+              <ul className="flex flex-col gap-3">
+                {messages.map((m) => {
+                  const mine = m.sender_id === userId
+                  return (
+                    <li key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                      <div
+                        className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+                          mine ? "bg-red-900/50 text-red-50" : "bg-zinc-800 text-zinc-100"
+                        }`}
+                      >
+                        <p className="whitespace-pre-wrap break-words">{m.content}</p>
+                        <p className="mt-1 text-[10px] opacity-70">
+                          {new Date(m.created_at).toLocaleString("ja-JP", {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                          {mine ? (m.is_read ? " · 既読" : " · 未読") : ""}
+                        </p>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </div>
+
+          <div className="shrink-0 border-t border-zinc-800 bg-zinc-950 p-3 md:p-4">
+            {sendError ? <p className="mb-2 text-center text-xs text-red-400">{sendError}</p> : null}
+            <div className="flex gap-2">
+              <textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                rows={2}
+                placeholder="メッセージを入力..."
+                className="min-h-[44px] flex-1 resize-none rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+              />
+              <Button
+                type="button"
+                disabled={sending || effectiveOriginSkillId == null}
+                onClick={() => void handleSend()}
+                className="h-auto shrink-0 self-end bg-red-600 px-4 font-bold text-white hover:bg-red-500 disabled:opacity-50"
+              >
+                {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : "送信"}
+              </Button>
+            </div>
+            <p className="mt-2 text-center text-[10px] text-zinc-600">
+              取引成立後のやり取りは取引チャット（messages）をご利用ください。メッセージはリアルタイムで更新されます。
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

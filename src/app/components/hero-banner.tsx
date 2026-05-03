@@ -68,8 +68,8 @@ export function HeroBanner({ onBrowseSkillsClick, heroStats }: HeroBannerProps) 
               className={`${anton.className} mb-3 text-2xl font-black italic uppercase leading-tight tracking-tighter text-foreground sm:text-3xl md:text-4xl lg:text-5xl`}
             >
               <span className="block text-balance">
-                本気の努力が、
-                <span className="inline-block bg-gradient-to-r from-orange-500 to-red-600 bg-clip-text text-transparent">
+                「楽しい」が、
+                <span className="inline-block bg-gradient-to-b from-red-300 via-primary to-red-700 bg-clip-text text-transparent drop-shadow-[0_0_10px_rgba(239,68,68,0.45)]">
                   共鳴
                 </span>
                 する場所。

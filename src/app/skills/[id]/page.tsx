@@ -5,7 +5,17 @@ import { createPortal } from "react-dom"
 import Image from "next/image"
 import Link from "next/link"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, ChevronRight, Loader2, MapPin, MessageCircle, Monitor, Star, Users } from "lucide-react"
+import {
+  ArrowLeft,
+  ChevronRight,
+  ClipboardList,
+  Loader2,
+  MapPin,
+  MessageCircle,
+  Monitor,
+  Star,
+  Users,
+} from "lucide-react"
 import { ReportModal } from "@/components/report/ReportModal"
 import { StripePaymentSheet } from "@/components/stripe-payment-sheet"
 import { TradeFinalConfirmStep } from "@/components/TradeFinalConfirmStep"
@@ -640,14 +650,25 @@ export default function SkillDetailPage() {
     latestTransactionStatus === "canceled" ||
     latestTransactionStatus === "refunded"
   const hasActivePurchase = !isOwnSkill && Boolean(latestTransaction?.id != null && canTransitionChatByStatus)
+  const consultationEnabled = !consultationSettingsLoadError && consultationSettings?.is_enabled === true
+  const chatConsultationEnabled =
+    !consultationSettingsLoadError && consultationSettings?.is_chat_enabled === true
+  const consultationAccepted = consultationAnswer?.status === "accepted"
+  const showAskSeller =
+    !isOwnSkill && skill.is_published !== false && !hasActivePurchase && chatConsultationEnabled
+  const showPreOfferPrimary =
+    !isOwnSkill &&
+    skill.is_published !== false &&
+    !hasActivePurchase &&
+    consultationEnabled &&
+    !consultationAccepted &&
+    consultationAnswer?.status !== "pending"
   const isBuyerAwaitingPayment =
     Boolean(
       userId &&
         latestTransaction?.buyer_id === userId &&
         latestTransactionStatus === "awaiting_payment",
     )
-  const consultationEnabled = !consultationSettingsLoadError && consultationSettings?.is_enabled === true
-  const consultationAccepted = consultationAnswer?.status === "accepted"
   const shouldShowConsultationAction =
     !isOwnSkill && !consultationSettingsLoadError && consultationEnabled && !consultationAccepted
   const shouldShowPurchaseButton =
@@ -656,17 +677,6 @@ export default function SkillDetailPage() {
     !consultationSettingsLoadError &&
     (!consultationEnabled || consultationAccepted) &&
     (transactionRows.length === 0 || canRepurchaseByStatus || isBuyerAwaitingPayment)
-
-  console.log("[skills:purchase-button-state]", {
-    rowsLength: transactionRows.length,
-    status: latestTransactionStatus,
-    transactionStatusLoading,
-    hasActivePurchase,
-    shouldShowPurchaseButton,
-    consultationEnabled,
-    consultationAccepted,
-    consultationSettingsLoadError,
-  })
 
   const handlePurchaseIntent = () => {
     setPurchaseError(null)
@@ -1125,6 +1135,59 @@ export default function SkillDetailPage() {
         </div>
 
         <div className="sticky bottom-0 left-0 right-0 z-10 mt-8 border-t border-zinc-800 bg-black/90 py-4 backdrop-blur-md md:static md:border-0 md:bg-transparent md:py-0 md:backdrop-blur-none">
+          {showAskSeller || showPreOfferPrimary ? (
+            <div
+              className={cn(
+                "mb-3 grid gap-3",
+                showAskSeller && showPreOfferPrimary ? "sm:grid-cols-2" : "",
+              )}
+            >
+              {showPreOfferPrimary ? (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    if (!userId) {
+                      router.push(`/login?redirect=${encodeURIComponent(`/skills/${skillId}`)}`)
+                      return
+                    }
+                    setConsultationFormOpen((prev) => !prev)
+                  }}
+                  className="h-11 w-full rounded-md bg-red-600 text-base font-bold text-white hover:bg-red-500"
+                >
+                  <ClipboardList className="mr-2 h-5 w-5 shrink-0" aria-hidden />
+                  {!userId
+                    ? "ログインして事前オファーを送る"
+                    : consultationFormOpen
+                      ? "入力フォームを閉じる"
+                      : "事前オファーを送る"}
+                </Button>
+              ) : null}
+              {showAskSeller ? (
+                <Button
+                  asChild
+                  variant="outline"
+                  className="h-11 w-full rounded-md border-zinc-600 bg-zinc-900 text-base font-bold text-zinc-100 hover:border-red-500 hover:bg-zinc-800"
+                >
+                  <Link
+                    href={
+                      userId
+                        ? `/inquiry/${encodeURIComponent(skill.user_id)}?skill_id=${encodeURIComponent(String(skill.id))}`
+                        : `/login?redirect=${encodeURIComponent(`/skills/${skillId}`)}`
+                    }
+                    className="inline-flex w-full items-center justify-center gap-2"
+                  >
+                    <MessageCircle className="h-5 w-5 shrink-0" aria-hidden />
+                    出品者に質問する
+                  </Link>
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+          {showAskSeller ? (
+            <p className="mb-3 text-center text-[11px] text-zinc-500">
+              購入前の質問は「出品者に質問する」から。お取引が始まったあとの連絡は取引チャットをご利用ください。
+            </p>
+          ) : null}
           {consultationEnabled ? (
             <p className="mb-3 rounded-lg border border-red-500/40 bg-red-950/30 px-3 py-2 text-sm text-red-200">
               こちらのスキルには事前オファーが設定されています。ご購入前に申し込みが必要です。
@@ -1183,21 +1246,7 @@ export default function SkillDetailPage() {
                 >
                   承認待ち
                 </Button>
-              ) : (
-                <Button
-                  type="button"
-                  onClick={() => {
-                    if (!userId) {
-                      router.push(`/login?redirect=${encodeURIComponent(`/skills/${skillId}`)}`)
-                      return
-                    }
-                    setConsultationFormOpen((prev) => !prev)
-                  }}
-                  className="h-11 w-full rounded-md bg-red-600 text-base font-bold text-white hover:bg-red-500"
-                >
-                  {!userId ? "ログインして申し込む" : consultationFormOpen ? "入力フォームを閉じる" : "申し込む"}
-                </Button>
-              )}
+              ) : null}
               {consultationAnswer?.status === "rejected" ? (
                 <p className="text-sm text-amber-300">リクエストは拒否されました。</p>
               ) : null}

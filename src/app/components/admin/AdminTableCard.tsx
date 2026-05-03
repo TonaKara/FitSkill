@@ -954,6 +954,27 @@ export function AdminTableCard({
     }
     setStatusUpdating(true)
     try {
+      if (tableName === "contact_submissions") {
+        const contactId = selectedItem.id
+        if (typeof contactId !== "number" && typeof contactId !== "string") {
+          throw new Error("問い合わせIDが不正です。")
+        }
+        const response = await fetch("/api/admin/contact-submissions/status", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ id: contactId, status: nextStatus }),
+        })
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => null)) as { error?: string } | null
+          throw new Error(payload?.error ?? "ステータス更新に失敗しました。")
+        }
+        setSelectedItem((prev) => (prev ? { ...prev, status: nextStatus } : prev))
+        setReloadTick((prev) => prev + 1)
+        return
+      }
+
       let query = supabase.from(tableName).update({ status: nextStatus })
       if (tableName === "user_reports") {
         query = query
@@ -964,11 +985,6 @@ export function AdminTableCard({
         query = query
           .eq("reporter_id", String(selectedItem.reporter_id ?? ""))
           .eq("product_id", Number(selectedItem.product_id))
-          .eq("created_at", String(selectedItem.created_at ?? ""))
-      } else if (tableName === "contact_submissions") {
-        query = query
-          .eq("email", String(selectedItem.email ?? ""))
-          .eq("subject", String(selectedItem.subject ?? ""))
           .eq("created_at", String(selectedItem.created_at ?? ""))
       } else if (tableName === "transactions") {
         query = query.eq("id", String(selectedItem.id ?? ""))

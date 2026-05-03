@@ -138,6 +138,7 @@ function CreateSkillPageContent() {
   const [portalReady, setPortalReady] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [consultationEnabled, setConsultationEnabled] = useState(false)
+  const [chatConsultationEnabled, setChatConsultationEnabled] = useState(false)
   const [consultationLabels, setConsultationLabels] = useState(DEFAULT_CONSULTATION_LABELS)
   const thumbnailInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -158,6 +159,7 @@ function CreateSkillPageContent() {
         return ""
       })
       setConsultationEnabled(false)
+      setChatConsultationEnabled(false)
       setConsultationLabels(DEFAULT_CONSULTATION_LABELS)
       return
     }
@@ -264,6 +266,7 @@ function CreateSkillPageContent() {
         const settings = await fetchConsultationSettings(supabase, skillIdAsNumber)
         if (settings) {
           setConsultationEnabled(settings.is_enabled)
+          setChatConsultationEnabled(Boolean(settings.is_chat_enabled))
           setConsultationLabels({
             q1: settings.q1_label?.trim() || DEFAULT_CONSULTATION_LABELS.q1,
             q2: settings.q2_label?.trim() || DEFAULT_CONSULTATION_LABELS.q2,
@@ -272,10 +275,12 @@ function CreateSkillPageContent() {
           })
         } else {
           setConsultationEnabled(false)
+          setChatConsultationEnabled(false)
           setConsultationLabels(DEFAULT_CONSULTATION_LABELS)
         }
       } else {
         setConsultationEnabled(false)
+        setChatConsultationEnabled(false)
         setConsultationLabels(DEFAULT_CONSULTATION_LABELS)
       }
 
@@ -429,7 +434,8 @@ function CreateSkillPageContent() {
     q2: string
     q3: string
     free: string
-    enabled: boolean
+    preOfferEnabled: boolean
+    chatEnabled: boolean
   }) => {
     const settingSkillId = toConsultationSkillId(skillId)
     if (settingSkillId == null) {
@@ -442,7 +448,8 @@ function CreateSkillPageContent() {
         q2_label: payload.q2,
         q3_label: payload.q3,
         free_label: payload.free,
-        is_enabled: payload.enabled,
+        is_enabled: payload.preOfferEnabled,
+        is_chat_enabled: payload.chatEnabled,
       },
       { onConflict: "skill_id" },
     )
@@ -494,7 +501,7 @@ function CreateSkillPageContent() {
       return false
     }
     if (consultationEnabled && !q1) {
-      setNotice({ variant: "error", message: "受講相談を有効にする場合、質問1は必須です。" })
+      setNotice({ variant: "error", message: "事前オファーを有効にする場合、質問1は必須です。" })
       return false
     }
     return true
@@ -595,7 +602,8 @@ function CreateSkillPageContent() {
           q2,
           q3,
           free,
-          enabled: consultationEnabled,
+          preOfferEnabled: consultationEnabled,
+          chatEnabled: chatConsultationEnabled,
         })
 
         setPriceError("")
@@ -633,7 +641,8 @@ function CreateSkillPageContent() {
             q2,
             q3,
             free,
-            enabled: consultationEnabled,
+            preOfferEnabled: consultationEnabled,
+            chatEnabled: chatConsultationEnabled,
           })
         } catch (consultationError) {
           // スキル作成直後に相談設定保存が失敗した場合は作成スキルを削除して整合性を保つ。
@@ -975,7 +984,7 @@ function CreateSkillPageContent() {
               </section>
 
               <fieldset className="space-y-3 rounded-lg border border-zinc-700 bg-zinc-900/50 p-4">
-                <legend className="px-1 text-sm font-semibold text-zinc-200">受講相談（事前オファー）設定</legend>
+                <legend className="px-1 text-sm font-semibold text-zinc-200">セクションA: 事前オファー設定</legend>
                 <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-zinc-200">
                   <input
                     type="checkbox"
@@ -983,10 +992,10 @@ function CreateSkillPageContent() {
                     checked={consultationEnabled}
                     onChange={(event) => setConsultationEnabled(event.target.checked)}
                   />
-                  受講相談を有効にする
+                  事前オファー（質問フォーム）を受け付ける
                 </label>
                 <p className="text-xs text-zinc-500">
-                  有効化すると、購入前に生徒から質問回答を受け付け、承認したユーザーのみ購入できます。
+                  オンにすると、購入前に回答フォームと講師の承認が必要になります（質問ラベルを設定してください）。
                 </p>
                 <div className="grid gap-3">
                   <div className="space-y-1">
@@ -1047,6 +1056,22 @@ function CreateSkillPageContent() {
                     />
                   </div>
                 </div>
+              </fieldset>
+
+              <fieldset className="space-y-3 rounded-lg border border-zinc-700 bg-zinc-900/50 p-4">
+                <legend className="px-1 text-sm font-semibold text-zinc-200">セクションB: 事前相談（チャット）設定</legend>
+                <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-zinc-200">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-zinc-600 bg-zinc-950 text-red-600 focus:ring-red-500"
+                    checked={chatConsultationEnabled}
+                    onChange={(event) => setChatConsultationEnabled(event.target.checked)}
+                  />
+                  購入前のチャット相談を受け付ける
+                </label>
+                <p className="text-xs text-zinc-500">
+                  オンにすると、スキル詳細に「出品者に質問する」が表示され、取引前のメッセージのやり取りができます。事前オファーとは別にオン・オフできます。
+                </p>
               </fieldset>
 
               <fieldset className="space-y-3 rounded-lg border border-zinc-700 bg-zinc-900/50 p-4">

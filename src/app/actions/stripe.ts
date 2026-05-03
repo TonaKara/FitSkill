@@ -9,6 +9,14 @@ type StripeProfileRow = {
   stripe_connect_account_id: string | null
 }
 
+const STRIPE_ONBOARDING_DEFAULTS = {
+  country: "JP" as const,
+  businessType: "individual" as const,
+  mcc: "8299", // 教育 > その他
+  websiteUrl: "https://gritvib.com",
+  productDescription: "フィットネスの知識や技術を共有します。",
+}
+
 function getStripeClient() {
   const secretKey = process.env.STRIPE_SECRET_KEY
   if (!secretKey) {
@@ -59,7 +67,11 @@ async function getAuthedSupabase() {
   return { supabase, user }
 }
 
-export async function getStripeOnboardingUrl() {
+export async function getStripeOnboardingUrl(consented: boolean) {
+  if (consented !== true) {
+    throw new Error("オンボーディング内容への同意が必要です。")
+  }
+
   const { supabase, user } = await getAuthedSupabase()
   const stripe = getStripeClient()
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
@@ -77,6 +89,18 @@ export async function getStripeOnboardingUrl() {
   if (!accountId) {
     const account = await stripe.accounts.create({
       type: "express",
+      country: STRIPE_ONBOARDING_DEFAULTS.country,
+      business_type: STRIPE_ONBOARDING_DEFAULTS.businessType,
+      business_profile: {
+        mcc: STRIPE_ONBOARDING_DEFAULTS.mcc,
+        url: STRIPE_ONBOARDING_DEFAULTS.websiteUrl,
+        product_description: STRIPE_ONBOARDING_DEFAULTS.productDescription,
+      },
+      individual: {
+        address: {
+          country: STRIPE_ONBOARDING_DEFAULTS.country,
+        },
+      },
       metadata: { user_id: user.id },
     })
     accountId = account.id
@@ -98,6 +122,19 @@ export async function getStripeOnboardingUrl() {
     stripe,
     accountId,
     expectedUserId: user.id,
+  })
+  await stripe.accounts.update(accountId, {
+    business_type: STRIPE_ONBOARDING_DEFAULTS.businessType,
+    business_profile: {
+      mcc: STRIPE_ONBOARDING_DEFAULTS.mcc,
+      url: STRIPE_ONBOARDING_DEFAULTS.websiteUrl,
+      product_description: STRIPE_ONBOARDING_DEFAULTS.productDescription,
+    },
+    individual: {
+      address: {
+        country: STRIPE_ONBOARDING_DEFAULTS.country,
+      },
+    },
   })
   await disableAutomaticPayouts(stripe, accountId)
 

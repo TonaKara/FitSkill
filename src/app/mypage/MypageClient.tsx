@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { Heart, Loader2, Pencil, Star } from "lucide-react"
+import { Heart, Loader2, Pencil, ShieldAlert, Star } from "lucide-react"
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -29,11 +29,13 @@ import {
 import { createGeneralNotification } from "@/lib/transaction-notifications"
 import { autoCompleteTransactions } from "@/lib/transactions"
 import { checkAndFinalizeStripeStatus, getStripeOnboardingUrl } from "@/actions/stripe"
+import { MypageInquirySection } from "./MypageInquirySection"
 
 type MypageSection =
   | "profile"
   | "listings"
   | "requests"
+  | "inquiry"
   | "learning"
   | "teaching"
   | "transactions"
@@ -46,6 +48,7 @@ const MENU: { id: MypageSection; label: string }[] = [
   { id: "profile", label: "プロフィール設定" },
   { id: "listings", label: "出品商品管理" },
   { id: "requests", label: "受講リクエスト" },
+  { id: "inquiry", label: "購入前の相談" },
   { id: "learning", label: "受講中" },
   { id: "teaching", label: "対応中" },
   { id: "transactions", label: "取引履歴" },
@@ -295,6 +298,7 @@ export default function MypageClient() {
   const [isStripeRegistered, setIsStripeRegistered] = useState(false)
   const [stripeConnectAccountId, setStripeConnectAccountId] = useState("")
   const [payoutLinkBusy, setPayoutLinkBusy] = useState(false)
+  const [showStripeOnboardingConfirm, setShowStripeOnboardingConfirm] = useState(false)
   const [connectBalanceLoading, setConnectBalanceLoading] = useState(false)
   const [connectBalanceError, setConnectBalanceError] = useState<string | null>(null)
   const [connectBalance, setConnectBalance] = useState<ConnectBalanceResponse | null>(null)
@@ -491,12 +495,26 @@ export default function MypageClient() {
   const handleStripeLinkOpen = useCallback(async () => {
     setPayoutLinkBusy(true)
     try {
-      const url = await getStripeOnboardingUrl()
+      const url = await getStripeOnboardingUrl(true)
       window.location.href = url
     } finally {
       setPayoutLinkBusy(false)
     }
   }, [])
+
+  const handleOpenStripeOnboardingConfirm = useCallback(() => {
+    if (payoutLinkBusy || profileLoading) {
+      return
+    }
+    setShowStripeOnboardingConfirm(true)
+  }, [payoutLinkBusy, profileLoading])
+
+  const handleCloseStripeOnboardingConfirm = useCallback(() => {
+    if (payoutLinkBusy) {
+      return
+    }
+    setShowStripeOnboardingConfirm(false)
+  }, [payoutLinkBusy])
 
   const loadListings = useCallback(async () => {
     if (!userId) {
@@ -1579,6 +1597,8 @@ export default function MypageClient() {
             </div>
           )}
 
+          {section === "inquiry" && userId ? <MypageInquirySection userId={userId} /> : null}
+
           {section === "requests" && (
             <div className="mx-auto max-w-4xl">
               <h1 className="text-2xl font-black tracking-wide text-white md:text-3xl">受講リクエスト</h1>
@@ -2166,7 +2186,7 @@ export default function MypageClient() {
                       type="button"
                       className="bg-red-600 text-white hover:bg-red-500"
                       disabled={payoutLinkBusy || profileLoading}
-                      onClick={() => void handleStripeLinkOpen()}
+                      onClick={handleOpenStripeOnboardingConfirm}
                     >
                       {payoutLinkBusy ? (
                         <>
@@ -2187,7 +2207,7 @@ export default function MypageClient() {
                       type="button"
                       className="bg-red-600 text-white hover:bg-red-500"
                       disabled={payoutLinkBusy || profileLoading}
-                      onClick={() => void handleStripeLinkOpen()}
+                      onClick={handleOpenStripeOnboardingConfirm}
                     >
                       {payoutLinkBusy ? (
                         <>
@@ -2248,6 +2268,77 @@ export default function MypageClient() {
           )}
         </main>
       </div>
+
+      {showStripeOnboardingConfirm ? (
+        <div
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 p-4"
+          role="presentation"
+          onClick={handleCloseStripeOnboardingConfirm}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="stripe-onboarding-confirm-title"
+            className="w-full max-w-xl rounded-2xl border border-zinc-700 bg-zinc-950 p-5 shadow-2xl md:p-6"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="stripe-onboarding-confirm-title" className="text-lg font-bold text-white">
+              Stripe講師登録の確認
+            </h2>
+
+            <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-900/70 p-4">
+              <p className="text-sm font-semibold text-zinc-200">
+                スムーズに登録を進めるため、Stripe上にはデフォルトで以下の内容が入力されます
+              </p>
+              <ul className="mt-2 space-y-1 text-sm text-zinc-300">
+                <li>国: 日本</li>
+                <li>事業形態: 個人事業主</li>
+                <li>業種: 教育 &gt; その他</li>
+                <li>URL: https://gritvib.com</li>
+                <li>説明: フィットネスの知識や技術を共有します。</li>
+              </ul>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-red-500/30 bg-red-950/20 p-4">
+              <p className="inline-flex items-center gap-2 text-sm font-semibold text-red-200">
+                <ShieldAlert className="h-4 w-4" />
+                注意事項
+              </p>
+              <ul className="mt-2 space-y-1.5 text-sm leading-relaxed text-zinc-200">
+                <li>これらの情報は登録後、Stripeダッシュボードから変更可能です。</li>
+                <li>口座情報や個人情報はStripeが厳重に管理し、当アプリのデータベースには保存されません。</li>
+              </ul>
+            </div>
+
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                className="border-zinc-600 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
+                onClick={handleCloseStripeOnboardingConfirm}
+                disabled={payoutLinkBusy}
+              >
+                キャンセル
+              </Button>
+              <Button
+                type="button"
+                className="bg-red-600 text-white hover:bg-red-500"
+                onClick={() => void handleStripeLinkOpen().finally(() => setShowStripeOnboardingConfirm(false))}
+                disabled={payoutLinkBusy}
+              >
+                {payoutLinkBusy ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                    Stripeへ進む...
+                  </>
+                ) : (
+                  "内容に同意してStripeへ進む"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
