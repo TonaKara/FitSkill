@@ -1,12 +1,13 @@
 import type { MetadataRoute } from "next"
-import { fetchPublishedSkillIds } from "@/lib/published-skill-ids"
+import { fetchPublishedSkillIds } from "../src/lib/published-skill-ids"
+
+/** Supabase 等 Node API を安全に使う（Edge だと生成失敗して HTML エラーになることがある） */
+export const runtime = "nodejs"
 
 const SITE = "https://gritvib.com"
 
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const lastModified = new Date()
-
-  const staticEntries: MetadataRoute.Sitemap = [
+function staticEntries(lastModified: Date): MetadataRoute.Sitemap {
+  return [
     { url: SITE, lastModified, changeFrequency: "daily", priority: 1 },
     { url: `${SITE}/about`, lastModified, changeFrequency: "monthly", priority: 0.8 },
     { url: `${SITE}/guide`, lastModified, changeFrequency: "monthly", priority: 0.8 },
@@ -20,14 +21,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.3,
     },
   ]
+}
 
-  const skillIds = await fetchPublishedSkillIds()
-  const skillEntries: MetadataRoute.Sitemap = skillIds.map((id) => ({
-    url: `${SITE}/skills/${id}`,
-    lastModified,
-    changeFrequency: "weekly" as const,
-    priority: 0.9,
-  }))
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const lastModified = new Date()
+  const base = staticEntries(lastModified)
 
-  return [...staticEntries, ...skillEntries]
+  try {
+    const skillIds = await fetchPublishedSkillIds()
+    const skillUrls: MetadataRoute.Sitemap = skillIds.map((id) => ({
+      url: `${SITE}/skills/${id}`,
+      lastModified,
+      changeFrequency: "weekly" as const,
+      priority: 0.9,
+    }))
+    return [...base, ...skillUrls]
+  } catch (err) {
+    console.error("[sitemap] failed to append skill URLs:", err)
+    return base
+  }
 }

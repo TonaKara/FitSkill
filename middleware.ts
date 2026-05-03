@@ -2,18 +2,37 @@ import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 import { shouldRedirectPublicUserToMaintenance } from "@/lib/maintenance-access"
 
-function isStaticAssetPath(pathname: string): boolean {
-  return (
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/api") ||
-    pathname.includes(".")
-  )
+/**
+ * メンテ誘導・認証チェックの対象外にするパス。
+ * - /sitemap.xml は拡張子ありだが明示しておく（環境によっては判定漏れ防止）
+ * - /opengraph-image 等は拡張子なしのため明示
+ */
+function isBypassMiddlewarePath(pathname: string): boolean {
+  if (pathname.startsWith("/_next") || pathname.startsWith("/api")) {
+    return true
+  }
+  if (
+    pathname === "/sitemap.xml" ||
+    pathname === "/robots.txt" ||
+    pathname === "/favicon.ico" ||
+    pathname.startsWith("/opengraph-image") ||
+    pathname.startsWith("/twitter-image") ||
+    pathname.startsWith("/icon") ||
+    pathname.startsWith("/apple-icon")
+  ) {
+    return true
+  }
+  // public 配下の静的ファイル（拡張子付き）
+  if (pathname.includes(".")) {
+    return true
+  }
+  return false
 }
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  if (isStaticAssetPath(pathname)) {
+  if (isBypassMiddlewarePath(pathname)) {
     return NextResponse.next()
   }
 

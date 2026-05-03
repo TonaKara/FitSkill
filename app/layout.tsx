@@ -61,11 +61,11 @@ export const metadata: Metadata = {
     title: "GritVib — フィットネススキルのマーケットプレイス",
     description: SITE_DESCRIPTION,
   },
+  /**
+   * /favicon.ico は app/favicon.ico（ファイル規約）で配信。metadata で public と二重指定しない。
+   * Apple タッチアイコンのみ public を参照。
+   */
   icons: {
-    icon: [
-      { url: "/favicon.ico", sizes: "any", type: "image/x-icon" },
-      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
-    ],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
 }
