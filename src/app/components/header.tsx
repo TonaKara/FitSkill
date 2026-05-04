@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState } from "react"
 import { createPortal } from "react-dom"
 import type { Session } from "@supabase/supabase-js"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import { BrandMarkSvg } from "@/components/BrandMarkSvg"
 import { getLogoutSuccessHref } from "@/components/logout-success-toast"
 
 type HeaderProps = {
@@ -129,22 +130,7 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
             className="shrink-0 flex items-center gap-2 rounded-lg outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary sm:h-10 sm:w-10">
-              <svg
-                viewBox="140 154 720 720"
-                aria-hidden="true"
-                className="block h-8 w-8 shrink-0 text-primary-foreground sm:h-9 sm:w-9"
-              >
-                {/* Illustrator 出力相当。軸平行境界の中心 (500, 513.875) に viewBox と拡大の原点を合わせて中央に配置 */}
-                <g
-                  fill="currentColor"
-                  transform="translate(0 24) translate(500 513.875) scale(1.07) translate(-500 -513.875)"
-                >
-                  <polygon points="766.38 256.39 705.86 359.43 738.47 359.43 798.73 256.39 766.38 256.39" />
-                  <polygon points="688.38 359.43 749.95 256.39 717.34 256.39 656.03 359.43 688.38 359.43" />
-                  <polygon points="638.55 359.43 699.34 256.39 666.21 256.39 604.64 359.43 638.55 359.43" />
-                  <path d="M441.73,465.15h147.91l-89.61,156.33-165.91-284.28h174.13l-12.91,22.24h89.02l61.24-103.04c.2,0-444.33,0-444.33,0l305.41,514.96,221.48-388.37h-334.37l47.93,82.17Z" />
-                </g>
-              </svg>
+              <BrandMarkSvg className="block h-8 w-8 shrink-0 text-primary-foreground sm:h-9 sm:w-9" />
             </div>
             <span className="text-base font-bold tracking-tight sm:text-lg md:text-xl">
               <span className="text-primary">Grit</span>

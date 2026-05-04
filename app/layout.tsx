@@ -4,6 +4,12 @@ import { ConsoleGuard } from "@/components/ConsoleGuard";
 import { ConditionalFooter } from "@/components/layout/ConditionalFooter";
 import { MaintenanceGuard } from "@/components/MaintenanceGuard";
 import { ThemeProvider } from "@/components/theme-provider";
+import {
+  LAYOUT_DESCRIPTION,
+  LAYOUT_TITLE_DEFAULT,
+  SITE_KEYWORDS,
+  SITE_URL,
+} from "@/lib/site-seo";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -16,34 +22,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-/** 本番の絶対 URL 解決用。http を混ぜない（metadata / OG / Twitter の href はすべてここ基準）。 */
-const SITE_URL = "https://gritvib.com" as const
-
-const SITE_TITLE_DEFAULT = "GritVib | スキルマーケットプレイス"
-
-const SITE_DESCRIPTION =
-  "フィットネスに特化したスキル売買のマーケットプレイス。パーソナルトレーニングやオンラインレッスンなどの指導スキルを出品・購入でき、相談から始められる安心の取引で運動をもっと身近に。"
-
-const SITE_KEYWORDS = [
-  "GritVib",
-  "グリットヴィブ",
-  "フィットネス",
-  "パーソナルトレーニング",
-  "スキルマーケット",
-  "オンラインレッスン",
-  "トレーニング指導",
-  "スポーツ",
-  "健康",
-  "gritvib.com",
-] as const
-
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: SITE_TITLE_DEFAULT,
+    default: LAYOUT_TITLE_DEFAULT,
     template: "%s | GritVib",
   },
-  description: SITE_DESCRIPTION,
+  description: LAYOUT_DESCRIPTION,
   applicationName: "GritVib",
   keywords: [...SITE_KEYWORDS],
   authors: [{ name: "GritVib", url: SITE_URL }],
@@ -54,18 +39,14 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
+  /** 子ルートごとに url / title を誤結合しないよう、サイト共通フィールドのみ。 */
   openGraph: {
     type: "website",
     locale: "ja_JP",
-    url: "/",
     siteName: "GritVib",
-    title: SITE_TITLE_DEFAULT,
-    description: SITE_DESCRIPTION,
   },
   twitter: {
     card: "summary_large_image",
-    title: SITE_TITLE_DEFAULT,
-    description: SITE_DESCRIPTION,
   },
   /**
    * /favicon.ico は app/favicon.ico（ファイル規約）で配信。metadata で public と二重指定しない。

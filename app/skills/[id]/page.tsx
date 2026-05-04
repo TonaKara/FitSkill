@@ -1,13 +1,12 @@
 import type { Metadata } from "next"
 import { createClient } from "@supabase/supabase-js"
 import SkillPage from "@/skills/[id]/page"
+import { SITE_URL } from "@/lib/site-seo"
 
 type SkillPageProps = {
   params: Promise<{ id: string }>
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }
-
-const SITE = "https://gritvib.com"
 
 function truncateDescription(raw: string | null | undefined, max = 160): string {
   if (raw == null || raw.trim().length === 0) {
@@ -22,7 +21,11 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   if (!url || !key) {
-    return { title: "スキル" }
+    return {
+      title: "スキル",
+      alternates: { canonical: `/skills/${id}` },
+      robots: { index: false, follow: true },
+    }
   }
   const supabase = createClient(url, key)
   const { data } = await supabase
@@ -34,6 +37,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   if (!data || data.is_published === false) {
     return {
       title: "スキル",
+      alternates: { canonical: `/skills/${id}` },
       robots: { index: false, follow: true },
     }
   }
@@ -45,7 +49,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
       ? data.thumbnail_url.trim()
       : null
 
-  const shareImages = thumb ? [{ url: thumb, alt: title }] : [`${SITE}/opengraph-image`]
+  const shareImages = thumb ? [{ url: thumb, alt: title }] : [`${SITE_URL}/opengraph-image`]
 
   return {
     title,
@@ -54,7 +58,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     openGraph: {
       title,
       description,
-      url: `${SITE}/skills/${id}`,
+      url: `/skills/${id}`,
       type: "website",
       locale: "ja_JP",
       siteName: "GritVib",

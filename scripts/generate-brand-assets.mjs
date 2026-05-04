@@ -1,11 +1,11 @@
 /**
  * GritVib ブランド画像一括生成（ソース: scripts/brand-assets/logo-mark.svg = header.tsx と同一マーク）
  *
- * 出力: output/
- * - sns-icon-1080.png
- * - favicon-32.png, favicon.ico
- * - apple-touch-icon-180.png
- * - header-1200x300.png
+ * 出力: output/（作業用）＋ 以下へ同期
+ * - public/apple-touch-icon.png（180×180、検索・ホーム画面用）
+ * - public/og-logo.png（OG 用・赤角丸＋白マーク。黒背景＋白三角のみの旧資産を置き換え）
+ * - app/favicon.ico, app/icon.png（タブ用）
+ * - sns-icon-1080.png, favicon-32.png, favicon.ico, apple-touch-icon-180.png, header-1200x300.png
  */
 import fs from "fs/promises"
 import path from "path"
@@ -20,6 +20,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, "..")
 const ASSETS_DIR = path.join(__dirname, "brand-assets")
 const OUT_DIR = path.join(ROOT, "output")
+const PUBLIC_DIR = path.join(ROOT, "public")
+const APP_DIR = path.join(ROOT, "app")
 
 /** app/globals.css --brand-red / --primary */
 const BRAND_RED = "#c62828"
@@ -99,6 +101,19 @@ async function main() {
 </svg>`
   })()
 
+  const ogLogoSvg = (() => {
+    const size = 560
+    const rx = Math.round(size * 0.225)
+    const pad = Math.round(size * 0.083)
+    const inner = size - pad * 2
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+  <rect width="${size}" height="${size}" rx="${rx}" fill="${BRAND_RED}"/>
+  <svg x="${pad}" y="${pad}" width="${inner}" height="${inner}" viewBox="140 154 720 720" preserveAspectRatio="xMidYMid meet">
+    ${markInner}
+  </svg>
+</svg>`
+  })()
+
   const faviconBaseSvg = (() => {
     const size = 64
     const rx = Math.round(size * 0.225)
@@ -113,10 +128,14 @@ async function main() {
   })()
 
   await writePng(snsSvg, path.join(OUT_DIR, "sns-icon-1080.png"), 144)
+  const applePngPath = path.join(OUT_DIR, "apple-touch-icon-180.png")
   await sharp(Buffer.from(appleSvg, "utf8"), { density: 180 })
     .resize(180, 180)
     .png()
-    .toFile(path.join(OUT_DIR, "apple-touch-icon-180.png"))
+    .toFile(applePngPath)
+  await fs.mkdir(PUBLIC_DIR, { recursive: true })
+  await fs.copyFile(applePngPath, path.join(PUBLIC_DIR, "apple-touch-icon.png"))
+  await writePng(ogLogoSvg, path.join(PUBLIC_DIR, "og-logo.png"), 144)
   await writePng(headerBannerSvg(markInner), path.join(OUT_DIR, "header-1200x300.png"), 144)
 
   const favicon32 = await sharp(Buffer.from(faviconBaseSvg, "utf8"), { density: 256 })
@@ -131,8 +150,10 @@ async function main() {
     .toBuffer()
   const icoBuf = await toIco([favicon16, favicon32])
   await fs.writeFile(path.join(OUT_DIR, "favicon.ico"), icoBuf)
+  await fs.writeFile(path.join(APP_DIR, "favicon.ico"), icoBuf)
+  await fs.writeFile(path.join(APP_DIR, "icon.png"), favicon32)
 
-  console.log(`Wrote brand assets to ${OUT_DIR}`)
+  console.log(`Wrote brand assets to ${OUT_DIR}, synced public/apple-touch-icon.png and app favicon/icon`)
 }
 
 main().catch((err) => {
