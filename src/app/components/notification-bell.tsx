@@ -110,12 +110,13 @@ export function NotificationBell() {
       >
         <Bell className="h-5 w-5" />
         {userId && unread > 0 ? (
-          <span
-            className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground"
-            aria-label={`未読${unread}件`}
-          >
-            {unread > 9 ? "9+" : unread}
-          </span>
+          <>
+            <span
+              className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-background"
+              aria-hidden
+            />
+            <span className="sr-only">{`未読${unread}件`}</span>
+          </>
         ) : null}
       </Button>
       {open && userId ? (

@@ -16,8 +16,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+/** 本番の絶対 URL 解決用。http を混ぜない（metadata / OG / Twitter の href はすべてここ基準）。 */
+const SITE_URL = "https://gritvib.com" as const
+
+const SITE_TITLE_DEFAULT = "GritVib | スキルマーケットプレイス"
+
 const SITE_DESCRIPTION =
-  "GritVib（グリットヴィブ）は、パーソナルトレーニングやフィットネス指導などのスキルを出品・購入できるマーケットプレイス。相談から始められる安心の取引で、運動をもっと身近に。"
+  "フィットネスに特化したスキル売買のマーケットプレイス。パーソナルトレーニングやオンラインレッスンなどの指導スキルを出品・購入でき、相談から始められる安心の取引で運動をもっと身近に。"
 
 const SITE_KEYWORDS = [
   "GritVib",
@@ -33,16 +38,17 @@ const SITE_KEYWORDS = [
 ] as const
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://gritvib.com"),
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "GritVib — フィットネススキルのマーケットプレイス",
+    default: SITE_TITLE_DEFAULT,
     template: "%s | GritVib",
   },
   description: SITE_DESCRIPTION,
   applicationName: "GritVib",
   keywords: [...SITE_KEYWORDS],
-  authors: [{ name: "GritVib", url: "https://gritvib.com" }],
+  authors: [{ name: "GritVib", url: SITE_URL }],
   creator: "GritVib",
+  publisher: "GritVib",
   formatDetection: {
     email: false,
     address: false,
@@ -53,20 +59,20 @@ export const metadata: Metadata = {
     locale: "ja_JP",
     url: "/",
     siteName: "GritVib",
-    title: "GritVib — フィットネススキルのマーケットプレイス",
+    title: SITE_TITLE_DEFAULT,
     description: SITE_DESCRIPTION,
   },
   twitter: {
     card: "summary_large_image",
-    title: "GritVib — フィットネススキルのマーケットプレイス",
+    title: SITE_TITLE_DEFAULT,
     description: SITE_DESCRIPTION,
   },
   /**
    * /favicon.ico は app/favicon.ico（ファイル規約）で配信。metadata で public と二重指定しない。
-   * Apple タッチアイコンのみ public を参照。
+   * Apple タッチアイコンは public/apple-touch-icon.png（180×180）。
    */
   icons: {
-    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    apple: "/apple-touch-icon.png",
   },
 }
 

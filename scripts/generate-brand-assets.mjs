@@ -113,7 +113,10 @@ async function main() {
   })()
 
   await writePng(snsSvg, path.join(OUT_DIR, "sns-icon-1080.png"), 144)
-  await writePng(appleSvg, path.join(OUT_DIR, "apple-touch-icon-180.png"), 180)
+  await sharp(Buffer.from(appleSvg, "utf8"), { density: 180 })
+    .resize(180, 180)
+    .png()
+    .toFile(path.join(OUT_DIR, "apple-touch-icon-180.png"))
   await writePng(headerBannerSvg(markInner), path.join(OUT_DIR, "header-1200x300.png"), 144)
 
   const favicon32 = await sharp(Buffer.from(faviconBaseSvg, "utf8"), { density: 256 })

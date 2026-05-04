@@ -377,6 +377,13 @@ export function InquiryChatClient() {
     setText("")
     setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row]))
     void loadInbox()
+    void fetch("/api/notifications/inquiry-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messageId: row.id }),
+    }).catch(() => {
+      // メール通知失敗でチャット送信を失敗扱いにしない
+    })
   }
 
   if (authLoading) {

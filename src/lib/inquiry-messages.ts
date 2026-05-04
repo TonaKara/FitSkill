@@ -3,6 +3,7 @@ import { normalizeSkillBigIntId } from "@/lib/skill-id-bigint"
 
 /** bigint 相当のスキル ID（アプリ内は十進文字列で統一） */
 export type SkillBigIntId = string
+const INQUIRY_NOTIFICATION_TYPE = "inquiry_message"
 
 export type InquiryMessageRow = {
   id: string
@@ -115,6 +116,21 @@ export async function insertInquiryMessage(
   const row = mapInquiryMessageRow(data as Record<string, unknown>)
   if (!row) {
     return { row: null, error: "返却行の整形に失敗しました。" }
+  }
+
+  // チャット受信者向けの in-app 通知を追加（失敗しても送信自体は成功扱い）
+  const { error: notifError } = await supabase.from("notifications").insert({
+    recipient_id: payload.recipient_id,
+    sender_id: payload.sender_id,
+    type: INQUIRY_NOTIFICATION_TYPE,
+    title: "新しい相談メッセージ",
+    reason: `inquiry:${row.id}`,
+    content: "相談チャットに新しいメッセージが届きました。",
+    is_admin_origin: false,
+    is_read: false,
+  })
+  if (notifError) {
+    console.warn("[inquiry] notifications insert failed:", notifError.message)
   }
   return { row, error: null }
 }
