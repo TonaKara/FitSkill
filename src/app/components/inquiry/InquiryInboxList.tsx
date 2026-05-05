@@ -27,6 +27,9 @@ function threadHref(peerId: string): string {
 }
 
 function readStatusLabel(row: InquiryInboxListRow, viewerId: string): string {
+  if (!row.last_sender_id || !row.last_recipient_id) {
+    return "既読状態未対応"
+  }
   const iSent = row.last_sender_id === viewerId
   if (iSent) {
     return row.last_is_read ? "既読（相手が開封）" : "未読（相手）"

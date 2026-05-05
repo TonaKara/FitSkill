@@ -2,20 +2,27 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Search, User, Menu } from "lucide-react"
+import { Loader2, Menu, Search } from "lucide-react"
 import { NotificationBell } from "@/components/notification-bell"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import type { Session } from "@supabase/supabase-js"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { BrandMarkSvg } from "@/components/BrandMarkSvg"
+import { resolveProfileAvatarUrl } from "@/lib/profile-avatar"
 import { getLogoutSuccessHref } from "@/components/logout-success-toast"
+import { UserMenu } from "@/components/user-menu"
 
 type HeaderProps = {
   searchKeyword?: string
   onSearchKeywordChange?: (value: string) => void
+}
+
+type ProfileSummary = {
+  displayName: string
+  avatarUrl: string
 }
 
 export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {}) {
@@ -24,77 +31,108 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isAuthLoading, setIsAuthLoading] = useState(true)
-  const [isSigningOut, setIsSigningOut] = useState(false)
+  const [profileSummary, setProfileSummary] = useState<ProfileSummary | null>(null)
+  const [profileLoading, setProfileLoading] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement | null>(null)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [isSigningOut, setIsSigningOut] = useState(false)
   const [portalReady, setPortalReady] = useState(false)
+
+  useEffect(() => {
+    let mounted = true
+
+    const applyProfileFromRow = (
+      row: { display_name: string | null; avatar_url: string | null } | null,
+    ): ProfileSummary => {
+      const displayNameRaw = typeof row?.display_name === "string" ? row.display_name.trim() : ""
+      const label = displayNameRaw.length > 0 ? displayNameRaw : "ユーザー"
+      return {
+        displayName: label,
+        avatarUrl: resolveProfileAvatarUrl(row?.avatar_url ?? null, label),
+      }
+    }
+
+    const loadSessionAndProfile = async (session: Session | null) => {
+      const user = session?.user ?? null
+      if (!mounted) {
+        return
+      }
+      setIsAuthenticated(Boolean(user))
+      setIsAuthLoading(false)
+
+      if (!user) {
+        setProfileSummary(null)
+        setProfileLoading(false)
+        return
+      }
+
+      setProfileLoading(true)
+      const { data } = await supabase
+        .from("profiles")
+        .select("display_name, avatar_url")
+        .eq("id", user.id)
+        .maybeSingle()
+
+      if (!mounted) {
+        return
+      }
+      setProfileLoading(false)
+      setProfileSummary(applyProfileFromRow(data as { display_name: string | null; avatar_url: string | null } | null))
+    }
+
+    void supabase.auth.getSession().then(({ data }) => {
+      void loadSessionAndProfile(data.session)
+    })
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      void loadSessionAndProfile(session)
+    })
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
+  }, [supabase])
 
   useEffect(() => {
     setPortalReady(true)
   }, [])
 
   useEffect(() => {
-    let isMounted = true
-
-    const loadUser = async () => {
-      const { data } = await supabase.auth.getUser()
-      if (!isMounted) {
+    if (!userMenuOpen) {
+      return
+    }
+    const onPointerDown = (event: MouseEvent | TouchEvent) => {
+      const el = userMenuRef.current
+      if (!el || !(event.target instanceof Node) || el.contains(event.target)) {
         return
       }
-
-      setIsAuthenticated(Boolean(data.user))
-      setIsAuthLoading(false)
+      setUserMenuOpen(false)
     }
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event: string, session: Session | null) => {
-      setIsAuthenticated(Boolean(session?.user))
-      setIsAuthLoading(false)
-    })
-
-    void loadUser()
-
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setUserMenuOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", onPointerDown)
+    document.addEventListener("touchstart", onPointerDown, { passive: true })
+    document.addEventListener("keydown", onKeyDown)
     return () => {
-      isMounted = false
-      subscription.unsubscribe()
+      document.removeEventListener("mousedown", onPointerDown)
+      document.removeEventListener("touchstart", onPointerDown)
+      document.removeEventListener("keydown", onKeyDown)
     }
-  }, [supabase])
+  }, [userMenuOpen])
 
-  const handleAuthButtonClick = () => {
-    if (isAuthLoading || isSigningOut) {
+  const handleLoginClick = () => {
+    if (isAuthLoading) {
       return
     }
-
-    if (!isAuthenticated) {
-      setIsMenuOpen(false)
-      router.push("/login")
-      return
-    }
-
     setIsMenuOpen(false)
-    setShowLogoutConfirm(true)
-  }
-
-  const handleLogoutCancel = () => {
-    setShowLogoutConfirm(false)
-  }
-
-  const handleLogoutConfirm = async () => {
-    if (isSigningOut) {
-      return
-    }
-
-    setIsSigningOut(true)
-    const { error } = await supabase.auth.signOut()
-    setIsSigningOut(false)
-
-    if (!error) {
-      setIsAuthenticated(false)
-      setShowLogoutConfirm(false)
-      setIsMenuOpen(false)
-      router.push(getLogoutSuccessHref())
-      router.refresh()
-    }
+    router.push("/login")
   }
 
   const handleCreateSkillClick = () => {
@@ -107,17 +145,30 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
     router.push("/login")
   }
 
-  const handleMyPageClick = () => {
-    if (isAuthLoading) {
+  const handleLogoutMenuClick = () => {
+    setUserMenuOpen(false)
+    setIsMenuOpen(false)
+    setShowLogoutConfirm(true)
+  }
+
+  const handleLogoutCancel = () => {
+    setShowLogoutConfirm(false)
+  }
+
+  const handleLogoutConfirm = async () => {
+    if (isSigningOut) {
       return
     }
-
-    if (!isAuthenticated) {
-      router.push("/login")
-      return
+    setIsSigningOut(true)
+    const { error } = await supabase.auth.signOut()
+    setIsSigningOut(false)
+    if (!error) {
+      setShowLogoutConfirm(false)
+      setIsAuthenticated(false)
+      setProfileSummary(null)
+      router.push(getLogoutSuccessHref())
+      router.refresh()
     }
-
-    router.push("/mypage")
   }
 
   return (
@@ -178,22 +229,27 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
           {/* Actions */}
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <NotificationBell />
-            <Button
-              variant="ghost"
-              size="icon"
-              className="hover:bg-secondary"
-              onClick={handleMyPageClick}
-              disabled={isAuthLoading}
-            >
-              <User className="h-5 w-5" />
-            </Button>
-            <Button
-              className="hidden md:flex bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
-              onClick={handleAuthButtonClick}
-              disabled={isAuthLoading || isSigningOut}
-            >
-              {isAuthenticated ? "ログアウト" : "ログイン"}
-            </Button>
+            {isAuthenticated ? (
+              <div className="hidden md:block">
+                <UserMenu
+                  profileSummary={profileSummary}
+                  profileLoading={profileLoading}
+                  isAuthLoading={isAuthLoading}
+                  open={userMenuOpen}
+                  onOpenChange={setUserMenuOpen}
+                  onLogoutRequest={handleLogoutMenuClick}
+                  menuRef={userMenuRef}
+                />
+              </div>
+            ) : (
+              <Button
+                className="hidden md:flex bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+                onClick={handleLoginClick}
+                disabled={isAuthLoading}
+              >
+                ログイン
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -209,6 +265,31 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
         {isMenuOpen && (
           <div className="border-t border-border py-4 md:hidden">
             <nav className="flex flex-col gap-2">
+              {isAuthenticated && (profileLoading || profileSummary) ? (
+                <div className="mb-2 flex items-center gap-3 rounded-lg border border-border bg-popover px-3 py-2.5">
+                  {profileLoading ? (
+                    <>
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-muted">
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden />
+                      </span>
+                      <p className="text-xs text-muted-foreground">プロフィールを読み込み中…</p>
+                    </>
+                  ) : profileSummary ? (
+                    <>
+                      <div
+                        className="h-10 w-10 shrink-0 rounded-full bg-cover bg-center ring-2 ring-border"
+                        style={{ backgroundImage: `url(${profileSummary.avatarUrl})` }}
+                        role="img"
+                        aria-hidden
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">ログイン中</p>
+                        <p className="truncate text-sm font-semibold text-foreground">{profileSummary.displayName}</p>
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+              ) : null}
               <Link
                 href="/"
                 onClick={() => setIsMenuOpen(false)}
@@ -230,13 +311,39 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
               >
                 使い方
               </Link>
-              <Button
-                className="mt-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
-                onClick={handleAuthButtonClick}
-                disabled={isAuthLoading || isSigningOut}
-              >
-                {isAuthenticated ? "ログアウト" : "ログイン"}
-              </Button>
+              {isAuthenticated ? (
+                <>
+                  <Link
+                    href="/mypage"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
+                  >
+                    マイページ
+                  </Link>
+                  <Link
+                    href="/mypage?tab=profile"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
+                  >
+                    プロフィール設定
+                  </Link>
+                  <Button
+                    type="button"
+                    className="w-full bg-primary font-semibold text-primary-foreground hover:bg-primary/90"
+                    onClick={handleLogoutMenuClick}
+                  >
+                    ログアウト
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  className="mt-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+                  onClick={handleLoginClick}
+                  disabled={isAuthLoading}
+                >
+                  ログイン
+                </Button>
+              )}
             </nav>
           </div>
         )}
@@ -253,11 +360,11 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
             <div
               role="dialog"
               aria-modal="true"
-              aria-labelledby="logout-confirm-title"
+              aria-labelledby="header-logout-confirm-title"
               className="my-auto w-full max-w-sm shrink-0 rounded-xl border border-border bg-background p-6 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <h2 id="logout-confirm-title" className="text-center text-base font-medium leading-relaxed text-foreground">
+              <h2 id="header-logout-confirm-title" className="text-center text-base font-medium leading-relaxed text-foreground">
                 ログアウトしてもよろしいですか？
               </h2>
               <div className="mt-6 flex gap-3">

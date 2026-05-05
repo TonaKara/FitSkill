@@ -57,17 +57,116 @@ function mapInquiryMessageRow(raw: Record<string, unknown>): InquiryMessageRow |
   }
 }
 
+/** PostgREST: 関数が schema cache に無い等 */
+function isMissingPostgrestRpc(err: { message?: string } | null): boolean {
+  const m = (err?.message ?? "").toLowerCase()
+  return m.includes("could not find the function") || m.includes("schema cache")
+}
+
+/**
+ * RPC 無しで相手ごとの最新 1 件を組み立てる（sender_id / recipient_id スキーマ向け）
+ */
+async function fetchInquiryInboxListFromMessagesTable(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<{ rows: InquiryInboxListRow[]; error: string | null }> {
+  const { data, error } = await supabase
+    .from("inquiry_messages")
+    .select("sender_id, recipient_id, content, created_at, origin_skill_id, is_read")
+    .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
+    .order("created_at", { ascending: false })
+    .limit(1000)
+
+  if (error) {
+    return { rows: [], error: error.message }
+  }
+
+  const byPeer = new Map<string, InquiryInboxListRow>()
+  for (const raw of data ?? []) {
+    const rec = raw as Record<string, unknown>
+    const senderId = String(rec.sender_id ?? "")
+    const recipientId = String(rec.recipient_id ?? "")
+    const peerId = senderId === userId ? recipientId : senderId
+    if (!peerId) {
+      continue
+    }
+    if (byPeer.has(peerId)) {
+      continue
+    }
+    const origin = normalizeSkillBigIntId(rec.origin_skill_id)
+    if (origin == null) {
+      continue
+    }
+    byPeer.set(peerId, {
+      peer_id: peerId,
+      last_created_at: String(rec.created_at ?? ""),
+      last_content: String(rec.content ?? ""),
+      last_origin_skill_id: origin,
+      last_is_read: Boolean(rec.is_read),
+      last_sender_id: senderId,
+      last_recipient_id: recipientId,
+    })
+  }
+
+  return { rows: Array.from(byPeer.values()), error: null }
+}
+
 export async function fetchInquiryInboxList(
   supabase: SupabaseClient,
 ): Promise<{ rows: InquiryInboxListRow[]; error: string | null }> {
   const { data, error } = await supabase.rpc("inquiry_inbox_list")
-  if (error) {
+  if (!error) {
+    const rows = (data ?? [])
+      .map((row: unknown) => mapInquiryInboxListRow(row as Record<string, unknown>))
+      .filter((row: InquiryInboxListRow | null): row is InquiryInboxListRow => row != null)
+    return { rows, error: null }
+  }
+
+  if (!isMissingPostgrestRpc(error)) {
     return { rows: [], error: error.message }
   }
-  const rows = (data ?? [])
-    .map((row: unknown) => mapInquiryInboxListRow(row as Record<string, unknown>))
-    .filter((row: InquiryInboxListRow | null): row is InquiryInboxListRow => row != null)
-  return { rows, error: null }
+
+  const { data: session } = await supabase.auth.getUser()
+  const uid = session.user?.id
+  if (uid) {
+    const fromTable = await fetchInquiryInboxListFromMessagesTable(supabase, uid)
+    if (!fromTable.error) {
+      return fromTable
+    }
+    const te = fromTable.error.toLowerCase()
+    const looksLikeOldTable =
+      te.includes("column") || te.includes("does not exist") || te.includes("42703")
+    if (!looksLikeOldTable) {
+      return { rows: [], error: `${error.message}（代替: ${fromTable.error}）` }
+    }
+  }
+
+  const { data: legacyData, error: legacyError } = await supabase.rpc("inquiry_inbox_threads")
+  if (legacyError) {
+    return { rows: [], error: legacyError.message }
+  }
+
+  const legacyRows: Array<InquiryInboxListRow | null> = (legacyData ?? []).map((raw: unknown) => {
+    const row = raw as Record<string, unknown>
+    const lastOrigin = normalizeSkillBigIntId(row.last_origin_skill_id)
+    if (lastOrigin == null) {
+      return null
+    }
+    return {
+      peer_id: String(row.peer_id ?? ""),
+      last_created_at: String(row.last_created_at ?? ""),
+      last_content: String(row.last_content ?? ""),
+      last_origin_skill_id: lastOrigin,
+      last_is_read: true,
+      last_sender_id: "",
+      last_recipient_id: "",
+    } satisfies InquiryInboxListRow
+  })
+
+  return {
+    rows: legacyRows.filter((row: InquiryInboxListRow | null): row is InquiryInboxListRow => row != null),
+    error: null,
+  }
 }
 
 export async function fetchInquiryThreadMessages(

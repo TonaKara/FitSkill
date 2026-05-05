@@ -5,10 +5,10 @@ import { ConditionalFooter } from "@/components/layout/ConditionalFooter";
 import { MaintenanceGuard } from "@/components/MaintenanceGuard";
 import { ThemeProvider } from "@/components/theme-provider";
 import {
+  getSiteUrl,
   LAYOUT_DESCRIPTION,
   LAYOUT_TITLE_DEFAULT,
   SITE_KEYWORDS,
-  SITE_URL,
 } from "@/lib/site-seo";
 import "./globals.css";
 
@@ -23,7 +23,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
+  metadataBase: new URL(getSiteUrl()),
   title: {
     default: LAYOUT_TITLE_DEFAULT,
     template: "%s | GritVib",
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
   description: LAYOUT_DESCRIPTION,
   applicationName: "GritVib",
   keywords: [...SITE_KEYWORDS],
-  authors: [{ name: "GritVib", url: SITE_URL }],
+  authors: [{ name: "GritVib", url: getSiteUrl() }],
   creator: "GritVib",
   publisher: "GritVib",
   formatDetection: {
@@ -49,11 +49,13 @@ export const metadata: Metadata = {
     card: "summary_large_image",
   },
   /**
-   * /favicon.ico は app/favicon.ico（ファイル規約）で配信。metadata で public と二重指定しない。
-   * Apple タッチアイコンは public/apple-touch-icon.png（180×180）。
+   * - `/favicon.ico` … `public/favicon.ico`（静的）と `app/favicon.ico`（規約）の両方を用意
+   * - `/apple-touch-icon.png` … `public/apple-touch-icon.png`
+   * metadata の相対パスは metadataBase 起点で絶対 URL 化される（プレビュー URL と一致させるため getSiteUrl を使用）
    */
   icons: {
-    apple: "/apple-touch-icon.png",
+    icon: [{ url: "/favicon.ico", sizes: "any" }],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
 }
 

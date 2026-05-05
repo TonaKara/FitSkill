@@ -1,6 +1,7 @@
 "use client"
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react"
+import { createPortal } from "react-dom"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Heart, Loader2, Pencil, ShieldAlert, Star } from "lucide-react"
@@ -29,6 +30,7 @@ import {
 import { createGeneralNotification } from "@/lib/transaction-notifications"
 import { autoCompleteTransactions } from "@/lib/transactions"
 import { checkAndFinalizeStripeStatus, getStripeOnboardingUrl } from "@/actions/stripe"
+import { getLogoutSuccessHref } from "@/components/logout-success-toast"
 import { MypageInquirySection } from "./MypageInquirySection"
 
 type MypageSection =
@@ -44,19 +46,34 @@ type MypageSection =
   | "payout"
   | "account"
 
-const MENU: { id: MypageSection; label: string }[] = [
-  { id: "profile", label: "プロフィール設定" },
-  { id: "listings", label: "出品商品管理" },
-  { id: "requests", label: "受講リクエスト" },
-  { id: "inquiry", label: "購入前の相談" },
-  { id: "learning", label: "受講中" },
-  { id: "teaching", label: "対応中" },
-  { id: "transactions", label: "取引履歴" },
+type MypageMode = "student" | "instructor"
+type MenuItem = { id: MypageSection; label: string }
+const MYPAGE_MODE_STORAGE_KEY = "mypage_mode_preference"
+
+const STUDENT_PRIMARY_MENU: MenuItem[] = [
   { id: "favorites", label: "お気に入り" },
-  { id: "reviews", label: "評価" },
+  { id: "requests", label: "リクエスト" },
+  { id: "inquiry", label: "相談中の案件" },
+  { id: "learning", label: "進行中の取引（受講中）" },
+  { id: "transactions", label: "取引履歴" },
+]
+
+const INSTRUCTOR_PRIMARY_MENU: MenuItem[] = [
+  { id: "listings", label: "出品管理" },
+  { id: "requests", label: "リクエスト" },
+  { id: "inquiry", label: "相談" },
+  { id: "teaching", label: "進行中の取引（対応中）" },
+  { id: "transactions", label: "取引履歴" },
   { id: "payout", label: "売上・振込設定" },
+]
+
+const SETTINGS_MENU: MenuItem[] = [
+  { id: "profile", label: "プロフィール" },
+  { id: "reviews", label: "評価" },
   { id: "account", label: "アカウント設定" },
 ]
+
+const ALL_MENU: MenuItem[] = [...INSTRUCTOR_PRIMARY_MENU, ...STUDENT_PRIMARY_MENU, ...SETTINGS_MENU]
 
 const STAR_LEVELS: (1 | 2 | 3 | 4 | 5)[] = [5, 4, 3, 2, 1]
 const HISTORY_PAGE_SIZE = 15
@@ -87,7 +104,29 @@ function isMypageSection(value: string | null): value is MypageSection {
   if (!value) {
     return false
   }
-  return MENU.some((item) => item.id === value)
+  return ALL_MENU.some((item) => item.id === value)
+}
+
+function inferModeFromSection(section: MypageSection): MypageMode {
+  const instructorSectionSet = new Set<MypageSection>(["listings", "teaching", "payout"])
+  return instructorSectionSet.has(section) ? "instructor" : "student"
+}
+
+function resolveModeForSection(section: MypageSection, fallbackMode: MypageMode): MypageMode {
+  const instructorOnlySectionSet = new Set<MypageSection>(["listings", "teaching", "payout"])
+  const studentOnlySectionSet = new Set<MypageSection>(["favorites", "learning"])
+  if (instructorOnlySectionSet.has(section)) {
+    return "instructor"
+  }
+  if (studentOnlySectionSet.has(section)) {
+    return "student"
+  }
+  return fallbackMode
+}
+
+/** `/mypage` で tab 未指定時の初期パネル（受講生: お気に入り / 講師: 出品管理） */
+function defaultMypageHomeSection(mode: MypageMode): MypageSection {
+  return mode === "instructor" ? "listings" : "favorites"
 }
 
 type ListedSkill = {
@@ -113,7 +152,10 @@ type TransactionListRow = {
   buyer_id: string
   seller_id: string
   created_at: string | null
-  skills: { id: string; title: string } | { id: string; title: string }[] | null
+  skills:
+    | { id: string; title: string; thumbnail_url: string | null }
+    | { id: string; title: string; thumbnail_url: string | null }[]
+    | null
 }
 
 type TransactionHistoryListRow = TransactionListRow & {
@@ -125,8 +167,10 @@ type MypageTransactionItem = {
   transactionId: string
   skillId: string
   skillTitle: string
+  skillImageUrl: string
   peerDisplayName: string
   peerAvatarUrl: string
+  startedAtLabel: string
 }
 
 type MypageHistoryTransactionItem = MypageTransactionItem & {
@@ -233,6 +277,22 @@ function formatHistoryCompletedAtLabel(completedAt: string | null, createdAt: st
   return `完了日時: ${text}`
 }
 
+function formatTransactionStartedAtLabel(createdAt: string | null): string {
+  if (!createdAt) {
+    return "取引開始日: -"
+  }
+  const d = new Date(createdAt)
+  if (Number.isNaN(d.getTime())) {
+    return "取引開始日: -"
+  }
+  const text = new Intl.DateTimeFormat("ja-JP", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d)
+  return `取引開始日: ${text}`
+}
+
 export default function MypageClient() {
   const router = useRouter()
   const pathname = usePathname()
@@ -243,7 +303,19 @@ export default function MypageClient() {
   const [userId, setUserId] = useState<string | null>(null)
 
   const sectionParam = searchParams.get("tab")
-  const section: MypageSection = isMypageSection(sectionParam) ? sectionParam : "profile"
+  const modeParam = searchParams.get("mode")
+  const modeFromParam = modeParam === "student" || modeParam === "instructor" ? modeParam : null
+  const [storedMode] = useState<MypageMode | null>(() => {
+    if (typeof window === "undefined") {
+      return null
+    }
+    const savedMode = window.localStorage.getItem(MYPAGE_MODE_STORAGE_KEY)
+    return savedMode === "student" || savedMode === "instructor" ? savedMode : null
+  })
+  const section: MypageSection = isMypageSection(sectionParam)
+    ? sectionParam
+    : defaultMypageHomeSection(modeFromParam ?? storedMode ?? "student")
+  const currentMode: MypageMode = modeFromParam ?? resolveModeForSection(section, storedMode ?? inferModeFromSection(section))
   const stripeReturnParam = searchParams.get("stripe")
   const updatedParam = searchParams.get("updated")
 
@@ -257,6 +329,7 @@ export default function MypageClient() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [profileRatingAvg, setProfileRatingAvg] = useState<number | null>(null)
   const [profileReviewCount, setProfileReviewCount] = useState(0)
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null)
 
   const [listings, setListings] = useState<ListedSkill[]>([])
   const [listingsLoading, setListingsLoading] = useState(false)
@@ -302,6 +375,8 @@ export default function MypageClient() {
   const [connectBalanceLoading, setConnectBalanceLoading] = useState(false)
   const [connectBalanceError, setConnectBalanceError] = useState<string | null>(null)
   const [connectBalance, setConnectBalance] = useState<ConnectBalanceResponse | null>(null)
+  const [showAccountLogoutConfirm, setShowAccountLogoutConfirm] = useState(false)
+  const [accountLogoutBusy, setAccountLogoutBusy] = useState(false)
   const filteredReviewComments =
     selectedReviewStars == null
       ? reviewComments
@@ -310,16 +385,38 @@ export default function MypageClient() {
   const handleSectionChange = useCallback(
     (nextSection: MypageSection) => {
       const params = new URLSearchParams(searchParams.toString())
-      if (nextSection === "profile") {
-        params.delete("tab")
-      } else {
-        params.set("tab", nextSection)
-      }
+      params.set("tab", nextSection)
+      params.set("mode", resolveModeForSection(nextSection, currentMode))
       const query = params.toString()
       router.replace(query ? `${pathname}?${query}` : pathname)
     },
-    [router, pathname, searchParams],
+    [router, pathname, searchParams, currentMode],
   )
+
+  const handleModeChange = useCallback(
+    (nextMode: MypageMode) => {
+      const params = new URLSearchParams(searchParams.toString())
+      const modeMenu = nextMode === "instructor" ? INSTRUCTOR_PRIMARY_MENU : STUDENT_PRIMARY_MENU
+      const allowedSections = new Set([...modeMenu.map((item) => item.id), ...SETTINGS_MENU.map((item) => item.id)])
+      const nextSection = allowedSections.has(section) ? section : modeMenu[0].id
+
+      params.set("mode", nextMode)
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(MYPAGE_MODE_STORAGE_KEY, nextMode)
+      }
+      params.set("tab", nextSection)
+      const query = params.toString()
+      router.replace(query ? `${pathname}?${query}` : pathname)
+    },
+    [pathname, router, searchParams, section],
+  )
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+    window.localStorage.setItem(MYPAGE_MODE_STORAGE_KEY, currentMode)
+  }, [currentMode])
 
   const toggleCategory = (label: string) => {
     setSelectedCategories((prev) =>
@@ -364,7 +461,7 @@ export default function MypageClient() {
     const { data, error } = await supabase
       .from("profiles")
       .select(
-        "id, display_name, bio, fitness_history, category, last_name_change, rating_avg, review_count, stripe_connect_account_id, is_stripe_registered",
+        "id, display_name, avatar_url, bio, fitness_history, category, last_name_change, rating_avg, review_count, stripe_connect_account_id, is_stripe_registered",
       )
       .eq("id", userId)
       .maybeSingle()
@@ -386,6 +483,8 @@ export default function MypageClient() {
     const reviewCount = Number(row?.review_count)
     const stripeAccountId = typeof row?.stripe_connect_account_id === "string" ? row.stripe_connect_account_id.trim() : ""
     const nameStr = typeof nameVal === "string" ? nameVal.trim() : ""
+    const avatarRaw = row?.avatar_url
+    setProfileAvatarUrl(typeof avatarRaw === "string" && avatarRaw.trim().length > 0 ? avatarRaw.trim() : null)
     setDisplayName(nameStr)
     setSavedDisplayName(nameStr)
     setLastNameChange(parseProfileDate(rawLast))
@@ -407,7 +506,7 @@ export default function MypageClient() {
       return
     }
     // プロフィール情報が必要なタブに入ったときのみ取得する。
-    if (section === "profile" || section === "payout" || section === "reviews") {
+    if (section === "profile" || section === "payout" || section === "reviews" || section === "account") {
       void loadProfile()
     }
   }, [userId, section, loadProfile])
@@ -987,7 +1086,7 @@ export default function MypageClient() {
         }
         let query = supabase
           .from("transactions")
-          .select("id, created_at, buyer_id, seller_id, skills ( id, title )")
+          .select("id, created_at, buyer_id, seller_id, skills ( id, title, thumbnail_url )")
           .in("status", ["active", "approval_pending", "disputed"])
 
         query = isLearning ? query.eq("buyer_id", userId) : query.eq("seller_id", userId)
@@ -1044,8 +1143,10 @@ export default function MypageClient() {
             transactionId: row.id,
             skillId: skill?.id ?? "",
             skillTitle: skill?.title?.trim() ? skill.title : "スキル",
+            skillImageUrl: resolveSkillThumbnailUrl(skill?.thumbnail_url ?? null),
             peerDisplayName: name.length > 0 ? name : "名前未設定",
             peerAvatarUrl: resolveProfileAvatarUrl(prof?.avatar_url, name),
+            startedAtLabel: formatTransactionStartedAtLabel(row.created_at),
           })
         }
 
@@ -1078,8 +1179,8 @@ export default function MypageClient() {
       try {
         const { data: txRows, error: txError } = await supabase
           .from("transactions")
-          .select("id, created_at, completed_at, buyer_id, seller_id, status, skills ( id, title )")
-          .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+          .select("id, created_at, completed_at, buyer_id, seller_id, status, skills ( id, title, thumbnail_url )")
+          .eq(currentMode === "instructor" ? "seller_id" : "buyer_id", userId)
           .in("status", ["completed", "canceled", "refunded"])
           .order("completed_at", { ascending: false })
           .order("created_at", { ascending: false })
@@ -1095,7 +1196,7 @@ export default function MypageClient() {
         }
 
         const rows = (txRows ?? []) as TransactionHistoryListRow[]
-        const peerIds = rows.map((r) => (r.buyer_id === userId ? r.seller_id : r.buyer_id))
+        const peerIds = rows.map((r) => (currentMode === "instructor" ? r.buyer_id : r.seller_id))
         const uniquePeerIds = [...new Set(peerIds)]
 
         if (uniquePeerIds.length === 0) {
@@ -1125,7 +1226,7 @@ export default function MypageClient() {
 
         const items: MypageHistoryTransactionItem[] = []
         for (const row of rows) {
-          const peerId = row.buyer_id === userId ? row.seller_id : row.buyer_id
+          const peerId = currentMode === "instructor" ? row.buyer_id : row.seller_id
           const prof = profileById.get(peerId)
           const name = prof?.display_name?.trim() ?? ""
           const s = row.skills
@@ -1134,8 +1235,10 @@ export default function MypageClient() {
             transactionId: row.id,
             skillId: skill?.id ?? "",
             skillTitle: skill?.title?.trim() ? skill.title : "スキル",
+            skillImageUrl: resolveSkillThumbnailUrl(skill?.thumbnail_url ?? null),
             peerDisplayName: name.length > 0 ? name : "名前未設定",
             peerAvatarUrl: resolveProfileAvatarUrl(prof?.avatar_url, name),
+            startedAtLabel: formatTransactionStartedAtLabel(row.created_at),
             statusLabel: historyStatusLabel(row.status),
             completedAtLabel: formatHistoryCompletedAtLabel(row.completed_at, row.created_at),
           })
@@ -1154,7 +1257,7 @@ export default function MypageClient() {
     return () => {
       cancelled = true
     }
-  }, [userId, section, supabase])
+  }, [userId, section, supabase, currentMode])
 
   const handleUnfavorite = async (favoriteId: string) => {
     if (!userId) {
@@ -1306,6 +1409,33 @@ export default function MypageClient() {
     router.refresh()
   }
 
+  const handleAccountLogoutRequest = useCallback(() => {
+    setShowAccountLogoutConfirm(true)
+  }, [])
+
+  const handleAccountLogoutCancel = useCallback(() => {
+    if (accountLogoutBusy) {
+      return
+    }
+    setShowAccountLogoutConfirm(false)
+  }, [accountLogoutBusy])
+
+  const handleAccountLogoutConfirm = useCallback(async () => {
+    if (accountLogoutBusy) {
+      return
+    }
+    setAccountLogoutBusy(true)
+    const { error } = await supabase.auth.signOut()
+    setAccountLogoutBusy(false)
+    if (!error) {
+      setShowAccountLogoutConfirm(false)
+      router.push(getLogoutSuccessHref())
+      router.refresh()
+      return
+    }
+    setNotice({ variant: "error", message: "ログアウトに失敗しました。もう一度お試しください。" })
+  }, [accountLogoutBusy, supabase, router])
+
   const canChangeDisplayNameNow = canChangeDisplayNameAfterCooldown(lastNameChange)
   const nextEligibleAt = useMemo(
     () => getNextDisplayNameChangeEligibleAt(lastNameChange),
@@ -1347,6 +1477,8 @@ export default function MypageClient() {
 
   const shouldBlockByProfileLoading =
     userId != null && (section === "profile" || section === "payout" || section === "reviews") && profileLoading
+  const primaryMenu = currentMode === "instructor" ? INSTRUCTOR_PRIMARY_MENU : STUDENT_PRIMARY_MENU
+  const accountLabel = SETTINGS_MENU.find((item) => item.id === "account")?.label ?? "アカウント設定"
 
   if (authLoading || shouldBlockByProfileLoading) {
     return (
@@ -1368,24 +1500,96 @@ export default function MypageClient() {
           aria-label="マイページメニュー"
           className="sticky top-16 z-40 border-b border-zinc-800 bg-zinc-950/95 backdrop-blur md:static md:top-0 md:w-56 md:shrink-0 md:border-b-0 md:border-r md:bg-zinc-950 md:pt-6"
         >
-          <div className="flex gap-1 overflow-x-auto px-3 py-2 md:flex-col md:gap-0 md:overflow-visible md:px-4 md:py-0">
-            {MENU.map((item) => {
-              const active = section === item.id
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => handleSectionChange(item.id)}
-                  className={`shrink-0 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors md:rounded-md md:px-3 md:py-2.5 ${
-                    active
-                      ? "bg-red-950/50 text-red-300 ring-1 ring-red-500/40"
-                      : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
-                  }`}
-                >
-                  {item.label}
-                </button>
-              )
-            })}
+          <div className="flex gap-1 overflow-x-auto px-3 py-2 md:flex-col md:gap-4 md:overflow-visible md:px-4 md:py-0">
+            <div className="flex w-full shrink-0 rounded-lg border border-zinc-800 bg-zinc-900/80 p-1">
+              <button
+                type="button"
+                onClick={() => handleModeChange("student")}
+                className={`flex-1 rounded-md px-3 py-2 text-xs font-semibold transition-colors ${
+                  currentMode === "student"
+                    ? "bg-red-600 text-white shadow-sm shadow-red-900/40"
+                    : "text-zinc-400 hover:text-zinc-100"
+                }`}
+              >
+                受講生として利用
+              </button>
+              <button
+                type="button"
+                onClick={() => handleModeChange("instructor")}
+                className={`flex-1 rounded-md px-3 py-2 text-xs font-semibold transition-colors ${
+                  currentMode === "instructor"
+                    ? "bg-red-600 text-white shadow-sm shadow-red-900/40"
+                    : "text-zinc-400 hover:text-zinc-100"
+                }`}
+              >
+                講師として利用
+              </button>
+            </div>
+
+            <div className="flex gap-1 md:flex-col">
+              {primaryMenu.map((item) => {
+                const active = section === item.id
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => handleSectionChange(item.id)}
+                    className={`shrink-0 rounded-lg border px-3 py-2 text-left text-sm font-medium transition-all md:rounded-md md:px-3 md:py-2.5 ${
+                      active
+                        ? "border-red-500/60 bg-red-950/60 text-red-200 shadow-[inset_3px_0_0_0_rgba(239,68,68,1)]"
+                        : "border-transparent text-zinc-400 hover:border-zinc-800 hover:bg-zinc-900 hover:text-zinc-100"
+                    }`}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    {item.label}
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="hidden border-t border-zinc-800 pt-3 md:block">
+              <p className="px-3 pb-2 text-[11px] font-semibold tracking-widest text-zinc-500">設定</p>
+              {SETTINGS_MENU.map((item) => {
+                const active = section === item.id
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => handleSectionChange(item.id)}
+                    className={`mt-1 w-full rounded-md border px-3 py-2.5 text-left text-sm font-medium transition-all ${
+                      active
+                        ? "border-red-500/60 bg-red-950/60 text-red-200 shadow-[inset_3px_0_0_0_rgba(239,68,68,1)]"
+                        : "border-transparent text-zinc-400 hover:border-zinc-800 hover:bg-zinc-900 hover:text-zinc-100"
+                    }`}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    {item.label}
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="flex gap-1 md:hidden">
+              {SETTINGS_MENU.map((item) => {
+                const active = section === item.id
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => handleSectionChange(item.id)}
+                    className={`shrink-0 rounded-lg border px-3 py-2 text-left text-sm font-medium transition-all ${
+                      active
+                        ? "border-red-500/60 bg-red-950/60 text-red-200 shadow-[inset_3px_0_0_0_rgba(239,68,68,1)]"
+                        : "border-transparent text-zinc-400 hover:border-zinc-800 hover:bg-zinc-900 hover:text-zinc-100"
+                    }`}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    {item.label}
+                  </button>
+                )
+              })}
+            </div>
+
             {isAdmin ? (
               <Button
                 asChild
@@ -1601,88 +1805,246 @@ export default function MypageClient() {
 
           {section === "requests" && (
             <div className="mx-auto max-w-4xl">
-              <h1 className="text-2xl font-black tracking-wide text-white md:text-3xl">受講リクエスト</h1>
-              <p className="mt-1 text-sm text-zinc-400">事前相談の申請内容を確認し、承認または拒否できます。</p>
+              <h1 className="text-2xl font-black tracking-wide text-white md:text-3xl">
+                {currentMode === "instructor" ? "受信リクエスト" : "送信済みリクエスト"}
+              </h1>
+              <p className="mt-1 text-sm text-zinc-400">
+                {currentMode === "instructor"
+                  ? "受講生から届いたリクエストを確認し、承認または拒否できます。"
+                  : "自分が送信したリクエストの進捗を確認できます。"}
+              </p>
 
-              <div className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 md:p-6">
-                <h2 className="text-sm font-semibold text-zinc-200">受信リクエスト</h2>
-                <div className="mb-4 flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={consultationRequestViewFilter === "pending" ? "default" : "outline"}
-                    onClick={() => setConsultationRequestViewFilter("pending")}
-                    className={
-                      consultationRequestViewFilter === "pending"
-                        ? "bg-red-600 text-white hover:bg-red-500"
-                        : "border-zinc-700 bg-zinc-900 text-zinc-200 hover:border-red-500 hover:bg-zinc-800"
-                    }
-                  >
-                    未対応
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={consultationRequestViewFilter === "handled" ? "default" : "outline"}
-                    onClick={() => setConsultationRequestViewFilter("handled")}
-                    className={
-                      consultationRequestViewFilter === "handled"
-                        ? "bg-red-600 text-white hover:bg-red-500"
-                        : "border-zinc-700 bg-zinc-900 text-zinc-200 hover:border-red-500 hover:bg-zinc-800"
-                    }
-                  >
-                    対応済み
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={consultationRequestViewFilter === "all" ? "default" : "outline"}
-                    onClick={() => setConsultationRequestViewFilter("all")}
-                    className={
-                      consultationRequestViewFilter === "all"
-                        ? "bg-red-600 text-white hover:bg-red-500"
-                        : "border-zinc-700 bg-zinc-900 text-zinc-200 hover:border-red-500 hover:bg-zinc-800"
-                    }
-                  >
-                    すべて
-                  </Button>
-                </div>
-                {consultationRequestsLoading ? (
-                  <div className="flex items-center justify-center py-12 text-zinc-400">
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin text-red-500" aria-hidden />
-                    読み込み中...
+              {currentMode === "instructor" ? (
+                <div className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 md:p-6">
+                  <h2 className="text-sm font-semibold text-zinc-200">受信リクエスト</h2>
+                  <div className="mb-4 flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={consultationRequestViewFilter === "pending" ? "default" : "outline"}
+                      onClick={() => setConsultationRequestViewFilter("pending")}
+                      className={
+                        consultationRequestViewFilter === "pending"
+                          ? "bg-red-600 text-white hover:bg-red-500"
+                          : "border-zinc-700 bg-zinc-900 text-zinc-200 hover:border-red-500 hover:bg-zinc-800"
+                      }
+                    >
+                      未対応
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={consultationRequestViewFilter === "handled" ? "default" : "outline"}
+                      onClick={() => setConsultationRequestViewFilter("handled")}
+                      className={
+                        consultationRequestViewFilter === "handled"
+                          ? "bg-red-600 text-white hover:bg-red-500"
+                          : "border-zinc-700 bg-zinc-900 text-zinc-200 hover:border-red-500 hover:bg-zinc-800"
+                      }
+                    >
+                      対応済み
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={consultationRequestViewFilter === "all" ? "default" : "outline"}
+                      onClick={() => setConsultationRequestViewFilter("all")}
+                      className={
+                        consultationRequestViewFilter === "all"
+                          ? "bg-red-600 text-white hover:bg-red-500"
+                          : "border-zinc-700 bg-zinc-900 text-zinc-200 hover:border-red-500 hover:bg-zinc-800"
+                      }
+                    >
+                      すべて
+                    </Button>
                   </div>
-                ) : consultationRequestsError ? (
-                  <p className="py-8 text-center text-sm text-red-400">{consultationRequestsError}</p>
-                ) : filteredConsultationRequests.length === 0 ? (
-                  <p className="py-8 text-center text-sm text-zinc-500">
-                    {consultationRequestViewFilter === "pending"
-                      ? "未対応の受講リクエストはありません。"
-                      : consultationRequestViewFilter === "handled"
-                        ? "対応済みの受講リクエストはありません。"
-                        : "受講リクエストはまだありません。"}
-                  </p>
-                ) : (
-                  <ul className="space-y-4">
-                    {filteredConsultationRequests.map((item) => {
-                      const busy = consultationActionBusyId === item.id
-                      return (
+                  {consultationRequestsLoading ? (
+                    <div className="flex items-center justify-center py-12 text-zinc-400">
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin text-red-500" aria-hidden />
+                      読み込み中...
+                    </div>
+                  ) : consultationRequestsError ? (
+                    <p className="py-8 text-center text-sm text-red-400">{consultationRequestsError}</p>
+                  ) : filteredConsultationRequests.length === 0 ? (
+                    <p className="py-8 text-center text-sm text-zinc-500">
+                      {consultationRequestViewFilter === "pending"
+                        ? "未対応の受講リクエストはありません。"
+                        : consultationRequestViewFilter === "handled"
+                          ? "対応済みの受講リクエストはありません。"
+                          : "受講リクエストはまだありません。"}
+                    </p>
+                  ) : (
+                    <ul className="space-y-4">
+                      {filteredConsultationRequests.map((item) => {
+                        const busy = consultationActionBusyId === item.id
+                        return (
+                          <li key={item.id} className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                              <div className="min-w-0">
+                                <p className="font-semibold text-white">{item.skillTitle}</p>
+                                <div className="mt-1 flex items-center gap-2 text-sm text-zinc-400">
+                                  <Link
+                                    href={`/profile/${encodeURIComponent(item.buyerId)}`}
+                                    className="inline-flex items-center gap-2 rounded-md px-1 py-0.5 transition-colors hover:bg-zinc-800/80 hover:text-zinc-200"
+                                  >
+                                    <div
+                                      className="h-7 w-7 shrink-0 rounded-full border border-zinc-700 bg-zinc-800 bg-cover bg-center"
+                                      style={{ backgroundImage: `url(${item.buyerAvatarUrl})` }}
+                                      role="img"
+                                      aria-hidden
+                                    />
+                                    <span>{item.buyerDisplayName}</span>
+                                  </Link>
+                                </div>
+                              </div>
+                              <span
+                                className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                  item.status === "pending"
+                                    ? "bg-amber-900/40 text-amber-300"
+                                    : item.status === "accepted"
+                                      ? "bg-emerald-900/40 text-emerald-300"
+                                      : "bg-rose-900/40 text-rose-300"
+                                }`}
+                              >
+                                {item.status === "pending" ? "承認待ち" : item.status === "accepted" ? "承認済み" : "拒否済み"}
+                              </span>
+                            </div>
+
+                            <div className="mt-4 space-y-2 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-sm">
+                              {item.q1Label ? (
+                                <p className="text-zinc-300">
+                                  <span className="font-semibold text-zinc-200">{item.q1Label}:</span> {item.a1Text || "未入力"}
+                                </p>
+                              ) : null}
+                              {item.q2Label ? (
+                                <p className="text-zinc-300">
+                                  <span className="font-semibold text-zinc-200">{item.q2Label}:</span> {item.a2Text || "未入力"}
+                                </p>
+                              ) : null}
+                              {item.q3Label ? (
+                                <p className="text-zinc-300">
+                                  <span className="font-semibold text-zinc-200">{item.q3Label}:</span> {item.a3Text || "未入力"}
+                                </p>
+                              ) : null}
+                              {item.freeLabel ? (
+                                <p className="text-zinc-300">
+                                  <span className="font-semibold text-zinc-200">{item.freeLabel}:</span> {item.freeText || "未入力"}
+                                </p>
+                              ) : null}
+                            </div>
+
+                            {item.status === "pending" ? (
+                              <div className="mt-4 space-y-3">
+                                <div className="flex flex-col gap-2 sm:flex-row">
+                                  <Button
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => {
+                                      setRejectConfirmTargetId(null)
+                                      setRejectOptionalReason("")
+                                      void handleAcceptConsultation(item)
+                                    }}
+                                    className="h-10 flex-1 bg-emerald-600 text-white hover:bg-emerald-500"
+                                  >
+                                    承認
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => {
+                                      setRejectConfirmTargetId(item.id)
+                                      setRejectOptionalReason("")
+                                    }}
+                                    className="h-10 flex-1 bg-rose-600 text-white hover:bg-rose-500"
+                                  >
+                                    拒否
+                                  </Button>
+                                </div>
+                                {rejectConfirmTargetId === item.id ? (
+                                  <div className="space-y-3 rounded-lg border border-zinc-700 bg-zinc-900/70 p-3">
+                                    <div className="space-y-1">
+                                      <p className="text-xs font-semibold text-zinc-300">拒否理由（任意）</p>
+                                      <textarea
+                                        rows={3}
+                                        value={rejectOptionalReason}
+                                        onChange={(event) => setRejectOptionalReason(event.target.value)}
+                                        placeholder="任意です。未入力でも拒否できます。"
+                                        className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-500"
+                                      />
+                                    </div>
+                                    <div className="flex flex-col gap-2 sm:flex-row">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        disabled={busy}
+                                        onClick={() => {
+                                          setRejectConfirmTargetId(null)
+                                          setRejectOptionalReason("")
+                                        }}
+                                        className="h-9 flex-1 border-zinc-600 bg-zinc-900 text-zinc-100 hover:border-zinc-500 hover:bg-zinc-800"
+                                      >
+                                        キャンセル
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        disabled={busy}
+                                        onClick={() => void handleRejectConsultation(item, rejectOptionalReason)}
+                                        className="h-9 flex-1 bg-rose-600 text-white hover:bg-rose-500"
+                                      >
+                                        この内容で拒否する
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ) : null}
+                              </div>
+                            ) : null}
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
+                </div>
+              ) : (
+                <div className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 md:p-6">
+                  <h2 className="text-sm font-semibold text-zinc-200">送信済みリクエスト</h2>
+                  <p className="mt-1 text-xs text-zinc-500">自分が送った事前オファーの状況を確認できます。</p>
+                  {sentConsultationRequestsLoading ? (
+                    <div className="flex items-center justify-center py-12 text-zinc-400">
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin text-red-500" aria-hidden />
+                      読み込み中...
+                    </div>
+                  ) : sentConsultationRequestsError ? (
+                    <p className="py-8 text-center text-sm text-red-400">{sentConsultationRequestsError}</p>
+                  ) : sentConsultationRequests.length === 0 ? (
+                    <p className="py-8 text-center text-sm text-zinc-500">送信済みの受講リクエストはありません。</p>
+                  ) : (
+                    <ul className="mt-4 space-y-4">
+                      {sentConsultationRequests.map((item) => (
                         <li key={item.id} className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4">
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div className="min-w-0">
-                              <p className="font-semibold text-white">{item.skillTitle}</p>
+                              <Link
+                                href={
+                                  item.transactionId
+                                    ? `/chat/${encodeURIComponent(item.transactionId)}`
+                                    : `/skills/${encodeURIComponent(String(item.skillId))}`
+                                }
+                                className="font-semibold text-white underline-offset-4 hover:text-red-300 hover:underline"
+                              >
+                                {item.skillTitle}
+                              </Link>
                               <div className="mt-1 flex items-center gap-2 text-sm text-zinc-400">
                                 <Link
-                                  href={`/profile/${encodeURIComponent(item.buyerId)}`}
+                                  href={`/profile/${encodeURIComponent(item.sellerId)}`}
                                   className="inline-flex items-center gap-2 rounded-md px-1 py-0.5 transition-colors hover:bg-zinc-800/80 hover:text-zinc-200"
                                 >
                                   <div
                                     className="h-7 w-7 shrink-0 rounded-full border border-zinc-700 bg-zinc-800 bg-cover bg-center"
-                                    style={{ backgroundImage: `url(${item.buyerAvatarUrl})` }}
+                                    style={{ backgroundImage: `url(${item.sellerAvatarUrl})` }}
                                     role="img"
                                     aria-hidden
                                   />
-                                  <span>{item.buyerDisplayName}</span>
+                                  <span>{item.sellerDisplayName}</span>
                                 </Link>
                               </div>
                             </div>
@@ -1695,177 +2057,27 @@ export default function MypageClient() {
                                     : "bg-rose-900/40 text-rose-300"
                               }`}
                             >
-                              {item.status === "pending" ? "承認待ち" : item.status === "accepted" ? "承認済み" : "拒否済み"}
+                              {item.status === "pending"
+                                ? "未対応"
+                                : item.status === "accepted"
+                                  ? "承認済み"
+                                  : "拒否済み"}
                             </span>
                           </div>
-
-                          <div className="mt-4 space-y-2 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-sm">
-                            {item.q1Label ? (
-                              <p className="text-zinc-300">
-                                <span className="font-semibold text-zinc-200">{item.q1Label}:</span> {item.a1Text || "未入力"}
+                          {item.status === "rejected" ? (
+                            <div className="mt-3 rounded-lg border border-rose-900/50 bg-rose-950/20 p-3 text-sm text-rose-100">
+                              <p className="font-semibold">拒否理由</p>
+                              <p className="mt-1 whitespace-pre-wrap text-rose-100/90">
+                                {item.rejectionReason || "（理由は入力されていません）"}
                               </p>
-                            ) : null}
-                            {item.q2Label ? (
-                              <p className="text-zinc-300">
-                                <span className="font-semibold text-zinc-200">{item.q2Label}:</span> {item.a2Text || "未入力"}
-                              </p>
-                            ) : null}
-                            {item.q3Label ? (
-                              <p className="text-zinc-300">
-                                <span className="font-semibold text-zinc-200">{item.q3Label}:</span> {item.a3Text || "未入力"}
-                              </p>
-                            ) : null}
-                            {item.freeLabel ? (
-                              <p className="text-zinc-300">
-                                <span className="font-semibold text-zinc-200">{item.freeLabel}:</span> {item.freeText || "未入力"}
-                              </p>
-                            ) : null}
-                          </div>
-
-                          {item.status === "pending" ? (
-                            <div className="mt-4 space-y-3">
-                              <div className="flex flex-col gap-2 sm:flex-row">
-                                <Button
-                                  type="button"
-                                  disabled={busy}
-                                  onClick={() => {
-                                    setRejectConfirmTargetId(null)
-                                    setRejectOptionalReason("")
-                                    void handleAcceptConsultation(item)
-                                  }}
-                                  className="h-10 flex-1 bg-emerald-600 text-white hover:bg-emerald-500"
-                                >
-                                  承認
-                                </Button>
-                                <Button
-                                  type="button"
-                                  disabled={busy}
-                                  onClick={() => {
-                                    setRejectConfirmTargetId(item.id)
-                                    setRejectOptionalReason("")
-                                  }}
-                                  className="h-10 flex-1 bg-rose-600 text-white hover:bg-rose-500"
-                                >
-                                  拒否
-                                </Button>
-                              </div>
-                              {rejectConfirmTargetId === item.id ? (
-                                <div className="space-y-3 rounded-lg border border-zinc-700 bg-zinc-900/70 p-3">
-                                  <div className="space-y-1">
-                                    <p className="text-xs font-semibold text-zinc-300">拒否理由（任意）</p>
-                                    <textarea
-                                      rows={3}
-                                      value={rejectOptionalReason}
-                                      onChange={(event) => setRejectOptionalReason(event.target.value)}
-                                      placeholder="任意です。未入力でも拒否できます。"
-                                      className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-500"
-                                    />
-                                  </div>
-                                  <div className="flex flex-col gap-2 sm:flex-row">
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      disabled={busy}
-                                      onClick={() => {
-                                        setRejectConfirmTargetId(null)
-                                        setRejectOptionalReason("")
-                                      }}
-                                      className="h-9 flex-1 border-zinc-600 bg-zinc-900 text-zinc-100 hover:border-zinc-500 hover:bg-zinc-800"
-                                    >
-                                      キャンセル
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      disabled={busy}
-                                      onClick={() => void handleRejectConsultation(item, rejectOptionalReason)}
-                                      className="h-9 flex-1 bg-rose-600 text-white hover:bg-rose-500"
-                                    >
-                                      この内容で拒否する
-                                    </Button>
-                                  </div>
-                                </div>
-                              ) : null}
                             </div>
                           ) : null}
                         </li>
-                      )
-                    })}
-                  </ul>
-                )}
-              </div>
-
-              <div className="mt-6 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 md:p-6">
-                <h2 className="text-sm font-semibold text-zinc-200">送信済みリクエスト</h2>
-                <p className="mt-1 text-xs text-zinc-500">自分が送った事前オファーの状況を確認できます。</p>
-                {sentConsultationRequestsLoading ? (
-                  <div className="flex items-center justify-center py-12 text-zinc-400">
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin text-red-500" aria-hidden />
-                    読み込み中...
-                  </div>
-                ) : sentConsultationRequestsError ? (
-                  <p className="py-8 text-center text-sm text-red-400">{sentConsultationRequestsError}</p>
-                ) : sentConsultationRequests.length === 0 ? (
-                  <p className="py-8 text-center text-sm text-zinc-500">送信済みの受講リクエストはありません。</p>
-                ) : (
-                  <ul className="mt-4 space-y-4">
-                    {sentConsultationRequests.map((item) => (
-                      <li key={item.id} className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                          <div className="min-w-0">
-                            <Link
-                              href={
-                                item.transactionId
-                                  ? `/chat/${encodeURIComponent(item.transactionId)}`
-                                  : `/skills/${encodeURIComponent(String(item.skillId))}`
-                              }
-                              className="font-semibold text-white underline-offset-4 hover:text-red-300 hover:underline"
-                            >
-                              {item.skillTitle}
-                            </Link>
-                            <div className="mt-1 flex items-center gap-2 text-sm text-zinc-400">
-                              <Link
-                                href={`/profile/${encodeURIComponent(item.sellerId)}`}
-                                className="inline-flex items-center gap-2 rounded-md px-1 py-0.5 transition-colors hover:bg-zinc-800/80 hover:text-zinc-200"
-                              >
-                                <div
-                                  className="h-7 w-7 shrink-0 rounded-full border border-zinc-700 bg-zinc-800 bg-cover bg-center"
-                                  style={{ backgroundImage: `url(${item.sellerAvatarUrl})` }}
-                                  role="img"
-                                  aria-hidden
-                                />
-                                <span>{item.sellerDisplayName}</span>
-                              </Link>
-                            </div>
-                          </div>
-                          <span
-                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
-                              item.status === "pending"
-                                ? "bg-amber-900/40 text-amber-300"
-                                : item.status === "accepted"
-                                  ? "bg-emerald-900/40 text-emerald-300"
-                                  : "bg-rose-900/40 text-rose-300"
-                            }`}
-                          >
-                            {item.status === "pending"
-                              ? "未対応"
-                              : item.status === "accepted"
-                                ? "承認済み"
-                                : "拒否済み"}
-                          </span>
-                        </div>
-                        {item.status === "rejected" ? (
-                          <div className="mt-3 rounded-lg border border-rose-900/50 bg-rose-950/20 p-3 text-sm text-rose-100">
-                            <p className="font-semibold">拒否理由</p>
-                            <p className="mt-1 whitespace-pre-wrap text-rose-100/90">
-                              {item.rejectionReason || "（理由は入力されていません）"}
-                            </p>
-                          </div>
-                        ) : null}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -2064,25 +2276,33 @@ export default function MypageClient() {
                       : "対応中の取引はありません。"}
                   </p>
                 ) : (
-                  <ul className="divide-y divide-zinc-800">
+                  <ul className="space-y-4">
                     {transactionItems.map((item) => (
-                      <li key={item.transactionId}>
-                        <Link
-                          href={`/chat/${encodeURIComponent(item.transactionId)}`}
-                          className="flex items-center gap-3 py-4 first:pt-0 last:pb-0 transition-colors hover:bg-zinc-800/40 -mx-2 px-2 rounded-xl"
-                        >
-                          <div
-                            className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-zinc-700 bg-zinc-800 bg-cover bg-center"
-                            style={{ backgroundImage: `url(${item.peerAvatarUrl})` }}
-                            role="img"
-                            aria-hidden
-                          />
-                          <div className="min-w-0 flex-1">
-                            <p className="font-semibold text-white">{item.peerDisplayName}</p>
-                            <p className="mt-0.5 truncate text-sm text-zinc-400">{item.skillTitle}</p>
+                      <li
+                        key={item.transactionId}
+                        className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4 transition-colors hover:border-red-500/40 hover:bg-zinc-900/70"
+                      >
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex min-w-0 flex-1 items-center gap-3">
+                            <div
+                              className="aspect-[16/10] w-28 shrink-0 overflow-hidden rounded-xl border border-zinc-700 bg-zinc-800 bg-cover bg-center"
+                              style={{ backgroundImage: `url(${item.skillImageUrl || item.peerAvatarUrl})` }}
+                              role="img"
+                              aria-hidden
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-base font-bold text-white md:text-lg">{item.skillTitle}</p>
+                              <p className="mt-1 text-sm text-zinc-400">講師: {item.peerDisplayName}</p>
+                              <p className="mt-1 text-xs text-zinc-500">{item.startedAtLabel}</p>
+                            </div>
                           </div>
-                          <span className="shrink-0 text-xs font-medium text-zinc-500">チャットへ</span>
-                        </Link>
+                          <Button
+                            asChild
+                            className="h-10 w-full shrink-0 bg-red-600 text-sm font-semibold text-white hover:bg-red-500 sm:w-auto sm:px-5"
+                          >
+                            <Link href={`/chat/${encodeURIComponent(item.transactionId)}`}>チャットへ</Link>
+                          </Button>
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -2093,9 +2313,13 @@ export default function MypageClient() {
 
           {section === "transactions" && (
             <div className="mx-auto max-w-3xl">
-              <h1 className="text-2xl font-black tracking-wide text-white md:text-3xl">取引履歴</h1>
+              <h1 className="text-2xl font-black tracking-wide text-white md:text-3xl">
+                取引履歴（{currentMode === "instructor" ? "講師として対応" : "受講生として利用"}）
+              </h1>
               <p className="mt-1 text-sm text-zinc-400">
-                完了した取引と、返金・キャンセル済みの取引です。チャットを開いて内容を確認できます（追加の決済は発生しません）。
+                {currentMode === "instructor"
+                  ? "講師として対応した取引の履歴です。完了・返金・キャンセル済みの案件を確認できます。"
+                  : "受講生として利用した取引の履歴です。完了・返金・キャンセル済みの案件を確認できます。"}
               </p>
 
               <div className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 md:p-6">
@@ -2107,34 +2331,48 @@ export default function MypageClient() {
                 ) : historyTransactionsError ? (
                   <p className="py-8 text-center text-sm text-red-400">{historyTransactionsError}</p>
                 ) : historyTransactionItems.length === 0 ? (
-                  <p className="py-8 text-center text-sm text-zinc-500">取引履歴はまだありません。</p>
+                  <p className="py-8 text-center text-sm text-zinc-500">
+                    {currentMode === "instructor"
+                      ? "講師として対応した取引履歴はまだありません。"
+                      : "受講生として利用した取引履歴はまだありません。"}
+                  </p>
                 ) : (
                   <>
-                    <ul className="divide-y divide-zinc-800">
+                    <ul className="space-y-4">
                       {paginatedHistoryTransactionItems.map((item) => (
-                        <li key={item.transactionId}>
-                          <Link
-                            href={`/chat/${encodeURIComponent(item.transactionId)}`}
-                            className="-mx-2 flex items-center gap-3 rounded-xl px-2 py-4 transition-colors first:pt-0 last:pb-0 hover:bg-zinc-800/40"
-                          >
-                            <div
-                              className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-zinc-700 bg-zinc-800 bg-cover bg-center"
-                              style={{ backgroundImage: `url(${item.peerAvatarUrl})` }}
-                              role="img"
-                              aria-hidden
-                            />
-                            <div className="min-w-0 flex-1">
-                              <p className="font-semibold text-white">{item.peerDisplayName}</p>
-                              <p className="mt-0.5 truncate text-sm text-zinc-400">{item.skillTitle}</p>
+                        <li
+                          key={item.transactionId}
+                          className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4 transition-colors hover:border-red-500/40 hover:bg-zinc-900/70"
+                        >
+                          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="flex min-w-0 flex-1 items-center gap-3">
+                              <div
+                                className="aspect-[16/10] w-28 shrink-0 overflow-hidden rounded-xl border border-zinc-700 bg-zinc-800 bg-cover bg-center"
+                                style={{ backgroundImage: `url(${item.skillImageUrl || item.peerAvatarUrl})` }}
+                                role="img"
+                                aria-hidden
+                              />
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-base font-bold text-white md:text-lg">{item.skillTitle}</p>
+                                <p className="mt-1 text-sm text-zinc-400">
+                                  {currentMode === "instructor" ? "受講生" : "講師"}: {item.peerDisplayName}
+                                </p>
+                                <p className="mt-1 text-xs text-zinc-500">{item.startedAtLabel}</p>
+                              </div>
                             </div>
-                            <div className="flex shrink-0 flex-col items-end gap-1">
-                              <span className="max-w-[10rem] text-right text-xs font-medium leading-tight text-zinc-300">
+                            <div className="flex flex-col gap-2 lg:items-end">
+                              <span className="inline-flex w-fit rounded-full bg-zinc-800 px-2.5 py-1 text-xs font-semibold text-zinc-200">
                                 {item.statusLabel}
                               </span>
-                              <span className="max-w-[13rem] text-right text-xs text-zinc-500">{item.completedAtLabel}</span>
-                              <span className="text-xs text-zinc-500">チャットへ</span>
+                              <span className="text-xs text-zinc-500">{item.completedAtLabel}</span>
+                              <Button
+                                asChild
+                                className="h-10 w-full bg-red-600 text-sm font-semibold text-white hover:bg-red-500 sm:w-auto sm:px-5"
+                              >
+                                <Link href={`/chat/${encodeURIComponent(item.transactionId)}`}>チャットへ</Link>
+                              </Button>
                             </div>
-                          </Link>
+                          </div>
                         </li>
                       ))}
                     </ul>
@@ -2261,9 +2499,46 @@ export default function MypageClient() {
           )}
 
           {section === "account" && (
-            <div className="mx-auto max-w-2xl rounded-2xl border border-zinc-800 bg-zinc-900/40 p-8 text-center">
-              <h1 className="text-xl font-bold text-white">{MENU.find((m) => m.id === section)?.label ?? ""}</h1>
-              <p className="mt-3 text-sm text-zinc-500">この機能は準備中です。</p>
+            <div className="mx-auto max-w-2xl space-y-8">
+              <div>
+                <h1 className="text-2xl font-black tracking-wide text-white md:text-3xl">{accountLabel}</h1>
+                <p className="mt-1 text-sm text-zinc-400">アカウントの確認やログアウトはこちらから行えます。</p>
+              </div>
+
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 text-left shadow-[0_0_40px_rgba(0,0,0,0.25)] md:p-8">
+                <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center sm:gap-6">
+                  <div
+                    className="h-20 w-20 shrink-0 rounded-full border border-zinc-700 bg-zinc-800 bg-cover bg-center ring-2 ring-red-500/25"
+                    style={{
+                      backgroundImage: `url(${resolveProfileAvatarUrl(profileAvatarUrl, displayName || "ユーザー")})`,
+                    }}
+                    role="img"
+                    aria-hidden
+                  />
+                  <div className="min-w-0 flex-1 text-center sm:text-left">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">表示名</p>
+                    <p className="mt-1 max-w-full truncate text-xl font-bold text-white">
+                      {profileLoading ? "読み込み中..." : displayName || "未設定"}
+                    </p>
+                    <p className="mt-2 text-xs text-zinc-500">プロフィールの編集は「プロフィール」から行えます。</p>
+                  </div>
+                </div>
+
+                <div className="mt-8 border-t border-zinc-800 pt-8">
+                  <h2 className="text-sm font-semibold text-zinc-200">セッション</h2>
+                  <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+                    ログアウトすると、このブラウザでのログイン状態が解除されます。
+                  </p>
+                  <Button
+                    type="button"
+                    className="mt-4 h-12 w-full bg-red-600 text-base font-bold text-white shadow-lg shadow-red-900/30 transition-colors hover:bg-red-500 disabled:opacity-60 sm:w-auto sm:min-w-[12rem] sm:px-8"
+                    onClick={handleAccountLogoutRequest}
+                    disabled={accountLogoutBusy}
+                  >
+                    ログアウト
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
         </main>
@@ -2339,6 +2614,55 @@ export default function MypageClient() {
           </div>
         </div>
       ) : null}
+
+      {typeof document !== "undefined" &&
+        showAccountLogoutConfirm &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[10000] flex min-h-[100dvh] w-full items-center justify-center overflow-y-auto bg-black/70 p-4 sm:p-6"
+            role="presentation"
+            onClick={handleAccountLogoutCancel}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="account-logout-confirm-title"
+              className="my-auto w-full max-w-sm shrink-0 rounded-xl border border-zinc-700 bg-zinc-950 p-6 shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <h2 id="account-logout-confirm-title" className="text-center text-base font-medium leading-relaxed text-zinc-100">
+                ログアウトしてもよろしいですか？
+              </h2>
+              <div className="mt-6 flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 border-zinc-600 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
+                  onClick={handleAccountLogoutCancel}
+                  disabled={accountLogoutBusy}
+                >
+                  キャンセル
+                </Button>
+                <Button
+                  type="button"
+                  className="flex-1 bg-red-600 font-semibold text-white hover:bg-red-500"
+                  onClick={() => void handleAccountLogoutConfirm()}
+                  disabled={accountLogoutBusy}
+                >
+                  {accountLogoutBusy ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                      処理中...
+                    </>
+                  ) : (
+                    "ログアウト"
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

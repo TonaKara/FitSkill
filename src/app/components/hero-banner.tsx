@@ -65,9 +65,9 @@ export function HeroBanner({ onBrowseSkillsClick, heroStats }: HeroBannerProps) 
           <div className="max-w-2xl">
             {/* Title */}
             <h1
-              className={`${anton.className} mb-3 text-2xl font-black italic uppercase leading-tight tracking-tighter text-foreground sm:text-3xl md:text-4xl lg:text-5xl`}
+              className={`${anton.className} mb-3 whitespace-nowrap text-xl font-black italic uppercase leading-tight tracking-tighter text-foreground sm:text-3xl md:text-4xl lg:text-5xl`}
             >
-              <span className="block text-balance">
+              <span className="inline-block">
                 「楽しい」が、
                 <span className="inline-block bg-gradient-to-b from-red-300 via-primary to-red-700 bg-clip-text text-transparent drop-shadow-[0_0_10px_rgba(239,68,68,0.45)]">
                   共鳴

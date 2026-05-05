@@ -3,6 +3,24 @@
 /** 正規 URL・OG の共通起点（必ず HTTPS） */
 export const SITE_URL = "https://gritvib.com" as const
 
+/**
+ * metadataBase・OG 等の絶対 URL 解決用。
+ * - 本番: Vercel で `NEXT_PUBLIC_SITE_URL=https://gritvib.com` を推奨
+ * - プレビュー: `VERCEL_URL` を自動利用（デプロイごとのホストで favicon / apple-touch が正しく解決される）
+ */
+export function getSiteUrl(): string {
+  const trim = (u: string) => u.replace(/\/$/, "")
+  const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.trim()
+  if (fromEnv) {
+    return trim(fromEnv)
+  }
+  const vercel = process.env.VERCEL_URL?.trim()
+  if (vercel) {
+    return trim(`https://${vercel}`)
+  }
+  return SITE_URL
+}
+
 /** ルートレイアウトのデフォルト（子ページが title を上書きしない場合） */
 export const LAYOUT_TITLE_DEFAULT = "GritVib | フィットネススキルマーケットプレイス"
 
