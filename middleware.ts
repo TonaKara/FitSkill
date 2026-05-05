@@ -3,6 +3,12 @@ import { NextResponse, type NextRequest } from "next/server"
 import { shouldRedirectPublicUserToMaintenance } from "@/lib/maintenance-access"
 
 /**
+ * このミドルウェアは 403 Forbidden を返さない。
+ * - 未ログインでも `/`（トップ）は通過する（Supabase セッション更新用に処理は走るが拒否しない）。
+ * - `/chat/*` 未ログインは 403 ではなく `/login` へリダイレクト。
+ * - メンテ時は `/maintenance` へリダイレクト。
+ * プレビュー URL 全体が 403 になる場合は Vercel の Deployment Protection 等を疑う（アプリ外の要因）。
+ *
  * メンテ誘導・認証チェックの対象外にするパス。
  * - /sitemap.xml は拡張子ありだが明示しておく（環境によっては判定漏れ防止）
  * - /opengraph-image 等は拡張子なしのため明示

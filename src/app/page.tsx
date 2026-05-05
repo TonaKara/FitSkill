@@ -34,29 +34,35 @@ function getSupabaseAdminClient() {
 }
 
 async function loadHeroStatsForAdmin(): Promise<HeroStats | null> {
-  const supabase = await getServerSupabase()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
+  try {
+    const supabase = await getServerSupabase()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      return null
+    }
+
+    const isAdmin = await getIsAdminFromProfile(supabase, user.id)
+    if (!isAdmin) {
+      return null
+    }
+
+    const supabaseAdmin = getSupabaseAdminClient()
+    const [{ count: skillsCount }, { count: usersCount }] = await Promise.all([
+      supabaseAdmin.from("skills").select("id", { count: "exact", head: true }),
+      supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }),
+    ])
+
+    return {
+      isAdmin: true,
+      skillsCount: Number(skillsCount ?? 0),
+      usersCount: Number(usersCount ?? 0),
+    }
+  } catch (e) {
+    // プレビューで SUPABASE_SERVICE_ROLE_KEY 未設定のとき等 — 未ログイン閲覧は不要なので null でトップを落とさない
+    console.error("[HomePage] 管理者向けヒーロー統計の取得に失敗しました", e)
     return null
-  }
-
-  const isAdmin = await getIsAdminFromProfile(supabase, user.id)
-  if (!isAdmin) {
-    return null
-  }
-
-  const supabaseAdmin = getSupabaseAdminClient()
-  const [{ count: skillsCount }, { count: usersCount }] = await Promise.all([
-    supabaseAdmin.from("skills").select("id", { count: "exact", head: true }),
-    supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }),
-  ])
-
-  return {
-    isAdmin: true,
-    skillsCount: Number(skillsCount ?? 0),
-    usersCount: Number(usersCount ?? 0),
   }
 }
 
