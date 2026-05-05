@@ -14,6 +14,9 @@ export function Footer() {
             <Link href="/about" className={baseLinkClass}>
               GritVibについて
             </Link>
+            <Link href="/about/logo" className={baseLinkClass}>
+              ブランドロゴ
+            </Link>
             <Link href="/legal/terms" className={baseLinkClass}>
               利用規約
             </Link>
@@ -42,7 +45,7 @@ export function Footer() {
           <div className="space-y-4">
             <h2 className="text-base font-semibold text-white">公式SNS</h2>
             <a
-              href="https://x.com/gritvib_jp"
+              href="https://x.com/dog_workout"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="GritVib公式X"
