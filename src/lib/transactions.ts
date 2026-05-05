@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { createTransactionNotification, NOTIFICATION_TYPE } from "@/lib/transaction-notifications"
 import { canBuyerPurchaseSkill } from "@/lib/consultation"
+import { sendDiscordNotification } from "@/lib/discord"
+import { getSiteUrl } from "@/lib/site-seo"
 import { isStripePaymentsConfigured } from "@/lib/stripe-config"
 
 /** 重複 INSERT（unique 制約）かどうか */
@@ -94,7 +96,7 @@ export async function createSkillPurchaseTransaction(
 
   const { data: skill, error: skillError } = await supabase
     .from("skills")
-    .select("price, user_id")
+    .select("price, user_id, title")
     .eq("id", params.skillId)
     .single()
 
@@ -102,7 +104,7 @@ export async function createSkillPurchaseTransaction(
     return { inserted: false, errorMessage: skillError.message }
   }
 
-  const skillRow = skill as { price: unknown; user_id: string | null } | null
+  const skillRow = skill as { price: unknown; user_id: string | null; title?: string | null } | null
   if (!skillRow || typeof skillRow.price !== "number") {
     return { inserted: false, errorMessage: "スキルの価格を取得できませんでした。" }
   }
@@ -172,6 +174,33 @@ export async function createSkillPurchaseTransaction(
     })
     if (nErr) {
       console.error("[createSkillPurchaseTransaction] createTransactionNotification failed", nErr)
+    }
+    const webhookUrl = process.env.DISCORD_WEBHOOK_PURCHASE?.trim() ?? ""
+    if (webhookUrl) {
+      try {
+        const [{ data: buyerProfile }, { data: sellerProfile }] = await Promise.all([
+          supabase.from("profiles").select("display_name").eq("id", params.buyerId).maybeSingle(),
+          supabase.from("profiles").select("display_name").eq("id", sellerId).maybeSingle(),
+        ])
+        const buyerName =
+          ((buyerProfile as { display_name?: string | null } | null)?.display_name ?? "").trim() || params.buyerId
+        const sellerName =
+          ((sellerProfile as { display_name?: string | null } | null)?.display_name ?? "").trim() || sellerId
+        const baseUrl = getSiteUrl().replace(/\/$/, "")
+        await sendDiscordNotification(
+          webhookUrl,
+          [
+            "🛒 **取引開始（購入）**",
+            `- 購入者: ${buyerName}`,
+            `- 講師: ${sellerName}`,
+            `- 商品: ${skillRow.title?.trim() || params.skillId}`,
+            `- 取引チャット: ${baseUrl}/chat/${encodeURIComponent(txIdStr)}`,
+            `- 管理画面: ${baseUrl}/admin`,
+          ].join("\n"),
+        )
+      } catch (discordError) {
+        console.error("[transactions] discord purchase notification failed", discordError)
+      }
     }
   }
 

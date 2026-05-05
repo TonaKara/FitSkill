@@ -10,9 +10,10 @@ import { normalizeSkillBigIntId, uniqueSkillBigIntIds } from "@/lib/skill-id-big
 
 type MypageInquirySectionProps = {
   userId: string
+  mode: "student" | "instructor"
 }
 
-export function MypageInquirySection({ userId }: MypageInquirySectionProps) {
+export function MypageInquirySection({ userId, mode }: MypageInquirySectionProps) {
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
   const [threads, setThreads] = useState<InquiryInboxListRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -30,11 +31,36 @@ export function MypageInquirySection({ userId }: MypageInquirySectionProps) {
       setLoading(false)
       return
     }
-    setThreads(rows)
-
-    const peerIds = [...new Set(rows.map((r) => r.peer_id))]
     const skillIds = uniqueSkillBigIntIds(rows.map((r) => r.last_origin_skill_id))
+    const ownerBySkillId: Record<string, string> = {}
+    const nextTitles: Record<string, string> = {}
 
+    if (skillIds.length > 0) {
+      const { data: skillData } = await supabase.from("skills").select("id, title, user_id").in("id", skillIds)
+      for (const row of skillData ?? []) {
+        const rec = row as { id: unknown; title: unknown; user_id: unknown }
+        const sid = normalizeSkillBigIntId(rec.id)
+        if (sid != null) {
+          nextTitles[sid] = String(rec.title ?? "")
+          ownerBySkillId[sid] = String(rec.user_id ?? "")
+        }
+      }
+    }
+
+    const filteredRows = rows.filter((r) => {
+      const ownerId = ownerBySkillId[r.last_origin_skill_id]
+      if (!ownerId) {
+        return true
+      }
+      if (mode === "instructor") {
+        return ownerId === userId
+      }
+      return ownerId !== userId
+    })
+    setThreads(filteredRows)
+    setSkillTitles(nextTitles)
+
+    const peerIds = [...new Set(filteredRows.map((r) => r.peer_id))]
     if (peerIds.length > 0) {
       const { data: profData } = await supabase
         .from("profiles")
@@ -49,23 +75,8 @@ export function MypageInquirySection({ userId }: MypageInquirySectionProps) {
       setPeerProfiles({})
     }
 
-    if (skillIds.length > 0) {
-      const { data: skillData } = await supabase.from("skills").select("id, title").in("id", skillIds)
-      const nextTitles: Record<string, string> = {}
-      for (const row of skillData ?? []) {
-        const rec = row as { id: unknown; title: unknown }
-        const sid = normalizeSkillBigIntId(rec.id)
-        if (sid != null) {
-          nextTitles[sid] = String(rec.title ?? "")
-        }
-      }
-      setSkillTitles(nextTitles)
-    } else {
-      setSkillTitles({})
-    }
-
     setLoading(false)
-  }, [supabase])
+  }, [mode, supabase, userId])
 
   useEffect(() => {
     if (userId) {
@@ -77,7 +88,9 @@ export function MypageInquirySection({ userId }: MypageInquirySectionProps) {
     <div className="mx-auto max-w-4xl">
       <h1 className="text-2xl font-black tracking-wide text-white md:text-3xl">購入前の相談</h1>
       <p className="mt-1 text-sm text-zinc-400">
-        相手は1行に1人表示されます。最新メッセージ・既読状態・スキル経由のバッジを表示します。
+        {mode === "instructor"
+          ? "あなたの出品に届いた相談を表示しています。"
+          : "あなたが送信した相談を表示しています。"}
       </p>
 
       <div className="mt-6 flex flex-wrap gap-2">
@@ -91,7 +104,6 @@ export function MypageInquirySection({ userId }: MypageInquirySectionProps) {
           threads={threads}
           peerProfiles={peerProfiles}
           skillTitles={skillTitles}
-          currentUserId={userId}
           loading={loading}
           error={error}
         />

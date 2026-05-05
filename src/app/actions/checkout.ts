@@ -5,7 +5,9 @@ import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import Stripe from "stripe"
 import { canBuyerPurchaseSkill } from "@/lib/consultation"
+import { sendDiscordNotification } from "@/lib/discord"
 import { SELLER_FEE_RATE } from "@/lib/seller-fee-preview"
+import { getSiteUrl } from "@/lib/site-seo"
 import { assertStripeConnectAccountOwnership } from "@/lib/stripe-account-ownership"
 
 type SkillRow = {
@@ -84,8 +86,9 @@ async function ensureSellerPurchaseNotification(params: {
   transactionId: string
   sellerId: string
   buyerId: string
+  skillId: string
 }) {
-  const { supabaseAdmin, transactionId, sellerId, buyerId } = params
+  const { supabaseAdmin, transactionId, sellerId, buyerId, skillId } = params
 
   const { data: existingNotification, error: existingNotificationError } = await supabaseAdmin
     .from("notifications")
@@ -117,6 +120,38 @@ async function ensureSellerPurchaseNotification(params: {
 
   if (notificationInsertError) {
     throw new Error(notificationInsertError.message)
+  }
+
+  const webhookUrl = process.env.DISCORD_WEBHOOK_PURCHASE?.trim() ?? ""
+  if (webhookUrl) {
+    try {
+      const [{ data: buyerProfile }, { data: sellerProfile }, { data: skillRow }] = await Promise.all([
+        supabaseAdmin.from("profiles").select("display_name").eq("id", buyerId).maybeSingle(),
+        supabaseAdmin.from("profiles").select("display_name").eq("id", sellerId).maybeSingle(),
+        supabaseAdmin.from("skills").select("title").eq("id", skillId).maybeSingle(),
+      ])
+      const buyerName =
+        ((buyerProfile as { display_name?: string | null } | null)?.display_name ?? "").trim() || buyerId
+      const sellerName =
+        ((sellerProfile as { display_name?: string | null } | null)?.display_name ?? "").trim() || sellerId
+      const skillTitle = ((skillRow as { title?: string | null } | null)?.title ?? "").trim() || skillId
+      const baseUrl = getSiteUrl().replace(/\/$/, "")
+      const chatUrl = `${baseUrl}/chat/${encodeURIComponent(transactionId)}`
+      const adminUrl = `${baseUrl}/admin`
+      await sendDiscordNotification(
+        webhookUrl,
+        [
+          "🛒 **取引開始（購入）**",
+          `- 購入者: ${buyerName}`,
+          `- 講師: ${sellerName}`,
+          `- 商品: ${skillTitle}`,
+          `- 取引チャット: ${chatUrl}`,
+          `- 管理画面: ${adminUrl}`,
+        ].join("\n"),
+      )
+    } catch (discordError) {
+      console.error("[checkout] discord purchase notification failed", discordError)
+    }
   }
 }
 
@@ -359,6 +394,7 @@ export async function finalizeCheckoutSessionAfterSuccess(
           transactionId: String(activatedTx.id),
           sellerId,
           buyerId,
+          skillId,
         })
         return { ok: true, transactionId: String(activatedTx.id), status: String(activatedTx.status) }
       }
@@ -368,6 +404,7 @@ export async function finalizeCheckoutSessionAfterSuccess(
           transactionId: String(existingTx.id),
           sellerId,
           buyerId,
+          skillId,
         })
       }
       return { ok: true, transactionId: String(existingTx.id), status: String(existingTx.status) }
@@ -427,6 +464,7 @@ export async function finalizeCheckoutSessionAfterSuccess(
       transactionId: String(insertedTx.id),
       sellerId,
       buyerId,
+      skillId,
     })
 
     return { ok: true, transactionId: String(insertedTx.id), status: String(insertedTx.status) }

@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
+import { getBanStatusFromProfile } from "@/lib/ban"
 import { shouldRedirectPublicUserToMaintenance } from "@/lib/maintenance-access"
 
 /**
@@ -35,6 +36,47 @@ function isBypassMiddlewarePath(pathname: string): boolean {
   return false
 }
 
+const BAN_ALLOWED_TRANSACTION_STATUSES = ["progress", "in_progress", "active", "approval_pending", "disputed"] as const
+
+async function canBannedUserAccessChatPath(args: {
+  pathname: string
+  userId: string
+  supabase: ReturnType<typeof createServerClient>
+}): Promise<boolean> {
+  const { pathname, userId, supabase } = args
+  if (!pathname.startsWith("/chat/")) {
+    return false
+  }
+
+  const [, , rawTransactionId] = pathname.split("/")
+  const transactionId = (rawTransactionId ?? "").trim()
+  if (!transactionId) {
+    return false
+  }
+
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("id, buyer_id, seller_id, status")
+    .eq("id", transactionId)
+    .maybeSingle()
+
+  if (error || !data) {
+    return false
+  }
+
+  const row = data as {
+    buyer_id?: string | null
+    seller_id?: string | null
+    status?: string | null
+  }
+  const isParticipant = row.buyer_id === userId || row.seller_id === userId
+  if (!isParticipant) {
+    return false
+  }
+  const status = String(row.status ?? "")
+  return BAN_ALLOWED_TRANSACTION_STATUSES.includes(status as (typeof BAN_ALLOWED_TRANSACTION_STATUSES)[number])
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
@@ -68,6 +110,21 @@ export async function middleware(request: NextRequest) {
   const {
     data: { user: authUser },
   } = await supabase.auth.getUser()
+
+  if (authUser) {
+    const { isBanned, isAdmin } = await getBanStatusFromProfile(supabase, authUser.id)
+    const allowForBannedBase =
+      pathname === "/" || pathname === "/banned" || pathname === "/contact" || pathname === "/contact/success"
+    const allowBannedChat = await canBannedUserAccessChatPath({
+      pathname,
+      userId: authUser.id,
+      supabase,
+    })
+    if (isBanned && !isAdmin && !allowForBannedBase && !allowBannedChat) {
+      const bannedUrl = new URL("/banned", request.nextUrl)
+      return NextResponse.redirect(bannedUrl)
+    }
+  }
 
   // 取引チャットはログイン必須（未認証の場合は Server Action でもセッションが使えない）
   if (pathname.startsWith("/chat/") && !authUser) {

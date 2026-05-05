@@ -23,9 +23,10 @@ type Props = {
   onClose: () => void
   onConfirm: (payload: LinkMessagePayload) => void | Promise<void>
   busy?: boolean
+  allowZoom?: boolean
 }
 
-export function ChatLinkIntegrationModal({ open, onClose, onConfirm, busy }: Props) {
+export function ChatLinkIntegrationModal({ open, onClose, onConfirm, busy, allowZoom = true }: Props) {
   const [mounted, setMounted] = useState(false)
   const [step, setStep] = useState<Step>("pick")
   const [zoomMeetingId, setZoomMeetingId] = useState("")
@@ -48,6 +49,12 @@ export function ChatLinkIntegrationModal({ open, onClose, onConfirm, busy }: Pro
       setLocalError(null)
     }
   }, [open])
+
+  useEffect(() => {
+    if (!allowZoom && step === "zoom") {
+      setStep("youtube")
+    }
+  }, [allowZoom, step])
 
   if (!mounted || !open) {
     return null
@@ -132,14 +139,16 @@ export function ChatLinkIntegrationModal({ open, onClose, onConfirm, busy }: Pro
         {step === "pick" ? (
           <div className="flex flex-col gap-3">
             <p className="text-sm text-zinc-400">連携するサービスを選んでください。</p>
-            <Button
-              type="button"
-              className="h-12 w-full bg-blue-600 text-white hover:bg-blue-500"
-              onClick={() => setStep("zoom")}
-              disabled={busy}
-            >
-              Zoom連携
-            </Button>
+            {allowZoom ? (
+              <Button
+                type="button"
+                className="h-12 w-full bg-blue-600 text-white hover:bg-blue-500"
+                onClick={() => setStep("zoom")}
+                disabled={busy}
+              >
+                Zoom連携
+              </Button>
+            ) : null}
             <Button
               type="button"
               className="h-12 w-full bg-red-700 text-white hover:bg-red-600"
@@ -222,18 +231,20 @@ export function ChatLinkIntegrationModal({ open, onClose, onConfirm, busy }: Pro
               />
             </label>
             <div className="flex gap-2 pt-2">
+              {allowZoom ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 border-zinc-600 bg-zinc-900 text-zinc-200"
+                  disabled={busy}
+                  onClick={() => setStep("pick")}
+                >
+                  戻る
+                </Button>
+              ) : null}
               <Button
                 type="button"
-                variant="outline"
-                className="flex-1 border-zinc-600 bg-zinc-900 text-zinc-200"
-                disabled={busy}
-                onClick={() => setStep("pick")}
-              >
-                戻る
-              </Button>
-              <Button
-                type="button"
-                className="flex-1 bg-red-600 text-white hover:bg-red-500"
+                className={`${allowZoom ? "flex-1" : "w-full"} bg-red-600 text-white hover:bg-red-500`}
                 disabled={busy}
                 onClick={() => void submitYoutube()}
               >

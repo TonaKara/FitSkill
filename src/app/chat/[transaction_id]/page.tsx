@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { NotificationToast } from "@/components/ui/notification-toast"
 import { getIsAdminFromProfile } from "@/lib/admin"
+import { getBanStatusFromProfile } from "@/lib/ban"
 import {
   CHAT_LINK_FILE_TYPE,
   CHAT_YOUTUBE_FILE_TYPE,
@@ -339,6 +340,7 @@ export default function ChatTransactionPage() {
 
   const [authLoading, setAuthLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
+  const [isBannedUser, setIsBannedUser] = useState(false)
 
   const [txLoading, setTxLoading] = useState(true)
   const [transaction, setTransaction] = useState<TransactionRow | null>(null)
@@ -483,11 +485,15 @@ export default function ChatTransactionPage() {
         return
       }
       setUserId(data.user.id)
-      const admin = await getIsAdminFromProfile(supabase, data.user.id)
+      const [admin, banStatus] = await Promise.all([
+        getIsAdminFromProfile(supabase, data.user.id),
+        getBanStatusFromProfile(supabase, data.user.id),
+      ])
       if (!mounted) {
         return
       }
       setIsAdmin(admin)
+      setIsBannedUser(banStatus.isBanned && !banStatus.isAdmin)
       setAuthLoading(false)
     })()
     return () => {
@@ -816,7 +822,7 @@ export default function ChatTransactionPage() {
   const isCanceledOrRefunded =
     transaction?.status === "canceled" || transaction?.status === "refunded"
   const isClosed = isCompleted || isDisputed || isCanceledOrRefunded
-  const canSend = Boolean(transaction && !isClosed && userId)
+  const canSend = Boolean(transaction && !isClosed && userId && !isBannedUser)
   /** 申し立て内容（理由・詳細・証拠）は購入者本人のみ閲覧可 */
   const canViewDisputeSubmission = Boolean(
     userId && transaction && isDisputed && transaction.buyer_id === userId,
@@ -1274,6 +1280,16 @@ export default function ChatTransactionPage() {
         }
       })
     }
+    void fetch("/api/notifications/dispute-discord", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        transactionId: String(transactionId),
+        reason,
+      }),
+    }).catch(() => {
+      // Discord 通知失敗で異議申し立て自体は失敗扱いにしない
+    })
     await loadTransactionAndPeer()
   }
 
@@ -1301,7 +1317,10 @@ export default function ChatTransactionPage() {
   }
 
   const handleLinkIntegrationConfirm = async (payload: LinkMessagePayload) => {
-    if (!userId || !transactionId || !canSend || linkSending || !isSeller) {
+    if (!userId || !transactionId || !canSend || linkSending) {
+      return
+    }
+    if (!isSeller && payload.kind !== "youtube") {
       return
     }
     setSendError(null)
@@ -1557,7 +1576,11 @@ export default function ChatTransactionPage() {
             </div>
           ) : null}
 
-          {isCanceledOrRefunded ? (
+          {isBannedUser ? (
+            <p className="pl-[52px] text-xs text-amber-200">
+              このアカウントは現在利用停止中のため、進行中取引のメッセージ閲覧のみ可能です。新規送信はできません。
+            </p>
+          ) : isCanceledOrRefunded ? (
             <p className="pl-[52px] text-xs text-zinc-500">
               取引はキャンセルまたは返金により終了しています。メッセージの送信はできません。
             </p>
@@ -1616,7 +1639,7 @@ export default function ChatTransactionPage() {
           messages.map((m) => {
             const mine = m.sender_id === userId
             const prof = senderProfiles[m.sender_id]
-            const label = prof?.display_name?.trim() || "ユーザー"
+            const label = mine ? "自分" : prof?.display_name?.trim() || "ユーザー"
             const avatarSrc = resolveProfileAvatarUrl(prof?.avatar_url ?? null, label)
             const linkPayload =
               m.file_type === CHAT_LINK_FILE_TYPE ? parseLinkMessageContent(m.content) : null
@@ -1628,11 +1651,16 @@ export default function ChatTransactionPage() {
               !m.file_url
                 ? extractYoutubeUrlFromPlainContent(m.content)
                 : null
+            const isYoutubeMessage =
+              (linkPayload?.kind === "youtube") || Boolean(youtubeFromFileType) || Boolean(plainRichYoutubeUrl)
+            const bubbleWidthClass = isYoutubeMessage ? "w-full max-w-[400px]" : "max-w-[85%]"
 
             const bubble = (
               <div
                 className={cn(
-                  "rounded-2xl px-3 py-2 text-sm leading-relaxed",
+                  "rounded-2xl text-sm leading-relaxed",
+                  isYoutubeMessage ? "w-full" : "",
+                  isYoutubeMessage ? "p-2" : "px-3 py-2",
                   mine
                     ? "bg-red-600 text-white"
                     : "border border-zinc-700 bg-zinc-900 text-zinc-100",
@@ -1697,7 +1725,7 @@ export default function ChatTransactionPage() {
             if (mine) {
               return (
                 <div key={messageIdKey(m.id)} className="flex w-full justify-end">
-                  <div className="flex max-w-[min(85%,100%)] flex-col items-end gap-1">
+                  <div className={cn("flex min-w-0 flex-col items-end gap-1", bubbleWidthClass)}>
                     <p className="max-w-full truncate px-1 text-left text-xs text-zinc-500">{label}</p>
                     {bubble}
                   </div>
@@ -1706,7 +1734,7 @@ export default function ChatTransactionPage() {
             }
 
             return (
-              <div key={messageIdKey(m.id)} className="flex w-full items-end justify-start gap-2">
+              <div key={messageIdKey(m.id)} className="flex w-full items-start justify-start gap-2">
                 <Link
                   href={`/profile/${encodeURIComponent(m.sender_id)}`}
                   className="shrink-0"
@@ -1716,7 +1744,12 @@ export default function ChatTransactionPage() {
                     <Image src={avatarSrc} alt="" fill className="object-cover" sizes="36px" unoptimized />
                   </div>
                 </Link>
-                <div className="min-w-0 max-w-[min(85%,calc(100%-2.75rem))]">
+                <div
+                  className={cn(
+                    "min-w-0",
+                    isYoutubeMessage ? "flex-1 max-w-[400px]" : "max-w-[calc(100%-2.75rem)]",
+                  )}
+                >
                   <p className="mb-1 truncate text-xs text-zinc-400">{label}</p>
                   {bubble}
                 </div>
@@ -1803,14 +1836,14 @@ export default function ChatTransactionPage() {
             >
               <Plus className="h-4 w-4" />
             </Button>
-            {isSeller ? (
+            {isSeller || isBuyer ? (
               <Button
                 type="button"
                 variant="outline"
                 size="icon"
                 disabled={!canSend || sending || linkSending}
                 className="shrink-0 border-zinc-600 bg-zinc-900 text-zinc-200 hover:border-red-500 hover:bg-zinc-800"
-                aria-label="外部ツール連携（Zoom / YouTube）"
+                aria-label={isSeller ? "外部ツール連携（Zoom / YouTube）" : "外部ツール連携（YouTube）"}
                 onClick={() => setLinkModalOpen(true)}
               >
                 <Link2 className="h-4 w-4" />
@@ -1834,14 +1867,20 @@ export default function ChatTransactionPage() {
             </Button>
           </div>
           <p className="text-[11px] leading-relaxed text-zinc-500">
-            ＋でファイルを選び、本文を書いてから送信でまとめて送れます（1ファイル
-            <strong className="font-medium text-zinc-400">10MB以下</strong>・画像または動画のみ）。
+            {isBannedUser ? (
+              "利用停止中は進行中取引のチャット閲覧のみ可能です。"
+            ) : (
+              <>
+                ＋でファイルを選び、本文を書いてから送信でまとめて送れます（1ファイル
+                <strong className="font-medium text-zinc-400">10MB以下</strong>・画像または動画のみ）。
+              </>
+            )}
           </p>
         </form>
         {sendError ? <p className="mx-auto max-w-2xl px-4 pb-2 text-center text-xs text-red-400">{sendError}</p> : null}
       </footer>
 
-      {isSeller ? (
+      {isSeller || isBuyer ? (
         <ChatLinkIntegrationModal
           open={linkModalOpen}
           onClose={() => {
@@ -1850,6 +1889,7 @@ export default function ChatTransactionPage() {
             }
           }}
           busy={linkSending}
+          allowZoom={isSeller}
           onConfirm={(payload) => void handleLinkIntegrationConfirm(payload)}
         />
       ) : null}

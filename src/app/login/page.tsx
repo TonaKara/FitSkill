@@ -169,6 +169,18 @@ export default function LoginPage() {
         throw new Error("ユーザー作成に失敗しました。")
       }
 
+      void fetch("/api/notifications/new-user-discord", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: signUpData.user.id,
+          email: normalizedEmail,
+          displayName: trimmedDisplayName,
+        }),
+      }).catch(() => {
+        // Discord 通知失敗でサインアップ自体は失敗扱いにしない
+      })
+
       setNotice(toSuccessNotice("アカウントを作成しました。プロフィール設定に進みます。"))
       router.push("/profile-setup")
       router.refresh()

@@ -36,6 +36,10 @@ export function TradeFinalConfirmStep({
   const [agreed, setAgreed] = useState(false)
   const [legalModal, setLegalModal] = useState<LegalDocumentKind | null>(null)
   const bullets = variant === "seller" ? TRADE_LEGAL_BULLETS_SELLER : TRADE_LEGAL_BULLETS_BUYER
+  const physicalSafetyNotice =
+    variant === "buyer"
+      ? "怪我、既往歴、妊娠中など、体調に不安がある方は必ず医師の指示に従い、自己責任で受講してください。受講中の怪我や事故について、当サービスおよび講師は一切の責任を負いません。"
+      : null
 
   useEffect(() => {
     setAgreed(false)
@@ -53,6 +57,13 @@ export function TradeFinalConfirmStep({
         </summary>
         <div className="border-t border-zinc-700 px-4 py-3">
           <ul className="list-disc space-y-2 pl-5 text-sm leading-relaxed text-zinc-300">
+            {physicalSafetyNotice ? (
+              <li className="list-none rounded-md border border-amber-500/40 bg-amber-950/30 px-3 py-2 text-amber-100">
+                <span className="font-semibold">【身体の安全に関する重要事項】</span>
+                <br />
+                {physicalSafetyNotice}
+              </li>
+            ) : null}
             {bullets.map((line) => (
               <li key={line}>{line}</li>
             ))}

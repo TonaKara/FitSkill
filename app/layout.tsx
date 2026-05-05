@@ -4,12 +4,7 @@ import { ConsoleGuard } from "@/components/ConsoleGuard";
 import { ConditionalFooter } from "@/components/layout/ConditionalFooter";
 import { MaintenanceGuard } from "@/components/MaintenanceGuard";
 import { ThemeProvider } from "@/components/theme-provider";
-import {
-  getSiteUrl,
-  LAYOUT_DESCRIPTION,
-  LAYOUT_TITLE_DEFAULT,
-  SITE_KEYWORDS,
-} from "@/lib/site-seo";
+import { SITE_KEYWORDS } from "@/lib/site-seo";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -22,16 +17,22 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const SITE_URL = "https://gritvib.com";
+
 export const metadata: Metadata = {
-  metadataBase: new URL(getSiteUrl()),
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: LAYOUT_TITLE_DEFAULT,
+    default: "GritVib | 本気の努力が、共鳴する場所。",
     template: "%s | GritVib",
   },
-  description: LAYOUT_DESCRIPTION,
+  description:
+    "プロのトレーナーから初心者まで、誰でもフィットネススキルを教えたり学んだりできるマーケットプレイス。",
+  alternates: {
+    canonical: SITE_URL,
+  },
   applicationName: "GritVib",
   keywords: [...SITE_KEYWORDS],
-  authors: [{ name: "GritVib", url: getSiteUrl() }],
+  authors: [{ name: "GritVib", url: SITE_URL }],
   creator: "GritVib",
   publisher: "GritVib",
   formatDetection: {

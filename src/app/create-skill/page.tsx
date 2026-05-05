@@ -828,7 +828,7 @@ function CreateSkillPageContent() {
                     value={form.description}
                     onChange={(event) => updateForm("description", event.target.value)}
                     rows={7}
-                    placeholder="自己紹介、指導方針（ZoomやYouTube Liveを使った指導スタイルなど）、当日の流れ、準備していただくもの（運動できる服装、飲み物など）などを記載してください。※外部サービス（Zoom等）を利用する場合は、その旨を必ず明記してください。"
+                    placeholder="自己紹介、指導方針（ZoomやYouTubeを使った指導スタイルなど）、指導の流れ、準備していただくもの（運動できる服装、飲み物など）などを記載してください。※外部サービス（Zoom等）を利用する場合は、その旨を必ず明記してください。"
                     className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm leading-relaxed text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-500"
                   />
                   <p className="inline-flex items-start gap-1.5 text-xs text-zinc-400">
@@ -1070,7 +1070,7 @@ function CreateSkillPageContent() {
                   購入前のチャット相談を受け付ける
                 </label>
                 <p className="text-xs text-zinc-500">
-                  オンにすると、スキル詳細に「出品者に質問する」が表示され、取引前のメッセージのやり取りができます。事前オファーとは別にオン・オフできます。
+                  オンにすると、スキル詳細に「出品者に質問する」が表示され、取引前のメッセージのやり取りができます。
                 </p>
               </fieldset>
 

@@ -174,13 +174,82 @@ export async function fetchInquiryThreadMessages(
   peerId: string,
 ): Promise<{ rows: InquiryMessageRow[]; error: string | null }> {
   const { data, error } = await supabase.rpc("inquiry_thread_messages", { p_peer_id: peerId })
-  if (error) {
+  if (!error) {
+    const rows = (data ?? [])
+      .map((row: unknown) => mapInquiryMessageRow(row as Record<string, unknown>))
+      .filter((row: InquiryMessageRow | null): row is InquiryMessageRow => row != null)
+    return { rows, error: null }
+  }
+
+  if (!isMissingPostgrestRpc(error)) {
     return { rows: [], error: error.message }
   }
-  const rows = (data ?? [])
-    .map((row: unknown) => mapInquiryMessageRow(row as Record<string, unknown>))
-    .filter((row: InquiryMessageRow | null): row is InquiryMessageRow => row != null)
-  return { rows, error: null }
+
+  const { data: session } = await supabase.auth.getUser()
+  const uid = session.user?.id
+  if (!uid) {
+    return { rows: [], error: error.message }
+  }
+
+  // 現行スキーマ（sender_id / recipient_id）向けフォールバック
+  const { data: tableData, error: tableError } = await supabase
+    .from("inquiry_messages")
+    .select("id, sender_id, recipient_id, origin_skill_id, content, is_read, created_at")
+    .or(
+      `and(sender_id.eq.${uid},recipient_id.eq.${peerId}),and(sender_id.eq.${peerId},recipient_id.eq.${uid})`,
+    )
+    .order("created_at", { ascending: true })
+
+  if (!tableError) {
+    const rows = (tableData ?? [])
+      .map((row: unknown) => mapInquiryMessageRow(row as Record<string, unknown>))
+      .filter((row: InquiryMessageRow | null): row is InquiryMessageRow => row != null)
+    return { rows, error: null }
+  }
+
+  const tableErr = tableError.message.toLowerCase()
+  const looksLikeOldTable =
+    tableErr.includes("column") || tableErr.includes("does not exist") || tableErr.includes("42703")
+  if (!looksLikeOldTable) {
+    return { rows: [], error: `${error.message}（代替: ${tableError.message}）` }
+  }
+
+  // 旧スキーマ（buyer_id / seller_id）向けフォールバック
+  const { data: legacyData, error: legacyError } = await supabase
+    .from("inquiry_messages")
+    .select("id, buyer_id, seller_id, sender_id, origin_skill_id, content, created_at")
+    .or(
+      `and(buyer_id.eq.${uid},seller_id.eq.${peerId}),and(buyer_id.eq.${peerId},seller_id.eq.${uid})`,
+    )
+    .order("created_at", { ascending: true })
+
+  if (legacyError) {
+    return { rows: [], error: `${error.message}（代替: ${legacyError.message}）` }
+  }
+
+  const legacyRows: InquiryMessageRow[] = []
+  for (const raw of legacyData ?? []) {
+    const rec = raw as Record<string, unknown>
+    const origin = normalizeSkillBigIntId(rec.origin_skill_id)
+    const senderId = String(rec.sender_id ?? "")
+    const buyerId = String(rec.buyer_id ?? "")
+    const sellerId = String(rec.seller_id ?? "")
+    if (origin == null || !senderId || !buyerId || !sellerId) {
+      continue
+    }
+    const recipientId = senderId === buyerId ? sellerId : buyerId
+    legacyRows.push({
+      id: String(rec.id ?? ""),
+      sender_id: senderId,
+      recipient_id: recipientId,
+      origin_skill_id: origin,
+      content: String(rec.content ?? ""),
+      is_read: true,
+      created_at: String(rec.created_at ?? ""),
+    })
+  }
+
+  return { rows: legacyRows, error: null }
 }
 
 export async function insertInquiryMessage(

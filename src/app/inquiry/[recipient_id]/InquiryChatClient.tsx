@@ -9,6 +9,7 @@ import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
 import { InquiryInboxList, type InquiryPeerProfile } from "@/components/inquiry/InquiryInboxList"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import { resolveProfileAvatarUrl } from "@/lib/profile-avatar"
 import {
   fetchInquiryInboxList,
   fetchInquiryThreadMessages,
@@ -25,6 +26,7 @@ const UUID_RE =
 
 type SkillHeaderRow = {
   id: string
+  user_id: string
   title: string
   price: number
   category: string
@@ -57,6 +59,9 @@ export function InquiryChatClient() {
   const [messages, setMessages] = useState<InquiryMessageRow[]>([])
   const [messagesLoading, setMessagesLoading] = useState(true)
   const [messagesError, setMessagesError] = useState<string | null>(null)
+  const [readStatusError, setReadStatusError] = useState<string | null>(null)
+  const [senderProfiles, setSenderProfiles] = useState<Record<string, InquiryPeerProfile>>({})
+  const [myProfile, setMyProfile] = useState<InquiryPeerProfile | null>(null)
 
   const [headerSkill, setHeaderSkill] = useState<SkillHeaderRow | null>(null)
   const [headerSkillLoading, setHeaderSkillLoading] = useState(false)
@@ -127,6 +132,7 @@ export function InquiryChatClient() {
     }
     setMessagesLoading(true)
     setMessagesError(null)
+    setReadStatusError(null)
     const { rows, error } = await fetchInquiryThreadMessages(supabase, peerId)
     if (error) {
       setMessages([])
@@ -136,6 +142,7 @@ export function InquiryChatClient() {
       const { error: readErr } = await markInquiryThreadRead(supabase, userId, peerId)
       if (readErr) {
         console.warn("[inquiry] mark read", readErr)
+        setReadStatusError(`既読更新に失敗しました: ${readErr}`)
       }
     }
     setMessagesLoading(false)
@@ -168,8 +175,61 @@ export function InquiryChatClient() {
   }, [userId, loadInbox])
 
   useEffect(() => {
+    if (!userId) {
+      setMyProfile(null)
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("display_name, avatar_url")
+        .eq("id", userId)
+        .maybeSingle()
+      if (cancelled || !data) {
+        return
+      }
+      const row = data as { display_name: string | null; avatar_url: string | null }
+      setMyProfile({ display_name: row.display_name, avatar_url: row.avatar_url })
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [supabase, userId])
+
+  useEffect(() => {
     void loadMessages()
   }, [loadMessages])
+
+  useEffect(() => {
+    if (!messages.length) {
+      return
+    }
+    const senderIds = [...new Set(messages.map((m) => m.sender_id).filter((id) => id.trim().length > 0))]
+    if (!senderIds.length) {
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, display_name, avatar_url")
+        .in("id", senderIds)
+      if (cancelled || error || !data) {
+        return
+      }
+      setSenderProfiles((prev) => {
+        const next = { ...prev }
+        for (const row of data as { id: string; display_name: string | null; avatar_url: string | null }[]) {
+          next[row.id] = { display_name: row.display_name, avatar_url: row.avatar_url }
+        }
+        return next
+      })
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [messages, supabase])
 
   useEffect(() => {
     if (!skillIdFromQuery) {
@@ -237,7 +297,7 @@ export function InquiryChatClient() {
     void (async () => {
       const { data, error } = await supabase
         .from("skills")
-        .select("id, title, price, category, thumbnail_url")
+        .select("id, user_id, title, price, category, thumbnail_url")
         .eq("id", effectiveOriginSkillId)
         .maybeSingle()
       if (cancelled) {
@@ -253,6 +313,7 @@ export function InquiryChatClient() {
         } else {
           setHeaderSkill({
             id: sid,
+            user_id: String(rec.user_id ?? ""),
             title: String(rec.title ?? ""),
             price: Number(rec.price ?? 0),
             category: String(rec.category ?? ""),
@@ -300,45 +361,40 @@ export function InquiryChatClient() {
       return
     }
 
-    const refreshIfThread = (row: Record<string, unknown>) => {
-      const sid = String(row.sender_id ?? "")
-      const rid = String(row.recipient_id ?? "")
-      const inThread =
-        (sid === userId && rid === peerId) || (sid === peerId && rid === userId)
-      if (inThread) {
-        void loadMessages()
-        void loadInbox()
+    const maybeRefreshForThread = (payload: { new: Record<string, unknown>; old: Record<string, unknown> }) => {
+      const sid = String(payload.new.sender_id ?? payload.old.sender_id ?? "")
+      const rid = String(payload.new.recipient_id ?? payload.old.recipient_id ?? "")
+      const hasPair = sid.length > 0 && rid.length > 0
+      const inThread = hasPair
+        ? (sid === userId && rid === peerId) || (sid === peerId && rid === userId)
+        : true
+      if (!inThread) {
+        return
       }
+      void loadMessages()
+      void loadInbox()
     }
 
     const ch = supabase
       .channel(`inquiry-dm:${userId}:${peerId}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "inquiry_messages", filter: `sender_id=eq.${peerId}` },
+        { event: "INSERT", schema: "public", table: "inquiry_messages" },
         (payload) => {
-          refreshIfThread(payload.new as Record<string, unknown>)
+          maybeRefreshForThread({
+            new: (payload.new as Record<string, unknown>) ?? {},
+            old: (payload.old as Record<string, unknown>) ?? {},
+          })
         },
       )
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "inquiry_messages", filter: `sender_id=eq.${userId}` },
+        { event: "UPDATE", schema: "public", table: "inquiry_messages" },
         (payload) => {
-          refreshIfThread(payload.new as Record<string, unknown>)
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "inquiry_messages", filter: `sender_id=eq.${userId}` },
-        (payload) => {
-          refreshIfThread(payload.new as Record<string, unknown>)
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "inquiry_messages", filter: `sender_id=eq.${peerId}` },
-        (payload) => {
-          refreshIfThread(payload.new as Record<string, unknown>)
+          maybeRefreshForThread({
+            new: (payload.new as Record<string, unknown>) ?? {},
+            old: (payload.old as Record<string, unknown>) ?? {},
+          })
         },
       )
       .subscribe()
@@ -444,7 +500,13 @@ export function InquiryChatClient() {
   }
 
   const thumb = headerSkill ? resolveSkillThumbnailUrl(headerSkill.thumbnail_url) : resolveSkillThumbnailUrl(null)
-  const purchaseHref = effectiveOriginSkillId != null ? `/skills/${effectiveOriginSkillId}` : null
+  const purchaseHref =
+    effectiveOriginSkillId != null &&
+    userId != null &&
+    headerSkill != null &&
+    headerSkill.user_id !== userId
+      ? `/skills/${effectiveOriginSkillId}`
+      : null
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -453,14 +515,12 @@ export function InquiryChatClient() {
         <aside className="hidden w-full max-w-sm shrink-0 flex-col border-zinc-800 md:flex md:border-r">
           <div className="border-b border-zinc-800 px-4 py-3">
             <h2 className="text-sm font-bold text-zinc-200">相談一覧</h2>
-            <p className="mt-0.5 text-xs text-zinc-500">profiles の表示名・アイコンで識別</p>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
             <InquiryInboxList
               threads={threads}
               peerProfiles={peerProfiles}
               skillTitles={skillTitles}
-              currentUserId={userId}
               loading={inboxLoading}
               error={inboxError}
               activePeerId={peerId}
@@ -536,24 +596,64 @@ export function InquiryChatClient() {
               <ul className="flex flex-col gap-3">
                 {messages.map((m) => {
                   const mine = m.sender_id === userId
+                  const senderProfile = senderProfiles[m.sender_id]
+                  const isPeerSender = m.sender_id === peerId
+                  const label = mine
+                    ? "自分"
+                    : isPeerSender
+                      ? peerName
+                      : senderProfile?.display_name?.trim() || "ユーザー"
+                  const avatarSrc = resolveProfileAvatarUrl(
+                    mine ? myProfile?.avatar_url ?? null : isPeerSender ? peerProfile?.avatar_url ?? null : senderProfile?.avatar_url ?? null,
+                    label,
+                  )
                   return (
-                    <li key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                      <div
-                        className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
-                          mine ? "bg-red-900/50 text-red-50" : "bg-zinc-800 text-zinc-100"
-                        }`}
-                      >
-                        <p className="whitespace-pre-wrap break-words">{m.content}</p>
-                        <p className="mt-1 text-[10px] opacity-70">
-                          {new Date(m.created_at).toLocaleString("ja-JP", {
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                          {mine ? (m.is_read ? " · 既読" : " · 未読") : ""}
-                        </p>
-                      </div>
+                    <li key={m.id}>
+                      {mine ? (
+                        <div className="flex w-full justify-end">
+                          <div className="flex min-w-0 max-w-[85%] flex-col items-end gap-1">
+                            <p className="max-w-full truncate px-1 text-xs text-zinc-500">{label}</p>
+                            <div className="rounded-2xl bg-red-900/50 px-3 py-2 text-sm leading-relaxed text-red-50">
+                              <p className="whitespace-pre-wrap break-words">{m.content}</p>
+                              <p className="mt-1 text-[10px] opacity-70">
+                                {new Date(m.created_at).toLocaleString("ja-JP", {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                                {m.is_read ? " · 既読" : " · 未読"}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex w-full items-start justify-start gap-2">
+                          <Link
+                            href={`/profile/${encodeURIComponent(m.sender_id)}`}
+                            className="shrink-0"
+                            aria-label={`${label}のプロフィールへ`}
+                          >
+                            <div className="relative h-9 w-9 overflow-hidden rounded-full border border-zinc-700 bg-zinc-900">
+                              <Image src={avatarSrc} alt="" fill className="object-cover" sizes="36px" unoptimized />
+                            </div>
+                          </Link>
+                          <div className="min-w-0 max-w-[calc(100%-2.75rem)]">
+                            <p className="mb-1 truncate text-xs text-zinc-400">{label}</p>
+                            <div className="rounded-2xl bg-zinc-800 px-3 py-2 text-sm leading-relaxed text-zinc-100">
+                              <p className="whitespace-pre-wrap break-words">{m.content}</p>
+                              <p className="mt-1 text-[10px] opacity-70">
+                                {new Date(m.created_at).toLocaleString("ja-JP", {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </li>
                   )
                 })}
@@ -563,6 +663,7 @@ export function InquiryChatClient() {
 
           <div className="shrink-0 border-t border-zinc-800 bg-zinc-950 p-3 md:p-4">
             {sendError ? <p className="mb-2 text-center text-xs text-red-400">{sendError}</p> : null}
+            {readStatusError ? <p className="mb-2 text-center text-xs text-amber-300">{readStatusError}</p> : null}
             <div className="flex gap-2">
               <textarea
                 value={text}
@@ -581,7 +682,7 @@ export function InquiryChatClient() {
               </Button>
             </div>
             <p className="mt-2 text-center text-[10px] text-zinc-600">
-              取引成立後のやり取りは取引チャット（messages）をご利用ください。メッセージはリアルタイムで更新されます。
+              取引成立後のやり取りはスキル購入後に生成される専用の取引チャットをご利用ください。
             </p>
           </div>
         </div>

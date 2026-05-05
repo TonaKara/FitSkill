@@ -341,8 +341,7 @@ export default function SkillDetailPage() {
                 if (checkoutAutoRedirectStorageKey && typeof window !== "undefined") {
                   window.sessionStorage.setItem(checkoutAutoRedirectStorageKey, "1")
                 }
-                router.replace(`/skills/${skillId}`)
-                router.push(`/chat/${finalized.transactionId}`)
+                router.replace(`/chat/${finalized.transactionId}`)
                 return
               }
             } else {
@@ -374,8 +373,7 @@ export default function SkillDetailPage() {
           if (checkoutAutoRedirectStorageKey && typeof window !== "undefined") {
             window.sessionStorage.setItem(checkoutAutoRedirectStorageKey, "1")
           }
-          router.replace(`/skills/${skillId}`)
-          router.push(`/chat/${tid}`)
+          router.replace(`/chat/${tid}`)
           return
         }
         await new Promise((r) => setTimeout(r, 300))
@@ -743,16 +741,6 @@ export default function SkillDetailPage() {
       ) {
         setTransactionRows([latestActiveRow])
         setTransactionStatus(latestStatus)
-        const ok = await startStripePaymentForTransaction(String(skill.id))
-        if (!ok) {
-          setPurchaseError("決済の開始に失敗しました。もう一度お試しください。")
-          return
-        }
-        setPurchaseConfirmOpen(false)
-        return
-      }
-
-      if (Number(skill.price) > 0) {
         const ok = await startStripePaymentForTransaction(String(skill.id))
         if (!ok) {
           setPurchaseError("決済の開始に失敗しました。もう一度お試しください。")

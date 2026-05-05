@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js"
 import Stripe from "stripe"
+import { sendDiscordNotification } from "@/lib/discord"
+import { getSiteUrl } from "@/lib/site-seo"
 
 function getEnv(name: string): string {
   const value = process.env[name]
@@ -32,8 +34,9 @@ async function ensureSellerPurchaseNotification(params: {
   transactionId: string
   sellerId: string
   buyerId: string
+  skillId: string
 }) {
-  const { supabase, transactionId, sellerId, buyerId } = params
+  const { supabase, transactionId, sellerId, buyerId, skillId } = params
 
   const { data: existingNotification, error: existingNotificationError } = await supabase
     .from("notifications")
@@ -65,6 +68,36 @@ async function ensureSellerPurchaseNotification(params: {
 
   if (notificationInsertError) {
     throw new Error(notificationInsertError.message)
+  }
+
+  const webhookUrl = process.env.DISCORD_WEBHOOK_PURCHASE?.trim() ?? ""
+  if (webhookUrl) {
+    try {
+      const [{ data: buyerProfile }, { data: sellerProfile }, { data: skillRow }] = await Promise.all([
+        supabase.from("profiles").select("display_name").eq("id", buyerId).maybeSingle(),
+        supabase.from("profiles").select("display_name").eq("id", sellerId).maybeSingle(),
+        supabase.from("skills").select("title").eq("id", skillId).maybeSingle(),
+      ])
+      const buyerName =
+        ((buyerProfile as { display_name?: string | null } | null)?.display_name ?? "").trim() || buyerId
+      const sellerName =
+        ((sellerProfile as { display_name?: string | null } | null)?.display_name ?? "").trim() || sellerId
+      const skillTitle = ((skillRow as { title?: string | null } | null)?.title ?? "").trim() || skillId
+      const baseUrl = getSiteUrl().replace(/\/$/, "")
+      await sendDiscordNotification(
+        webhookUrl,
+        [
+          "🛒 **取引開始（購入）**",
+          `- 購入者: ${buyerName}`,
+          `- 講師: ${sellerName}`,
+          `- 商品: ${skillTitle}`,
+          `- 取引チャット: ${baseUrl}/chat/${encodeURIComponent(transactionId)}`,
+          `- 管理画面: ${baseUrl}/admin`,
+        ].join("\n"),
+      )
+    } catch (discordError) {
+      console.error("[stripe-webhook] discord purchase notification failed", discordError)
+    }
   }
 }
 
@@ -128,6 +161,7 @@ async function createTransactionFromCheckoutSession(session: Stripe.Checkout.Ses
       transactionId: String(existingTx.id),
       sellerId,
       buyerId,
+      skillId,
     })
     return
   }
@@ -184,6 +218,7 @@ async function createTransactionFromCheckoutSession(session: Stripe.Checkout.Ses
     transactionId: insertedTransactionId,
     sellerId,
     buyerId,
+    skillId,
   })
 }
 

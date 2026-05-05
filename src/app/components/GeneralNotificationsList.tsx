@@ -90,6 +90,13 @@ export function GeneralNotificationsList({ userId, adminOrigin, onRead }: Genera
   )
 
   const getNotificationHref = useCallback((n: NotificationRow): string | null => {
+    if (n.type === "inquiry_message") {
+      const peerId = n.sender_id?.trim() ?? ""
+      if (peerId) {
+        return `/inquiry/${encodeURIComponent(peerId)}`
+      }
+      return "/inquiry/list"
+    }
     if (n.type === "consultation_request") {
       return "/mypage?tab=requests"
     }
@@ -119,6 +126,37 @@ export function GeneralNotificationsList({ userId, adminOrigin, onRead }: Genera
     return null
   }, [])
 
+  const resolvePurchaseNotificationHref = useCallback(
+    async (n: NotificationRow): Promise<string | null> => {
+      const txId = parseTransactionIdFromNotificationReason(n.reason)
+      if (txId) {
+        return `/chat/${txId}`
+      }
+
+      const senderId = n.sender_id?.trim() ?? ""
+      if (!senderId) {
+        return null
+      }
+
+      const { data, error } = await supabase
+        .from("transactions")
+        .select("id")
+        .eq("buyer_id", senderId)
+        .eq("seller_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(5)
+      if (error) {
+        return null
+      }
+      const row = (data?.[0] ?? null) as { id?: string | number } | null
+      if (row?.id == null) {
+        return null
+      }
+      return `/chat/${String(row.id)}`
+    },
+    [supabase, userId],
+  )
+
   const handleNotificationClick = useCallback(
     async (n: NotificationRow) => {
       if (markInFlight.current) {
@@ -135,7 +173,10 @@ export function GeneralNotificationsList({ userId, adminOrigin, onRead }: Genera
         }
         setRows((prev) => prev.map((r) => (r.id === notificationId ? { ...r, is_read: true } : r)))
         onRead?.()
-        const href = getNotificationHref(n)
+        const href =
+          n.type === "purchase"
+            ? await resolvePurchaseNotificationHref(n)
+            : getNotificationHref(n)
         if (href) {
           router.push(href)
         }
@@ -144,7 +185,7 @@ export function GeneralNotificationsList({ userId, adminOrigin, onRead }: Genera
         markInFlight.current = false
       }
     },
-    [getNotificationHref, onRead, router, supabase],
+    [getNotificationHref, onRead, resolvePurchaseNotificationHref, router, supabase],
   )
 
   const handleRowToggle = useCallback(

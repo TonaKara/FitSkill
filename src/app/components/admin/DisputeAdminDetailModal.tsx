@@ -112,6 +112,12 @@ export function DisputeAdminDetailModal({
         type: "admin_user_status",
         content: `運営対応: ${label}をBANしました。理由: ${adminReason}`,
       })
+      void fetch("/api/notifications/ban-discord", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: targetId }),
+        cache: "no-store",
+      }).catch(() => null)
       await loadProfiles()
       onAfterMutation()
     } finally {

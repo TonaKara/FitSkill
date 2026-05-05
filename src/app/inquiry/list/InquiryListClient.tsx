@@ -138,7 +138,6 @@ export function InquiryListClient() {
             threads={threads}
             peerProfiles={peerProfiles}
             skillTitles={skillTitles}
-            currentUserId={userId}
             loading={loading}
             error={error}
           />

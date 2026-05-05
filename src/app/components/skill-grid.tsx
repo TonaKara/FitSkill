@@ -187,12 +187,14 @@ type ProfileEmbed = {
   display_name: string | null
   rating_avg: number | null
   review_count: number | null
+  is_banned?: boolean | null
 }
 
 type ConsultationSettingsEmbed = { is_enabled: boolean | null } | { is_enabled: boolean | null }[] | null
 
 type SkillFromDb = {
   id: string
+  user_id: string
   title: string
   description: string
   target_audience: string
@@ -338,6 +340,21 @@ function getProfileFromJoin(profiles: ProfileEmbed | ProfileEmbed[] | null): Pro
   return Array.isArray(profiles) ? (profiles[0] ?? null) : profiles
 }
 
+function isMissingBannedColumnError(message: string): boolean {
+  const normalized = String(message ?? "").toLowerCase()
+  return normalized.includes("is_banned") && (normalized.includes("could not find") || normalized.includes("does not exist"))
+}
+
+function isRelationSelectError(message: string): boolean {
+  const normalized = String(message ?? "").toLowerCase()
+  return (
+    normalized.includes("consultation_settings") ||
+    normalized.includes("profiles") ||
+    normalized.includes("relationship") ||
+    normalized.includes("foreign key")
+  )
+}
+
 function sortSkillItems(items: SkillListItem[], sortBy: SkillSortOptionId): SkillListItem[] {
   const sorted = [...items]
   sorted.sort((a, b) => {
@@ -393,19 +410,120 @@ export function SkillGrid({ filters, sortBy, searchKeyword }: SkillGridProps) {
       setLoading(true)
       setErrorMessage(null)
 
-      const { data, error } = await supabase
+      const primaryQuery = await supabase
         .from("skills")
         .select(
-          "id, title, description, target_audience, category, price, duration_minutes, format, location_prefecture, max_capacity, created_at, thumbnail_url, user_id, profiles ( display_name, rating_avg, review_count ), consultation_settings ( is_enabled )",
+          "id, title, description, target_audience, category, price, duration_minutes, format, location_prefecture, max_capacity, created_at, thumbnail_url, user_id, profiles ( display_name, rating_avg, review_count, is_banned ), consultation_settings ( is_enabled )",
         )
         .eq("is_published", true)
         .order("created_at", { ascending: false })
+      let queryData: unknown[] | null = (primaryQuery.data as unknown[] | null) ?? null
+      let queryError = primaryQuery.error
+
+      if (queryError && isMissingBannedColumnError(queryError.message)) {
+        const fallbackQuery = await supabase
+          .from("skills")
+          .select(
+            "id, title, description, target_audience, category, price, duration_minutes, format, location_prefecture, max_capacity, created_at, thumbnail_url, user_id, profiles ( display_name, rating_avg, review_count ), consultation_settings ( is_enabled )",
+          )
+          .eq("is_published", true)
+          .order("created_at", { ascending: false })
+        queryData = (fallbackQuery.data as unknown[] | null) ?? null
+        queryError = fallbackQuery.error
+      }
+
+      if (queryError && isRelationSelectError(queryError.message)) {
+        const plainSkillsQuery = await supabase
+          .from("skills")
+          .select(
+            "id, title, description, target_audience, category, price, duration_minutes, format, location_prefecture, max_capacity, created_at, thumbnail_url, user_id",
+          )
+          .eq("is_published", true)
+          .order("created_at", { ascending: false })
+
+        if (!plainSkillsQuery.error) {
+          const plainRows = (plainSkillsQuery.data ?? []) as Array<Omit<SkillFromDb, "profiles" | "consultation_settings">>
+          const userIds = [...new Set(plainRows.map((row) => String(row.user_id)).filter((id) => id.length > 0))]
+          const skillIds = plainRows.map((row) => String(row.id)).filter((id) => id.length > 0)
+
+          let profileById: Record<string, ProfileEmbed> = {}
+          if (userIds.length > 0) {
+            const profilePrimary = await supabase
+              .from("profiles")
+              .select("id, display_name, rating_avg, review_count, is_banned")
+              .in("id", userIds)
+            let profileRows = (profilePrimary.data ?? []) as Array<
+              ProfileEmbed & {
+                id: string
+              }
+            >
+            if (profilePrimary.error && isMissingBannedColumnError(profilePrimary.error.message)) {
+              const profileFallback = await supabase
+                .from("profiles")
+                .select("id, display_name, rating_avg, review_count")
+                .in("id", userIds)
+              profileRows = (profileFallback.data ?? []) as Array<
+                Omit<ProfileEmbed, "is_banned"> & {
+                  id: string
+                }
+              >
+            }
+            profileById = profileRows.reduce<Record<string, ProfileEmbed>>((acc, row) => {
+              const id = String(row.id ?? "")
+              if (!id) {
+                return acc
+              }
+              acc[id] = {
+                display_name: row.display_name ?? null,
+                rating_avg: row.rating_avg ?? null,
+                review_count: row.review_count ?? null,
+                is_banned: row.is_banned ?? null,
+              }
+              return acc
+            }, {})
+          }
+
+          let consultationBySkillId: Record<string, ConsultationSettingsEmbed> = {}
+          if (skillIds.length > 0) {
+            const consultationQuery = await supabase
+              .from("consultation_settings")
+              .select("skill_id, is_enabled")
+              .in("skill_id", skillIds)
+            if (!consultationQuery.error) {
+              consultationBySkillId = (consultationQuery.data ?? []).reduce<
+                Record<string, ConsultationSettingsEmbed>
+              >((acc, row) => {
+                const typed = row as { skill_id?: string | number | null; is_enabled?: boolean | null }
+                const sid = String(typed.skill_id ?? "")
+                if (!sid) {
+                  return acc
+                }
+                acc[sid] = { is_enabled: typed.is_enabled ?? null }
+                return acc
+              }, {})
+            }
+          }
+
+          queryData = plainRows.map((row) => {
+            const userId = String(row.user_id ?? "")
+            const skillId = String(row.id ?? "")
+            return {
+              ...row,
+              profiles: profileById[userId] ?? null,
+              consultation_settings: consultationBySkillId[skillId] ?? null,
+            }
+          })
+          queryError = null
+        } else {
+          queryError = plainSkillsQuery.error
+        }
+      }
 
       if (cancelled) {
         return
       }
 
-      if (error) {
+      if (queryError) {
         setRows([])
         setOngoingApplicationCountBySkill({})
         setFavoriteCountBySkill({})
@@ -413,7 +531,10 @@ export function SkillGrid({ filters, sortBy, searchKeyword }: SkillGridProps) {
         return
       }
 
-      const nextRows = (data ?? []) as SkillFromDb[]
+      const nextRows = ((queryData ?? []) as SkillFromDb[]).filter((row) => {
+        const profile = getProfileFromJoin(row.profiles)
+        return profile?.is_banned !== true
+      })
       setRows(nextRows)
 
       const skillIds = nextRows.map((row) => String(row.id)).filter((id) => id.length > 0)

@@ -21,6 +21,7 @@ import { SKILL_CATEGORY_OPTIONS } from "@/lib/skill-categories"
 import { resolveSkillThumbnailUrl } from "@/lib/skill-thumbnail"
 import { resolveProfileAvatarUrl } from "@/lib/profile-avatar"
 import { getIsAdminFromProfile } from "@/lib/admin"
+import { getBanStatusFromProfile } from "@/lib/ban"
 import { toErrorNotice, type AppNotice } from "@/lib/notifications"
 import {
   fetchProfileRatingData,
@@ -301,6 +302,7 @@ export default function MypageClient() {
 
   const [authLoading, setAuthLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
+  const [isBannedUser, setIsBannedUser] = useState(false)
 
   const sectionParam = searchParams.get("tab")
   const modeParam = searchParams.get("mode")
@@ -444,6 +446,12 @@ export default function MypageClient() {
           return
         }
         setIsAdmin(adminFlag)
+      })
+      void getBanStatusFromProfile(supabase, data.user.id).then((banStatus) => {
+        if (!mounted) {
+          return
+        }
+        setIsBannedUser(banStatus.isBanned && !banStatus.isAdmin)
       })
     }
 
@@ -1477,8 +1485,27 @@ export default function MypageClient() {
 
   const shouldBlockByProfileLoading =
     userId != null && (section === "profile" || section === "payout" || section === "reviews") && profileLoading
-  const primaryMenu = currentMode === "instructor" ? INSTRUCTOR_PRIMARY_MENU : STUDENT_PRIMARY_MENU
+  const primaryMenu = useMemo(() => {
+    const baseMenu = currentMode === "instructor" ? INSTRUCTOR_PRIMARY_MENU : STUDENT_PRIMARY_MENU
+    if (!isBannedUser) {
+      return baseMenu
+    }
+    return baseMenu.filter((item) => item.id !== "listings" && item.id !== "payout")
+  }, [currentMode, isBannedUser])
   const accountLabel = SETTINGS_MENU.find((item) => item.id === "account")?.label ?? "アカウント設定"
+
+  useEffect(() => {
+    if (!isBannedUser) {
+      return
+    }
+    if (section !== "listings" && section !== "payout") {
+      return
+    }
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("tab", "favorites")
+    const query = params.toString()
+    router.replace(query ? `${pathname}?${query}` : pathname)
+  }, [isBannedUser, pathname, router, searchParams, section])
 
   if (authLoading || shouldBlockByProfileLoading) {
     return (
@@ -1801,7 +1828,7 @@ export default function MypageClient() {
             </div>
           )}
 
-          {section === "inquiry" && userId ? <MypageInquirySection userId={userId} /> : null}
+          {section === "inquiry" && userId ? <MypageInquirySection userId={userId} mode={currentMode} /> : null}
 
           {section === "requests" && (
             <div className="mx-auto max-w-4xl">

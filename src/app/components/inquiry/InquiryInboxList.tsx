@@ -15,7 +15,6 @@ type InquiryInboxListProps = {
   threads: InquiryInboxListRow[]
   peerProfiles: Record<string, InquiryPeerProfile>
   skillTitles: Record<string, string>
-  currentUserId: string
   loading: boolean
   error: string | null
   activePeerId?: string | null
@@ -26,22 +25,10 @@ function threadHref(peerId: string): string {
   return `/inquiry/${encodeURIComponent(peerId)}`
 }
 
-function readStatusLabel(row: InquiryInboxListRow, viewerId: string): string {
-  if (!row.last_sender_id || !row.last_recipient_id) {
-    return "既読状態未対応"
-  }
-  const iSent = row.last_sender_id === viewerId
-  if (iSent) {
-    return row.last_is_read ? "既読（相手が開封）" : "未読（相手）"
-  }
-  return row.last_is_read ? "既読" : "未読"
-}
-
 export function InquiryInboxList({
   threads,
   peerProfiles,
   skillTitles,
-  currentUserId,
   loading,
   error,
   activePeerId,
@@ -73,8 +60,6 @@ export function InquiryInboxList({
         const skillTitle =
           skillTitles[t.last_origin_skill_id]?.trim() || `スキル #${t.last_origin_skill_id}`
         const active = activePeerId != null && activePeerId === t.peer_id
-        const unreadForMe = t.last_recipient_id === currentUserId && !t.last_is_read
-        const readLabel = readStatusLabel(t, currentUserId)
 
         return (
           <li key={t.peer_id}>
@@ -93,15 +78,6 @@ export function InquiryInboxList({
                   <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
                     <span className="rounded-full border border-red-500/35 bg-red-950/50 px-2 py-0.5 text-[10px] font-medium text-red-200">
                       {skillTitle.length > 18 ? `${skillTitle.slice(0, 18)}…` : skillTitle}
-                    </span>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                        unreadForMe
-                          ? "bg-amber-900/50 text-amber-200"
-                          : "border border-zinc-700 bg-zinc-900/80 text-zinc-400"
-                      }`}
-                    >
-                      {readLabel}
                     </span>
                   </div>
                 </div>
