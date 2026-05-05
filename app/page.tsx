@@ -2,6 +2,8 @@ import type { Metadata } from "next"
 import HomePage from "@/page"
 import { HOME_DESCRIPTION, HOME_TITLE_ABSOLUTE } from "@/lib/site-seo"
 
+export const dynamic = "force-dynamic"
+
 export const metadata: Metadata = {
   title: { absolute: HOME_TITLE_ABSOLUTE },
   description: HOME_DESCRIPTION,

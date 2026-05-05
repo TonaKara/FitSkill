@@ -28,12 +28,23 @@ function getSupabaseAdminClient() {
   const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("Supabase admin environment variables are missing")
+    return null
   }
   return createClient(supabaseUrl, serviceRoleKey)
 }
 
+/** `next build` 中は静的解析・プリレンダの対象になり得るため cookies を触らず統計は取らない */
+function isNextBuildPhase(): boolean {
+  return (
+    process.env.npm_lifecycle_event === "build" ||
+    process.env.NEXT_PHASE === "phase-production-build"
+  )
+}
+
 async function loadHeroStatsForAdmin(): Promise<HeroStats | null> {
+  if (isNextBuildPhase()) {
+    return null
+  }
   try {
     const supabase = await getServerSupabase()
     const {
@@ -49,6 +60,9 @@ async function loadHeroStatsForAdmin(): Promise<HeroStats | null> {
     }
 
     const supabaseAdmin = getSupabaseAdminClient()
+    if (!supabaseAdmin) {
+      return null
+    }
     const [{ count: skillsCount }, { count: usersCount }] = await Promise.all([
       supabaseAdmin.from("skills").select("id", { count: "exact", head: true }),
       supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }),
@@ -60,8 +74,10 @@ async function loadHeroStatsForAdmin(): Promise<HeroStats | null> {
       usersCount: Number(usersCount ?? 0),
     }
   } catch (e) {
-    // プレビューで SUPABASE_SERVICE_ROLE_KEY 未設定のとき等 — 未ログイン閲覧は不要なので null でトップを落とさない
-    console.error("[HomePage] 管理者向けヒーロー統計の取得に失敗しました", e)
+    if (isNextBuildPhase()) {
+      return null
+    }
+    console.warn("[HomePage] 管理者向けヒーロー統計をスキップ（セッション未取得・DB等）", e)
     return null
   }
 }
