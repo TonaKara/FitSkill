@@ -1431,11 +1431,7 @@ export default function MypageClient() {
       content: "事前オファーの申し込みが承認されました。購入手続きを進められます。",
     })
     if (notifError) {
-      console.error("[consultation_accepted notification] failed", {
-        message: notifError.message,
-        details: notifError.details ?? null,
-        code: notifError.code ?? null,
-      })
+      // 通知失敗は本処理をブロックしない
     }
     await loadConsultationRequests()
     setNotice({ variant: "success", message: "受講リクエストを承認しました。" })
@@ -1443,7 +1439,6 @@ export default function MypageClient() {
 
   const handleRejectConsultation = async (item: ConsultationRequestItem, reason: string) => {
     const reasonText = reason.trim()
-    console.log("Update payload:", { status: "rejected", rejection_reason: reasonText })
     setConsultationActionBusyId(item.id)
     const { error } = await supabase
       .from("consultation_answers")
@@ -1469,11 +1464,7 @@ export default function MypageClient() {
           : "事前オファーが見送られました。",
     })
     if (notifError) {
-      console.error("[consultation_rejected notification] failed", {
-        message: notifError.message,
-        details: notifError.details ?? null,
-        code: notifError.code ?? null,
-      })
+      // 通知失敗は本処理をブロックしない
     }
     setRejectConfirmTargetId(null)
     setRejectOptionalReason("")
@@ -1555,7 +1546,9 @@ export default function MypageClient() {
         message: [
           "名前の変更は30日に1回のみ可能です。表示名以外の内容を保存しました。",
           avatarSkippedDueToMissingBucket
-            ? " アイコン画像は Storage の「avatars」バケットが未作成のため保存できませんでした。"
+            ? isAdmin
+              ? " アイコン画像は Storage の「avatars」バケットが未作成のため保存できませんでした。"
+              : " アイコン画像は保存できませんでした。"
             : "",
         ].join(""),
       })
@@ -1595,7 +1588,9 @@ export default function MypageClient() {
     setNotice({
       variant: "success",
       message: avatarSkippedDueToMissingBucket
-        ? "プロフィールを保存しました。アイコン画像は Storage に「avatars」バケットがないためアップロードできませんでした。Supabase のマイグレーションを適用するか、ダッシュボードで公開バケット avatars を作成してください。"
+        ? isAdmin
+          ? "プロフィールを保存しました。アイコン画像は Storage の「avatars」バケットが未設定のためアップロードできませんでした。ダッシュボードでバケットとポリシーを確認してください。"
+          : "プロフィールを保存しました。アイコン画像は保存できませんでした。しばらくしてから再度お試しください。"
         : "プロフィールを保存しました。",
     })
     await loadProfile()

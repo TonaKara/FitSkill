@@ -66,7 +66,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="min-h-screen bg-black text-zinc-100">
       <div className="mx-auto flex w-full max-w-7xl gap-6 px-4 py-8 md:px-6">
         <aside className="hidden w-64 shrink-0 rounded-xl border border-zinc-800 bg-zinc-950 p-4 md:block">
-          <p className="mb-3 text-sm font-bold uppercase tracking-wide text-red-400">Admin</p>
+          <p className="mb-3 text-sm font-bold uppercase tracking-wide text-red-400">管理者</p>
           <Link
             href="/"
             className="mb-3 block rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm font-medium text-zinc-200 transition-colors hover:border-red-500 hover:bg-zinc-800 hover:text-white"

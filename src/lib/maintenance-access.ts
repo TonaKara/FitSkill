@@ -9,7 +9,6 @@ export async function fetchIsMaintenanceEnabled(supabase: SupabaseClient): Promi
     is_maintenance: boolean | null
   }>()
   if (error) {
-    console.error("[maintenance-access] settings 取得エラー:", error)
     return false
   }
   return Boolean(data?.is_maintenance)

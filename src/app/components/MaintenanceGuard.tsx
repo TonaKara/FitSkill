@@ -9,6 +9,9 @@ function isMaintenanceGuardSkippedPath(pathname: string): boolean {
   if (pathname.startsWith("/admin")) {
     return true
   }
+  if (pathname === "/login" || pathname.startsWith("/login/")) {
+    return true
+  }
   if (pathname === "/maintenance") {
     return true
   }
@@ -47,8 +50,8 @@ export function MaintenanceGuard({ children }: { children: React.ReactNode }) {
           return
         }
         router.replace("/maintenance")
-      } catch (e) {
-        console.error("[MaintenanceGuard] メンテナンス判定に失敗しました", e)
+      } catch {
+        // 判定失敗時は安全側で通常表示を継続する（詳細はクライアントへ露出しない）
       }
     }
 

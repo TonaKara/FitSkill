@@ -19,6 +19,15 @@ function jsonFromPostgrestError(err: PostgrestError) {
   }
 }
 
+const GENERIC_SAVE_ERROR = "保存に失敗しました。"
+
+function jsonErrorForClient(err: PostgrestError, isAdmin: boolean) {
+  if (isAdmin) {
+    return jsonFromPostgrestError(err)
+  }
+  return { error: GENERIC_SAVE_ERROR }
+}
+
 /**
  * 初回オンボーディング用。マイページと同じく「ログイン中ユーザーの JWT」で profiles を更新する。
  * サービスロールは RLS をバイパスできるが、キー誤設定時に匿名扱いになり失敗しやすいため本ルートでは使わない。
@@ -42,12 +51,14 @@ export async function POST(req: Request) {
 
   const { data: existing, error: existingError } = await supabase
     .from("profiles")
-    .select("display_name, status")
+    .select("display_name, status, is_admin")
     .eq("id", userId)
     .maybeSingle()
 
+  const isAdminUser = Boolean((existing as { is_admin?: boolean | null } | null)?.is_admin)
+
   if (existingError) {
-    return Response.json(jsonFromPostgrestError(existingError), { status: 400 })
+    return Response.json(jsonErrorForClient(existingError, isAdminUser), { status: 400 })
   }
 
   const meta = user.user_metadata as Record<string, unknown> | undefined
@@ -83,7 +94,7 @@ export async function POST(req: Request) {
   }
 
   if (result.error) {
-    return Response.json(jsonFromPostgrestError(result.error), { status: 400 })
+    return Response.json(jsonErrorForClient(result.error, isAdminUser), { status: 400 })
   }
 
   if (Object.prototype.hasOwnProperty.call(body, "avatar_url")) {
@@ -91,25 +102,31 @@ export async function POST(req: Request) {
     if (raw === null) {
       const up = await supabase.from("profiles").update({ avatar_url: null }).eq("id", userId)
       if (up.error) {
-        return Response.json(jsonFromPostgrestError(up.error), { status: 400 })
+        return Response.json(jsonErrorForClient(up.error, isAdminUser), { status: 400 })
       }
     } else if (typeof raw === "string") {
       const trimmed = raw.trim()
       if (trimmed.length === 0) {
         const up = await supabase.from("profiles").update({ avatar_url: null }).eq("id", userId)
         if (up.error) {
-          return Response.json(jsonFromPostgrestError(up.error), { status: 400 })
+          return Response.json(jsonErrorForClient(up.error, isAdminUser), { status: 400 })
         }
       } else if (!projectUrl || !isTrustedAvatarPublicUrlForUser(trimmed, userId, projectUrl)) {
-        return Response.json({ error: "アバター画像の URL が無効です。" }, { status: 400 })
+        return Response.json(
+          { error: isAdminUser ? "アバター画像の URL が無効です。" : GENERIC_SAVE_ERROR },
+          { status: 400 },
+        )
       } else {
         const up = await supabase.from("profiles").update({ avatar_url: trimmed }).eq("id", userId)
         if (up.error) {
-          return Response.json(jsonFromPostgrestError(up.error), { status: 400 })
+          return Response.json(jsonErrorForClient(up.error, isAdminUser), { status: 400 })
         }
       }
     } else {
-      return Response.json({ error: "avatar_url の形式が不正です。" }, { status: 400 })
+      return Response.json(
+        { error: isAdminUser ? "avatar_url の形式が不正です。" : GENERIC_SAVE_ERROR },
+        { status: 400 },
+      )
     }
   }
 

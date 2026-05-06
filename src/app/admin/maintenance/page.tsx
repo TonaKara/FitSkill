@@ -86,25 +86,27 @@ export default function AdminMaintenancePage() {
 
     setAccessDenied(false)
 
-    const { data, error } = await supabase.from("settings").select("id, is_maintenance, updated_at").single()
+    const { data, error } = await supabase
+      .from("settings")
+      .select("id, is_maintenance, updated_at")
+      .order("updated_at", { ascending: false, nullsFirst: false })
+      .limit(1)
 
     if (error) {
-      logSupabaseError("settings の select('*').single() が失敗しました", error)
-      setSettingsWarning(
-        "設定行を取得できませんでした。表示は初期値（メンテナンス OFF）です。保存すると新規行が作成される場合があります。",
-      )
+      logSupabaseError("settings の select().order().limit(1) が失敗しました", error)
+      setSettingsWarning("設定データの取得に失敗しました。")
       setRow({ ...FALLBACK_SETTINGS_ROW })
       return
     }
 
-    if (!data || typeof data !== "object") {
-      console.error("[AdminMaintenance] settings の single() は成功したが data が空です", { data })
-      setSettingsWarning("設定データが空のため、初期表示に切り替えました。")
+    const first = Array.isArray(data) && data.length > 0 ? data[0] : null
+    if (!first || typeof first !== "object") {
+      // 初期状態（settings が 0 件）は正常扱い。OFF 表示で開始し、保存時に新規作成する。
       setRow({ ...FALLBACK_SETTINGS_ROW })
       return
     }
 
-    setRow(normalizeSettingsRecord(data as Record<string, unknown>))
+    setRow(normalizeSettingsRecord(first as Record<string, unknown>))
   }, [supabase])
 
   useEffect(() => {

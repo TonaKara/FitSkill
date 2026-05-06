@@ -27,6 +27,9 @@ function revokeBlobUrl(url: string) {
   }
 }
 
+const SAVE_SUCCESS_TOAST_MS = 1000
+const GENERIC_SAVE_FAILED = "保存に失敗しました。時間を置いて再度お試しください。"
+
 export default function ProfileSetupPage() {
   const router = useRouter()
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
@@ -289,17 +292,21 @@ export default function ProfileSetupPage() {
         if (uploadedNewUrl) {
           await removeAvatarObjectAtPublicUrl(supabase, userId, uploadedNewUrl)
         }
-        const parts = [
-          `HTTP ${response.status}`,
-          responsePayload.error,
-          responsePayload.details,
-          responsePayload.hint,
-          responsePayload.code,
-        ].filter((s): s is string => typeof s === "string" && s.trim().length > 0)
-        setNotice({
-          variant: "error",
-          message: parts.length > 0 ? parts.join(" — ") : "保存に失敗しました。",
-        })
+        if (isAdmin) {
+          const parts = [
+            `HTTP ${response.status}`,
+            responsePayload.error,
+            responsePayload.details,
+            responsePayload.hint,
+            responsePayload.code,
+          ].filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+          setNotice({
+            variant: "error",
+            message: parts.length > 0 ? parts.join(" — ") : GENERIC_SAVE_FAILED,
+          })
+        } else {
+          setNotice({ variant: "error", message: GENERIC_SAVE_FAILED })
+        }
         return
       }
 
@@ -307,31 +314,36 @@ export default function ProfileSetupPage() {
       const replacedAvatar = Boolean(pendingAvatarFile && uploadedNewUrl)
       const clearedAvatar = Boolean(avatarMarkedForRemoval && storedAvatarUrl)
       if (previousStored && (replacedAvatar || clearedAvatar)) {
-        const { error: rmErr } = await removeAvatarObjectAtPublicUrl(supabase, userId, previousStored)
-        if (rmErr) {
-          console.warn("[profile-setup] failed to remove previous avatar object", rmErr)
-        }
+        await removeAvatarObjectAtPublicUrl(supabase, userId, previousStored)
       }
 
       if (avatarSkippedDueToMissingBucket) {
         setNotice({
           variant: "success",
-          message:
-            "プロフィールの内容は保存しました。アイコン画像は Supabase Storage に「avatars」バケットがまだないためアップロードできませんでした。supabase/migrations の avatars バケット作成 SQL を適用するか、ダッシュボードで公開バケット「avatars」を作成してください。",
+          message: isAdmin
+            ? "プロフィールの内容は保存しました。アイコン画像は Storage の「avatars」バケットが未設定のためアップロードできませんでした。ダッシュボードでバケットとポリシーを確認してください。"
+            : "プロフィールを保存しました。アイコン画像は保存できませんでした。しばらくしてから再度お試しください。",
         })
         await loadProfile()
         router.refresh()
         return
       }
 
-      router.push("/")
-      router.refresh()
+      setNotice({ variant: "success", message: "プロフィールを保存しました。" })
+      window.setTimeout(() => {
+        router.push("/")
+        router.refresh()
+      }, SAVE_SUCCESS_TOAST_MS)
     } catch (fetchError) {
       if (uploadedNewUrl) {
         await removeAvatarObjectAtPublicUrl(supabase, userId, uploadedNewUrl)
       }
-      const msg = fetchError instanceof Error ? fetchError.message : String(fetchError)
-      setNotice({ variant: "error", message: `保存に失敗しました: ${msg}` })
+      if (isAdmin) {
+        const msg = fetchError instanceof Error ? fetchError.message : String(fetchError)
+        setNotice({ variant: "error", message: `保存に失敗しました: ${msg}` })
+      } else {
+        setNotice({ variant: "error", message: GENERIC_SAVE_FAILED })
+      }
     } finally {
       setSaving(false)
     }
