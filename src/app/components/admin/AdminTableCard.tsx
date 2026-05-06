@@ -324,12 +324,16 @@ export function AdminTableCard({
         content: `運営対応: ユーザー状態を「${nextStatus}」へ変更しました。理由: ${reason}`,
       })
       if (nextStatus === "banned") {
-        void fetch("/api/notifications/ban-discord", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: reportedUserId }),
-          cache: "no-store",
-        }).catch(() => null)
+        try {
+          await fetch("/api/notifications/ban-discord", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: reportedUserId }),
+            cache: "no-store",
+          })
+        } catch {
+          // Discord 失敗は BAN 操作自体に影響しない
+        }
       }
       setReloadTick((prev) => prev + 1)
     } finally {
@@ -373,12 +377,16 @@ export function AdminTableCard({
         content: `運営対応: ユーザー状態を「${nextStatus}」へ変更しました。理由: ${reason}`,
       })
       if (nextStatus === "banned") {
-        void fetch("/api/notifications/ban-discord", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId }),
-          cache: "no-store",
-        }).catch(() => null)
+        try {
+          await fetch("/api/notifications/ban-discord", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId }),
+            cache: "no-store",
+          })
+        } catch {
+          // Discord 失敗は BAN 操作自体に影響しない
+        }
       }
       setReloadTick((prev) => prev + 1)
     } finally {

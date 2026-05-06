@@ -189,18 +189,21 @@ export default function ContactPage() {
         throw insertError
       }
 
-      void fetch("/api/notifications/contact-discord", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          email,
-          category,
-          subject,
-        }),
-      }).catch(() => {
+      try {
+        await fetch("/api/notifications/contact-discord", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name,
+            email,
+            category,
+            subject,
+          }),
+          keepalive: true,
+        })
+      } catch {
         // Discord 通知失敗で問い合わせ送信自体は失敗扱いにしない
-      })
+      }
 
       setForm(DEFAULT_FORM)
       setAttachment(null)

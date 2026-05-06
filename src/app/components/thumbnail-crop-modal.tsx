@@ -48,6 +48,10 @@ type ThumbnailCropModalProps = {
   onConfirm: (blob: Blob) => void | Promise<void>
   /** false のときは技術的な例外メッセージを出さない */
   isAdmin?: boolean
+  /** 省略時はスキルサムネイルと同じ 16:10（プロフィールアイコンは 1 など） */
+  aspectRatio?: number
+  heading?: string
+  subheading?: string
 }
 
 const GENERIC_IMAGE_ERROR = "画像の処理に失敗しました。"
@@ -58,18 +62,24 @@ export function ThumbnailCropModal({
   onClose,
   onConfirm,
   isAdmin = false,
+  aspectRatio = SKILL_THUMBNAIL_ASPECT_RATIO,
+  heading = "サムネイルの切り抜き",
+  subheading = "枠をドラッグして位置と大きさを調整できます（一覧や詳細には枠内のみ表示されます）。",
 }: ThumbnailCropModalProps) {
   const imgRef = useRef<HTMLImageElement>(null)
   const [crop, setCrop] = useState<PixelCrop>(defaultCrop)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const applyCropFromDisplayedImage = useCallback((img: HTMLImageElement) => {
-    const w = Math.round(img.offsetWidth)
-    const h = Math.round(img.offsetHeight)
-    if (w < 4 || h < 4) return
-    setCrop(maxCenteredAspectPixelCrop(w, h, SKILL_THUMBNAIL_ASPECT_RATIO))
-  }, [])
+  const applyCropFromDisplayedImage = useCallback(
+    (img: HTMLImageElement) => {
+      const w = Math.round(img.offsetWidth)
+      const h = Math.round(img.offsetHeight)
+      if (w < 4 || h < 4) return
+      setCrop(maxCenteredAspectPixelCrop(w, h, aspectRatio))
+    },
+    [aspectRatio],
+  )
 
   const onImageLoad = useCallback(
     (event: SyntheticEvent<HTMLImageElement>) => {
@@ -93,7 +103,7 @@ export function ThumbnailCropModal({
     }
     applyCropFromDisplayedImage(img)
     requestAnimationFrame(() => applyCropFromDisplayedImage(img))
-  }, [open, imageSrc, applyCropFromDisplayedImage])
+  }, [open, imageSrc, applyCropFromDisplayedImage, aspectRatio])
 
   useEffect(() => {
     if (open && imageSrc) {
@@ -152,11 +162,9 @@ export function ThumbnailCropModal({
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-800 px-4 py-3 md:px-6">
           <div>
             <h2 id="thumbnail-crop-title" className="text-base font-bold text-white md:text-lg">
-              サムネイルの切り抜き
+              {heading}
             </h2>
-            <p className="mt-1 text-xs leading-relaxed text-zinc-400 md:text-sm">
-              枠をドラッグして位置と大きさを調整できます（一覧や詳細には枠内のみ表示されます）。
-            </p>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-400 md:text-sm">{subheading}</p>
           </div>
           <Button
             type="button"
@@ -176,9 +184,9 @@ export function ThumbnailCropModal({
             <ReactCrop
               crop={crop}
               onChange={(next) => setCrop(next)}
-              aspect={SKILL_THUMBNAIL_ASPECT_RATIO}
-              minWidth={56}
-              minHeight={35}
+              aspect={aspectRatio}
+              minWidth={aspectRatio >= 1 ? 56 : 56}
+              minHeight={aspectRatio >= 1 ? Math.round(56 / aspectRatio) : 35}
               className="thumbnail-crop-react max-w-full"
               ruleOfThirds
             >

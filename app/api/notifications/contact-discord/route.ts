@@ -8,9 +8,21 @@ type Payload = {
   subject?: string
 }
 
+/** 運用では `DISCORD_WEBHOOK_INQUIRY`。旧名 `DISCORD_WEBHOOK_CONTACT` は互換用 */
+function resolveContactDiscordWebhookUrl(): string {
+  const candidates = [process.env.DISCORD_WEBHOOK_INQUIRY, process.env.DISCORD_WEBHOOK_CONTACT]
+  for (const raw of candidates) {
+    const t = raw?.trim()
+    if (t) {
+      return t
+    }
+  }
+  return ""
+}
+
 export async function POST(req: Request) {
   try {
-    const webhookUrl = process.env.DISCORD_WEBHOOK_CONTACT?.trim() ?? ""
+    const webhookUrl = resolveContactDiscordWebhookUrl()
     if (!webhookUrl) {
       return Response.json({ ok: true, skipped: "missing webhook" })
     }

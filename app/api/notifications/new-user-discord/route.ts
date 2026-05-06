@@ -7,9 +7,21 @@ type Payload = {
   displayName?: string
 }
 
+/** 運用では `DISCORD_WEBHOOK_USER_REGISTRATION`。旧名 `DISCORD_WEBHOOK_NEW_USER` は互換用 */
+function resolveNewUserDiscordWebhookUrl(): string {
+  const candidates = [process.env.DISCORD_WEBHOOK_USER_REGISTRATION, process.env.DISCORD_WEBHOOK_NEW_USER]
+  for (const raw of candidates) {
+    const t = raw?.trim()
+    if (t) {
+      return t
+    }
+  }
+  return ""
+}
+
 export async function POST(req: Request) {
   try {
-    const webhookUrl = process.env.DISCORD_WEBHOOK_NEW_USER?.trim() ?? ""
+    const webhookUrl = resolveNewUserDiscordWebhookUrl()
     if (!webhookUrl) {
       return Response.json({ ok: true, skipped: "missing webhook" })
     }

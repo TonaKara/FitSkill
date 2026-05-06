@@ -1,5 +1,3 @@
-"use server"
-
 function chunkMessage(message: string, size: number): string[] {
   if (message.length <= size) {
     return [message]

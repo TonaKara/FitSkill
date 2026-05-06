@@ -1,15 +1,21 @@
 "use client"
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react"
+import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { Heart, Loader2, Pencil, ShieldAlert, Star } from "lucide-react"
+import { Heart, Loader2, Pencil, ShieldAlert, Star, X } from "lucide-react"
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { NotificationToast } from "@/components/ui/notification-toast"
+import { ThumbnailCropModal } from "@/components/thumbnail-crop-modal"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import {
+  AVATARS_STORAGE_BUCKET,
+  removeAvatarObjectAtPublicUrl,
+} from "@/lib/avatar-storage"
 import {
   canChangeDisplayNameAfterCooldown,
   formatDateYmdSlashes,
@@ -278,6 +284,12 @@ function formatHistoryCompletedAtLabel(completedAt: string | null, createdAt: st
   return `完了日時: ${text}`
 }
 
+function revokeBlobUrl(url: string) {
+  if (url.startsWith("blob:")) {
+    URL.revokeObjectURL(url)
+  }
+}
+
 function formatTransactionStartedAtLabel(createdAt: string | null): string {
   if (!createdAt) {
     return "取引開始日: -"
@@ -332,6 +344,12 @@ export default function MypageClient() {
   const [profileRatingAvg, setProfileRatingAvg] = useState<number | null>(null)
   const [profileReviewCount, setProfileReviewCount] = useState(0)
   const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null)
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null)
+  const [pendingAvatarPreview, setPendingAvatarPreview] = useState("")
+  const [avatarMarkedForRemoval, setAvatarMarkedForRemoval] = useState(false)
+  const [avatarCropModalOpen, setAvatarCropModalOpen] = useState(false)
+  const [avatarCropSourceUrl, setAvatarCropSourceUrl] = useState<string | null>(null)
+  const avatarInputRef = useRef<HTMLInputElement>(null)
 
   const [listings, setListings] = useState<ListedSkill[]>([])
   const [listingsLoading, setListingsLoading] = useState(false)
@@ -426,6 +444,106 @@ export default function MypageClient() {
     )
   }
 
+  const closeAvatarCropModal = () => {
+    setAvatarCropModalOpen(false)
+    if (avatarCropSourceUrl) {
+      URL.revokeObjectURL(avatarCropSourceUrl)
+      setAvatarCropSourceUrl(null)
+    }
+  }
+
+  const handleAvatarCropConfirm = async (blob: Blob) => {
+    const file = new File([blob], "avatar.jpg", { type: "image/jpeg" })
+    setPendingAvatarFile(file)
+    setAvatarMarkedForRemoval(false)
+    setPendingAvatarPreview((prev) => {
+      if (prev) revokeBlobUrl(prev)
+      return URL.createObjectURL(blob)
+    })
+  }
+
+  const handleAvatarFileSelect = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    setNotice(null)
+    if (!file) {
+      event.target.value = ""
+      return
+    }
+    if (!file.type.startsWith("image/")) {
+      setNotice({ variant: "error", message: "画像ファイル（jpg/png/webp等）を選択してください。" })
+      event.target.value = ""
+      return
+    }
+    if (avatarCropSourceUrl) {
+      URL.revokeObjectURL(avatarCropSourceUrl)
+    }
+    setAvatarCropSourceUrl(URL.createObjectURL(file))
+    setAvatarCropModalOpen(true)
+    event.target.value = ""
+  }
+
+  const clearAvatarSelection = () => {
+    if (pendingAvatarFile || pendingAvatarPreview) {
+      setPendingAvatarFile(null)
+      setPendingAvatarPreview((prev) => {
+        if (prev) revokeBlobUrl(prev)
+        return ""
+      })
+      setAvatarMarkedForRemoval(false)
+      return
+    }
+    if (profileAvatarUrl) {
+      setAvatarMarkedForRemoval(true)
+    }
+  }
+
+  const uploadAvatarToStorage = async (currentUserId: string, file: File): Promise<string> => {
+    const extension =
+      file.type === "image/jpeg" || file.name.toLowerCase().endsWith(".jpg")
+        ? "jpg"
+        : (file.name.split(".").pop()?.toLowerCase() ?? "jpg")
+    const allowed = ["jpg", "jpeg", "png", "webp", "gif"]
+    const ext = allowed.includes(extension) ? extension : "jpg"
+    const objectKey = `${currentUserId}/${Date.now()}-${crypto.randomUUID()}.${ext}`
+
+    const { error: uploadError } = await supabase.storage.from(AVATARS_STORAGE_BUCKET).upload(objectKey, file, {
+      upsert: false,
+      contentType: file.type || `image/${ext === "jpg" || ext === "jpeg" ? "jpeg" : ext}`,
+    })
+
+    if (uploadError) {
+      throw uploadError
+    }
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from(AVATARS_STORAGE_BUCKET).getPublicUrl(objectKey)
+
+    if (!publicUrl) {
+      throw new Error("アイコン画像の公開URL取得に失敗しました。")
+    }
+
+    return publicUrl
+  }
+
+  const profileAvatarPreviewSrc = useMemo(() => {
+    if (pendingAvatarPreview) {
+      return pendingAvatarPreview
+    }
+    if (avatarMarkedForRemoval) {
+      return resolveProfileAvatarUrl(null, displayName.trim() || "?")
+    }
+    return resolveProfileAvatarUrl(profileAvatarUrl, displayName.trim() || "?")
+  }, [pendingAvatarPreview, avatarMarkedForRemoval, profileAvatarUrl, displayName])
+
+  useEffect(() => {
+    return () => {
+      if (pendingAvatarPreview) {
+        revokeBlobUrl(pendingAvatarPreview)
+      }
+    }
+  }, [pendingAvatarPreview])
+
   useEffect(() => {
     let mounted = true
 
@@ -505,6 +623,13 @@ export default function MypageClient() {
     setProfileReviewCount(Number.isFinite(reviewCount) ? Math.max(0, Math.floor(reviewCount)) : 0)
     setIsStripeRegistered(row?.is_stripe_registered === true)
     setStripeConnectAccountId(stripeAccountId)
+
+    setPendingAvatarFile(null)
+    setAvatarMarkedForRemoval(false)
+    setPendingAvatarPreview((prev) => {
+      if (prev) revokeBlobUrl(prev)
+      return ""
+    })
 
     setProfileLoading(false)
   }, [supabase, userId, isAdmin])
@@ -1363,16 +1488,37 @@ export default function MypageClient() {
     setNotice(null)
     setProfileSaving(true)
 
+    let uploadedNewUrl: string | null = null
+    try {
+      if (pendingAvatarFile) {
+        uploadedNewUrl = await uploadAvatarToStorage(userId, pendingAvatarFile)
+      }
+    } catch (uploadErr) {
+      setProfileSaving(false)
+      setNotice(toErrorNotice(uploadErr, isAdmin, { unknownErrorMessage: "アイコン画像のアップロードに失敗しました。" }))
+      return
+    }
+
     const trimmedName = displayName.trim()
     const trimmedSaved = savedDisplayName.trim()
     const nameChangeRequested = trimmedName !== trimmedSaved
     const canChangeName = canChangeDisplayNameAfterCooldown(lastNameChange)
 
+    const avatarExtras: Record<string, unknown> = {}
+    if (pendingAvatarFile && uploadedNewUrl) {
+      avatarExtras.avatar_url = uploadedNewUrl
+    } else if (avatarMarkedForRemoval && profileAvatarUrl) {
+      avatarExtras.avatar_url = null
+    }
+
     const sharedFields = {
       bio: bio.trim() || null,
       fitness_history: fitnessHistory.trim() || null,
       category: selectedCategories,
+      ...avatarExtras,
     }
+
+    const previousStoredAvatarUrl = profileAvatarUrl
 
     if (nameChangeRequested && !canChangeName) {
       const { error } = await supabase.from("profiles").update(sharedFields).eq("id", userId)
@@ -1380,8 +1526,18 @@ export default function MypageClient() {
       setProfileSaving(false)
 
       if (error) {
+        if (uploadedNewUrl) {
+          await removeAvatarObjectAtPublicUrl(supabase, userId, uploadedNewUrl)
+        }
         setNotice(toErrorNotice(error, isAdmin, { unknownErrorMessage: "保存に失敗しました。" }))
         return
+      }
+
+      if (
+        previousStoredAvatarUrl &&
+        ((pendingAvatarFile && uploadedNewUrl) || (avatarMarkedForRemoval && previousStoredAvatarUrl))
+      ) {
+        await removeAvatarObjectAtPublicUrl(supabase, userId, previousStoredAvatarUrl)
       }
 
       setDisplayName(savedDisplayName)
@@ -1408,8 +1564,18 @@ export default function MypageClient() {
     setProfileSaving(false)
 
     if (error) {
+      if (uploadedNewUrl) {
+        await removeAvatarObjectAtPublicUrl(supabase, userId, uploadedNewUrl)
+      }
       setNotice(toErrorNotice(error, isAdmin, { unknownErrorMessage: "保存に失敗しました。" }))
       return
+    }
+
+    if (
+      previousStoredAvatarUrl &&
+      ((pendingAvatarFile && uploadedNewUrl) || (avatarMarkedForRemoval && previousStoredAvatarUrl))
+    ) {
+      await removeAvatarObjectAtPublicUrl(supabase, userId, previousStoredAvatarUrl)
     }
 
     setNotice({ variant: "success", message: "プロフィールを保存しました。" })
@@ -1518,6 +1684,16 @@ export default function MypageClient() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-50">
+      <ThumbnailCropModal
+        open={avatarCropModalOpen}
+        imageSrc={avatarCropSourceUrl}
+        onClose={closeAvatarCropModal}
+        onConfirm={handleAvatarCropConfirm}
+        isAdmin={isAdmin}
+        aspectRatio={1}
+        heading="プロフィールアイコン"
+        subheading="枠をドラッグして表示される範囲を調整できます（正方形でトリミングされます）。"
+      />
       {notice && <NotificationToast notice={notice} onClose={() => setNotice(null)} />}
       <Header />
 
@@ -1641,9 +1817,67 @@ export default function MypageClient() {
           {section === "profile" && (
             <div className="mx-auto max-w-2xl">
               <h1 className="text-2xl font-black tracking-wide text-white md:text-3xl">プロフィール設定</h1>
-              <p className="mt-1 text-sm text-zinc-400">表示名・自己紹介・興味のある分野を管理します。</p>
+              <p className="mt-1 text-sm text-zinc-400">
+                アイコン・表示名・自己紹介・興味のある分野を管理します。
+              </p>
 
               <form onSubmit={(e) => void handleProfileSubmit(e)} className="mt-8 space-y-8">
+                <div className="rounded-2xl border border-red-500/25 bg-zinc-900/80 p-6 shadow-[0_0_40px_rgba(198,40,40,0.12)]">
+                  <p className="text-sm font-bold text-zinc-200">プロフィール画像</p>
+                  <p className="mt-1 text-xs text-zinc-500">一覧やチャットなどに表示されます（任意）</p>
+                  <Input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={handleAvatarFileSelect}
+                  />
+                  <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:items-start">
+                    <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-full border border-zinc-700 bg-zinc-950">
+                      {profileAvatarPreviewSrc.startsWith("blob:") ? (
+                        <Image
+                          src={profileAvatarPreviewSrc}
+                          alt="アイコンプレビュー"
+                          fill
+                          unoptimized
+                          className="object-cover"
+                          sizes="112px"
+                        />
+                      ) : (
+                        // eslint-disable-next-line @next/next/no-img-element -- Supabase / ui-avatars の外部 URL
+                        <img
+                          src={profileAvatarPreviewSrc}
+                          alt=""
+                          className="absolute inset-0 h-full w-full object-cover"
+                        />
+                      )}
+                      {(pendingAvatarPreview || (profileAvatarUrl && !avatarMarkedForRemoval)) ? (
+                        <button
+                          type="button"
+                          onClick={clearAvatarSelection}
+                          className="absolute right-1 top-1 inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-600/80 bg-black/70 text-zinc-100 transition-colors hover:border-red-500 hover:text-red-300"
+                          aria-label="プロフィール画像を削除または選択を解除"
+                        >
+                          <X className="h-4 w-4" aria-hidden />
+                        </button>
+                      ) : null}
+                    </div>
+                    <div className="flex w-full flex-col gap-2 sm:flex-1">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="h-10 w-full border-red-600 bg-red-600 text-white hover:border-red-500 hover:bg-red-500 sm:w-auto sm:self-start"
+                        onClick={() => avatarInputRef.current?.click()}
+                      >
+                        画像を選択
+                      </Button>
+                      <p className="text-xs text-zinc-500">
+                        選択後に切り抜き画面が開きます。JPEG で保存されます。
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="rounded-2xl border border-red-500/25 bg-zinc-900/80 p-6 shadow-[0_0_40px_rgba(198,40,40,0.12)]">
                   <label htmlFor="mypage-display-name" className="text-sm font-bold text-zinc-200">
                     表示名

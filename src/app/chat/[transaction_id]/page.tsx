@@ -1280,16 +1280,19 @@ export default function ChatTransactionPage() {
         }
       })
     }
-    void fetch("/api/notifications/dispute-discord", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        transactionId: String(transactionId),
-        reason,
-      }),
-    }).catch(() => {
+    try {
+      await fetch("/api/notifications/dispute-discord", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transactionId: String(transactionId),
+          reason,
+        }),
+        keepalive: true,
+      })
+    } catch {
       // Discord 通知失敗で異議申し立て自体は失敗扱いにしない
-    })
+    }
     await loadTransactionAndPeer()
   }
 
