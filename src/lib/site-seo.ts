@@ -22,7 +22,7 @@ export function getSiteUrl(): string {
 }
 
 /** ルートレイアウトのデフォルト（子ページが title を上書きしない場合） */
-export const LAYOUT_TITLE_DEFAULT = "GritVib | フィットネススキルマーケットプレイス"
+export const LAYOUT_TITLE_DEFAULT = "GritVib | フィットネススキルマーケット"
 
 export const LAYOUT_DESCRIPTION =
   "フィットネスに特化したスキル売買のマーケットプレイス。パーソナルトレーニングやオンラインレッスンなどの指導スキルを出品・購入でき、相談から始められる安心の取引で運動をもっと身近に。"

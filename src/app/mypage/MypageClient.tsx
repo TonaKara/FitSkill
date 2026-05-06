@@ -14,6 +14,7 @@ import { ThumbnailCropModal } from "@/components/thumbnail-crop-modal"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import {
   AVATARS_STORAGE_BUCKET,
+  isStorageBucketNotFoundError,
   removeAvatarObjectAtPublicUrl,
 } from "@/lib/avatar-storage"
 import {
@@ -1489,14 +1490,22 @@ export default function MypageClient() {
     setProfileSaving(true)
 
     let uploadedNewUrl: string | null = null
-    try {
-      if (pendingAvatarFile) {
+    let avatarSkippedDueToMissingBucket = false
+    if (pendingAvatarFile) {
+      try {
         uploadedNewUrl = await uploadAvatarToStorage(userId, pendingAvatarFile)
+      } catch (uploadErr) {
+        if (isStorageBucketNotFoundError(uploadErr)) {
+          avatarSkippedDueToMissingBucket = true
+          uploadedNewUrl = null
+        } else {
+          setProfileSaving(false)
+          setNotice(
+            toErrorNotice(uploadErr, isAdmin, { unknownErrorMessage: "アイコン画像のアップロードに失敗しました。" }),
+          )
+          return
+        }
       }
-    } catch (uploadErr) {
-      setProfileSaving(false)
-      setNotice(toErrorNotice(uploadErr, isAdmin, { unknownErrorMessage: "アイコン画像のアップロードに失敗しました。" }))
-      return
     }
 
     const trimmedName = displayName.trim()
@@ -1543,7 +1552,12 @@ export default function MypageClient() {
       setDisplayName(savedDisplayName)
       setNotice({
         variant: "error",
-        message: "名前の変更は30日に1回のみ可能です。表示名以外の内容を保存しました。",
+        message: [
+          "名前の変更は30日に1回のみ可能です。表示名以外の内容を保存しました。",
+          avatarSkippedDueToMissingBucket
+            ? " アイコン画像は Storage の「avatars」バケットが未作成のため保存できませんでした。"
+            : "",
+        ].join(""),
       })
       await loadProfile()
       router.refresh()
@@ -1578,7 +1592,12 @@ export default function MypageClient() {
       await removeAvatarObjectAtPublicUrl(supabase, userId, previousStoredAvatarUrl)
     }
 
-    setNotice({ variant: "success", message: "プロフィールを保存しました。" })
+    setNotice({
+      variant: "success",
+      message: avatarSkippedDueToMissingBucket
+        ? "プロフィールを保存しました。アイコン画像は Storage に「avatars」バケットがないためアップロードできませんでした。Supabase のマイグレーションを適用するか、ダッシュボードで公開バケット avatars を作成してください。"
+        : "プロフィールを保存しました。",
+    })
     await loadProfile()
     router.refresh()
   }
@@ -1824,7 +1843,9 @@ export default function MypageClient() {
               <form onSubmit={(e) => void handleProfileSubmit(e)} className="mt-8 space-y-8">
                 <div className="rounded-2xl border border-red-500/25 bg-zinc-900/80 p-6 shadow-[0_0_40px_rgba(198,40,40,0.12)]">
                   <p className="text-sm font-bold text-zinc-200">プロフィール画像</p>
-                  <p className="mt-1 text-xs text-zinc-500">一覧やチャットなどに表示されます（任意）</p>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    プロフィールやチャットなどで表示されるアイコン画像を設定できます（任意）
+                  </p>
                   <Input
                     ref={avatarInputRef}
                     type="file"
@@ -1871,9 +1892,6 @@ export default function MypageClient() {
                       >
                         画像を選択
                       </Button>
-                      <p className="text-xs text-zinc-500">
-                        選択後に切り抜き画面が開きます。JPEG で保存されます。
-                      </p>
                     </div>
                   </div>
                 </div>

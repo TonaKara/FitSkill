@@ -1,10 +1,15 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ConsoleGuard } from "@/components/ConsoleGuard";
 import { ConditionalFooter } from "@/components/layout/ConditionalFooter";
 import { MaintenanceGuard } from "@/components/MaintenanceGuard";
 import { ThemeProvider } from "@/components/theme-provider";
-import { SITE_KEYWORDS } from "@/lib/site-seo";
+import {
+  getSiteUrl,
+  LAYOUT_DESCRIPTION,
+  LAYOUT_TITLE_DEFAULT,
+  SITE_KEYWORDS,
+} from "@/lib/site-seo";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -17,22 +22,30 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const SITE_URL = "https://gritvib.com";
+const siteUrl = getSiteUrl();
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
+    { media: "(prefers-color-scheme: dark)", color: "#09090b" },
+  ],
+};
 
 export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
+  metadataBase: new URL(siteUrl),
   title: {
-    default: "GritVib | 本気の努力が、共鳴する場所。",
+    default: LAYOUT_TITLE_DEFAULT,
     template: "%s | GritVib",
   },
-  description:
-    "プロのトレーナーから初心者まで、誰でもフィットネススキルを教えたり学んだりできるマーケットプレイス。",
+  description: LAYOUT_DESCRIPTION,
   alternates: {
-    canonical: SITE_URL,
+    canonical: siteUrl,
   },
   applicationName: "GritVib",
   keywords: [...SITE_KEYWORDS],
-  authors: [{ name: "GritVib", url: SITE_URL }],
+  authors: [{ name: "GritVib", url: siteUrl }],
   creator: "GritVib",
   publisher: "GritVib",
   formatDetection: {
@@ -45,17 +58,24 @@ export const metadata: Metadata = {
     type: "website",
     locale: "ja_JP",
     siteName: "GritVib",
+    url: siteUrl,
+    description: LAYOUT_DESCRIPTION,
   },
   twitter: {
     card: "summary_large_image",
+    description: LAYOUT_DESCRIPTION,
   },
   /**
-   * - `/favicon.ico` … `public/favicon.ico`（静的）と `app/favicon.ico`（規約）の両方を用意
+   * - `/favicon.svg` … `public/favicon.svg`（ベクター・ブランドマーク）
+   * - `/favicon.ico` … 互換用（`public` / `app`）
    * - `/apple-touch-icon.png` … `public/apple-touch-icon.png`
-   * metadata の相対パスは metadataBase 起点で絶対 URL 化される（プレビュー URL と一致させるため getSiteUrl を使用）
+   * metadata の相対パスは metadataBase（getSiteUrl）起点で絶対 URL 化
    */
   icons: {
-    icon: [{ url: "/favicon.ico", sizes: "any" }],
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
 }

@@ -12,6 +12,7 @@ import { ThumbnailCropModal } from "@/components/thumbnail-crop-modal"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import {
   AVATARS_STORAGE_BUCKET,
+  isStorageBucketNotFoundError,
   removeAvatarObjectAtPublicUrl,
 } from "@/lib/avatar-storage"
 import { normalizeProfileCategory } from "@/lib/profile-fields"
@@ -235,10 +236,20 @@ export default function ProfileSetupPage() {
     setSaving(true)
 
     let uploadedNewUrl: string | null = null
+    let avatarSkippedDueToMissingBucket = false
 
     try {
       if (pendingAvatarFile) {
-        uploadedNewUrl = await uploadAvatarToStorage(userId, pendingAvatarFile)
+        try {
+          uploadedNewUrl = await uploadAvatarToStorage(userId, pendingAvatarFile)
+        } catch (uploadErr) {
+          if (isStorageBucketNotFoundError(uploadErr)) {
+            avatarSkippedDueToMissingBucket = true
+            uploadedNewUrl = null
+          } else {
+            throw uploadErr
+          }
+        }
       }
 
       const payload: Record<string, unknown> = {
@@ -293,11 +304,24 @@ export default function ProfileSetupPage() {
       }
 
       const previousStored = storedAvatarUrl
-      if (previousStored && (pendingAvatarFile || (avatarMarkedForRemoval && previousStored))) {
+      const replacedAvatar = Boolean(pendingAvatarFile && uploadedNewUrl)
+      const clearedAvatar = Boolean(avatarMarkedForRemoval && storedAvatarUrl)
+      if (previousStored && (replacedAvatar || clearedAvatar)) {
         const { error: rmErr } = await removeAvatarObjectAtPublicUrl(supabase, userId, previousStored)
         if (rmErr) {
           console.warn("[profile-setup] failed to remove previous avatar object", rmErr)
         }
+      }
+
+      if (avatarSkippedDueToMissingBucket) {
+        setNotice({
+          variant: "success",
+          message:
+            "プロフィールの内容は保存しました。アイコン画像は Supabase Storage に「avatars」バケットがまだないためアップロードできませんでした。supabase/migrations の avatars バケット作成 SQL を適用するか、ダッシュボードで公開バケット「avatars」を作成してください。",
+        })
+        await loadProfile()
+        router.refresh()
+        return
       }
 
       router.push("/")
@@ -354,7 +378,9 @@ export default function ProfileSetupPage() {
         <form onSubmit={(e) => void handleSubmit(e)} className="space-y-8">
           <div className="rounded-2xl border border-red-500/25 bg-zinc-950/80 p-6 shadow-[0_0_40px_rgba(198,40,40,0.12)]">
             <p className="text-sm font-bold text-zinc-200">プロフィール画像</p>
-            <p className="mt-1 text-xs text-zinc-500">一覧やチャットなどに表示されます（任意）</p>
+            <p className="mt-1 text-xs text-zinc-500">
+              プロフィールやチャットなどで表示されるアイコン画像を設定できます（任意）
+            </p>
             <Input
               ref={avatarInputRef}
               type="file"
@@ -401,9 +427,6 @@ export default function ProfileSetupPage() {
                 >
                   画像を選択
                 </Button>
-                <p className="text-xs text-zinc-500">
-                  選択後に切り抜き画面が開きます。JPEG で保存されます。
-                </p>
               </div>
             </div>
           </div>

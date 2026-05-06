@@ -4,6 +4,27 @@ export const AVATARS_STORAGE_BUCKET = "avatars"
 
 const PUBLIC_MARKER = "/storage/v1/object/public/avatars/"
 
+/** Storage アップロードで「バケットが存在しない」場合のエラー判定（マイグレーション未適用など） */
+export function isStorageBucketNotFoundError(err: unknown): boolean {
+  if (err && typeof err === "object") {
+    const o = err as Record<string, unknown>
+    const msg = typeof o.message === "string" ? o.message : ""
+    if (/bucket not found/i.test(msg)) {
+      return true
+    }
+    if (o.statusCode === 404 || o.statusCode === "404") {
+      return true
+    }
+    if (o.error === "not_found" || o.error === "Bucket not found") {
+      return true
+    }
+  }
+  if (err instanceof Error && /bucket not found/i.test(err.message)) {
+    return true
+  }
+  return false
+}
+
 /** Supabase Storage の公開 URL からオブジェクトパス（バケット名を除く）を取り出す */
 export function extractAvatarStoragePathFromPublicUrl(publicUrl: string): string | null {
   const cleaned = publicUrl.trim().split(/[?#]/)[0] ?? ""
