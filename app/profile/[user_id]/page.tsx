@@ -80,7 +80,7 @@ export async function generateMetadata({
       ? bioTrunc
       : `${displayName}さんの公開プロフィール。GritVibでフィットネス指導スキルを掲載しています。`
 
-  const ogTitle = `${displayName}のプロフィール`
+  const ogTitle = displayName
 
   return {
     title: ogTitle,

@@ -29,10 +29,7 @@ export default async function OpenGraphImage({ params }: OgProps) {
   const identifier = user_id.trim()
   const normalizedCustomId = normalizeCustomId(identifier)
   const fallbackName = "GritVib User"
-  const fallbackBio = "GritVibで活動するユーザーのプロフィールページです。"
-
   let displayName = fallbackName
-  let bioExcerpt = fallbackBio
   let avatarUrl: string | null = null
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -61,9 +58,6 @@ export default async function OpenGraphImage({ params }: OgProps) {
     if (typeof data?.display_name === "string" && data.display_name.trim().length > 0) {
       displayName = clipText(data.display_name, 26)
     }
-    if (typeof data?.bio === "string" && data.bio.trim().length > 0) {
-      bioExcerpt = clipText(data.bio, 120)
-    }
     if (typeof data?.avatar_url === "string" && data.avatar_url.trim().length > 0) {
       avatarUrl = data.avatar_url.trim()
     }
@@ -86,36 +80,7 @@ export default async function OpenGraphImage({ params }: OgProps) {
       >
         <div
           style={{
-            width: 480,
-            height: 630,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background:
-              "radial-gradient(circle at 18% 20%, rgba(198,40,40,0.55), transparent 50%), linear-gradient(145deg, #101010 0%, #030303 70%)",
-            borderRight: "1px solid rgba(198, 40, 40, 0.45)",
-          }}
-        >
-          <div
-            style={{
-              width: 300,
-              height: 300,
-              borderRadius: 9999,
-              overflow: "hidden",
-              border: "5px solid rgba(198, 40, 40, 0.95)",
-              boxShadow: "0 0 80px rgba(198, 40, 40, 0.45)",
-              display: "flex",
-              backgroundColor: "#111111",
-            }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element -- ImageResponse / Satori */}
-            <img src={avatarSrc} alt="" width={300} height={300} style={{ objectFit: "cover" }} />
-          </div>
-        </div>
-
-        <div
-          style={{
-            width: 720,
+            width: "100%",
             height: 630,
             display: "flex",
             flexDirection: "column",
@@ -125,7 +90,7 @@ export default async function OpenGraphImage({ params }: OgProps) {
               "linear-gradient(160deg, rgba(198,40,40,0.18) 0%, rgba(8,8,8,0) 45%), linear-gradient(180deg, #0c0c0c 0%, #050505 100%)",
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 32 }}>
             <div
               style={{
                 display: "flex",
@@ -140,8 +105,7 @@ export default async function OpenGraphImage({ params }: OgProps) {
             <div
               style={{
                 display: "flex",
-                marginTop: 28,
-                fontSize: 64,
+                fontSize: 72,
                 fontWeight: 800,
                 lineHeight: 1.15,
                 letterSpacing: "-0.03em",
@@ -154,16 +118,17 @@ export default async function OpenGraphImage({ params }: OgProps) {
             <div
               style={{
                 display: "flex",
-                marginTop: 28,
-                paddingTop: 24,
-                borderTop: "1px solid rgba(239,68,68,0.45)",
-                color: "#d4d4d8",
-                fontSize: 29,
-                lineHeight: 1.45,
-                whiteSpace: "pre-wrap",
+                width: 280,
+                height: 280,
+                borderRadius: 9999,
+                overflow: "hidden",
+                border: "5px solid rgba(198, 40, 40, 0.95)",
+                boxShadow: "0 0 80px rgba(198, 40, 40, 0.45)",
+                backgroundColor: "#111111",
               }}
             >
-              {bioExcerpt}
+              {/* eslint-disable-next-line @next/next/no-img-element -- ImageResponse / Satori */}
+              <img src={avatarSrc} alt="" width={280} height={280} style={{ objectFit: "cover" }} />
             </div>
           </div>
 
