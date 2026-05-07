@@ -9,6 +9,7 @@ import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
 import { InquiryInboxList, type InquiryPeerProfile } from "@/components/inquiry/InquiryInboxList"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import { buildProfilePath } from "@/lib/profile-path"
 import { resolveProfileAvatarUrl } from "@/lib/profile-avatar"
 import {
   fetchInquiryInboxList,
@@ -33,6 +34,8 @@ type SkillHeaderRow = {
   thumbnail_url: string | null
 }
 
+type InquiryPeerProfileWithCustomId = InquiryPeerProfile & { custom_id: string | null }
+
 function isUuid(value: string): boolean {
   return UUID_RE.test(value.trim())
 }
@@ -53,15 +56,15 @@ export function InquiryChatClient() {
   const [threads, setThreads] = useState<InquiryInboxListRow[]>([])
   const [inboxLoading, setInboxLoading] = useState(true)
   const [inboxError, setInboxError] = useState<string | null>(null)
-  const [peerProfiles, setPeerProfiles] = useState<Record<string, InquiryPeerProfile>>({})
+  const [peerProfiles, setPeerProfiles] = useState<Record<string, InquiryPeerProfileWithCustomId>>({})
   const [skillTitles, setSkillTitles] = useState<Record<string, string>>({})
 
   const [messages, setMessages] = useState<InquiryMessageRow[]>([])
   const [messagesLoading, setMessagesLoading] = useState(true)
   const [messagesError, setMessagesError] = useState<string | null>(null)
   const [readStatusError, setReadStatusError] = useState<string | null>(null)
-  const [senderProfiles, setSenderProfiles] = useState<Record<string, InquiryPeerProfile>>({})
-  const [myProfile, setMyProfile] = useState<InquiryPeerProfile | null>(null)
+  const [senderProfiles, setSenderProfiles] = useState<Record<string, InquiryPeerProfileWithCustomId>>({})
+  const [myProfile, setMyProfile] = useState<InquiryPeerProfileWithCustomId | null>(null)
 
   const [headerSkill, setHeaderSkill] = useState<SkillHeaderRow | null>(null)
   const [headerSkillLoading, setHeaderSkillLoading] = useState(false)
@@ -95,11 +98,16 @@ export function InquiryChatClient() {
     if (peerIds.length > 0) {
       const { data: profData } = await supabase
         .from("profiles")
-        .select("id, display_name, avatar_url")
+        .select("id, display_name, avatar_url, custom_id")
         .in("id", peerIds)
-      const nextProf: Record<string, InquiryPeerProfile> = {}
-      for (const row of (profData ?? []) as { id: string; display_name: string | null; avatar_url: string | null }[]) {
-        nextProf[row.id] = { display_name: row.display_name, avatar_url: row.avatar_url }
+      const nextProf: Record<string, InquiryPeerProfileWithCustomId> = {}
+      for (const row of (profData ?? []) as {
+        id: string
+        display_name: string | null
+        avatar_url: string | null
+        custom_id: string | null
+      }[]) {
+        nextProf[row.id] = { display_name: row.display_name, avatar_url: row.avatar_url, custom_id: row.custom_id }
       }
       setPeerProfiles(nextProf)
     } else {
@@ -183,14 +191,14 @@ export function InquiryChatClient() {
     void (async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("display_name, avatar_url")
+        .select("display_name, avatar_url, custom_id")
         .eq("id", userId)
         .maybeSingle()
       if (cancelled || !data) {
         return
       }
-      const row = data as { display_name: string | null; avatar_url: string | null }
-      setMyProfile({ display_name: row.display_name, avatar_url: row.avatar_url })
+      const row = data as { display_name: string | null; avatar_url: string | null; custom_id: string | null }
+      setMyProfile({ display_name: row.display_name, avatar_url: row.avatar_url, custom_id: row.custom_id })
     })()
     return () => {
       cancelled = true
@@ -213,15 +221,20 @@ export function InquiryChatClient() {
     void (async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, display_name, avatar_url")
+        .select("id, display_name, avatar_url, custom_id")
         .in("id", senderIds)
       if (cancelled || error || !data) {
         return
       }
       setSenderProfiles((prev) => {
         const next = { ...prev }
-        for (const row of data as { id: string; display_name: string | null; avatar_url: string | null }[]) {
-          next[row.id] = { display_name: row.display_name, avatar_url: row.avatar_url }
+        for (const row of data as {
+          id: string
+          display_name: string | null
+          avatar_url: string | null
+          custom_id: string | null
+        }[]) {
+          next[row.id] = { display_name: row.display_name, avatar_url: row.avatar_url, custom_id: row.custom_id }
         }
         return next
       })
@@ -339,16 +352,16 @@ export function InquiryChatClient() {
     void (async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("id, display_name, avatar_url")
+        .select("id, display_name, avatar_url, custom_id")
         .eq("id", peerId)
         .maybeSingle()
       if (cancelled || !data) {
         return
       }
-      const row = data as { id: string; display_name: string | null; avatar_url: string | null }
+      const row = data as { id: string; display_name: string | null; avatar_url: string | null; custom_id: string | null }
       setPeerProfiles((prev) => ({
         ...prev,
-        [row.id]: { display_name: row.display_name, avatar_url: row.avatar_url },
+        [row.id]: { display_name: row.display_name, avatar_url: row.avatar_url, custom_id: row.custom_id },
       }))
     })()
     return () => {
@@ -607,6 +620,7 @@ export function InquiryChatClient() {
                     mine ? myProfile?.avatar_url ?? null : isPeerSender ? peerProfile?.avatar_url ?? null : senderProfile?.avatar_url ?? null,
                     label,
                   )
+                  const senderProfilePath = buildProfilePath(m.sender_id, senderProfile?.custom_id ?? null)
                   return (
                     <li key={m.id}>
                       {mine ? (
@@ -630,7 +644,7 @@ export function InquiryChatClient() {
                       ) : (
                         <div className="flex w-full items-start justify-start gap-2">
                           <Link
-                            href={`/profile/${encodeURIComponent(m.sender_id)}`}
+                            href={senderProfilePath}
                             className="shrink-0"
                             aria-label={`${label}のプロフィールへ`}
                           >

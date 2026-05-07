@@ -17,11 +17,13 @@ import {
   type ProfileRatingComment,
   type ProfileRatingDistribution,
 } from "@/lib/profile-ratings"
+import { isUuid, normalizeCustomId } from "@/lib/profile-path"
 import { resolveProfileAvatarUrl } from "@/lib/profile-avatar"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 
 type ProfileRow = {
   id: string
+  custom_id: string | null
   display_name: string | null
   bio: string | null
   fitness_history: string | null
@@ -70,12 +72,14 @@ export default function PublicProfilePage() {
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
   const profileUserId =
     typeof params.user_id === "string" ? params.user_id : Array.isArray(params.user_id) ? params.user_id[0] : ""
+  const normalizedProfileCustomId = normalizeCustomId(profileUserId)
 
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState<ProfileRow | null>(null)
   const [skills, setSkills] = useState<SkillRowForCard[]>([])
   const [ratingDistribution, setRatingDistribution] = useState<ProfileRatingDistribution>(createEmptyDistribution())
   const [ratingComments, setRatingComments] = useState<ProfileRatingComment[]>([])
+  const [selectedReviewStars, setSelectedReviewStars] = useState<1 | 2 | 3 | 4 | 5 | null>(null)
   const [skillsError, setSkillsError] = useState<string | null>(null)
   const [reportModalOpen, setReportModalOpen] = useState(false)
   const [notice, setNotice] = useState<AppNotice | null>(null)
@@ -93,26 +97,34 @@ export default function PublicProfilePage() {
     setLoading(true)
     setSkillsError(null)
 
-    const [profileResult, skillsResult, ratingData] = await Promise.all([
-      supabase
-        .from("profiles_public")
-        .select("id, display_name, bio, fitness_history, category, avatar_url, rating_avg, review_count")
-        .eq("id", profileUserId)
-        .maybeSingle(),
-      supabase
-        .from("skills")
-        .select("id, title, category, price, duration_minutes, max_capacity, thumbnail_url")
-        .eq("user_id", profileUserId)
-        .eq("is_published", true)
-        .order("created_at", { ascending: false }),
-      fetchProfileRatingData(supabase, profileUserId),
-    ])
+    const profileQuery = supabase
+      .from("profiles_public")
+      .select("id, custom_id, display_name, bio, fitness_history, category, avatar_url, rating_avg, review_count")
+    const profileResult = await (isUuid(profileUserId)
+      ? profileQuery.eq("id", profileUserId).maybeSingle()
+      : profileQuery.eq("custom_id", normalizedProfileCustomId).maybeSingle())
 
     if (profileResult.error || !profileResult.data) {
       setProfile(null)
-    } else {
-      setProfile(profileResult.data as ProfileRow)
+      setSkills([])
+      setRatingDistribution(createEmptyDistribution())
+      setRatingComments([])
+      setLoading(false)
+      return
     }
+
+    const resolvedProfile = profileResult.data as ProfileRow
+    const [skillsResult, ratingData] = await Promise.all([
+      supabase
+        .from("skills")
+        .select("id, title, category, price, duration_minutes, max_capacity, thumbnail_url")
+        .eq("user_id", resolvedProfile.id)
+        .eq("is_published", true)
+        .order("created_at", { ascending: false }),
+      fetchProfileRatingData(supabase, resolvedProfile.id),
+    ])
+
+    setProfile(resolvedProfile)
 
     if (skillsResult.error) {
       setSkills([])
@@ -122,9 +134,8 @@ export default function PublicProfilePage() {
     }
     setRatingDistribution(ratingData.distribution)
     setRatingComments(ratingData.comments)
-
     setLoading(false)
-  }, [profileUserId, supabase])
+  }, [normalizedProfileCustomId, profileUserId, supabase])
 
   useEffect(() => {
     // 非同期ロード完了時のみ state が更新されるため、この呼び出しを許可する
@@ -164,6 +175,10 @@ export default function PublicProfilePage() {
   const averageRating = hasRating ? Number(profile.rating_avg).toFixed(1) : "0.0"
   const distributionTotal = STAR_LEVELS.reduce((sum, level) => sum + ratingDistribution[level], 0)
   const graphDenominator = reviewCount > 0 ? reviewCount : distributionTotal
+  const filteredRatingComments =
+    selectedReviewStars == null
+      ? ratingComments
+      : ratingComments.filter((comment) => comment.rating === selectedReviewStars)
 
   const categoryTags = normalizeCategoryTags(profile.category)
   const bioText = profile.bio?.trim() ?? ""
@@ -247,44 +262,100 @@ export default function PublicProfilePage() {
           ) : null}
         </div>
 
+        {/* 出品中のスキル */}
+        <section className="mt-12">
+          <h2 className="mb-6 text-xl font-bold text-white md:text-2xl">出品中のスキル</h2>
+          {skillsError ? (
+            <p className="text-sm text-zinc-500">{skillsError}</p>
+          ) : cardSkills.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-zinc-800 bg-zinc-950/50 py-12 text-center text-sm text-zinc-500">
+              出品中のスキルはありません。
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {cardSkills.map((skill) => (
+                <SkillCard key={String(skill.id)} favoriteSkillId={String(skill.id)} skill={skill} />
+              ))}
+            </div>
+          )}
+        </section>
+
         <section className="mt-12 rounded-2xl border border-zinc-800 bg-zinc-950/80 p-6 md:p-8">
           <h2 className="text-xl font-bold text-white md:text-2xl">評価</h2>
           {graphDenominator > 0 ? (
-            <>
-              <div className="mt-6 space-y-3">
+            <div className="mt-6 grid gap-8 md:grid-cols-[240px_1fr] md:items-center">
+              <div className="rounded-xl border border-red-500/25 bg-zinc-900/60 p-5 md:flex md:h-[176px] md:flex-col md:justify-center">
+                <p className="text-xs font-semibold tracking-wide text-zinc-400">平均評価</p>
+                <p className="mt-2 text-6xl font-black leading-none text-white">{averageRating}</p>
+                <div className="mt-3 flex items-center gap-1" aria-label={`平均評価 ${averageRating}`}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star
+                      key={`avg-star-${star}`}
+                      className={`h-5 w-5 ${
+                        star <= Math.round(Number(averageRating))
+                          ? "fill-red-500 text-red-500"
+                          : "fill-transparent text-zinc-600"
+                      }`}
+                      aria-hidden
+                    />
+                  ))}
+                </div>
+                <p className="mt-3 text-sm text-zinc-400">{reviewCount}件の評価</p>
+              </div>
+
+              <div className="space-y-3 pt-1 md:flex md:h-[176px] md:flex-col md:justify-between md:space-y-0 md:pt-0">
                 {STAR_LEVELS.map((stars) => {
                   const count = ratingDistribution[stars]
                   const percentage = graphDenominator > 0 ? Math.round((count / graphDenominator) * 100) : 0
+                  const barColor = "#c62828"
+                  const selected = selectedReviewStars === stars
                   return (
                     <div key={stars} className="flex items-center gap-3 text-sm">
-                      <div className="w-12 shrink-0 text-zinc-300">星{stars}</div>
-                      <div className="h-3 flex-1 overflow-hidden rounded-full bg-zinc-800">
+                      <div className="w-10 shrink-0 text-zinc-300">星{stars}</div>
+                      <div className="h-2.5 w-36 overflow-hidden rounded-full bg-zinc-800 md:h-3 md:w-52">
                         <div
-                          className="h-full rounded-full bg-red-500 transition-all"
-                          style={{ width: `${percentage}%` }}
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${percentage}%`, backgroundColor: barColor }}
                           aria-hidden
                         />
                       </div>
-                      <div className="w-16 shrink-0 text-right text-zinc-400">{count}人</div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedReviewStars((prev) => (prev === stars ? null : stars))}
+                        className={`min-w-14 text-left transition-colors ${
+                          selected ? "font-bold text-red-400" : "text-zinc-400 hover:text-zinc-100"
+                        }`}
+                        aria-pressed={selected}
+                      >
+                        {count}人
+                      </button>
                     </div>
                   )
                 })}
               </div>
-              <p className="mt-5 text-sm text-zinc-300">
-                平均：<span className="font-bold text-white">{averageRating}</span> ({reviewCount}件の評価)
-              </p>
-            </>
+            </div>
           ) : (
             <p className="mt-4 text-sm text-zinc-500">まだ評価がありません。</p>
           )}
 
           <div className="mt-8 border-t border-zinc-800 pt-6">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-red-400">評価コメント</h3>
-            {ratingComments.length === 0 ? (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-red-400">評価コメント</h3>
+              {selectedReviewStars != null ? (
+                <button
+                  type="button"
+                  onClick={() => setSelectedReviewStars(null)}
+                  className="text-xs text-zinc-400 underline-offset-4 hover:text-zinc-200 hover:underline"
+                >
+                  絞り込みを解除（星{selectedReviewStars}）
+                </button>
+              ) : null}
+            </div>
+            {filteredRatingComments.length === 0 ? (
               <p className="mt-3 text-sm text-zinc-500">コメント付きの評価はまだありません。</p>
             ) : (
               <div className="mt-4 max-h-96 space-y-3 overflow-y-auto pr-1">
-                {ratingComments.map((ratingComment) => {
+                {filteredRatingComments.map((ratingComment) => {
                   const displayDate = formatRatingDate(ratingComment.createdAt)
                   return (
                     <article key={ratingComment.id} className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
@@ -316,24 +387,6 @@ export default function PublicProfilePage() {
               </div>
             )}
           </div>
-        </section>
-
-        {/* 出品中のスキル */}
-        <section className="mt-12">
-          <h2 className="mb-6 text-xl font-bold text-white md:text-2xl">出品中のスキル</h2>
-          {skillsError ? (
-            <p className="text-sm text-zinc-500">{skillsError}</p>
-          ) : cardSkills.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-zinc-800 bg-zinc-950/50 py-12 text-center text-sm text-zinc-500">
-              出品中のスキルはありません。
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {cardSkills.map((skill) => (
-                <SkillCard key={String(skill.id)} favoriteSkillId={String(skill.id)} skill={skill} />
-              ))}
-            </div>
-          )}
         </section>
 
         <div className="mt-16 flex justify-center border-t border-zinc-900 pt-10">

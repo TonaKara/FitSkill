@@ -25,6 +25,7 @@ import {
   serializeLinkPayload,
 } from "@/lib/chat-link-payload"
 import { resolveProfileAvatarUrl } from "@/lib/profile-avatar"
+import { buildProfilePath } from "@/lib/profile-path"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { autoCompleteMyPendingTransactionsWithPayout, completeTransactionWithPayout } from "@/actions/payout"
 import { createTransactionNotification, NOTIFICATION_TYPE } from "@/lib/transaction-notifications"
@@ -54,6 +55,7 @@ type TransactionRow = {
 type ProfileLite = {
   display_name: string | null
   avatar_url: string | null
+  custom_id: string | null
 }
 
 type SenderProfileRow = ProfileLite & { id: string }
@@ -536,7 +538,7 @@ export default function ChatTransactionPage() {
     const otherId = t.buyer_id === userId ? t.seller_id : t.buyer_id
     const { data: prof, error: pErr } = await supabase
       .from("profiles")
-      .select("display_name, avatar_url")
+      .select("display_name, avatar_url, custom_id")
       .eq("id", otherId)
       .maybeSingle()
 
@@ -549,7 +551,7 @@ export default function ChatTransactionPage() {
     }
 
     setTransaction(t)
-    setOtherProfile((prof as ProfileLite) ?? { display_name: null, avatar_url: null })
+    setOtherProfile((prof as ProfileLite) ?? { display_name: null, avatar_url: null, custom_id: null })
     setTxLoading(false)
   }, [supabase, transactionId, userId])
 
@@ -658,7 +660,7 @@ export default function ChatTransactionPage() {
     void (async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, display_name, avatar_url")
+        .select("id, display_name, avatar_url, custom_id")
         .in("id", uniqueIds)
 
       if (cancelled || error || !data) {
@@ -671,6 +673,7 @@ export default function ChatTransactionPage() {
           next[row.id] = {
             display_name: row.display_name,
             avatar_url: row.avatar_url,
+            custom_id: row.custom_id,
           }
         }
         return next
@@ -1664,6 +1667,7 @@ export default function ChatTransactionPage() {
             const prof = senderProfiles[m.sender_id]
             const label = mine ? "自分" : prof?.display_name?.trim() || "ユーザー"
             const avatarSrc = resolveProfileAvatarUrl(prof?.avatar_url ?? null, label)
+            const senderProfilePath = buildProfilePath(m.sender_id, prof?.custom_id ?? null)
             const linkPayload =
               m.file_type === CHAT_LINK_FILE_TYPE ? parseLinkMessageContent(m.content) : null
             const youtubeFromFileType =
@@ -1759,7 +1763,7 @@ export default function ChatTransactionPage() {
             return (
               <div key={messageIdKey(m.id)} className="flex w-full items-start justify-start gap-2">
                 <Link
-                  href={`/profile/${encodeURIComponent(m.sender_id)}`}
+                  href={senderProfilePath}
                   className="shrink-0"
                   aria-label={`${label}のプロフィールへ`}
                 >

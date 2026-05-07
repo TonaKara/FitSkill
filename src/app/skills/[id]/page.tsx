@@ -22,6 +22,7 @@ import { TradeFinalConfirmStep } from "@/components/TradeFinalConfirmStep"
 import { Button } from "@/components/ui/button"
 import { NotificationToast } from "@/components/ui/notification-toast"
 import { resolveProfileAvatarUrl } from "@/lib/profile-avatar"
+import { buildProfilePath } from "@/lib/profile-path"
 import { resolveSkillThumbnailUrl } from "@/lib/skill-thumbnail"
 import { getIsAdminFromProfile } from "@/lib/admin"
 import { formatErrorMessageOnly } from "@/lib/notifications"
@@ -43,6 +44,7 @@ import { cn } from "@/lib/utils"
 type ProfileEmbed = {
   display_name: string | null
   avatar_url: string | null
+  custom_id: string | null
   rating_avg: number | null
   review_count: number | null
 }
@@ -412,7 +414,7 @@ export default function SkillDetailPage() {
       supabase
         .from("skills")
         .select(
-          "id, user_id, title, description, target_audience, category, price, duration_minutes, max_capacity, format, location_prefecture, thumbnail_url, is_published, profiles ( display_name, avatar_url, rating_avg, review_count )",
+          "id, user_id, title, description, target_audience, category, price, duration_minutes, max_capacity, format, location_prefecture, thumbnail_url, is_published, profiles ( display_name, avatar_url, custom_id, rating_avg, review_count )",
         )
         .eq("id", skillId)
         .maybeSingle(),
@@ -1034,7 +1036,7 @@ export default function SkillDetailPage() {
             <section>
               <h2 className="mb-3 text-sm font-bold uppercase tracking-wider text-red-400">講師</h2>
               <Link
-                href={`/profile/${skill.user_id}`}
+                href={buildProfilePath(skill.user_id, profile?.custom_id)}
                 className="flex items-center gap-4 rounded-xl border border-red-500/30 bg-zinc-900/70 p-4 transition-colors hover:border-red-500/55 hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
               >
                 <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full ring-2 ring-red-500/25">

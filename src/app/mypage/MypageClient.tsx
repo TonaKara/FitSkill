@@ -6,7 +6,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useTheme } from "next-themes"
-import { Heart, Loader2, Pencil, ShieldAlert, Star, X } from "lucide-react"
+import { Copy, Heart, Loader2, Pencil, ShieldAlert, Star, X } from "lucide-react"
 import { Header } from "@/components/header"
 import {
   ACCENT_COLOR_OPTIONS,
@@ -29,6 +29,7 @@ import {
   parseProfileDate,
 } from "@/lib/display-name-policy"
 import { normalizeProfileCategory } from "@/lib/profile-fields"
+import { buildProfilePath, isReservedCustomId, isValidCustomIdFormat, normalizeCustomId } from "@/lib/profile-path"
 import { SKILL_CATEGORY_OPTIONS } from "@/lib/skill-categories"
 import { resolveSkillThumbnailUrl } from "@/lib/skill-thumbnail"
 import { resolveProfileAvatarUrl } from "@/lib/profile-avatar"
@@ -202,6 +203,7 @@ type ConsultationRequestItem = {
   sellerId: string
   buyerDisplayName: string
   buyerAvatarUrl: string
+  buyerProfilePath: string
   q1Label: string
   q2Label: string
   q3Label: string
@@ -220,6 +222,7 @@ type SentConsultationRequestItem = {
   sellerId: string
   sellerDisplayName: string
   sellerAvatarUrl: string
+  sellerProfilePath: string
   transactionId: string | null
   status: ConsultationRequestStatus
   rejectionReason: string
@@ -344,6 +347,8 @@ export default function MypageClient() {
   const [profileSaving, setProfileSaving] = useState(false)
   const [displayName, setDisplayName] = useState("")
   const [savedDisplayName, setSavedDisplayName] = useState("")
+  const [customId, setCustomId] = useState("")
+  const [savedCustomId, setSavedCustomId] = useState("")
   const [lastNameChange, setLastNameChange] = useState<Date | null>(null)
   const [bio, setBio] = useState("")
   const [fitnessHistory, setFitnessHistory] = useState("")
@@ -357,6 +362,8 @@ export default function MypageClient() {
   const [avatarCropModalOpen, setAvatarCropModalOpen] = useState(false)
   const [avatarCropSourceUrl, setAvatarCropSourceUrl] = useState<string | null>(null)
   const avatarInputRef = useRef<HTMLInputElement>(null)
+  const profileFormRef = useRef<HTMLFormElement>(null)
+  const customIdConfirmBypassRef = useRef(false)
 
   const [listings, setListings] = useState<ListedSkill[]>([])
   const [listingsLoading, setListingsLoading] = useState(false)
@@ -404,6 +411,8 @@ export default function MypageClient() {
   const [connectBalance, setConnectBalance] = useState<ConnectBalanceResponse | null>(null)
   const [showAccountLogoutConfirm, setShowAccountLogoutConfirm] = useState(false)
   const [accountLogoutBusy, setAccountLogoutBusy] = useState(false)
+  const [showCustomIdConfirm, setShowCustomIdConfirm] = useState(false)
+  const [pendingCustomIdForConfirm, setPendingCustomIdForConfirm] = useState("")
   const [accentColorValue, setAccentColorValueState] = useState<string>("#c62828")
   const [themeReady, setThemeReady] = useState(false)
   const filteredReviewComments =
@@ -439,6 +448,36 @@ export default function MypageClient() {
     },
     [pathname, router, searchParams, section],
   )
+
+  const handleCopyProfileUrl = useCallback(async () => {
+    if (!userId) {
+      setNotice({ variant: "error", message: "プロフィールURLの取得に失敗しました。" })
+      return
+    }
+    if (typeof window === "undefined") {
+      return
+    }
+    const profileUrl = `${window.location.origin}${buildProfilePath(userId, customId)}`
+    try {
+      await navigator.clipboard.writeText(profileUrl)
+      setNotice({ variant: "success", message: "プロフィールURLをコピーしました。" })
+    } catch {
+      const textarea = document.createElement("textarea")
+      textarea.value = profileUrl
+      textarea.setAttribute("readonly", "")
+      textarea.style.position = "absolute"
+      textarea.style.left = "-9999px"
+      document.body.appendChild(textarea)
+      textarea.select()
+      const copied = document.execCommand("copy")
+      document.body.removeChild(textarea)
+      if (!copied) {
+        setNotice({ variant: "error", message: "コピーに失敗しました。手動でコピーしてください。" })
+        return
+      }
+      setNotice({ variant: "success", message: "プロフィールURLをコピーしました。" })
+    }
+  }, [customId, userId])
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -621,7 +660,7 @@ export default function MypageClient() {
     const { data, error } = await supabase
       .from("profiles")
       .select(
-        "id, display_name, avatar_url, bio, fitness_history, category, last_name_change, rating_avg, review_count, stripe_connect_account_id, is_stripe_registered",
+        "id, display_name, custom_id, avatar_url, bio, fitness_history, category, last_name_change, rating_avg, review_count, stripe_connect_account_id, is_stripe_registered",
       )
       .eq("id", userId)
       .maybeSingle()
@@ -636,6 +675,7 @@ export default function MypageClient() {
 
     const row = data as Record<string, unknown> | null
     const nameVal = row?.display_name
+    const customIdVal = row?.custom_id
     const bioVal = row?.bio
     const fhVal = row?.fitness_history
     const rawLast = row?.last_name_change
@@ -647,6 +687,9 @@ export default function MypageClient() {
     setProfileAvatarUrl(typeof avatarRaw === "string" && avatarRaw.trim().length > 0 ? avatarRaw.trim() : null)
     setDisplayName(nameStr)
     setSavedDisplayName(nameStr)
+    const customIdStr = typeof customIdVal === "string" ? customIdVal.trim() : ""
+    setCustomId(customIdStr)
+    setSavedCustomId(customIdStr)
     setLastNameChange(parseProfileDate(rawLast))
     setBio(typeof bioVal === "string" ? bioVal.trim() : "")
     setFitnessHistory(typeof fhVal === "string" ? fhVal.trim() : "")
@@ -904,7 +947,7 @@ export default function MypageClient() {
 
       const buyerIds = [...new Set(answerRows.map((row) => row.buyer_id).filter((id) => id.length > 0))]
       const { data: buyers, error: buyersError } = buyerIds.length
-        ? await supabase.from("profiles").select("id, display_name, avatar_url").in("id", buyerIds)
+        ? await supabase.from("profiles").select("id, display_name, custom_id, avatar_url").in("id", buyerIds)
         : { data: [], error: null }
 
       if (buyersError) {
@@ -931,12 +974,19 @@ export default function MypageClient() {
         string,
         {
           display_name: string | null
+          custom_id: string | null
           avatar_url: string | null
         }
       >()
-      for (const row of (buyers ?? []) as Array<{ id: string; display_name: string | null; avatar_url: string | null }>) {
+      for (const row of (buyers ?? []) as Array<{
+        id: string
+        display_name: string | null
+        custom_id: string | null
+        avatar_url: string | null
+      }>) {
         buyerById.set(row.id, {
           display_name: row.display_name,
+          custom_id: row.custom_id,
           avatar_url: row.avatar_url,
         })
       }
@@ -953,6 +1003,7 @@ export default function MypageClient() {
           sellerId: row.seller_id,
           buyerDisplayName: buyerName,
           buyerAvatarUrl: resolveProfileAvatarUrl(buyer?.avatar_url ?? null, buyerName),
+          buyerProfilePath: buildProfilePath(row.buyer_id, buyer?.custom_id ?? null),
           q1Label: setting?.q1_label?.trim() || "",
           q2Label: setting?.q2_label?.trim() || "",
           q3Label: setting?.q3_label?.trim() || "",
@@ -1025,7 +1076,7 @@ export default function MypageClient() {
           ? supabase.from("skills").select("id, title").in("id", skillIds)
           : Promise.resolve({ data: [], error: null }),
         sellerIds.length
-          ? supabase.from("profiles").select("id, display_name, avatar_url").in("id", sellerIds)
+          ? supabase.from("profiles").select("id, display_name, custom_id, avatar_url").in("id", sellerIds)
           : Promise.resolve({ data: [], error: null }),
         hasRejectionReasonColumn
           ? Promise.resolve({ data: [], error: null })
@@ -1065,14 +1116,16 @@ export default function MypageClient() {
         skillTitleById.set(Math.trunc(n), row.title?.trim() || "スキル")
       }
 
-      const sellerById = new Map<string, { display_name: string | null; avatar_url: string | null }>()
+      const sellerById = new Map<string, { display_name: string | null; custom_id: string | null; avatar_url: string | null }>()
       for (const row of (sellersResult.data ?? []) as Array<{
         id: string
         display_name: string | null
+        custom_id: string | null
         avatar_url: string | null
       }>) {
         sellerById.set(row.id, {
           display_name: row.display_name,
+          custom_id: row.custom_id,
           avatar_url: row.avatar_url,
         })
       }
@@ -1115,6 +1168,7 @@ export default function MypageClient() {
           sellerId: row.seller_id,
           sellerDisplayName: sellerName,
           sellerAvatarUrl: resolveProfileAvatarUrl(seller?.avatar_url ?? null, sellerName),
+          sellerProfilePath: buildProfilePath(row.seller_id, seller?.custom_id ?? null),
           transactionId,
           status: row.status,
           rejectionReason: dbReason || fallbackReason,
@@ -1533,6 +1587,42 @@ export default function MypageClient() {
       return
     }
     setNotice(null)
+    const normalizedCustomId = normalizeCustomId(customId)
+    const normalizedSavedCustomId = normalizeCustomId(savedCustomId)
+    if (
+      !customIdConfirmBypassRef.current &&
+      normalizedSavedCustomId.length === 0 &&
+      normalizedCustomId.length > 0
+    ) {
+      setPendingCustomIdForConfirm(normalizedCustomId)
+      setShowCustomIdConfirm(true)
+      return
+    }
+    customIdConfirmBypassRef.current = false
+    if (normalizedSavedCustomId.length > 0 && normalizedCustomId !== normalizedSavedCustomId) {
+      setNotice({
+        variant: "error",
+        message: "カスタムIDは一度設定すると変更できません。",
+      })
+      return
+    }
+    if (normalizedCustomId.length > 0) {
+      if (!isValidCustomIdFormat(normalizedCustomId)) {
+        setNotice({
+          variant: "error",
+          message:
+            "カスタムIDは英小文字で開始し、3〜30文字の英小文字・数字・_・-のみ使用できます。",
+        })
+        return
+      }
+      if (isReservedCustomId(normalizedCustomId)) {
+        setNotice({
+          variant: "error",
+          message: "そのカスタムIDは予約語のため利用できません。",
+        })
+        return
+      }
+    }
     setProfileSaving(true)
 
     let uploadedNewUrl: string | null = null
@@ -1570,6 +1660,7 @@ export default function MypageClient() {
       bio: bio.trim() || null,
       fitness_history: fitnessHistory.trim() || null,
       category: selectedCategories,
+      custom_id: normalizedCustomId || null,
       ...avatarExtras,
     }
 
@@ -1583,6 +1674,10 @@ export default function MypageClient() {
       if (error) {
         if (uploadedNewUrl) {
           await removeAvatarObjectAtPublicUrl(supabase, userId, uploadedNewUrl)
+        }
+        if ((error as { code?: string } | null)?.code === "23505") {
+          setNotice({ variant: "error", message: "このカスタムIDは既に使用されています。" })
+          return
         }
         setNotice(toErrorNotice(error, isAdmin, { unknownErrorMessage: "保存に失敗しました。" }))
         return
@@ -1629,6 +1724,10 @@ export default function MypageClient() {
       if (uploadedNewUrl) {
         await removeAvatarObjectAtPublicUrl(supabase, userId, uploadedNewUrl)
       }
+      if ((error as { code?: string } | null)?.code === "23505") {
+        setNotice({ variant: "error", message: "このカスタムIDは既に使用されています。" })
+        return
+      }
       setNotice(toErrorNotice(error, isAdmin, { unknownErrorMessage: "保存に失敗しました。" }))
       return
     }
@@ -1663,6 +1762,21 @@ export default function MypageClient() {
     setShowAccountLogoutConfirm(false)
   }, [accountLogoutBusy])
 
+  const handleCustomIdConfirmCancel = useCallback(() => {
+    if (profileSaving) {
+      return
+    }
+    customIdConfirmBypassRef.current = false
+    setShowCustomIdConfirm(false)
+    setPendingCustomIdForConfirm("")
+  }, [profileSaving])
+
+  const handleCustomIdConfirmProceed = useCallback(() => {
+    customIdConfirmBypassRef.current = true
+    setShowCustomIdConfirm(false)
+    profileFormRef.current?.requestSubmit()
+  }, [])
+
   const handleAccountLogoutConfirm = useCallback(async () => {
     if (accountLogoutBusy) {
       return
@@ -1680,6 +1794,7 @@ export default function MypageClient() {
   }, [accountLogoutBusy, supabase, router])
 
   const canChangeDisplayNameNow = canChangeDisplayNameAfterCooldown(lastNameChange)
+  const customIdLocked = savedCustomId.trim().length > 0
   const nextEligibleAt = useMemo(
     () => getNextDisplayNameChangeEligibleAt(lastNameChange),
     [lastNameChange],
@@ -1889,12 +2004,25 @@ export default function MypageClient() {
           </div>
           {section === "profile" && (
             <div className="mx-auto max-w-2xl">
-              <h1 className="text-2xl font-black tracking-wide text-white md:text-3xl">プロフィール設定</h1>
-              <p className="mt-1 text-sm text-zinc-400">
-                アイコン・表示名・自己紹介・興味のある分野を管理します。
-              </p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h1 className="text-2xl font-black tracking-wide text-white md:text-3xl">プロフィール設定</h1>
+                  <p className="mt-1 text-sm text-zinc-400">
+                    アイコン・表示名・自己紹介・興味のある分野を管理します。
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void handleCopyProfileUrl()}
+                  className="border-red-500/45 bg-zinc-950 text-red-100 hover:border-red-400 hover:bg-red-950/35"
+                >
+                  <Copy className="mr-2 h-4 w-4" aria-hidden />
+                  自分のプロフィールURLをコピーする
+                </Button>
+              </div>
 
-              <form onSubmit={(e) => void handleProfileSubmit(e)} className="mt-8 space-y-8">
+              <form ref={profileFormRef} onSubmit={(e) => void handleProfileSubmit(e)} className="mt-8 space-y-8">
                 <div className="rounded-2xl border border-red-500/25 bg-zinc-900/80 p-6 shadow-[0_0_40px_rgba(198,40,40,0.12)]">
                   <p className="text-sm font-bold text-zinc-200">プロフィール画像</p>
                   <p className="mt-1 text-xs text-zinc-500">
@@ -1970,6 +2098,32 @@ export default function MypageClient() {
                       </span>
                     ) : null}
                   </p>
+
+                  <label htmlFor="mypage-custom-id" className="mt-5 block text-sm font-bold text-zinc-200">
+                    カスタムID（任意・設定推奨）
+                  </label>
+                  <Input
+                    id="mypage-custom-id"
+                    value={customId}
+                    onChange={(e) => setCustomId(normalizeCustomId(e.target.value))}
+                    placeholder="例: taro_fit"
+                    className={`mt-2 border-zinc-700 placeholder:text-zinc-500 ${
+                      customIdLocked
+                        ? "cursor-not-allowed bg-zinc-800 text-zinc-400 opacity-100"
+                        : "bg-zinc-950 text-zinc-100 focus-visible:ring-red-500"
+                    }`}
+                    aria-describedby="mypage-custom-id-hint"
+                    disabled={customIdLocked}
+                  />
+                  <p id="mypage-custom-id-hint" className="mt-2 text-xs leading-relaxed text-zinc-500">
+                    プロフィールURLを見やすくできます（例: 『taro_fit』とした場合、https://gritvib.com/profile/taro_fit のように表示されます）。英小文字で開始し、3〜30文字の英小文字・数字・アンダーバー・ハイフンが使えます。
+                    一度設定したカスタムIDは変更できませんのでご注意ください。
+                  </p>
+                  {customIdLocked ? (
+                    <p className="mt-1 text-xs font-semibold text-zinc-400">
+                      設定済みのため、カスタムIDは編集できません。
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="rounded-2xl border border-red-500/25 bg-zinc-900/80 p-6 shadow-[0_0_40px_rgba(198,40,40,0.12)]">
@@ -2217,7 +2371,7 @@ export default function MypageClient() {
                                 <p className="font-semibold text-white">{item.skillTitle}</p>
                                 <div className="mt-1 flex items-center gap-2 text-sm text-zinc-400">
                                   <Link
-                                    href={`/profile/${encodeURIComponent(item.buyerId)}`}
+                                    href={item.buyerProfilePath}
                                     className="inline-flex items-center gap-2 rounded-md px-1 py-0.5 transition-colors hover:bg-zinc-800/80 hover:text-zinc-200"
                                   >
                                     <div
@@ -2368,7 +2522,7 @@ export default function MypageClient() {
                               </Link>
                               <div className="mt-1 flex items-center gap-2 text-sm text-zinc-400">
                                 <Link
-                                  href={`/profile/${encodeURIComponent(item.sellerId)}`}
+                                  href={item.sellerProfilePath}
                                   className="inline-flex items-center gap-2 rounded-md px-1 py-0.5 transition-colors hover:bg-zinc-800/80 hover:text-zinc-200"
                                 >
                                   <div
@@ -2998,6 +3152,57 @@ export default function MypageClient() {
           </div>
         </div>
       ) : null}
+
+      {typeof document !== "undefined" &&
+        showCustomIdConfirm &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[10000] flex min-h-[100dvh] w-full items-center justify-center overflow-y-auto bg-black/70 p-4 sm:p-6"
+            role="presentation"
+            onClick={handleCustomIdConfirmCancel}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="custom-id-confirm-title"
+              className="my-auto w-full max-w-md shrink-0 rounded-xl border border-zinc-700 bg-zinc-950 p-6 shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <h2 id="custom-id-confirm-title" className="text-base font-semibold leading-relaxed text-zinc-100">
+                カスタムID設定の確認
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-zinc-300">
+                このIDで設定すると、プロフィールURLは以下になります。
+              </p>
+              <div className="mt-3 rounded-lg border border-red-500/35 bg-zinc-900 px-3 py-2 font-mono text-sm text-red-200">
+                /profile/{pendingCustomIdForConfirm}
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-zinc-300">
+                カスタムIDは一度設定すると変更できません。この内容で保存しますか？
+              </p>
+              <div className="mt-6 flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 border-zinc-600 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
+                  onClick={handleCustomIdConfirmCancel}
+                  disabled={profileSaving}
+                >
+                  戻る
+                </Button>
+                <Button
+                  type="button"
+                  className="flex-1 bg-red-600 font-semibold text-white hover:bg-red-500"
+                  onClick={handleCustomIdConfirmProceed}
+                  disabled={profileSaving}
+                >
+                  このIDで保存する
+                </Button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
 
       {typeof document !== "undefined" &&
         showAccountLogoutConfirm &&

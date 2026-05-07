@@ -1,6 +1,8 @@
 import type { Metadata } from "next"
+import { permanentRedirect } from "next/navigation"
 import { createClient } from "@supabase/supabase-js"
 import ProfilePage from "@/profile/[user_id]/page"
+import { isUuid, normalizeCustomId } from "@/lib/profile-path"
 import { LAYOUT_DESCRIPTION } from "@/lib/site-seo"
 
 type ProfilePageProps = {
@@ -22,7 +24,9 @@ export async function generateMetadata({
   params: Promise<{ user_id: string }>
 }): Promise<Metadata> {
   const { user_id } = await params
-  const canonicalPath = `/profile/${user_id}`
+  const identifier = user_id.trim()
+  const normalizedCustomId = normalizeCustomId(identifier)
+  const canonicalPath = `/profile/${identifier}`
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   if (!supabaseUrl || !supabaseKey) {
@@ -34,11 +38,14 @@ export async function generateMetadata({
     }
   }
   const supabase = createClient(supabaseUrl, supabaseKey)
-  const { data } = await supabase
-    .from("profiles")
-    .select("display_name, bio")
-    .eq("id", user_id)
-    .maybeSingle()
+  const profileQuery = supabase.from("profiles").select("display_name, bio, custom_id")
+  const { data } = await (isUuid(identifier)
+    ? profileQuery.eq("id", identifier).maybeSingle()
+    : profileQuery.eq("custom_id", normalizedCustomId).maybeSingle())
+
+  const canonicalSegment =
+    typeof data?.custom_id === "string" && data.custom_id.trim().length > 0 ? data.custom_id.trim() : identifier
+  const resolvedCanonicalPath = `/profile/${encodeURIComponent(canonicalSegment)}`
 
   const displayName =
     typeof data?.display_name === "string" && data.display_name.trim().length > 0
@@ -55,11 +62,11 @@ export async function generateMetadata({
   return {
     title: ogTitle,
     description,
-    alternates: { canonical: canonicalPath },
+    alternates: { canonical: resolvedCanonicalPath },
     openGraph: {
       title: ogTitle,
       description,
-      url: canonicalPath,
+      url: resolvedCanonicalPath,
       type: "website",
       locale: "ja_JP",
       siteName: "GritVib",
@@ -73,7 +80,25 @@ export async function generateMetadata({
 }
 
 export default async function Page({ params, searchParams }: ProfilePageProps) {
-  await params
+  const { user_id } = await params
   await searchParams
+  const identifier = user_id.trim()
+  const normalizedCustomId = normalizeCustomId(identifier)
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (supabaseUrl && supabaseKey && isUuid(identifier)) {
+    const supabase = createClient(supabaseUrl, supabaseKey)
+    const { data } = await supabase
+      .from("profiles")
+      .select("custom_id")
+      .eq("id", identifier)
+      .maybeSingle()
+    const resolvedCustomId = typeof data?.custom_id === "string" ? data.custom_id.trim() : ""
+    if (resolvedCustomId.length > 0 && normalizeCustomId(resolvedCustomId) !== normalizedCustomId) {
+      permanentRedirect(`/profile/${encodeURIComponent(resolvedCustomId)}`)
+    }
+  }
+
   return <ProfilePage />
 }
