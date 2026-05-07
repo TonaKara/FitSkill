@@ -32,7 +32,10 @@ function getSupabaseAdminClient() {
   return createClient(supabaseUrl, serviceRoleKey)
 }
 
-async function isAdminUser(supabaseAdmin: ReturnType<typeof createClient>, userId: string): Promise<boolean> {
+async function isAdminUser(
+  supabaseAdmin: NonNullable<ReturnType<typeof getSupabaseAdminClient>>,
+  userId: string,
+): Promise<boolean> {
   const { data } = await supabaseAdmin.from("profiles").select("is_admin").eq("id", userId).maybeSingle()
   return (data as { is_admin?: boolean | null } | null)?.is_admin === true
 }

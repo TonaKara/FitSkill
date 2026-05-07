@@ -148,6 +148,7 @@ export function AdminTableCard({
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
   const columnsKey = columns.join("|")
   const filtersKey = JSON.stringify(filters)
+  const stableFilters = useMemo(() => JSON.parse(filtersKey) as Filter[], [filtersKey])
   const [rows, setRows] = useState<Record<string, unknown>[]>([])
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -206,6 +207,18 @@ export function AdminTableCard({
     }
     return rows
   }, [profileSearch, rows, skillSearch, tableName])
+  const isAdminProfilesView =
+    tableName === "profiles" &&
+    stableFilters.some(
+      (filter) => !("operator" in filter) && filter.column === "is_admin" && filter.value === true,
+    )
+  const tableSelectColumns = useMemo(() => {
+    if (tableName === "skills") {
+      const cols = columns.filter((column) => column !== "action")
+      return cols.length > 0 ? cols.join(", ") : "*"
+    }
+    return "*"
+  }, [columns, tableName])
 
   const rowIdentityKey = (row: Record<string, unknown>): string => {
     if (tableName === "user_reports") {
@@ -710,6 +723,9 @@ export function AdminTableCard({
     }
 
     if (tableName === "profiles") {
+      if (isAdminProfilesView) {
+        return <span className="text-zinc-500">—</span>
+      }
       const rowKey = rowIdentityKey(row)
       const isPending = actionPendingKey === rowKey
       const isBanned = String(row.status ?? "") === "banned"
@@ -881,8 +897,8 @@ export function AdminTableCard({
         }
 
         // まず * 取得でテーブル列を確認し、created_at / updated_at の存在を安全に判定する
-        let probeQuery = supabase.from(tableName).select("*").limit(1)
-        for (const filter of filters) {
+        let probeQuery = supabase.from(tableName).select(tableSelectColumns).limit(1)
+        for (const filter of stableFilters) {
           if ("operator" in filter && filter.operator === "notNull") {
             probeQuery = probeQuery.not(filter.column, "is", null)
           } else {
@@ -924,8 +940,8 @@ export function AdminTableCard({
           return
         }
 
-        let query = supabase.from(tableName).select("*")
-        for (const filter of filters) {
+        let query = supabase.from(tableName).select(tableSelectColumns)
+        for (const filter of stableFilters) {
           if ("operator" in filter && filter.operator === "notNull") {
             query = query.not(filter.column, "is", null)
           } else {
@@ -965,7 +981,7 @@ export function AdminTableCard({
         if (Array.isArray(data) && data.length === 0 && !error) {
           console.log(`[AdminTableCard] ${tableName}: データが空です`)
         }
-        const fetchedRows = data as Record<string, unknown>[]
+        const fetchedRows = data as unknown as Record<string, unknown>[]
         setRows(fetchedRows)
 
         if (tableName === "user_reports") {
@@ -1039,7 +1055,19 @@ export function AdminTableCard({
     return () => {
       cancelled = true
     }
-  }, [columnsKey, filtersKey, limit, orderBy, reloadTick, sortAscending, sortBy, supabase, tableName])
+  }, [
+    columnsKey,
+    filtersKey,
+    limit,
+    orderBy,
+    reloadTick,
+    sortAscending,
+    sortBy,
+    supabase,
+    tableName,
+    tableSelectColumns,
+    stableFilters,
+  ])
 
   const handleRowClick = (row: Record<string, unknown>) => {
     setSelectedItem(row)
