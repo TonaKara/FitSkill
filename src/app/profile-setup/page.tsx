@@ -1,6 +1,15 @@
 "use client"
 
-import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import {
+  ChangeEvent,
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
+import { createPortal } from "react-dom"
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -20,6 +29,12 @@ import { resolveProfileAvatarUrl } from "@/lib/profile-avatar"
 import { SKILL_CATEGORY_OPTIONS } from "@/lib/skill-categories"
 import { getIsAdminFromProfile } from "@/lib/admin"
 import { toErrorNotice, type AppNotice } from "@/lib/notifications"
+import {
+  isReservedCustomId,
+  isValidCustomIdFormat,
+  normalizeCustomId,
+} from "@/lib/profile-path"
+import { getSiteUrl } from "@/lib/site-seo"
 
 function revokeBlobUrl(url: string) {
   if (url.startsWith("blob:")) {
@@ -53,6 +68,14 @@ export default function ProfileSetupPage() {
   const [bio, setBio] = useState("")
   const [fitnessHistory, setFitnessHistory] = useState("")
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [customId, setCustomId] = useState("")
+  const [savedCustomId, setSavedCustomId] = useState("")
+  const [showCustomIdConfirm, setShowCustomIdConfirm] = useState(false)
+  const [pendingCustomIdForConfirm, setPendingCustomIdForConfirm] = useState("")
+  const formRef = useRef<HTMLFormElement>(null)
+  const customIdConfirmBypassRef = useRef(false)
+
+  const siteBaseUrl = useMemo(() => getSiteUrl(), [])
 
   const toggleCategory = (label: string) => {
     setSelectedCategories((prev) =>
@@ -90,7 +113,7 @@ export default function ProfileSetupPage() {
     setProfileLoading(true)
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, display_name, avatar_url, bio, fitness_history, category")
+      .select("id, display_name, avatar_url, bio, fitness_history, category, custom_id")
       .eq("id", userId)
       .maybeSingle()
 
@@ -107,6 +130,8 @@ export default function ProfileSetupPage() {
     const fhVal = row?.fitness_history
     const nameVal = row?.display_name
     const avatarVal = row?.avatar_url
+    const customIdVal = row?.custom_id
+    const customIdStr = typeof customIdVal === "string" ? customIdVal.trim() : ""
 
     setDisplayNameLabel(typeof nameVal === "string" ? nameVal.trim() : "")
     setStoredAvatarUrl(typeof avatarVal === "string" && avatarVal.trim().length > 0 ? avatarVal.trim() : null)
@@ -115,6 +140,8 @@ export default function ProfileSetupPage() {
     setSelectedCategories(
       normalizeProfileCategory(row?.category).filter((c) => c !== "フィットネス"),
     )
+    setCustomId(customIdStr)
+    setSavedCustomId(customIdStr)
     setPendingAvatarFile(null)
     setAvatarMarkedForRemoval(false)
     setPendingAvatarPreview((prev) => {
@@ -220,6 +247,24 @@ export default function ProfileSetupPage() {
     return publicUrl
   }
 
+  const customIdLocked = savedCustomId.trim().length > 0
+
+  const handleCustomIdConfirmCancel = useCallback(() => {
+    if (saving) {
+      return
+    }
+    customIdConfirmBypassRef.current = false
+    setShowCustomIdConfirm(false)
+    setPendingCustomIdForConfirm("")
+  }, [saving])
+
+  const handleCustomIdConfirmProceed = useCallback(() => {
+    customIdConfirmBypassRef.current = true
+    setShowCustomIdConfirm(false)
+    setPendingCustomIdForConfirm("")
+    formRef.current?.requestSubmit()
+  }, [])
+
   const previewAvatarSrc = useMemo(() => {
     if (pendingAvatarPreview) {
       return pendingAvatarPreview
@@ -236,6 +281,45 @@ export default function ProfileSetupPage() {
       return
     }
     setNotice(null)
+
+    const normalizedCustomId = normalizeCustomId(customId)
+    const normalizedSavedCustomId = normalizeCustomId(savedCustomId)
+    if (
+      !customIdConfirmBypassRef.current &&
+      normalizedSavedCustomId.length === 0 &&
+      normalizedCustomId.length > 0
+    ) {
+      setPendingCustomIdForConfirm(normalizedCustomId)
+      setShowCustomIdConfirm(true)
+      return
+    }
+    customIdConfirmBypassRef.current = false
+
+    if (normalizedSavedCustomId.length > 0 && normalizedCustomId !== normalizedSavedCustomId) {
+      setNotice({
+        variant: "error",
+        message: "カスタムIDは一度設定すると変更できません。",
+      })
+      return
+    }
+    if (normalizedCustomId.length > 0) {
+      if (!isValidCustomIdFormat(normalizedCustomId)) {
+        setNotice({
+          variant: "error",
+          message:
+            "カスタムIDは英小文字で開始し、3〜30文字の英小文字・数字・_・-のみ使用できます。",
+        })
+        return
+      }
+      if (isReservedCustomId(normalizedCustomId)) {
+        setNotice({
+          variant: "error",
+          message: "そのカスタムIDは予約語のため利用できません。",
+        })
+        return
+      }
+    }
+
     setSaving(true)
 
     let uploadedNewUrl: string | null = null
@@ -259,6 +343,7 @@ export default function ProfileSetupPage() {
         bio,
         fitness_history: fitnessHistory,
         category: selectedCategories,
+        custom_id: normalizedCustomId,
       }
 
       if (pendingAvatarFile && uploadedNewUrl) {
@@ -305,7 +390,11 @@ export default function ProfileSetupPage() {
             message: parts.length > 0 ? parts.join(" — ") : GENERIC_SAVE_FAILED,
           })
         } else {
-          setNotice({ variant: "error", message: GENERIC_SAVE_FAILED })
+          const apiMsg =
+            typeof responsePayload.error === "string" && responsePayload.error.trim().length > 0
+              ? responsePayload.error.trim()
+              : GENERIC_SAVE_FAILED
+          setNotice({ variant: "error", message: apiMsg })
         }
         return
       }
@@ -387,7 +476,7 @@ export default function ProfileSetupPage() {
           </Link>
         </div>
 
-        <form onSubmit={(e) => void handleSubmit(e)} className="space-y-8">
+        <form ref={formRef} onSubmit={(e) => void handleSubmit(e)} className="space-y-8">
           <div className="rounded-2xl border border-red-500/25 bg-zinc-950/80 p-6 shadow-[0_0_40px_rgba(198,40,40,0.12)]">
             <p className="text-sm font-bold text-zinc-200">プロフィール画像</p>
             <p className="mt-1 text-xs text-zinc-500">
@@ -441,6 +530,35 @@ export default function ProfileSetupPage() {
                 </Button>
               </div>
             </div>
+          </div>
+
+          <div className="rounded-2xl border border-red-500/25 bg-zinc-950/80 p-6 shadow-[0_0_40px_rgba(198,40,40,0.12)]">
+            <label htmlFor="profile-setup-custom-id" className="text-sm font-bold text-zinc-200">
+              カスタムID（任意・設定推奨）
+            </label>
+            <Input
+              id="profile-setup-custom-id"
+              value={customId}
+              onChange={(e) => setCustomId(normalizeCustomId(e.target.value))}
+              placeholder="例: taro_fit"
+              className={`mt-2 border-zinc-700 placeholder:text-zinc-500 ${
+                customIdLocked
+                  ? "cursor-not-allowed bg-zinc-800 text-zinc-400 opacity-100"
+                  : "bg-zinc-950 text-zinc-100 focus-visible:ring-red-500"
+              }`}
+              aria-describedby="profile-setup-custom-id-hint"
+              disabled={customIdLocked}
+            />
+            <p id="profile-setup-custom-id-hint" className="mt-2 text-xs leading-relaxed text-zinc-500">
+              プロフィールURLを見やすくできます（例: 『taro_fit』とした場合、
+              {`${siteBaseUrl}/profile/taro_fit`} のように表示されます）。英小文字で開始し、3〜30文字の英小文字・数字・アンダーバー・ハイフンが使えます。
+              一度設定したカスタムIDは変更できませんのでご注意ください。
+            </p>
+            {customIdLocked ? (
+              <p className="mt-1 text-xs font-semibold text-zinc-400">
+                設定済みのため、カスタムIDは編集できません。
+              </p>
+            ) : null}
           </div>
 
           <div className="rounded-2xl border border-red-500/25 bg-zinc-950/80 p-6 shadow-[0_0_40px_rgba(198,40,40,0.12)]">
@@ -519,6 +637,60 @@ export default function ProfileSetupPage() {
           </Button>
         </form>
       </div>
+
+      {typeof document !== "undefined" &&
+        showCustomIdConfirm &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[10000] flex min-h-[100dvh] w-full items-center justify-center overflow-y-auto bg-black/70 p-4 sm:p-6"
+            role="presentation"
+            onClick={handleCustomIdConfirmCancel}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="profile-setup-custom-id-confirm-title"
+              className="my-auto w-full max-w-md shrink-0 rounded-xl border border-zinc-700 bg-zinc-950 p-6 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2
+                id="profile-setup-custom-id-confirm-title"
+                className="text-base font-semibold leading-relaxed text-zinc-100"
+              >
+                カスタムID設定の確認
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-zinc-300">
+                このIDで設定すると、プロフィールURLは以下になります。
+              </p>
+              <div className="mt-3 rounded-lg border border-red-500/35 bg-zinc-900 px-3 py-2 font-mono text-sm text-red-200 break-all">
+                {siteBaseUrl}/profile/{pendingCustomIdForConfirm}
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-zinc-300">
+                カスタムIDは一度設定すると変更できません。この内容で保存しますか？
+              </p>
+              <div className="mt-6 flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 border-zinc-600 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
+                  onClick={handleCustomIdConfirmCancel}
+                  disabled={saving}
+                >
+                  戻る
+                </Button>
+                <Button
+                  type="button"
+                  className="flex-1 bg-red-600 font-semibold text-white hover:bg-red-500"
+                  onClick={handleCustomIdConfirmProceed}
+                  disabled={saving}
+                >
+                  このIDで保存する
+                </Button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

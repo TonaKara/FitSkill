@@ -1,6 +1,11 @@
 import type { PostgrestError } from "@supabase/supabase-js"
 import { requireApiUser } from "@/lib/api-auth"
 import { isTrustedAvatarPublicUrlForUser } from "@/lib/avatar-storage"
+import {
+  isReservedCustomId,
+  isValidCustomIdFormat,
+  normalizeCustomId,
+} from "@/lib/profile-path"
 
 type Body = {
   bio?: unknown
@@ -8,6 +13,8 @@ type Body = {
   category?: unknown
   /** 省略時は avatar を変更しない。null で削除。文字列は同一プロジェクトの avatars バケット由来のみ */
   avatar_url?: unknown
+  /** 初回のみ設定可。空文字は未設定のまま */
+  custom_id?: unknown
 }
 
 function jsonFromPostgrestError(err: PostgrestError) {
@@ -51,7 +58,7 @@ export async function POST(req: Request) {
 
   const { data: existing, error: existingError } = await supabase
     .from("profiles")
-    .select("display_name, status, is_admin")
+    .select("display_name, status, is_admin, custom_id")
     .eq("id", userId)
     .maybeSingle()
 
@@ -69,9 +76,60 @@ export async function POST(req: Request) {
         ? meta.full_name.trim()
         : null
 
-  const existingRow = existing as { display_name?: string | null; status?: string | null } | null
+  const existingRow = existing as {
+    display_name?: string | null
+    status?: string | null
+    custom_id?: string | null
+  } | null
   const existingName = (existingRow?.display_name ?? "").trim()
   const display_name = existingName.length > 0 ? existingName : fromMeta ?? "名前未設定"
+
+  const existingCustomIdNorm = normalizeCustomId(
+    typeof existingRow?.custom_id === "string" ? existingRow.custom_id : "",
+  )
+
+  let customIdForPayload: string | undefined
+  if (Object.prototype.hasOwnProperty.call(body, "custom_id")) {
+    const raw = body.custom_id
+    if (raw !== null && raw !== undefined && typeof raw !== "string") {
+      return Response.json(
+        { error: isAdminUser ? "custom_id の形式が不正です。" : GENERIC_SAVE_ERROR },
+        { status: 400 },
+      )
+    }
+    const normalizedInput = typeof raw === "string" ? normalizeCustomId(raw) : ""
+
+    if (existingCustomIdNorm.length > 0) {
+      if (normalizedInput.length === 0 || normalizedInput !== existingCustomIdNorm) {
+        return Response.json(
+          {
+            error: isAdminUser
+              ? "カスタムIDは一度設定すると変更・削除できません。"
+              : GENERIC_SAVE_ERROR,
+          },
+          { status: 400 },
+        )
+      }
+    } else if (normalizedInput.length > 0) {
+      if (!isValidCustomIdFormat(normalizedInput)) {
+        return Response.json(
+          {
+            error: isAdminUser
+              ? "カスタムIDは英小文字で開始し、3〜30文字の英小文字・数字・_・-のみ使用できます。"
+              : GENERIC_SAVE_ERROR,
+          },
+          { status: 400 },
+        )
+      }
+      if (isReservedCustomId(normalizedInput)) {
+        return Response.json(
+          { error: isAdminUser ? "そのカスタムIDは予約語のため利用できません。" : GENERIC_SAVE_ERROR },
+          { status: 400 },
+        )
+      }
+      customIdForPayload = normalizedInput
+    }
+  }
 
   const basePayload: Record<string, unknown> = {
     id: userId,
@@ -79,6 +137,10 @@ export async function POST(req: Request) {
     fitness_history,
     category,
     display_name,
+  }
+
+  if (customIdForPayload !== undefined) {
+    basePayload.custom_id = customIdForPayload
   }
 
   if (!existingRow) {
@@ -94,7 +156,16 @@ export async function POST(req: Request) {
   }
 
   if (result.error) {
-    return Response.json(jsonErrorForClient(result.error, isAdminUser), { status: 400 })
+    const pgErr = result.error as PostgrestError
+    if (pgErr.code === "23505") {
+      return Response.json(
+        isAdminUser
+          ? jsonFromPostgrestError(pgErr)
+          : { error: "このカスタムIDは既に使用されています。" },
+        { status: 400 },
+      )
+    }
+    return Response.json(jsonErrorForClient(pgErr, isAdminUser), { status: 400 })
   }
 
   if (Object.prototype.hasOwnProperty.call(body, "avatar_url")) {
