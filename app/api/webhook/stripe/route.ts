@@ -29,6 +29,35 @@ function isMissingStripePaymentIntentColumnError(message: string): boolean {
   return normalized.includes("stripe_payment_intent_id") && normalized.includes("could not find")
 }
 
+async function markStripeEventAsProcessing(
+  supabase: ReturnType<typeof getSupabaseAdminClient>,
+  eventId: string,
+): Promise<"new" | "already_processed"> {
+  const { data, error } = await supabase
+    .from("stripe_webhook_events")
+    .insert({
+      stripe_event_id: eventId,
+      received_at: new Date().toISOString(),
+    })
+    .select("stripe_event_id")
+    .maybeSingle()
+  if (!error) {
+    return data?.stripe_event_id ? "new" : "new"
+  }
+  const normalized = String(error.message ?? "").toLowerCase()
+  if (
+    normalized.includes("stripe_webhook_events") &&
+    (normalized.includes("does not exist") || normalized.includes("could not find"))
+  ) {
+    // 冪等テーブル未作成環境では従来動作を維持（要SQL適用）
+    return "new"
+  }
+  if ((error as { code?: string }).code === "23505" || normalized.includes("duplicate key")) {
+    return "already_processed"
+  }
+  throw new Error(error.message)
+}
+
 async function ensureSellerPurchaseNotification(params: {
   supabase: ReturnType<typeof getSupabaseAdminClient>
   transactionId: string
@@ -116,6 +145,30 @@ async function createTransactionFromCheckoutSession(session: Stripe.Checkout.Ses
   }
 
   const supabase = getSupabaseAdminClient()
+  const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : null
+  if (paymentIntentId) {
+    const { data: byPaymentIntent, error: byPiError } = await supabase
+      .from("transactions")
+      .select("id, status")
+      .eq("stripe_payment_intent_id", paymentIntentId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (byPiError) {
+      throw new Error(byPiError.message)
+    }
+    if (byPaymentIntent?.id) {
+      await ensureSellerPurchaseNotification({
+        supabase,
+        transactionId: String(byPaymentIntent.id),
+        sellerId,
+        buyerId,
+        skillId,
+      })
+      return
+    }
+  }
+
   const { data: existingTx, error: existingTxError } = await supabase
     .from("transactions")
     .select("id, status")
@@ -178,7 +231,6 @@ async function createTransactionFromCheckoutSession(session: Stripe.Checkout.Ses
     throw new Error("Checkout metadata seller_id does not match skill owner")
   }
 
-  const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : null
   let { data: insertedTransaction, error: insertError } = await supabase
     .from("transactions")
     .insert({
@@ -240,6 +292,15 @@ export async function POST(req: Request) {
   }
 
   try {
+    const supabase = getSupabaseAdminClient()
+    const processingState = await markStripeEventAsProcessing(supabase, event.id)
+    if (processingState === "already_processed") {
+      return new Response(JSON.stringify({ received: true, skipped: "duplicate_event" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    }
+
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session

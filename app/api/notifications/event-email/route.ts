@@ -2,16 +2,26 @@ import { createClient } from "@supabase/supabase-js"
 import { requireApiUser } from "@/lib/api-auth"
 import { getAppUrl, sendUserEventEmail } from "@/lib/event-email"
 
-type Body =
-  | { event?: "consultation_received"; answerId?: string }
-  | { event?: "consultation_decision"; answerId?: string; decision?: "accepted" | "rejected" }
-  | { event?: "transaction_established"; transactionId?: string }
-  | { event?: "transaction_message"; transactionId?: string }
-  | { event?: "transaction_completed"; transactionId?: string }
-  | { event?: "completion_requested"; transactionId?: string }
-  | { event?: "dispute_result"; transactionId?: string; result?: "approved" | "rejected" }
-  | { event?: "user_banned"; targetUserId?: string; reason?: string }
-  | { event?: "skill_moderated"; skillId?: string; action?: "unpublished" | "deleted"; reason?: string }
+type Body = {
+  event?:
+    | "consultation_received"
+    | "consultation_decision"
+    | "transaction_established"
+    | "transaction_message"
+    | "transaction_completed"
+    | "completion_requested"
+    | "dispute_result"
+    | "user_banned"
+    | "skill_moderated"
+  answerId?: string
+  decision?: "accepted" | "rejected"
+  transactionId?: string
+  result?: "approved" | "rejected"
+  targetUserId?: string
+  reason?: string
+  skillId?: string
+  action?: "unpublished" | "deleted"
+}
 
 function getSupabaseAdminClient() {
   const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL

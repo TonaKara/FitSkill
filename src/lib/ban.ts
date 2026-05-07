@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 type BanProfile = {
+  status: string | null
   is_banned: boolean | null
   is_admin: boolean | null
 }
@@ -11,7 +12,7 @@ export async function getBanStatusFromProfile(supabase: SupabaseClient, userId: 
 }> {
   const { data, error } = await supabase
     .from("profiles")
-    .select("is_banned, is_admin")
+    .select("status, is_banned, is_admin")
     .eq("id", userId)
     .maybeSingle<BanProfile>()
 
@@ -20,7 +21,7 @@ export async function getBanStatusFromProfile(supabase: SupabaseClient, userId: 
   }
 
   return {
-    isBanned: Boolean(data?.is_banned),
+    isBanned: (data?.status ?? "").trim() === "banned" || Boolean(data?.is_banned),
     isAdmin: Boolean(data?.is_admin),
   }
 }

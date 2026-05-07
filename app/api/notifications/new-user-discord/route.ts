@@ -1,5 +1,6 @@
 import { sendDiscordNotification } from "@/lib/discord"
 import { getSiteUrl } from "@/lib/site-seo"
+import { requireApiUser } from "@/lib/api-auth"
 
 type Payload = {
   userId?: string
@@ -21,6 +22,11 @@ function resolveNewUserDiscordWebhookUrl(): string {
 
 export async function POST(req: Request) {
   try {
+    const auth = await requireApiUser()
+    if (!auth.ok) {
+      return auth.response
+    }
+
     const origin = req.headers.get("origin")?.trim()
     const siteOrigin = new URL(getSiteUrl()).origin
     if (origin && origin !== siteOrigin) {
@@ -39,6 +45,9 @@ export async function POST(req: Request) {
     if (!userId) {
       return Response.json({ ok: false, error: "userId is required" }, { status: 400 })
     }
+    if (auth.context.user.id !== userId) {
+      return Response.json({ ok: false, error: "Forbidden" }, { status: 403 })
+    }
 
     const baseUrl = getSiteUrl().replace(/\/$/, "")
     const adminUsersUrl = `${baseUrl}/admin/users`
@@ -56,7 +65,7 @@ export async function POST(req: Request) {
     )
 
     return Response.json({ ok: true })
-  } catch (error) {
+  } catch {
     return Response.json({ ok: false, error: "Failed to send notification" }, { status: 500 })
   }
 }

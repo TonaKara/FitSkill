@@ -45,6 +45,27 @@ function isMissingStripePaymentIntentColumnError(message: string): boolean {
   return normalized.includes("stripe_payment_intent_id") && normalized.includes("could not find")
 }
 
+async function findTransactionByPaymentIntent(params: {
+  supabaseAdmin: ReturnType<typeof getSupabaseAdminClient>
+  paymentIntentId: string | null
+}) {
+  const { supabaseAdmin, paymentIntentId } = params
+  if (!paymentIntentId) {
+    return null
+  }
+  const { data, error } = await supabaseAdmin
+    .from("transactions")
+    .select("id, status")
+    .eq("stripe_payment_intent_id", paymentIntentId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) {
+    throw new Error(error.message)
+  }
+  return data as { id?: string; status?: string } | null
+}
+
 function getStripeClient() {
   const secretKey = process.env.STRIPE_SECRET_KEY
   if (!secretKey) {
@@ -362,6 +383,22 @@ export async function finalizeCheckoutSessionAfterSuccess(
       return { ok: false, error: "この決済を確定する権限がありません。" }
     }
 
+    const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : null
+    const txByPaymentIntent = await findTransactionByPaymentIntent({
+      supabaseAdmin,
+      paymentIntentId,
+    })
+    if (txByPaymentIntent?.id) {
+      await ensureSellerPurchaseNotification({
+        supabaseAdmin,
+        transactionId: String(txByPaymentIntent.id),
+        sellerId,
+        buyerId,
+        skillId,
+      })
+      return { ok: true, transactionId: String(txByPaymentIntent.id), status: String(txByPaymentIntent.status ?? "active") }
+    }
+
     const { data: existingTx, error: existingTxError } = await supabaseAdmin
       .from("transactions")
       .select("id, status")
@@ -375,7 +412,6 @@ export async function finalizeCheckoutSessionAfterSuccess(
       return { ok: false, error: existingTxError.message }
     }
 
-    const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : null
     if (existingTx?.id) {
       if (existingTx.status === "awaiting_payment") {
         let { data: activatedTx, error: activateError } = await supabaseAdmin

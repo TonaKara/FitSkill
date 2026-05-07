@@ -24,7 +24,7 @@ export async function POST(req: Request) {
   try {
     const origin = req.headers.get("origin")?.trim()
     const siteOrigin = new URL(getSiteUrl()).origin
-    if (origin && origin !== siteOrigin) {
+    if (!origin || origin !== siteOrigin) {
       return Response.json({ ok: false, error: "Forbidden" }, { status: 403 })
     }
 
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
     )
 
     return Response.json({ ok: true })
-  } catch (error) {
+  } catch {
     return Response.json({ ok: false, error: "Failed to send notification" }, { status: 500 })
   }
 }
