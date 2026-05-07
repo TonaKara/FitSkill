@@ -23,6 +23,7 @@ type ResolvedProfile = {
   display_name: string | null
   bio: string | null
   custom_id: string | null
+  avatar_url: string | null
 }
 
 async function resolveProfile(identifierRaw: string): Promise<ResolvedProfile | null> {
@@ -38,7 +39,7 @@ async function resolveProfile(identifierRaw: string): Promise<ResolvedProfile | 
     return null
   }
   const supabase = createClient(supabaseUrl, key)
-  const baseQuery = supabase.from("profiles").select("id, display_name, bio, custom_id")
+  const baseQuery = supabase.from("profiles").select("id, display_name, bio, custom_id, avatar_url")
   const normalizedCustomId = normalizeCustomId(identifier)
   const { data } = await (isUuid(identifier)
     ? baseQuery.eq("id", identifier).maybeSingle()
@@ -80,24 +81,28 @@ export async function generateMetadata({
       ? bioTrunc
       : `${displayName}さんの公開プロフィール。GritVibでフィットネス指導スキルを掲載しています。`
 
-  const ogTitle = displayName
+  const title = `${displayName} | GritVib`
+  const avatarImage =
+    typeof profile.avatar_url === "string" && profile.avatar_url.trim().length > 0 ? profile.avatar_url.trim() : null
 
   return {
-    title: ogTitle,
+    title,
     description,
     alternates: { canonical: resolvedCanonicalPath },
     openGraph: {
-      title: ogTitle,
+      title,
       description,
       url: resolvedCanonicalPath,
       type: "website",
       locale: "ja_JP",
       siteName: "GritVib",
+      images: avatarImage ? [{ url: avatarImage }] : undefined,
     },
     twitter: {
       card: "summary",
-      title: ogTitle,
+      title,
       description,
+      images: avatarImage ? [avatarImage] : undefined,
     },
   }
 }
