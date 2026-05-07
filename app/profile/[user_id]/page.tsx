@@ -18,6 +18,37 @@ function truncateDescription(raw: string | null | undefined, max = 160): string 
   return t.length <= max ? t : `${t.slice(0, max - 1)}…`
 }
 
+type ResolvedProfile = {
+  id: string
+  display_name: string | null
+  bio: string | null
+  custom_id: string | null
+}
+
+async function resolveProfile(identifierRaw: string): Promise<ResolvedProfile | null> {
+  const identifier = identifierRaw.trim()
+  if (!identifier) {
+    return null
+  }
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const key = supabaseServiceKey ?? supabaseAnonKey
+  if (!supabaseUrl || !key) {
+    return null
+  }
+  const supabase = createClient(supabaseUrl, key)
+  const baseQuery = supabase.from("profiles").select("id, display_name, bio, custom_id")
+  const normalizedCustomId = normalizeCustomId(identifier)
+  const { data } = await (isUuid(identifier)
+    ? baseQuery.eq("id", identifier).maybeSingle()
+    : baseQuery.eq("custom_id", normalizedCustomId).maybeSingle())
+  if (!data?.id) {
+    return null
+  }
+  return data as ResolvedProfile
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -25,11 +56,9 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { user_id } = await params
   const identifier = user_id.trim()
-  const normalizedCustomId = normalizeCustomId(identifier)
   const canonicalPath = `/profile/${identifier}`
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  if (!supabaseUrl || !supabaseKey) {
+  const profile = await resolveProfile(identifier)
+  if (!profile) {
     return {
       title: "プロフィール",
       description: LAYOUT_DESCRIPTION,
@@ -37,21 +66,15 @@ export async function generateMetadata({
       robots: { index: false, follow: true },
     }
   }
-  const supabase = createClient(supabaseUrl, supabaseKey)
-  const profileQuery = supabase.from("profiles").select("display_name, bio, custom_id")
-  const { data } = await (isUuid(identifier)
-    ? profileQuery.eq("id", identifier).maybeSingle()
-    : profileQuery.eq("custom_id", normalizedCustomId).maybeSingle())
-
   const canonicalSegment =
-    typeof data?.custom_id === "string" && data.custom_id.trim().length > 0 ? data.custom_id.trim() : identifier
+    typeof profile.custom_id === "string" && profile.custom_id.trim().length > 0 ? profile.custom_id.trim() : identifier
   const resolvedCanonicalPath = `/profile/${encodeURIComponent(canonicalSegment)}`
 
   const displayName =
-    typeof data?.display_name === "string" && data.display_name.trim().length > 0
-      ? data.display_name.trim()
+    typeof profile.display_name === "string" && profile.display_name.trim().length > 0
+      ? profile.display_name.trim()
       : "トレーナー"
-  const bioTrunc = truncateDescription(typeof data?.bio === "string" ? data.bio : null)
+  const bioTrunc = truncateDescription(typeof profile.bio === "string" ? profile.bio : null)
   const description =
     bioTrunc.length > 0
       ? bioTrunc
@@ -83,22 +106,9 @@ export default async function Page({ params, searchParams }: ProfilePageProps) {
   const { user_id } = await params
   await searchParams
   const identifier = user_id.trim()
-  const normalizedCustomId = normalizeCustomId(identifier)
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (supabaseUrl && supabaseKey && isUuid(identifier)) {
-    const supabase = createClient(supabaseUrl, supabaseKey)
-    const { data } = await supabase
-      .from("profiles")
-      .select("custom_id")
-      .eq("id", identifier)
-      .maybeSingle()
-    const resolvedCustomId = typeof data?.custom_id === "string" ? data.custom_id.trim() : ""
-    if (resolvedCustomId.length > 0 && normalizeCustomId(resolvedCustomId) !== normalizedCustomId) {
-      permanentRedirect(`/profile/${encodeURIComponent(resolvedCustomId)}`)
-    }
+  const profile = await resolveProfile(identifier)
+  if (profile?.custom_id?.trim() && isUuid(identifier)) {
+    permanentRedirect(`/profile/${encodeURIComponent(profile.custom_id.trim())}`)
   }
-
-  return <ProfilePage />
+  return <ProfilePage resolvedProfileId={profile?.id} />
 }

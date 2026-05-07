@@ -457,7 +457,7 @@ export default function MypageClient() {
     if (typeof window === "undefined") {
       return
     }
-    const profileUrl = `${window.location.origin}${buildProfilePath(userId, customId)}`
+    const profileUrl = `${window.location.origin}${buildProfilePath(userId, savedCustomId)}`
     try {
       await navigator.clipboard.writeText(profileUrl)
       setNotice({ variant: "success", message: "プロフィールURLをコピーしました。" })
@@ -477,7 +477,7 @@ export default function MypageClient() {
       }
       setNotice({ variant: "success", message: "プロフィールURLをコピーしました。" })
     }
-  }, [customId, userId])
+  }, [savedCustomId, userId])
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -1795,6 +1795,7 @@ export default function MypageClient() {
 
   const canChangeDisplayNameNow = canChangeDisplayNameAfterCooldown(lastNameChange)
   const customIdLocked = savedCustomId.trim().length > 0
+  const profilePreviewPath = userId ? buildProfilePath(userId, savedCustomId) : null
   const nextEligibleAt = useMemo(
     () => getNextDisplayNameChangeEligibleAt(lastNameChange),
     [lastNameChange],
@@ -2011,15 +2012,29 @@ export default function MypageClient() {
                     アイコン・表示名・自己紹介・興味のある分野を管理します。
                   </p>
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => void handleCopyProfileUrl()}
-                  className="border-red-500/45 bg-zinc-950 text-red-100 hover:border-red-400 hover:bg-red-950/35"
-                >
-                  <Copy className="mr-2 h-4 w-4" aria-hidden />
-                  自分のプロフィールURLをコピーする
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  {profilePreviewPath ? (
+                    <Button
+                      asChild
+                      type="button"
+                      variant="outline"
+                      className="border-zinc-700 bg-zinc-950 text-zinc-100 hover:border-red-400 hover:bg-zinc-900"
+                    >
+                      <Link href={profilePreviewPath} target="_blank" rel="noreferrer">
+                        プレビューを見る
+                      </Link>
+                    </Button>
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void handleCopyProfileUrl()}
+                    className="border-red-500/45 bg-zinc-950 text-red-100 hover:border-red-400 hover:bg-red-950/35"
+                  >
+                    <Copy className="mr-2 h-4 w-4" aria-hidden />
+                    自分のプロフィールURLをコピーする
+                  </Button>
+                </div>
               </div>
 
               <form ref={profileFormRef} onSubmit={(e) => void handleProfileSubmit(e)} className="mt-8 space-y-8">
@@ -3175,7 +3190,7 @@ export default function MypageClient() {
                 このIDで設定すると、プロフィールURLは以下になります。
               </p>
               <div className="mt-3 rounded-lg border border-red-500/35 bg-zinc-900 px-3 py-2 font-mono text-sm text-red-200">
-                /profile/{pendingCustomIdForConfirm}
+                https://gritvib.com/profile/{pendingCustomIdForConfirm}
               </div>
               <p className="mt-3 text-sm leading-relaxed text-zinc-300">
                 カスタムIDは一度設定すると変更できません。この内容で保存しますか？

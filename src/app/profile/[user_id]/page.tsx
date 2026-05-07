@@ -17,13 +17,11 @@ import {
   type ProfileRatingComment,
   type ProfileRatingDistribution,
 } from "@/lib/profile-ratings"
-import { isUuid, normalizeCustomId } from "@/lib/profile-path"
 import { resolveProfileAvatarUrl } from "@/lib/profile-avatar"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 
 type ProfileRow = {
   id: string
-  custom_id: string | null
   display_name: string | null
   bio: string | null
   fitness_history: string | null
@@ -67,12 +65,16 @@ function formatRatingDate(isoDate: string): string {
   }).format(date)
 }
 
-export default function PublicProfilePage() {
+type PublicProfilePageProps = {
+  resolvedProfileId?: string
+}
+
+export default function PublicProfilePage({ resolvedProfileId }: PublicProfilePageProps) {
   const params = useParams()
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
-  const profileUserId =
+  const profileUserIdFromRoute =
     typeof params.user_id === "string" ? params.user_id : Array.isArray(params.user_id) ? params.user_id[0] : ""
-  const normalizedProfileCustomId = normalizeCustomId(profileUserId)
+  const profileUserId = resolvedProfileId?.trim() || profileUserIdFromRoute
 
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState<ProfileRow | null>(null)
@@ -97,12 +99,11 @@ export default function PublicProfilePage() {
     setLoading(true)
     setSkillsError(null)
 
-    const profileQuery = supabase
+    const profileResult = await supabase
       .from("profiles_public")
-      .select("id, custom_id, display_name, bio, fitness_history, category, avatar_url, rating_avg, review_count")
-    const profileResult = await (isUuid(profileUserId)
-      ? profileQuery.eq("id", profileUserId).maybeSingle()
-      : profileQuery.eq("custom_id", normalizedProfileCustomId).maybeSingle())
+      .select("id, display_name, bio, fitness_history, category, avatar_url, rating_avg, review_count")
+      .eq("id", profileUserId)
+      .maybeSingle()
 
     if (profileResult.error || !profileResult.data) {
       setProfile(null)
@@ -135,7 +136,7 @@ export default function PublicProfilePage() {
     setRatingDistribution(ratingData.distribution)
     setRatingComments(ratingData.comments)
     setLoading(false)
-  }, [normalizedProfileCustomId, profileUserId, supabase])
+  }, [profileUserId, supabase])
 
   useEffect(() => {
     // 非同期ロード完了時のみ state が更新されるため、この呼び出しを許可する

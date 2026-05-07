@@ -36,14 +36,27 @@ export default async function OpenGraphImage({ params }: OgProps) {
   let avatarUrl: string | null = null
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (supabaseUrl && supabaseKey) {
     const supabase = createClient(supabaseUrl, supabaseKey)
-    const profileQuery = supabase.from("profiles_public").select("display_name, bio, avatar_url")
-    const { data } = await (isUuid(identifier)
-      ? profileQuery.eq("id", identifier).maybeSingle()
-      : profileQuery.eq("custom_id", normalizedCustomId).maybeSingle())
+    let resolvedProfileId = identifier
+    if (!isUuid(identifier)) {
+      const { data: idRow } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("custom_id", normalizedCustomId)
+        .maybeSingle()
+      if (typeof idRow?.id === "string" && idRow.id.trim().length > 0) {
+        resolvedProfileId = idRow.id
+      }
+    }
+
+    const { data } = await supabase
+      .from("profiles_public")
+      .select("display_name, bio, avatar_url")
+      .eq("id", resolvedProfileId)
+      .maybeSingle()
 
     if (typeof data?.display_name === "string" && data.display_name.trim().length > 0) {
       displayName = clipText(data.display_name, 26)
