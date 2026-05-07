@@ -81,7 +81,7 @@ export async function generateMetadata({
       ? bioTrunc
       : `${displayName}さんの公開プロフィール。GritVibでフィットネス指導スキルを掲載しています。`
 
-  const title = `${displayName} | GritVib`
+  const title = displayName
   const avatarImage =
     typeof profile.avatar_url === "string" && profile.avatar_url.trim().length > 0 ? profile.avatar_url.trim() : null
 
