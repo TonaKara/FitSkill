@@ -324,6 +324,17 @@ export function AdminTableCard({
         content: `運営対応: ユーザー状態を「${nextStatus}」へ変更しました。理由: ${reason}`,
       })
       if (nextStatus === "banned") {
+        void fetch("/api/notifications/event-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            event: "user_banned",
+            targetUserId: reportedUserId,
+            reason,
+          }),
+        }).catch(() => {
+          // メール通知失敗で BAN 操作を失敗扱いにしない
+        })
         try {
           await fetch("/api/notifications/ban-discord", {
             method: "POST",
@@ -377,6 +388,17 @@ export function AdminTableCard({
         content: `運営対応: ユーザー状態を「${nextStatus}」へ変更しました。理由: ${reason}`,
       })
       if (nextStatus === "banned") {
+        void fetch("/api/notifications/event-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            event: "user_banned",
+            targetUserId: userId,
+            reason,
+          }),
+        }).catch(() => {
+          // メール通知失敗で BAN 操作を失敗扱いにしない
+        })
         try {
           await fetch("/api/notifications/ban-discord", {
             method: "POST",
@@ -461,6 +483,20 @@ export function AdminTableCard({
           type: "admin_product_visibility",
           content: `運営対応: あなたの商品「${String(skillRow.id)}」を${nextPublished ? "公開" : "非公開"}に変更しました。理由: ${reason}`,
         })
+        if (!nextPublished) {
+          void fetch("/api/notifications/event-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              event: "skill_moderated",
+              skillId: String(skillRow.id),
+              action: "unpublished",
+              reason,
+            }),
+          }).catch(() => {
+            // メール通知失敗で公開状態変更を失敗扱いにしない
+          })
+        }
       }
       console.log("[AdminTableCard] Triggering table refresh via reloadTick")
       setReloadTick((prev) => prev + 1)
@@ -502,6 +538,18 @@ export function AdminTableCard({
           recipientId: ownerRow.user_id,
           type: "admin_product_deleted",
           content: `運営対応: 商品「${ownerRow.title ?? String(ownerRow.id)}」を削除しました。理由: ${reason}`,
+        })
+        void fetch("/api/notifications/event-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            event: "skill_moderated",
+            skillId: String(ownerRow.id),
+            action: "deleted",
+            reason,
+          }),
+        }).catch(() => {
+          // メール通知失敗で削除処理を失敗扱いにしない
         })
       }
       setReloadTick((prev) => prev + 1)
@@ -553,6 +601,20 @@ export function AdminTableCard({
           type: "admin_product_visibility",
           content: `運営対応: あなたの商品「${String(skillId)}」を${nextPublished ? "公開" : "非公開"}に変更しました。理由: ${reason}`,
         })
+        if (!nextPublished) {
+          void fetch("/api/notifications/event-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              event: "skill_moderated",
+              skillId: String(skillId),
+              action: "unpublished",
+              reason,
+            }),
+          }).catch(() => {
+            // メール通知失敗で公開状態変更を失敗扱いにしない
+          })
+        }
       }
       setReloadTick((prev) => prev + 1)
     } finally {
@@ -588,6 +650,18 @@ export function AdminTableCard({
           recipientId: ownerId,
           type: "admin_product_deleted",
           content: `運営対応: あなたの商品「${String(skillId)}」を削除しました。理由: ${reason}`,
+        })
+        void fetch("/api/notifications/event-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            event: "skill_moderated",
+            skillId: String(skillId),
+            action: "deleted",
+            reason,
+          }),
+        }).catch(() => {
+          // メール通知失敗で削除処理を失敗扱いにしない
         })
       }
       setReloadTick((prev) => prev + 1)

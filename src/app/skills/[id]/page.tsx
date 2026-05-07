@@ -976,6 +976,16 @@ export default function SkillDetailPage() {
           code: notifError.code ?? null,
         })
       }
+      void fetch("/api/notifications/event-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "consultation_received",
+          answerId: String((data as { id?: string } | null)?.id ?? ""),
+        }),
+      }).catch(() => {
+        // メール通知失敗で申請処理を失敗扱いにしない
+      })
       setNotice({
         variant: "success",
         message: "リクエストを送信しました。講師の承認をお待ちください",

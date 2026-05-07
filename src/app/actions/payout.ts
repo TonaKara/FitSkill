@@ -3,6 +3,7 @@
 import { createServerClient } from "@supabase/ssr"
 import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
+import { getAppUrl, sendUserEventEmail } from "@/lib/event-email"
 
 type AdminProfileRow = {
   is_admin: boolean | null
@@ -11,6 +12,7 @@ type AdminProfileRow = {
 type TransactionRow = {
   id: string
   buyer_id: string
+  seller_id: string
   status: string
 }
 
@@ -78,7 +80,7 @@ export async function completeTransactionWithPayout(
 
   const { data: tx, error: txError } = await supabaseAdmin
     .from("transactions")
-    .select("id, buyer_id, status")
+    .select("id, buyer_id, seller_id, status")
     .eq("id", transactionId)
     .maybeSingle<TransactionRow>()
 
@@ -142,6 +144,48 @@ export async function completeTransactionWithPayout(
     if (!updated?.length) {
       throw new Error("Transaction was not in approval_pending status.")
     }
+  }
+
+  const chatUrl = `${getAppUrl().replace(/\/$/, "")}/chat/${encodeURIComponent(tx.id)}`
+
+  await Promise.all([
+    sendUserEventEmail({
+      userId: tx.buyer_id,
+      subject: "【GritVib】取引が完了しました",
+      heading: "取引完了通知",
+      intro: "対象の取引は完了しました。",
+      ctaLabel: "取引チャットを開く",
+      ctaUrl: chatUrl,
+    }),
+    sendUserEventEmail({
+      userId: tx.seller_id,
+      subject: "【GritVib】取引が完了しました",
+      heading: "取引完了通知",
+      intro: "対象の取引は完了しました。",
+      ctaLabel: "取引チャットを開く",
+      ctaUrl: chatUrl,
+    }),
+  ])
+
+  if (mode === "dispute_rejection") {
+    await Promise.all([
+      sendUserEventEmail({
+        userId: tx.buyer_id,
+        subject: "【GritVib】異議申し立てが棄却されました",
+        heading: "異議申し立て結果通知",
+        intro: "異議申し立ては棄却され、取引は完了しました。",
+        ctaLabel: "取引チャットを開く",
+        ctaUrl: chatUrl,
+      }),
+      sendUserEventEmail({
+        userId: tx.seller_id,
+        subject: "【GritVib】異議申し立てが棄却されました",
+        heading: "異議申し立て結果通知",
+        intro: "異議申し立ては棄却され、取引は完了しました。",
+        ctaLabel: "取引チャットを開く",
+        ctaUrl: chatUrl,
+      }),
+    ])
   }
 
   return {

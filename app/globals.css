@@ -57,7 +57,8 @@
 :root {
   --radius: 0.625rem;
   /* ブランド赤（ライト時も同じトーンで統一） */
-  --brand-red: #c62828;
+  --accent-color: #c62828;
+  --brand-red: var(--accent-color);
   --brand-red-deep: #a32121;
 
   --background: oklch(0.985 0 0);
@@ -138,5 +139,68 @@
   body {
     @apply bg-background text-foreground antialiased;
   }
+}
+
+/* マイページ専用: ライトモード時にハードコードされたダーク配色を見やすく補正 */
+.mypage-theme-light .bg-zinc-950,
+.mypage-theme-light .bg-zinc-950\/95,
+.mypage-theme-light .bg-zinc-950\/70,
+.mypage-theme-light .bg-zinc-950\/60,
+.mypage-theme-light .bg-zinc-900,
+.mypage-theme-light .bg-zinc-900\/80,
+.mypage-theme-light .bg-zinc-900\/70,
+.mypage-theme-light .bg-zinc-900\/60,
+.mypage-theme-light .bg-zinc-900\/50,
+.mypage-theme-light .bg-zinc-900\/40 {
+  background-color: #ffffff !important;
+}
+
+.mypage-theme-light .text-zinc-50,
+.mypage-theme-light .text-zinc-100,
+.mypage-theme-light .text-zinc-200,
+.mypage-theme-light .text-white {
+  color: #111827 !important;
+}
+
+.mypage-theme-light .text-zinc-300,
+.mypage-theme-light .text-zinc-400,
+.mypage-theme-light .text-zinc-500 {
+  color: #4b5563 !important;
+}
+
+.mypage-theme-light .border-zinc-800,
+.mypage-theme-light .border-zinc-700,
+.mypage-theme-light .border-zinc-600 {
+  border-color: #d1d5db !important;
+}
+
+/* マイページ内はアクセントカラー設定を赤系UIにも反映 */
+.mypage-accent .bg-red-600,
+.mypage-accent .bg-red-500,
+.mypage-accent .bg-red-700,
+.mypage-accent .bg-red-800,
+.mypage-accent .bg-red-950,
+.mypage-accent .bg-red-950\/30,
+.mypage-accent .bg-red-950\/60 {
+  background-color: var(--accent-color) !important;
+}
+
+.mypage-accent .text-red-400,
+.mypage-accent .text-red-500,
+.mypage-accent .text-red-600 {
+  color: var(--accent-color) !important;
+}
+
+/* タブ等のアクティブ文字は可読性を優先して白寄せを維持 */
+.mypage-accent .text-red-200,
+.mypage-accent .text-red-300 {
+  color: #fef2f2 !important;
+}
+
+.mypage-accent .border-red-500,
+.mypage-accent .border-red-500\/25,
+.mypage-accent .border-red-500\/60,
+.mypage-accent .border-red-600 {
+  border-color: var(--accent-color) !important;
 }
 

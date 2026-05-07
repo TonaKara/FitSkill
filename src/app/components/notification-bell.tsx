@@ -112,7 +112,7 @@ export function NotificationBell() {
         {userId && unread > 0 ? (
           <>
             <span
-              className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-background"
+              className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-[var(--accent-color)] ring-2 ring-background"
               aria-hidden
             />
             <span className="sr-only">{`未読${unread}件`}</span>

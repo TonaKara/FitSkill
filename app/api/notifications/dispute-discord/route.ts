@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js"
+import { requireApiUser } from "@/lib/api-auth"
 import { sendDiscordNotification } from "@/lib/discord"
 import { getSiteUrl } from "@/lib/site-seo"
 
@@ -18,6 +19,10 @@ type Payload = {
 
 export async function POST(req: Request) {
   try {
+    const auth = await requireApiUser()
+    if (!auth.ok) {
+      return auth.response
+    }
     const webhookUrl = process.env.DISCORD_WEBHOOK_DISPUTE?.trim() ?? ""
     if (!webhookUrl) {
       return Response.json({ ok: true, skipped: "missing webhook" })
@@ -29,6 +34,7 @@ export async function POST(req: Request) {
       return Response.json({ ok: false, error: "transactionId is required" }, { status: 400 })
     }
 
+    const requesterId = auth.context.user.id
     const supabase = getSupabaseAdminClient()
     const { data: txRow } = await supabase
       .from("transactions")
@@ -46,6 +52,17 @@ export async function POST(req: Request) {
 
     const buyerId = String(tx?.buyer_id ?? "").trim()
     const sellerId = String(tx?.seller_id ?? "").trim()
+    if (requesterId !== buyerId && requesterId !== sellerId) {
+      const { data: adminRow } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", requesterId)
+        .maybeSingle<{ is_admin: boolean | null }>()
+      if (adminRow?.is_admin !== true) {
+        return Response.json({ ok: false, error: "Forbidden" }, { status: 403 })
+      }
+    }
+
     const skillId = String(tx?.skill_id ?? "").trim()
     const reason = String(body.reason ?? tx?.disputed_reason ?? "").trim() || "未入力"
 
@@ -79,7 +96,6 @@ export async function POST(req: Request) {
 
     return Response.json({ ok: true })
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    return Response.json({ ok: false, error: message }, { status: 500 })
+    return Response.json({ ok: false, error: "Failed to send notification" }, { status: 500 })
   }
 }

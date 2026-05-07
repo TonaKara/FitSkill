@@ -5,8 +5,13 @@ import { createPortal } from "react-dom"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { useTheme } from "next-themes"
 import { Heart, Loader2, Pencil, ShieldAlert, Star, X } from "lucide-react"
 import { Header } from "@/components/header"
+import {
+  ACCENT_COLOR_OPTIONS,
+  setAccentColorValue,
+} from "@/components/AccessibilityModeSync"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { NotificationToast } from "@/components/ui/notification-toast"
@@ -311,6 +316,7 @@ export default function MypageClient() {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const { theme, resolvedTheme, setTheme } = useTheme()
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
 
   const [authLoading, setAuthLoading] = useState(true)
@@ -398,6 +404,8 @@ export default function MypageClient() {
   const [connectBalance, setConnectBalance] = useState<ConnectBalanceResponse | null>(null)
   const [showAccountLogoutConfirm, setShowAccountLogoutConfirm] = useState(false)
   const [accountLogoutBusy, setAccountLogoutBusy] = useState(false)
+  const [accentColorValue, setAccentColorValueState] = useState<string>("#c62828")
+  const [themeReady, setThemeReady] = useState(false)
   const filteredReviewComments =
     selectedReviewStars == null
       ? reviewComments
@@ -438,6 +446,31 @@ export default function MypageClient() {
     }
     window.localStorage.setItem(MYPAGE_MODE_STORAGE_KEY, currentMode)
   }, [currentMode])
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+    const savedAccent = window.localStorage.getItem("accent_color_value")
+    const validAccent = ACCENT_COLOR_OPTIONS.some((option) => option.value === savedAccent)
+      ? (savedAccent as string)
+      : "#c62828"
+    setAccentColorValueState(validAccent)
+  }, [])
+
+  useEffect(() => {
+    setThemeReady(true)
+  }, [])
+
+  const handleAccentColorChange = (nextColor: string) => {
+    setAccentColorValueState(nextColor)
+    setAccentColorValue(nextColor)
+  }
+
+  const isDarkMode = (theme === "system" ? resolvedTheme : theme) !== "light"
+  const handleThemeToggle = () => {
+    setTheme(isDarkMode ? "light" : "dark")
+  }
 
   const toggleCategory = (label: string) => {
     setSelectedCategories((prev) =>
@@ -1433,6 +1466,17 @@ export default function MypageClient() {
     if (notifError) {
       // 通知失敗は本処理をブロックしない
     }
+    void fetch("/api/notifications/event-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event: "consultation_decision",
+        answerId: item.id,
+        decision: "accepted",
+      }),
+    }).catch(() => {
+      // メール通知失敗で承認処理を失敗扱いにしない
+    })
     await loadConsultationRequests()
     setNotice({ variant: "success", message: "受講リクエストを承認しました。" })
   }
@@ -1466,6 +1510,17 @@ export default function MypageClient() {
     if (notifError) {
       // 通知失敗は本処理をブロックしない
     }
+    void fetch("/api/notifications/event-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event: "consultation_decision",
+        answerId: item.id,
+        decision: "rejected",
+      }),
+    }).catch(() => {
+      // メール通知失敗で拒否処理を失敗扱いにしない
+    })
     setRejectConfirmTargetId(null)
     setRejectOptionalReason("")
     await loadConsultationRequests()
@@ -1689,7 +1744,7 @@ export default function MypageClient() {
 
   if (authLoading || shouldBlockByProfileLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-950 text-zinc-200">
+      <div className={`flex min-h-screen items-center justify-center ${isDarkMode ? "bg-zinc-950 text-zinc-200" : "bg-background text-foreground"}`}>
         <Loader2 className="mr-2 h-5 w-5 animate-spin text-red-500" aria-hidden />
         読み込み中...
       </div>
@@ -1697,7 +1752,11 @@ export default function MypageClient() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-50">
+    <div
+      className={`min-h-screen mypage-accent ${
+        isDarkMode ? "bg-zinc-950 text-zinc-50" : "bg-background text-foreground mypage-theme-light"
+      }`}
+    >
       <ThumbnailCropModal
         open={avatarCropModalOpen}
         imageSrc={avatarCropSourceUrl}
@@ -1724,7 +1783,7 @@ export default function MypageClient() {
                 onClick={() => handleModeChange("student")}
                 className={`flex-1 rounded-md px-3 py-2 text-xs font-semibold transition-colors ${
                   currentMode === "student"
-                    ? "bg-red-600 text-white shadow-sm shadow-red-900/40"
+                    ? "bg-red-600 text-white shadow-sm shadow-black/30"
                     : "text-zinc-400 hover:text-zinc-100"
                 }`}
               >
@@ -1735,7 +1794,7 @@ export default function MypageClient() {
                 onClick={() => handleModeChange("instructor")}
                 className={`flex-1 rounded-md px-3 py-2 text-xs font-semibold transition-colors ${
                   currentMode === "instructor"
-                    ? "bg-red-600 text-white shadow-sm shadow-red-900/40"
+                    ? "bg-red-600 text-white shadow-sm shadow-black/30"
                     : "text-zinc-400 hover:text-zinc-100"
                 }`}
               >
@@ -1753,7 +1812,7 @@ export default function MypageClient() {
                     onClick={() => handleSectionChange(item.id)}
                     className={`shrink-0 rounded-lg border px-3 py-2 text-left text-sm font-medium transition-all md:rounded-md md:px-3 md:py-2.5 ${
                       active
-                        ? "border-red-500/60 bg-red-950/60 text-red-200 shadow-[inset_3px_0_0_0_rgba(239,68,68,1)]"
+                        ? "border-red-500/60 bg-red-950/60 text-white shadow-[inset_3px_0_0_0_var(--accent-color)]"
                         : "border-transparent text-zinc-400 hover:border-zinc-800 hover:bg-zinc-900 hover:text-zinc-100"
                     }`}
                     aria-current={active ? "page" : undefined}
@@ -1775,7 +1834,7 @@ export default function MypageClient() {
                     onClick={() => handleSectionChange(item.id)}
                     className={`mt-1 w-full rounded-md border px-3 py-2.5 text-left text-sm font-medium transition-all ${
                       active
-                        ? "border-red-500/60 bg-red-950/60 text-red-200 shadow-[inset_3px_0_0_0_rgba(239,68,68,1)]"
+                        ? "border-red-500/60 bg-red-950/60 text-white shadow-[inset_3px_0_0_0_var(--accent-color)]"
                         : "border-transparent text-zinc-400 hover:border-zinc-800 hover:bg-zinc-900 hover:text-zinc-100"
                     }`}
                     aria-current={active ? "page" : undefined}
@@ -1796,7 +1855,7 @@ export default function MypageClient() {
                     onClick={() => handleSectionChange(item.id)}
                     className={`shrink-0 rounded-lg border px-3 py-2 text-left text-sm font-medium transition-all ${
                       active
-                        ? "border-red-500/60 bg-red-950/60 text-red-200 shadow-[inset_3px_0_0_0_rgba(239,68,68,1)]"
+                        ? "border-red-500/60 bg-red-950/60 text-white shadow-[inset_3px_0_0_0_var(--accent-color)]"
                         : "border-transparent text-zinc-400 hover:border-zinc-800 hover:bg-zinc-900 hover:text-zinc-100"
                     }`}
                     aria-current={active ? "page" : undefined}
@@ -2795,6 +2854,57 @@ export default function MypageClient() {
                       {profileLoading ? "読み込み中..." : displayName || "未設定"}
                     </p>
                     <p className="mt-2 text-xs text-zinc-500">プロフィールの編集は「プロフィール」から行えます。</p>
+                  </div>
+                </div>
+
+                <div className="mt-8 border-t border-zinc-800 pt-8">
+                  <h2 className="text-sm font-semibold text-zinc-200">表示テーマ</h2>
+                  <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+                    ライトモード / ダークモードを切り替えられます（初期設定は現在のダークモードです）。
+                  </p>
+                  <div className="mt-4 flex items-center justify-between rounded-xl border border-zinc-700 bg-zinc-950/60 px-4 py-3">
+                    <span className="text-sm font-medium text-zinc-200">
+                      {!themeReady ? "読み込み中..." : isDarkMode ? "ダークモード" : "ライトモード"}
+                    </span>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={!themeReady ? true : isDarkMode}
+                      aria-label="表示テーマを切り替える"
+                      disabled={!themeReady}
+                      onClick={handleThemeToggle}
+                      className="flex h-8 w-14 items-center rounded-full bg-red-600 px-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 disabled:opacity-60"
+                    >
+                      <span
+                        className={`block h-6 w-6 rounded-full bg-white shadow-md transition-[margin] duration-200 ease-out ${
+                          !themeReady || isDarkMode ? "ml-auto" : "ml-0"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-8 border-t border-zinc-800 pt-8">
+                  <h2 className="text-sm font-semibold text-zinc-200">アクセントカラー</h2>
+                  <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+                    サイト全体の強調色（ロゴ・主要ボタンなど）を選択できます。
+                  </p>
+                  <div className="mt-4 max-w-xs">
+                    <label htmlFor="account-accent-color" className="sr-only">
+                      アクセントカラー
+                    </label>
+                    <select
+                      id="account-accent-color"
+                      value={accentColorValue}
+                      onChange={(event) => handleAccentColorChange(event.target.value)}
+                      className="h-10 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+                    >
+                      {ACCENT_COLOR_OPTIONS.map((option) => (
+                        <option key={option.id} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 

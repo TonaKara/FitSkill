@@ -870,6 +870,16 @@ export default function ChatTransactionPage() {
             })
           }
         })
+        void fetch("/api/notifications/event-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            event: "transaction_message",
+            transactionId: String(transactionId),
+          }),
+        }).catch(() => {
+          // メール通知失敗でチャット送信を失敗扱いにしない
+        })
       }
       return { error: false as const }
     },
@@ -1038,6 +1048,16 @@ export default function ChatTransactionPage() {
               details: nErr.details,
             })
           }
+        })
+        void fetch("/api/notifications/event-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            event: "completion_requested",
+            transactionId: String(transactionId),
+          }),
+        }).catch(() => {
+          // メール通知失敗で完了申請を失敗扱いにしない
         })
       }
       await loadTransactionAndPeer()

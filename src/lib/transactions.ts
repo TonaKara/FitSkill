@@ -202,6 +202,18 @@ export async function createSkillPurchaseTransaction(
         console.error("[transactions] discord purchase notification failed", discordError)
       }
     }
+    try {
+      await fetch("/api/notifications/event-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "transaction_established",
+          transactionId: txIdStr,
+        }),
+      })
+    } catch {
+      // メール通知失敗で取引作成を失敗扱いにしない
+    }
   }
 
   return {
@@ -252,6 +264,25 @@ export async function autoCompleteTransactions(
 
   const updatedCount = Array.isArray(data) ? data.length : 0
   if (updatedCount > 0) {
+    const updatedRows = (Array.isArray(data) ? data : []) as Array<{ id?: string | null }>
+    for (const row of updatedRows) {
+      const txId = row.id?.trim()
+      if (!txId) {
+        continue
+      }
+      try {
+        await fetch("/api/notifications/event-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            event: "transaction_completed",
+            transactionId: txId,
+          }),
+        })
+      } catch {
+        // メール通知失敗で自動完了処理を失敗扱いにしない
+      }
+    }
     // TODO: Send notification
     console.log("[Notification] ステータスが変更されました", {
       changedTo: "completed",

@@ -232,8 +232,8 @@ export default function LoginPage() {
       <Card className="relative z-10 w-full max-w-md border-red-500/40 bg-zinc-950/95 shadow-[0_0_60px_rgba(198,40,40,0.25)]">
         <CardHeader className="space-y-4">
           <div className="inline-flex w-fit items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs font-semibold">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <BrandMarkSvg className="h-5 w-5" />
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#c62828] text-white">
+              <BrandMarkSvg className="h-5 w-5 text-white" />
             </div>
             <span>
               <span className="text-red-300">Grit</span>

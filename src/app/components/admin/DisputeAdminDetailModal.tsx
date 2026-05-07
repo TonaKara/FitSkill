@@ -112,6 +112,17 @@ export function DisputeAdminDetailModal({
         type: "admin_user_status",
         content: `運営対応: ${label}をBANしました。理由: ${adminReason}`,
       })
+      void fetch("/api/notifications/event-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "user_banned",
+          targetUserId: targetId,
+          reason: adminReason,
+        }),
+      }).catch(() => {
+        // メール通知失敗で BAN 操作を失敗扱いにしない
+      })
       try {
         await fetch("/api/notifications/ban-discord", {
           method: "POST",
@@ -195,6 +206,17 @@ export function DisputeAdminDetailModal({
           : "承認（取引再開）を反映し、当事者へ通知しました。",
         notificationFailed ? "error" : "success",
       )
+      void fetch("/api/notifications/event-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "dispute_result",
+          transactionId,
+          result: "approved",
+        }),
+      }).catch(() => {
+        // メール通知失敗で異議承認を失敗扱いにしない
+      })
       onClose()
       onAfterMutation()
     } finally {

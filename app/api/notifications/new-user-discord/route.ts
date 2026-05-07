@@ -21,6 +21,12 @@ function resolveNewUserDiscordWebhookUrl(): string {
 
 export async function POST(req: Request) {
   try {
+    const origin = req.headers.get("origin")?.trim()
+    const siteOrigin = new URL(getSiteUrl()).origin
+    if (origin && origin !== siteOrigin) {
+      return Response.json({ ok: false, error: "Forbidden" }, { status: 403 })
+    }
+
     const webhookUrl = resolveNewUserDiscordWebhookUrl()
     if (!webhookUrl) {
       return Response.json({ ok: true, skipped: "missing webhook" })
@@ -51,7 +57,6 @@ export async function POST(req: Request) {
 
     return Response.json({ ok: true })
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    return Response.json({ ok: false, error: message }, { status: 500 })
+    return Response.json({ ok: false, error: "Failed to send notification" }, { status: 500 })
   }
 }

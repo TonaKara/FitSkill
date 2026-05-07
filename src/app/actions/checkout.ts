@@ -6,6 +6,7 @@ import { cookies } from "next/headers"
 import Stripe from "stripe"
 import { canBuyerPurchaseSkill } from "@/lib/consultation"
 import { sendDiscordNotification } from "@/lib/discord"
+import { getAppUrl, sendUserEventEmail } from "@/lib/event-email"
 import { SELLER_FEE_RATE } from "@/lib/seller-fee-preview"
 import { getSiteUrl } from "@/lib/site-seo"
 import { assertStripeConnectAccountOwnership } from "@/lib/stripe-account-ownership"
@@ -153,6 +154,26 @@ async function ensureSellerPurchaseNotification(params: {
       console.error("[checkout] discord purchase notification failed", discordError)
     }
   }
+
+  const chatUrl = `${getAppUrl().replace(/\/$/, "")}/chat/${encodeURIComponent(transactionId)}`
+  await Promise.all([
+    sendUserEventEmail({
+      userId: sellerId,
+      subject: "【GritVib】取引が成立しました",
+      heading: "取引成立通知",
+      intro: "あなたのスキルが購入され、取引が開始されました。",
+      ctaLabel: "取引チャットを開く",
+      ctaUrl: chatUrl,
+    }),
+    sendUserEventEmail({
+      userId: buyerId,
+      subject: "【GritVib】取引が成立しました",
+      heading: "取引成立通知",
+      intro: "購入手続きが完了し、取引が開始されました。",
+      ctaLabel: "取引チャットを開く",
+      ctaUrl: chatUrl,
+    }),
+  ])
 }
 
 async function getAuthedSupabase() {
