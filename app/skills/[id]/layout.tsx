@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { createClient } from "@supabase/supabase-js"
-import { SITE_URL } from "@/lib/site-seo"
+import { getSiteUrl } from "@/lib/site-seo"
 
 type SkillLayoutProps = {
   children: React.ReactNode
@@ -17,58 +17,69 @@ function truncateDescription(raw: string | null | undefined, max = 160): string 
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  /** プロフィールの generateMetadata と同様。クローラ向けメタデータには JWT が無いため、OG 用はサービスロールで読むと RLS で anon が読めない場合でも DB と一致する */
+  const dbKey = serviceKey ?? anonKey
   const pagePath = `/skills/${id}`
-  const ogImage = `${SITE_URL}${pagePath}/opengraph-image`
+  const siteBase = getSiteUrl().replace(/\/$/, "")
+  const absolutePageUrl = `${siteBase}${pagePath}`
+  /** og:image は同一オリジンのプロキシのみ参照（Discord 等が Storage URL を取りに行けない対策）。画像バイトは /api/og/skill/[id] が DB の thumbnail_url から取得 */
+  const ogImageUrl = `${siteBase}/api/og/skill/${encodeURIComponent(id)}`
 
-  if (!url || !key) {
+  if (!supabaseUrl || !dbKey) {
     return {
       title: "スキル",
       description: "GritVibで提供中のスキルです。",
-      alternates: { canonical: pagePath },
+      alternates: { canonical: absolutePageUrl },
       robots: { index: false, follow: true },
       openGraph: {
         title: "スキル",
         description: "GritVibで提供中のスキルです。",
-        url: pagePath,
+        url: absolutePageUrl,
         type: "website",
         locale: "ja_JP",
         siteName: "GritVib",
-        images: [{ url: ogImage, alt: "GritVib Skill OGP" }],
+        images: [{ url: ogImageUrl, alt: "GritVib Skill OGP" }],
       },
       twitter: {
         card: "summary_large_image",
         title: "スキル",
         description: "GritVibで提供中のスキルです。",
-        images: [ogImage],
+        images: [ogImageUrl],
       },
     }
   }
 
-  const supabase = createClient(url, key)
-  const { data } = await supabase.from("skills").select("title, description, is_published").eq("id", id).maybeSingle()
+  const supabase = createClient(supabaseUrl, dbKey)
+  const { data, error } = await supabase
+    .from("skills")
+    .select("title, description, is_published")
+    .eq("id", id)
+    .maybeSingle()
 
-  if (!data || data.is_published === false) {
+  /** DB エラー・該当なし・未公開はクローラ向けにプレースホルダ（ページ本体は所有者のみ未公開を閲覧可）。画像は API がデフォルト PNG を返す */
+  if (error || !data || data.is_published === false) {
     return {
       title: "スキル",
       description: "GritVibで提供中のスキルです。",
-      alternates: { canonical: pagePath },
+      alternates: { canonical: absolutePageUrl },
       robots: { index: false, follow: true },
       openGraph: {
         title: "スキル",
         description: "GritVibで提供中のスキルです。",
-        url: pagePath,
+        url: absolutePageUrl,
         type: "website",
         locale: "ja_JP",
         siteName: "GritVib",
-        images: [{ url: ogImage, alt: "GritVib Skill OGP" }],
+        images: [{ url: ogImageUrl, alt: "GritVib Skill OGP" }],
       },
       twitter: {
         card: "summary_large_image",
         title: "スキル",
         description: "GritVibで提供中のスキルです。",
-        images: [ogImage],
+        images: [ogImageUrl],
       },
     }
   }
@@ -79,21 +90,21 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return {
     title,
     description,
-    alternates: { canonical: pagePath },
+    alternates: { canonical: absolutePageUrl },
     openGraph: {
       title,
       description,
-      url: pagePath,
+      url: absolutePageUrl,
       type: "website",
       locale: "ja_JP",
       siteName: "GritVib",
-      images: [{ url: ogImage, alt: title }],
+      images: [{ url: ogImageUrl, alt: title }],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: [ogImage],
+      images: [ogImageUrl],
     },
   }
 }

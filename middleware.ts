@@ -12,7 +12,7 @@ import { shouldRedirectPublicUserToMaintenance } from "@/lib/maintenance-access"
  *
  * メンテ誘導・認証チェックの対象外にするパス。
  * - /sitemap.xml は拡張子ありだが明示しておく（環境によっては判定漏れ防止）
- * - /opengraph-image 等は拡張子なしのため明示
+ * - ルート配下の opengraph-image・twitter-image はパスに含まれるため contains で明示
  */
 function isBypassMiddlewarePath(pathname: string): boolean {
   if (pathname.startsWith("/_next") || pathname.startsWith("/api")) {
@@ -22,8 +22,8 @@ function isBypassMiddlewarePath(pathname: string): boolean {
     pathname === "/sitemap.xml" ||
     pathname === "/robots.txt" ||
     pathname === "/favicon.ico" ||
-    pathname.startsWith("/opengraph-image") ||
-    pathname.startsWith("/twitter-image") ||
+    pathname.includes("/opengraph-image") ||
+    pathname.includes("/twitter-image") ||
     pathname.startsWith("/icon") ||
     pathname.startsWith("/apple-icon")
   ) {
