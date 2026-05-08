@@ -157,7 +157,29 @@ export async function createSkillPurchaseTransaction(
 
   if (insertError) {
     if (isUniqueConstraintViolation(insertError)) {
-      return { inserted: true, errorMessage: null }
+      const { data: dupRow, error: dupErr } = await supabase
+        .from("transactions")
+        .select("id, status")
+        .eq("skill_id", params.skillId)
+        .eq("buyer_id", params.buyerId)
+        .eq("status", "awaiting_payment")
+        .maybeSingle()
+
+      if (!dupErr && dupRow && typeof (dupRow as { id?: unknown }).id === "string") {
+        const dupId = String((dupRow as { id: string }).id)
+        return {
+          inserted: true,
+          errorMessage: null,
+          transactionId: dupId,
+          requiresPayment: initialStatus === "awaiting_payment",
+        }
+      }
+
+      return {
+        inserted: false,
+        errorMessage:
+          "同じスキルの購入手続きが別タブなどで進行中です。ページを更新してから再度お試しください。",
+      }
     }
     return { inserted: false, errorMessage: insertError.message }
   }

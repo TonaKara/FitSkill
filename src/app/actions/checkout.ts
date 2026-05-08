@@ -297,6 +297,39 @@ export async function createCheckoutSession(skillId: string | number): Promise<C
       expectedUserId: skill.user_id,
     })
 
+    /** 未払い取引が無い Checkout は作成しない（二重セッション・課金ずれ防止）。メタデータで取引と必ず紐づける */
+    const { data: awaitingRows, error: awaitingErr } = await supabase
+      .from("transactions")
+      .select("id")
+      .eq("skill_id", normalizedSkillId)
+      .eq("buyer_id", user.id)
+      .eq("status", "awaiting_payment")
+      .order("created_at", { ascending: false })
+      .limit(2)
+
+    if (awaitingErr) {
+      return { ok: false, error: awaitingErr.message }
+    }
+    const awaitingList = awaitingRows ?? []
+    if (awaitingList.length === 0) {
+      return {
+        ok: false,
+        error:
+          "決済待ちの取引がありません。スキルページで購入手続きを最初からやり直してください。",
+      }
+    }
+    if (awaitingList.length > 1) {
+      return {
+        ok: false,
+        error:
+          "決済待ちの取引が複数検出されました。ページを更新して状況を確認するか、時間を置いて再度お試しください。",
+      }
+    }
+    const pendingTransactionId = String((awaitingList[0] as { id?: unknown }).id ?? "").trim()
+    if (!pendingTransactionId) {
+      return { ok: false, error: "決済待ち取引の参照に失敗しました。" }
+    }
+
     // 決済後の資金は講師Connect口座へ移しつつ、銀行振込は取引完了まで手動保留にする。
     await holdSellerPayoutsManually(stripe, sellerConnectAccountId)
 
@@ -325,6 +358,10 @@ export async function createCheckoutSession(skillId: string | number): Promise<C
         metadata: {
           payout_policy: "destination_charge_manual_payout_hold_until_completion",
           platform_fee_amount: String(applicationFeeAmount),
+          transaction_id: pendingTransactionId,
+          skill_id: skill.id,
+          buyer_id: user.id,
+          seller_id: skill.user_id,
         },
       },
       metadata: {
@@ -332,6 +369,7 @@ export async function createCheckoutSession(skillId: string | number): Promise<C
         buyer_id: user.id,
         seller_id: skill.user_id,
         amount: String(amount),
+        transaction_id: pendingTransactionId,
       },
     })
 
@@ -397,6 +435,90 @@ export async function finalizeCheckoutSessionAfterSuccess(
         skillId,
       })
       return { ok: true, transactionId: String(txByPaymentIntent.id), status: String(txByPaymentIntent.status ?? "active") }
+    }
+
+    const transactionIdMeta = session.metadata?.transaction_id?.trim()
+    if (transactionIdMeta && paymentIntentId) {
+      const { data: targeted, error: targetedError } = await supabaseAdmin
+        .from("transactions")
+        .select("id, status, buyer_id, seller_id, skill_id")
+        .eq("id", transactionIdMeta)
+        .maybeSingle()
+
+      if (targetedError) {
+        return { ok: false, error: targetedError.message }
+      }
+
+      const tr = targeted as {
+        id?: string
+        status?: string | null
+        buyer_id?: string | null
+        seller_id?: string | null
+        skill_id?: string | null
+      } | null
+
+      if (tr?.id) {
+        if (
+          String(tr.buyer_id ?? "").trim() !== buyerId ||
+          String(tr.seller_id ?? "").trim() !== sellerId ||
+          String(tr.skill_id ?? "").trim() !== skillId
+        ) {
+          return { ok: false, error: "決済情報と取引が一致しません。" }
+        }
+
+        const st = String(tr.status ?? "")
+        if (st === "awaiting_payment") {
+          let { data: activatedTx, error: activateError } = await supabaseAdmin
+            .from("transactions")
+            .update({
+              status: "active",
+              stripe_payment_intent_id: paymentIntentId,
+              completed_at: null,
+              auto_complete_at: null,
+            })
+            .eq("id", String(tr.id))
+            .eq("status", "awaiting_payment")
+            .select("id, status")
+            .maybeSingle()
+
+          if (activateError && isMissingStripePaymentIntentColumnError(activateError.message)) {
+            ;({ data: activatedTx, error: activateError } = await supabaseAdmin
+              .from("transactions")
+              .update({
+                status: "active",
+                completed_at: null,
+                auto_complete_at: null,
+              })
+              .eq("id", String(tr.id))
+              .eq("status", "awaiting_payment")
+              .select("id, status")
+              .maybeSingle())
+          }
+          if (activateError) {
+            return { ok: false, error: activateError.message }
+          }
+          if (!activatedTx?.id || !activatedTx?.status) {
+            return { ok: false, error: "取引開始状態への更新に失敗しました。" }
+          }
+          await ensureSellerPurchaseNotification({
+            supabaseAdmin,
+            transactionId: String(activatedTx.id),
+            sellerId,
+            buyerId,
+            skillId,
+          })
+          return { ok: true, transactionId: String(activatedTx.id), status: String(activatedTx.status) }
+        }
+
+        await ensureSellerPurchaseNotification({
+          supabaseAdmin,
+          transactionId: String(tr.id),
+          sellerId,
+          buyerId,
+          skillId,
+        })
+        return { ok: true, transactionId: String(tr.id), status: st || "active" }
+      }
     }
 
     const { data: existingTx, error: existingTxError } = await supabaseAdmin

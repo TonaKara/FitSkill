@@ -704,6 +704,9 @@ export default function SkillDetailPage() {
       setPurchaseConfirmOpen(false)
       return
     }
+    if (purchasePending) {
+      return
+    }
     setPurchasePending(true)
     setPurchaseProgressLabel("取引を作成中...")
     try {

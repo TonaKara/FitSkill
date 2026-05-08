@@ -86,6 +86,7 @@ Deno.serve(async (req) => {
             stripe_connect_charges_enabled: account.charges_enabled ?? false,
             stripe_connect_payouts_enabled: account.payouts_enabled ?? false,
             stripe_connect_details_submitted: account.details_submitted ?? false,
+            ...(account.charges_enabled && account.details_submitted ? { is_stripe_registered: true } : {}),
           })
           .eq("stripe_connect_account_id", account.id)
         if (profErr) {

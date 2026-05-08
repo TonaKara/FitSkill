@@ -67,6 +67,7 @@ Deno.serve(async (req) => {
       const account = await stripe.accounts.create({
         type: "express",
         country: "JP",
+        business_type: "individual",
         email: user.email ?? undefined,
         capabilities: {
           card_payments: { requested: true },
@@ -121,6 +122,16 @@ Deno.serve(async (req) => {
     const appUrl = Deno.env.get("PUBLIC_APP_URL") ?? "http://localhost:3000"
     const refreshUrl = `${appUrl}/mypage?tab=payout&stripe_refresh=1`
     const returnUrl = `${appUrl}/mypage?tab=payout&stripe_return=1`
+
+    // オンボーディング導線で国/事業形態の再選択を避けるため、既存口座にも初期値を再適用する。
+    await stripe.accounts.update(accountId, {
+      business_type: "individual",
+      individual: {
+        address: {
+          country: "JP",
+        },
+      },
+    })
 
     const accountLink = await stripe.accountLinks.create({
       account: accountId,

@@ -141,8 +141,8 @@ export async function getStripeOnboardingUrl(consented: boolean) {
   const accountLink = await stripe.accountLinks.create({
     account: accountId,
     type: "account_onboarding",
-    return_url: `${baseUrl}/mypage?tab=payout&stripe=return`,
-    refresh_url: `${baseUrl}/mypage?tab=payout&stripe=return`,
+    return_url: `${baseUrl}/mypage?tab=payout&mode=instructor&stripe=return`,
+    refresh_url: `${baseUrl}/mypage?tab=payout&mode=instructor&stripe=return`,
   })
 
   console.log("[Stripe onboarding URL]", accountLink.url)
@@ -172,10 +172,33 @@ export async function checkAndFinalizeStripeStatus() {
     accountId,
     expectedUserId: user.id,
   })
-  const account = await stripe.accounts.retrieve(accountId)
-  if (!account.charges_enabled) {
+
+  /** オンボーディング直後は Stripe API 上で charges_enabled の反映が数秒遅れることがある */
+  const CHARGES_POLL_ATTEMPTS = 5
+  const CHARGES_POLL_INTERVAL_MS = 1200
+
+  let account: Stripe.Account | null = null
+  for (let attempt = 0; attempt < CHARGES_POLL_ATTEMPTS; attempt++) {
+    account = await stripe.accounts.retrieve(accountId)
+    if (account.charges_enabled && account.details_submitted) {
+      break
+    }
+    if (attempt < CHARGES_POLL_ATTEMPTS - 1) {
+      await new Promise((resolve) => setTimeout(resolve, CHARGES_POLL_INTERVAL_MS))
+    }
+  }
+
+  if (!account?.charges_enabled || !account.details_submitted) {
+    await supabase
+      .from("profiles")
+      .update({
+        stripe_connect_charges_enabled: account?.charges_enabled ?? false,
+        stripe_connect_details_submitted: account?.details_submitted ?? false,
+      })
+      .eq("id", user.id)
     return { finalized: false }
   }
+
   await disableAutomaticPayouts(stripe, accountId)
 
   const { error: updateError } = await supabase
@@ -183,6 +206,7 @@ export async function checkAndFinalizeStripeStatus() {
     .update({
       is_stripe_registered: true,
       stripe_connect_charges_enabled: true,
+      stripe_connect_details_submitted: true,
     })
     .eq("id", user.id)
   if (updateError) {

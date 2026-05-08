@@ -169,6 +169,69 @@ async function createTransactionFromCheckoutSession(session: Stripe.Checkout.Ses
     }
   }
 
+  const transactionIdMeta = session.metadata?.transaction_id?.trim()
+  if (transactionIdMeta && paymentIntentId) {
+    const { data: targeted, error: targetedError } = await supabase
+      .from("transactions")
+      .select("id, status, buyer_id, seller_id, skill_id")
+      .eq("id", transactionIdMeta)
+      .maybeSingle()
+    if (targetedError) {
+      throw new Error(targetedError.message)
+    }
+    const tr = targeted as {
+      id?: string
+      status?: string | null
+      buyer_id?: string | null
+      seller_id?: string | null
+      skill_id?: string | null
+    } | null
+    if (tr?.id) {
+      if (
+        String(tr.buyer_id ?? "").trim() !== buyerId ||
+        String(tr.seller_id ?? "").trim() !== sellerId ||
+        String(tr.skill_id ?? "").trim() !== skillId
+      ) {
+        throw new Error("Checkout metadata does not match targeted transaction")
+      }
+      const st = String(tr.status ?? "")
+      if (st === "awaiting_payment") {
+        let { error: activateError } = await supabase
+          .from("transactions")
+          .update({
+            status: "active",
+            stripe_payment_intent_id: paymentIntentId,
+            completed_at: null,
+            auto_complete_at: null,
+          })
+          .eq("id", String(tr.id))
+          .eq("status", "awaiting_payment")
+        if (activateError && isMissingStripePaymentIntentColumnError(activateError.message)) {
+          ;({ error: activateError } = await supabase
+            .from("transactions")
+            .update({
+              status: "active",
+              completed_at: null,
+              auto_complete_at: null,
+            })
+            .eq("id", String(tr.id))
+            .eq("status", "awaiting_payment"))
+        }
+        if (activateError) {
+          throw new Error(activateError.message)
+        }
+      }
+      await ensureSellerPurchaseNotification({
+        supabase,
+        transactionId: String(tr.id),
+        sellerId,
+        buyerId,
+        skillId,
+      })
+      return
+    }
+  }
+
   const { data: existingTx, error: existingTxError } = await supabase
     .from("transactions")
     .select("id, status")
@@ -309,6 +372,25 @@ export async function POST(req: Request) {
       }
       case "checkout.session.expired": {
         // 取引は決済完了後に作る方針のため、expired 時点では更新対象なし
+        break
+      }
+      case "account.updated": {
+        const account = event.data.object as Stripe.Account
+        if (account.id) {
+          const { error: profileErr } = await supabase
+            .from("profiles")
+            .update({
+              stripe_connect_charges_enabled: account.charges_enabled ?? false,
+              stripe_connect_payouts_enabled: account.payouts_enabled ?? false,
+              stripe_connect_details_submitted: account.details_submitted ?? false,
+              ...(account.charges_enabled && account.details_submitted ? { is_stripe_registered: true } : {}),
+            })
+            .eq("stripe_connect_account_id", account.id)
+          if (profileErr) {
+            console.error("[stripe webhook] profile stripe flags", profileErr)
+            throw new Error(profileErr.message)
+          }
+        }
         break
       }
       case "payment_intent.payment_failed": {

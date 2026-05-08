@@ -1,9 +1,8 @@
 "use client"
 
-import { FormEvent, useMemo, useState } from "react"
+import { FormEvent, useState } from "react"
 import { Loader2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 
 const USER_REPORT_REASON_OPTIONS = ["不適切な名前", "規約違反", "その他"] as const
 const PRODUCT_REPORT_REASON_OPTIONS = ["不適切な表現・内容", "規約違反", "その他"] as const
@@ -17,7 +16,6 @@ type ReportModalProps = {
 }
 
 export function ReportModal({ open, onClose, type, targetId, onSuccess }: ReportModalProps) {
-  const supabase = useMemo(() => getSupabaseBrowserClient(), [])
   const reasonOptions = type === "user" ? USER_REPORT_REASON_OPTIONS : PRODUCT_REPORT_REASON_OPTIONS
   const [reason, setReason] = useState("")
   const [content, setContent] = useState("")
@@ -60,42 +58,19 @@ export function ReportModal({ open, onClose, type, targetId, onSuccess }: Report
     setErrorMessage(null)
     setIsSubmitting(true)
     try {
-      const { data: userData, error: userError } = await supabase.auth.getUser()
-      const reporterId = userData.user?.id ?? null
-      if (userError || !reporterId) {
-        throw new Error("通報にはログインが必要です。")
-      }
-
-      const nowIso = new Date().toISOString()
-      if (type === "user") {
-        const reportedUserId = String(targetId)
-        const { error } = await supabase.from("user_reports").insert({
-          reporter_id: reporterId,
-          reported_user_id: reportedUserId,
+      const response = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type,
+          targetId,
           reason,
           content: trimmedContent,
-          status: "pending",
-          created_at: nowIso,
-        })
-        if (error) {
-          throw error
-        }
-      } else {
-        const productId = Number(targetId)
-        if (!Number.isFinite(productId)) {
-          throw new Error("商品IDが不正です。")
-        }
-        const { error } = await supabase.from("product_reports").insert({
-          reporter_id: reporterId,
-          product_id: productId,
-          reason,
-          content: trimmedContent,
-          status: "pending",
-          created_at: nowIso,
-        })
-        if (error) {
-          throw error
-        }
+        }),
+      })
+      const payload = (await response.json().catch(() => ({}))) as { error?: string }
+      if (!response.ok) {
+        throw new Error(payload.error ?? "通報の送信に失敗しました。")
       }
 
       resetForm()

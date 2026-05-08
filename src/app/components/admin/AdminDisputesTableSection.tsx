@@ -20,7 +20,15 @@ const DISPUTE_STATUS_OPTIONS = [
   { value: "rejected", label: "棄却（完了）" },
 ] as const
 
-export default function AdminDisputesPage() {
+type AdminDisputesTableSectionProps = {
+  filterLabel?: string
+  sortByDisputedAt?: boolean
+}
+
+export function AdminDisputesTableSection({
+  filterLabel = "処理状況で絞り込み",
+  sortByDisputedAt = true,
+}: AdminDisputesTableSectionProps) {
   const [disputeStatusFilter, setDisputeStatusFilter] =
     useState<(typeof DISPUTE_STATUS_OPTIONS)[number]["value"]>("all")
   const disputeFilters = useMemo(() => {
@@ -32,13 +40,15 @@ export default function AdminDisputesPage() {
     }
     return [...baseFilters, { column: "dispute_status", value: disputeStatusFilter }]
   }, [disputeStatusFilter])
+  const tableSortProps = sortByDisputedAt
+    ? { sortBy: "disputed_at" as const, sortAscending: true, orderBy: "disputed_at" as const }
+    : {}
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-black tracking-wide text-white">異議申し立て</h1>
+    <>
       <div className="space-y-3">
         <label className="block text-sm font-medium text-zinc-300" htmlFor="admin-dispute-status-filter">
-          処理状況で絞り込み
+          {filterLabel}
         </label>
         <select
           id="admin-dispute-status-filter"
@@ -60,13 +70,11 @@ export default function AdminDisputesPage() {
         tableName="transactions"
         columns={["id", "seller_id", "buyer_id", "disputed_reason", "dispute_status", "disputed_at", "status"]}
         filters={disputeFilters}
-        sortBy="disputed_at"
-        sortAscending
-        orderBy="disputed_at"
+        {...tableSortProps}
         limit={500}
         headerLabels={DISPUTE_HEADER_LABELS}
         disputeAdminDetail
       />
-    </div>
+    </>
   )
 }

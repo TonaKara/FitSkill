@@ -364,6 +364,8 @@ export default function MypageClient() {
   const avatarInputRef = useRef<HTMLInputElement>(null)
   const profileFormRef = useRef<HTMLFormElement>(null)
   const customIdConfirmBypassRef = useRef(false)
+  /** 連続する loadProfile の完了順が逆転して古いデータで上書きしないようにする */
+  const profileLoadGenerationRef = useRef(0)
 
   const [listings, setListings] = useState<ListedSkill[]>([])
   const [listingsLoading, setListingsLoading] = useState(false)
@@ -403,6 +405,7 @@ export default function MypageClient() {
   const [isAdmin, setIsAdmin] = useState(false)
 
   const [isStripeRegistered, setIsStripeRegistered] = useState(false)
+  const [stripeConnectChargesEnabled, setStripeConnectChargesEnabled] = useState(false)
   const [stripeConnectAccountId, setStripeConnectAccountId] = useState("")
   const [payoutLinkBusy, setPayoutLinkBusy] = useState(false)
   const [showStripeOnboardingConfirm, setShowStripeOnboardingConfirm] = useState(false)
@@ -656,14 +659,21 @@ export default function MypageClient() {
     if (!userId) {
       return
     }
+    const generation = ++profileLoadGenerationRef.current
+    const isStale = () => generation !== profileLoadGenerationRef.current
+
     setProfileLoading(true)
     const { data, error } = await supabase
       .from("profiles")
       .select(
-        "id, display_name, custom_id, avatar_url, bio, fitness_history, category, last_name_change, rating_avg, review_count, stripe_connect_account_id, is_stripe_registered",
+        "id, display_name, custom_id, avatar_url, bio, fitness_history, category, last_name_change, rating_avg, review_count, stripe_connect_account_id, is_stripe_registered, stripe_connect_charges_enabled",
       )
       .eq("id", userId)
       .maybeSingle()
+
+    if (isStale()) {
+      return
+    }
 
     if (error) {
       setNotice(
@@ -699,6 +709,7 @@ export default function MypageClient() {
     setProfileRatingAvg(Number.isFinite(ratingAvg) ? ratingAvg : null)
     setProfileReviewCount(Number.isFinite(reviewCount) ? Math.max(0, Math.floor(reviewCount)) : 0)
     setIsStripeRegistered(row?.is_stripe_registered === true)
+    setStripeConnectChargesEnabled(row?.stripe_connect_charges_enabled === true)
     setStripeConnectAccountId(stripeAccountId)
 
     setPendingAvatarFile(null)
@@ -707,6 +718,10 @@ export default function MypageClient() {
       if (prev) revokeBlobUrl(prev)
       return ""
     })
+
+    if (isStale()) {
+      return
+    }
 
     setProfileLoading(false)
   }, [supabase, userId, isAdmin])
@@ -717,12 +732,24 @@ export default function MypageClient() {
     }
     // プロフィール情報が必要なタブに入ったときのみ取得する。
     if (section === "profile" || section === "payout" || section === "reviews" || section === "account") {
+      /**
+       * Stripe オンボーディング復帰（?stripe=return）時は、ここで loadProfile すると
+       * checkAndFinalizeStripeStatus より先に古い行が読まれ profileLoading が false になり、
+       * 未登録 UI が一瞬出たり最後に勝つ競合が起きる。同期は下の finalize 専用フローだけが行う。
+       */
+      if (section === "payout" && stripeReturnParam === "return") {
+        return
+      }
       void loadProfile()
     }
-  }, [userId, section, loadProfile])
+  }, [userId, section, loadProfile, stripeReturnParam])
 
   useEffect(() => {
     if (!userId || section !== "payout") {
+      return
+    }
+    /** Stripe 復帰の finalize 中は未確定のため残高 API を叩かない（404/エラー表示のちらつき防止） */
+    if (stripeReturnParam === "return") {
       return
     }
 
@@ -758,7 +785,7 @@ export default function MypageClient() {
     return () => {
       cancelled = true
     }
-  }, [userId, section, isStripeRegistered, stripeConnectAccountId])
+  }, [userId, section, stripeReturnParam, isStripeRegistered, stripeConnectAccountId, stripeConnectChargesEnabled])
 
   useEffect(() => {
     if (!userId || section !== "payout" || stripeReturnParam !== "return") {
@@ -767,20 +794,31 @@ export default function MypageClient() {
 
     let cancelled = false
     const finalizeStripeStatus = async () => {
+      let finalizedSuccessfully = false
+      let finalizeThrew = false
       try {
         const result = await checkAndFinalizeStripeStatus()
-        if (cancelled || !result.finalized) {
-          return
-        }
-        setNotice({ variant: "success", message: "Stripe連携が完了しました。" })
-        router.replace("/mypage?tab=payout")
+        finalizedSuccessfully = result.finalized
       } catch {
+        finalizeThrew = true
         if (!cancelled) {
           setNotice({
             variant: "error",
             message: "Stripe連携状態の確認に失敗しました。時間を置いて再度お試しください。",
           })
         }
+      } finally {
+        await loadProfile()
+      }
+
+      if (cancelled) {
+        return
+      }
+      if (!finalizeThrew) {
+        if (finalizedSuccessfully) {
+          setNotice({ variant: "success", message: "Stripe連携が完了しました。" })
+        }
+        router.replace("/mypage?tab=payout&mode=instructor")
       }
     }
 
@@ -788,7 +826,7 @@ export default function MypageClient() {
     return () => {
       cancelled = true
     }
-  }, [userId, section, stripeReturnParam, router])
+  }, [userId, section, stripeReturnParam, router, loadProfile])
 
   useEffect(() => {
     if (updatedParam !== "1") {
@@ -805,11 +843,20 @@ export default function MypageClient() {
     setPayoutLinkBusy(true)
     try {
       const url = await getStripeOnboardingUrl(true)
-      window.location.href = url
-    } finally {
+      setShowStripeOnboardingConfirm(false)
+      window.location.assign(url)
+      /* 遷移開始後はページがunloadされるため busy はクリアしない（エラー時のみクリア） */
+    } catch (err) {
       setPayoutLinkBusy(false)
+      const raw = err instanceof Error ? err.message : String(err)
+      setNotice({
+        variant: "error",
+        message: isAdmin
+          ? raw || "Stripe の画面を開けませんでした。"
+          : "Stripe の画面を開けませんでした。時間を置いて再度お試しください。接続や環境変数（Stripe・認証）をご確認ください。",
+      })
     }
-  }, [])
+  }, [isAdmin])
 
   const handleOpenStripeOnboardingConfirm = useCallback(() => {
     if (payoutLinkBusy || profileLoading) {
@@ -1800,7 +1847,9 @@ export default function MypageClient() {
     () => getNextDisplayNameChangeEligibleAt(lastNameChange),
     [lastNameChange],
   )
-  const isStripeSetupComplete = isStripeRegistered && stripeConnectAccountId.length > 0
+  /** Webhook は charges_enabled のみ更新することがあり is_stripe_registered が未更新のままになる。出品判定と揃え charges_enabled も見る */
+  const isStripeSetupComplete =
+    stripeConnectAccountId.length > 0 && (isStripeRegistered || stripeConnectChargesEnabled)
   const filteredConsultationRequests = useMemo(() => {
     if (consultationRequestViewFilter === "all") {
       return consultationRequests
@@ -3151,7 +3200,7 @@ export default function MypageClient() {
               <Button
                 type="button"
                 className="bg-red-600 text-white hover:bg-red-500"
-                onClick={() => void handleStripeLinkOpen().finally(() => setShowStripeOnboardingConfirm(false))}
+                onClick={() => void handleStripeLinkOpen()}
                 disabled={payoutLinkBusy}
               >
                 {payoutLinkBusy ? (
@@ -3164,6 +3213,23 @@ export default function MypageClient() {
                 )}
               </Button>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {payoutLinkBusy ? (
+        <div
+          className="fixed inset-0 z-[10002] flex flex-col items-center justify-center gap-4 bg-black/80 px-6 text-center backdrop-blur-[2px]"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <Loader2 className="h-10 w-10 shrink-0 animate-spin text-red-500" aria-hidden />
+          <div className="max-w-md space-y-2">
+            <p className="text-base font-bold text-white">Stripe の登録画面を準備しています</p>
+            <p className="text-sm leading-relaxed text-zinc-300">
+              しばらくすると Stripe のサイトへ移動します。この画面のままお待ちください。
+            </p>
           </div>
         </div>
       ) : null}

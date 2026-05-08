@@ -75,6 +75,13 @@ const ADMIN_REASON_OPTIONS = [
   "運営判断",
 ] as const
 
+function normalizeSearchText(value: unknown): string {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .toLowerCase()
+    .trim()
+}
+
 function formatDateTimeCell(value: unknown): string | null {
   if (typeof value !== "string") {
     return null
@@ -184,24 +191,24 @@ export function AdminTableCard({
 
   const visibleRows = useMemo(() => {
     if (tableName === "profiles") {
-      const q = profileSearch.trim().toLowerCase()
+      const q = normalizeSearchText(profileSearch)
       if (!q) {
         return rows
       }
       return rows.filter((row) => {
-        const id = String(row.id ?? "").toLowerCase()
-        const name = String(row.display_name ?? "").toLowerCase()
+        const id = normalizeSearchText(row.id)
+        const name = normalizeSearchText(row.display_name)
         return id.includes(q) || name.includes(q)
       })
     }
     if (tableName === "skills") {
-      const q = skillSearch.trim().toLowerCase()
+      const q = normalizeSearchText(skillSearch)
       if (!q) {
         return rows
       }
       return rows.filter((row) => {
-        const id = String(row.id ?? "").toLowerCase()
-        const title = String(row.title ?? "").toLowerCase()
+        const id = normalizeSearchText(row.id)
+        const title = normalizeSearchText(row.title)
         return id.includes(q) || title.includes(q)
       })
     }
