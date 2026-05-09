@@ -14,6 +14,7 @@ import { BrandMarkSvg } from "@/components/BrandMarkSvg"
 import { resolveProfileAvatarUrl } from "@/lib/profile-avatar"
 import { getLogoutSuccessHref } from "@/components/logout-success-toast"
 import { UserMenu } from "@/components/user-menu"
+import { cn } from "@/lib/utils"
 
 type HeaderProps = {
   searchKeyword?: string
@@ -308,7 +309,13 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+    <header
+      className={cn(
+        "sticky top-0 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80",
+        /* ボトムナビ（z-50）より手前に出し、メニュー最下段が隠れないようにする */
+        isMenuOpen ? "z-[70]" : "z-50",
+      )}
+    >
       <div className="mx-auto max-w-7xl px-4">
         <div className="flex h-16 min-h-16 items-center justify-between gap-2 sm:gap-3 md:gap-4">
           {/* Logo */}
@@ -418,7 +425,7 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
               onClick={() => setIsMenuOpen(false)}
             />
             <div className="pointer-events-auto max-h-[min(88vh,calc(100dvh-4rem))] w-full shrink-0 overflow-hidden rounded-t-2xl border-x border-t border-zinc-800 bg-zinc-950 shadow-[0_-16px_48px_rgba(0,0,0,0.55)]">
-              <nav className="flex max-h-[min(88vh,calc(100dvh-4rem))] flex-col gap-2 overflow-y-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">
+              <nav className="flex max-h-[min(88vh,calc(100dvh-4rem))] flex-col gap-2 overflow-y-auto px-4 pb-[max(2rem,calc(1rem+env(safe-area-inset-bottom)))] pt-4">
                 {isAuthenticated ? (
                   <>
                     {profileLoading || profileSummary ? (
