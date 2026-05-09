@@ -159,7 +159,10 @@ Deno.serve(async (req) => {
       application_fee_amount: applicationFeeAmount,
       transfer_data: { destination: seller.stripe_connect_account_id },
       metadata: {
+        transactionId: transactionId,
+        buyerId: user.id,
         transaction_id: transactionId,
+        buyer_id: user.id,
         skill_id: String((tx as { skill_id?: string }).skill_id ?? ""),
       },
     })

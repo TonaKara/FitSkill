@@ -356,6 +356,8 @@ export async function createCheckoutSession(skillId: string | number): Promise<C
           destination: sellerConnectAccountId,
         },
         metadata: {
+          transactionId: pendingTransactionId,
+          buyerId: user.id,
           payout_policy: "destination_charge_manual_payout_hold_until_completion",
           platform_fee_amount: String(applicationFeeAmount),
           transaction_id: pendingTransactionId,
@@ -365,6 +367,8 @@ export async function createCheckoutSession(skillId: string | number): Promise<C
         },
       },
       metadata: {
+        transactionId: pendingTransactionId,
+        buyerId: user.id,
         skill_id: skill.id,
         buyer_id: user.id,
         seller_id: skill.user_id,

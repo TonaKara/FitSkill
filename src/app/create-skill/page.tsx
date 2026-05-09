@@ -828,7 +828,7 @@ function CreateSkillPageContent() {
                     value={form.description}
                     onChange={(event) => updateForm("description", event.target.value)}
                     rows={7}
-                    placeholder="自己紹介、指導方針（ZoomやYouTubeを使った指導スタイルなど）、指導の流れ、準備していただくもの（運動できる服装、飲み物など）などを記載してください。※外部サービス（Zoom等）を利用する場合は、その旨を必ず明記してください。"
+                    placeholder="自己紹介、指導方針（ZoomやYouTubeを使った指導スタイルなど）、指導の流れ、準備していただくもの（運動できる服装、飲み物など）などを自由に記載してください。"
                     className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm leading-relaxed text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-500"
                   />
                   <p className="inline-flex items-start gap-1.5 text-xs text-zinc-400">
@@ -984,7 +984,7 @@ function CreateSkillPageContent() {
               </section>
 
               <fieldset className="space-y-3 rounded-lg border border-zinc-700 bg-zinc-900/50 p-4">
-                <legend className="px-1 text-sm font-semibold text-zinc-200">セクションA: 事前オファー設定</legend>
+                <legend className="px-1 text-sm font-semibold text-zinc-200">事前オファー設定</legend>
                 <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-zinc-200">
                   <input
                     type="checkbox"
@@ -1059,7 +1059,7 @@ function CreateSkillPageContent() {
               </fieldset>
 
               <fieldset className="space-y-3 rounded-lg border border-zinc-700 bg-zinc-900/50 p-4">
-                <legend className="px-1 text-sm font-semibold text-zinc-200">セクションB: 事前相談（チャット）設定</legend>
+                <legend className="px-1 text-sm font-semibold text-zinc-200">事前相談（チャット）設定</legend>
                 <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-zinc-200">
                   <input
                     type="checkbox"

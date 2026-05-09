@@ -1090,13 +1090,6 @@ export default function ChatTransactionPage() {
     }
     setCompleteError(null)
     setCompleting(true)
-    console.log("[tx-complete] start", {
-      transactionId,
-      userId,
-      currentStatus: transaction?.status ?? null,
-      isBuyer,
-      isSeller,
-    })
     try {
       const {
         data: { session },
@@ -1125,10 +1118,6 @@ export default function ChatTransactionPage() {
       }
 
       await completeTransactionWithPayout(String(transactionId), "standard")
-      console.log("2. ステータス更新完了（server action）")
-
-      // --- 削除処理（messages.file_url → chat-media） ---
-      console.log("--- 削除処理開始 ---")
 
       const { data: messages, error: dbError } = await supabase
         .from("messages")
@@ -1150,12 +1139,8 @@ export default function ChatTransactionPage() {
         })
         const pathsToRemove = [...new Set(extractedFileNames)]
 
-        console.log("削除対象のファイル名リスト:", pathsToRemove)
-
         if (pathsToRemove.length > 0) {
           const fullPaths = pathsToRemove.map((name) => `${transactionId}/${name}`)
-
-          console.log("最終的に削除するフォルダパス:", fullPaths)
 
           const { error: removeError } = await supabase.storage
             .from(CHAT_MEDIA_BUCKET)
@@ -1163,20 +1148,9 @@ export default function ChatTransactionPage() {
 
           if (removeError) {
             console.error("削除エラー:", removeError)
-          } else {
-            console.log("削除成功！フォルダを含めて処理しました。")
           }
         }
-      } else {
-        console.log("この取引IDには削除すべきファイルがありません。")
       }
-
-      console.log("[tx-complete] success", {
-        transactionId: String(transactionId),
-        mediaCleanup: {
-          messageFileRows: messages?.length ?? 0,
-        },
-      })
       if (transaction) {
         void createTransactionNotification(supabase, {
           recipient_id: String(transaction.seller_id),
@@ -1898,8 +1872,14 @@ export default function ChatTransactionPage() {
               "利用停止中は進行中取引のチャット閲覧のみ可能です。"
             ) : (
               <>
-                ＋でファイルを選び、本文を書いてから送信でまとめて送れます（1ファイル
+                ＋で画像や動画の選択ができます（1ファイル
                 <strong className="font-medium text-zinc-400">10MB以下</strong>・画像または動画のみ）。
+                <br />
+                {isSeller
+                  ? "リンクアイコンから外部ツール（Zoom/YouTube）連携ができます。"
+                  : isBuyer
+                    ? "リンクアイコンから外部ツール（YouTube）連携ができます。"
+                    : "リンクアイコンから外部ツール連携ができます。"}
               </>
             )}
           </p>

@@ -41,7 +41,7 @@ export default function AdminContactsPage() {
       <AdminTableCard
         title="問い合わせ一覧（最新）"
         tableName="contact_submissions"
-        columns={["name", "email", "category", "subject", "status", "created_at"]}
+        columns={["name", "email", "category", "subject", "transaction_id", "status", "created_at"]}
         headerLabels={ADMIN_TABLE_HEADER_LABELS}
         filters={contactFilters}
       />

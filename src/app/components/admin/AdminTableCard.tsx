@@ -22,6 +22,7 @@ type AdminTableCardProps = {
     | "skills"
     | "user_reports"
     | "product_reports"
+    | "admin_reported_users_summary"
     | "contact_submissions"
     | "transactions"
     | "cms_pages"
@@ -201,6 +202,17 @@ export function AdminTableCard({
         return id.includes(q) || name.includes(q)
       })
     }
+    if (tableName === "admin_reported_users_summary") {
+      const q = normalizeSearchText(profileSearch)
+      if (!q) {
+        return rows
+      }
+      return rows.filter((row) => {
+        const reportedUserId = normalizeSearchText(row.reported_user_id)
+        const name = normalizeSearchText(row.display_name)
+        return reportedUserId.includes(q) || name.includes(q)
+      })
+    }
     if (tableName === "skills") {
       const q = normalizeSearchText(skillSearch)
       if (!q) {
@@ -288,7 +300,7 @@ export function AdminTableCard({
       const label =
         tableName === "transactions"
           ? (TRANSACTION_STATUS_LABEL_MAP[rawStatus] ?? rawStatus)
-          : tableName === "profiles" && rawStatus === "active"
+          : (tableName === "profiles" || tableName === "admin_reported_users_summary") && rawStatus === "active"
             ? "通常"
             : (STATUS_LABEL_MAP[rawStatus] ?? rawStatus)
       return (
@@ -465,11 +477,6 @@ export function AdminTableCard({
         return
       }
       const nextPublished = !currentPublished
-      console.log("[AdminTableCard] is_published update request", {
-        skillId: skillRow.id,
-        currentValue: currentPublished,
-        newValue: nextPublished,
-      })
       const { data: updatedRows, error: updateError } = await supabase
         .from("skills")
         .update({ is_published: nextPublished })
@@ -480,10 +487,6 @@ export function AdminTableCard({
         setNotice({ variant: "error", message: "商品の公開状態変更に失敗しました。" })
         return
       }
-      console.log("[AdminTableCard] is_published update response", {
-        skillId: skillRow.id,
-        updatedRows,
-      })
       if (!updatedRows || updatedRows.length === 0) {
         console.error(
           "[AdminTableCard] is_published update returned no rows. RLS policy may block update silently.",
@@ -518,7 +521,6 @@ export function AdminTableCard({
           })
         }
       }
-      console.log("[AdminTableCard] Triggering table refresh via reloadTick")
       setReloadTick((prev) => prev + 1)
     } finally {
       setActionPendingKey(null)
@@ -914,7 +916,6 @@ export function AdminTableCard({
           }
         }
         const { data: probeData, error: probeError } = await probeQuery
-        console.log(`[AdminTableCard] ${tableName} probe result`, { data: probeData, error: probeError })
         if (cancelled) {
           return
         }
@@ -935,14 +936,7 @@ export function AdminTableCard({
         const sampleColumns = sampleRow && typeof sampleRow === "object" ? Object.keys(sampleRow) : []
         const hasCreatedAt = sampleColumns.includes("created_at")
         const hasUpdatedAt = sampleColumns.includes("updated_at")
-        console.log(`[AdminTableCard] ${tableName} column check`, {
-          hasCreatedAt,
-          hasUpdatedAt,
-          sampleColumns,
-        })
-
         if (Array.isArray(probeData) && probeData.length === 0) {
-          console.log(`[AdminTableCard] ${tableName}: データが空です`)
           setRows([])
           return
         }
@@ -969,7 +963,6 @@ export function AdminTableCard({
         query = query.limit(limit)
 
         const { data, error } = await query
-        console.log(`[AdminTableCard] ${tableName} fetch result`, { data, error })
         if (cancelled) {
           return
         }
@@ -984,9 +977,6 @@ export function AdminTableCard({
           setRows([])
           setErrorMessage("データの取得に失敗しました。")
           return
-        }
-        if (Array.isArray(data) && data.length === 0 && !error) {
-          console.log(`[AdminTableCard] ${tableName}: データが空です`)
         }
         const fetchedRows = data as unknown as Record<string, unknown>[]
         setRows(fetchedRows)

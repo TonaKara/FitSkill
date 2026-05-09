@@ -12,6 +12,7 @@ const ADMIN_TABS = [
   { href: "/admin", label: "ダッシュボード" },
   { href: "/admin/users", label: "ユーザー管理" },
   { href: "/admin/products", label: "商品管理" },
+  { href: "/admin/transactions", label: "取引一覧" },
   { href: "/admin/announcements", label: "お知らせ" },
   { href: "/admin/reports", label: "通報一覧" },
   { href: "/admin/contacts", label: "問い合わせ一覧" },

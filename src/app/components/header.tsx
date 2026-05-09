@@ -61,7 +61,7 @@ const MOBILE_STUDENT_MENU_GROUPS: MobileMenuGroup[] = [
   },
   {
     heading: "プロフィール・アカウント",
-    description: "表示プロフィール・セキュリティ・ログアウトなど",
+    description: "公開プロフィール・アカウント設定など",
     items: [
       { label: "プロフィール設定", href: "/mypage?mode=student&tab=profile" },
       { label: "アカウント設定", href: "/mypage?mode=student&tab=account" },
@@ -80,17 +80,21 @@ const MOBILE_INSTRUCTOR_MENU_GROUPS: MobileMenuGroup[] = [
   },
   {
     heading: "取引・案件",
-    description: "リクエストから進行中のレッスン・履歴まで",
+    description: "リクエストから進行中のレッスンまで",
     items: [
       { label: "リクエスト", href: "/mypage?mode=instructor&tab=requests" },
       { label: "相談", href: "/mypage?mode=instructor&tab=inquiry" },
       { label: "進行中の取引（対応中）", href: "/mypage?mode=instructor&tab=teaching" },
-      { label: "取引履歴", href: "/mypage?mode=instructor&tab=transactions" },
     ],
   },
   {
+    heading: "取引履歴",
+    description: "過去のやり取りを一覧で確認",
+    items: [{ label: "取引履歴", href: "/mypage?mode=instructor&tab=transactions" }],
+  },
+  {
     heading: "評価・プロフィール",
-    description: "評価・公開プロフィール・アカウント",
+    description: "評価・公開プロフィール・アカウント設定など",
     items: [
       { label: "評価", href: "/mypage?mode=instructor&tab=reviews" },
       { label: "プロフィール設定", href: "/mypage?mode=instructor&tab=profile" },
@@ -516,6 +520,13 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
                         ),
                       )}
                     </div>
+                    <Button
+                      type="button"
+                      onClick={handleLogoutMenuClick}
+                      className="mt-2 w-full bg-red-600 font-semibold text-white hover:bg-red-500"
+                    >
+                      ログアウト
+                    </Button>
                   </>
                 ) : (
                   <Button

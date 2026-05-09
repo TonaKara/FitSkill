@@ -2844,6 +2844,7 @@ export default function MypageClient() {
                               <p className="truncate text-base font-bold text-white md:text-lg">{item.skillTitle}</p>
                               <p className="mt-1 text-sm text-zinc-400">講師: {item.peerDisplayName}</p>
                               <p className="mt-1 text-xs text-zinc-500">{item.startedAtLabel}</p>
+                              <p className="mt-1 text-[11px] text-zinc-500">取引ID: {item.transactionId}</p>
                             </div>
                           </div>
                           <Button

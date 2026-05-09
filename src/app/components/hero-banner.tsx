@@ -77,8 +77,8 @@ export function HeroBanner({ onBrowseSkillsClick, heroStats }: HeroBannerProps) 
             </h1>
             
             {/* Description */}
-            <p className="mb-6 text-left leading-relaxed text-muted-foreground md:text-left md:text-base md:leading-normal">
-              <span className="block whitespace-nowrap text-[12px] sm:text-[13px] md:hidden">
+            <p className="mb-6 max-w-full text-left leading-relaxed text-muted-foreground md:text-left md:text-base md:leading-normal">
+              <span className="block text-[11px] leading-snug sm:text-xs sm:leading-relaxed md:hidden">
                 誰でもフィットネススキルを教えたり学んだりできるマーケットプレイス
               </span>
               <span className="hidden whitespace-nowrap md:inline">

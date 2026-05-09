@@ -7,7 +7,6 @@ import { HeroBanner } from "@/components/hero-banner"
 import { DEFAULT_HOME_SKILL_FILTERS, SKILL_SORT_OPTIONS, SkillGrid, type SkillSortOptionId } from "@/components/skill-grid"
 import { SlidersHorizontal, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { PREFECTURE_OPTIONS } from "@/lib/prefectures"
 import { SKILL_CATEGORY_OPTIONS } from "@/lib/skill-categories"
 import { consumeHomeListScrollY } from "@/lib/home-list-scroll"
@@ -31,15 +30,6 @@ export default function HomePageClient({ heroStats }: HomePageClientProps) {
   const [minPriceInput, setMinPriceInput] = useState("")
   const [maxPriceInput, setMaxPriceInput] = useState("")
   const [searchKeyword, setSearchKeyword] = useState("")
-
-  useEffect(() => {
-    const supabase = getSupabaseBrowserClient()
-    void (async () => {
-      const { data, error } = await supabase.storage.listBuckets()
-      console.log("実際に認識されているバケット一覧:", data)
-      console.log("エラーがあれば表示:", error)
-    })()
-  }, [])
 
   useLayoutEffect(() => {
     const y = consumeHomeListScrollY()

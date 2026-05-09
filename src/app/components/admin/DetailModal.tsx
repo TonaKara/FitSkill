@@ -13,6 +13,7 @@ type DetailModalProps = {
     | "skills"
     | "user_reports"
     | "product_reports"
+    | "admin_reported_users_summary"
     | "contact_submissions"
     | "transactions"
     | "cms_pages"
@@ -126,6 +127,7 @@ export function DetailModal({
       <p><span className="text-zinc-400">名前:</span> {String(item.name ?? "—")}</p>
       <p><span className="text-zinc-400">メール:</span> {String(item.email ?? "—")}</p>
       <p><span className="text-zinc-400">件名:</span> {String(item.subject ?? "—")}</p>
+      <p><span className="text-zinc-400">取引ID:</span> {String(item.transaction_id ?? "—")}</p>
       <p><span className="text-zinc-400">内容:</span> {String(item.content ?? "—")}</p>
       <div>
         <p className="mb-1 text-zinc-400">添付画像:</p>

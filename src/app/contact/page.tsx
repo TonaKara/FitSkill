@@ -23,12 +23,14 @@ const CONTACT_CATEGORY_OPTIONS = [
 const SUBJECT_MAX_LENGTH = 40
 const CONTENT_MAX_LENGTH = 2000
 const CONTACT_ATTACHMENTS_PREFIX = "attachments"
+const TRANSACTION_ID_MAX_DIGITS = 19
 
 type ContactFormState = {
   name: string
   email: string
   category: string
   subject: string
+  transactionId: string
   content: string
 }
 
@@ -37,11 +39,16 @@ const DEFAULT_FORM: ContactFormState = {
   email: "",
   category: "",
   subject: "",
+  transactionId: "",
   content: "",
 }
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+}
+
+function isValidInt8LikeId(value: string) {
+  return /^\d{1,19}$/.test(value)
 }
 
 function cleanStoragePath(path: string): string {
@@ -135,6 +142,7 @@ export default function ContactPage() {
     const email = form.email.trim()
     const category = form.category.trim()
     const subject = form.subject.trim()
+    const transactionId = form.transactionId.trim()
     const content = form.content.trim()
 
     if (!name || !email || !category || !subject || !content) {
@@ -151,6 +159,13 @@ export default function ContactPage() {
     }
     if (content.length > CONTENT_MAX_LENGTH) {
       setNotice({ variant: "error", message: `内容は${CONTENT_MAX_LENGTH}文字以内で入力してください。` })
+      return
+    }
+    if (transactionId.length > 0 && !isValidInt8LikeId(transactionId)) {
+      setNotice({
+        variant: "error",
+        message: `取引IDは数字のみ${TRANSACTION_ID_MAX_DIGITS}桁以内で入力してください。`,
+      })
       return
     }
 
@@ -179,6 +194,7 @@ export default function ContactPage() {
         email,
         category,
         subject,
+        transaction_id: transactionId.length > 0 ? transactionId : null,
         content,
         attachment_path: uploadedAttachmentPath,
         status: "pending",
@@ -311,6 +327,23 @@ export default function ContactPage() {
               </div>
 
               <div className="space-y-2">
+                <label htmlFor="contact-transaction-id" className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-200">
+                  取引ID<span className="text-xs font-medium text-zinc-400">任意</span>
+                </label>
+                <Input
+                  id="contact-transaction-id"
+                  type="text"
+                  value={form.transactionId}
+                  onChange={handleChange("transactionId")}
+                  className="border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                />
+                <p className="text-xs leading-relaxed text-zinc-400">
+                  取引に関するお問い合わせの場合は、マイページの「進行中の取引（受講中 / 対応中）」一覧に表示される
+                  「取引ID」をご記入ください。
+                </p>
+              </div>
+
+              <div className="space-y-2">
                 <label htmlFor="contact-content" className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-200">
                   内容<span className="text-xs font-medium text-red-400">必須</span>
                 </label>
@@ -326,8 +359,11 @@ export default function ContactPage() {
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="contact-attachment" className="text-sm font-semibold text-zinc-200">
-                  添付ファイル
+                <label
+                  htmlFor="contact-attachment"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-200"
+                >
+                  添付ファイル<span className="text-xs font-medium text-zinc-400">任意</span>
                 </label>
                 <Input
                   id="contact-attachment"
