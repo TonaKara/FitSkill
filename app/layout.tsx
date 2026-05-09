@@ -101,10 +101,14 @@ export default function RootLayout({
             <ConsoleGuard />
             <div className="flex h-[100svh] min-h-0 flex-1 flex-col overflow-hidden md:h-auto md:min-h-full md:overflow-visible">
               <MaintenanceGuard>
-                <main className="flex-1 overflow-y-auto overscroll-contain">{children}</main>
+                <main className="flex-1 overflow-y-auto overscroll-contain">
+                  <div className="flex min-h-full flex-col">
+                    <div className="flex-1">{children}</div>
+                    <ConditionalFooter />
+                  </div>
+                </main>
               </MaintenanceGuard>
               <BottomNav />
-              <ConditionalFooter />
             </div>
           </MobileHeaderMenuProvider>
         </ThemeProvider>
