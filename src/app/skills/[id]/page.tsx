@@ -94,7 +94,7 @@ const CHECKABLE_TRANSACTION_STATUSES = [
 const PRIORITIZED_TRANSACTION_STATUSES = ["awaiting_payment", ...CHAT_TRANSITION_STATUSES] as const
 
 function canOpenChatFromSkillPage(
-  tx: ActiveTransactionRow | null,
+  tx: ActiveTransactionRow | null | undefined,
   options?: { currentUserId?: string | null },
 ): boolean {
   if (!tx || !tx.status) {
@@ -388,7 +388,7 @@ export default function SkillDetailPage() {
         const rows = await fetchActiveTransaction()
         const latest = rows?.[0]
         const st = latest?.status
-        if (canOpenChatFromSkillPage(latest, { currentUserId: userId })) {
+        if (latest && canOpenChatFromSkillPage(latest, { currentUserId: userId })) {
           const tid = String(latest.id)
           if (checkoutAutoRedirectStorageKey && typeof window !== "undefined") {
             window.sessionStorage.setItem(checkoutAutoRedirectStorageKey, "1")
@@ -724,7 +724,7 @@ export default function SkillDetailPage() {
 
       const latestActiveRow = (latestActive as ActiveTransactionRow[] | null)?.[0]
       const latestStatus = latestActiveRow?.status ?? null
-      if (canOpenChatFromSkillPage(latestActiveRow, { currentUserId: userId })) {
+      if (latestActiveRow && canOpenChatFromSkillPage(latestActiveRow, { currentUserId: userId })) {
         setTransactionRows([latestActiveRow])
         setTransactionStatus(latestStatus)
         setActiveTransaction(latestActiveRow)

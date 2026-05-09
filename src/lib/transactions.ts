@@ -1,8 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
-import { createTransactionNotification, NOTIFICATION_TYPE } from "@/lib/transaction-notifications"
 import { canBuyerPurchaseSkill } from "@/lib/consultation"
-import { sendDiscordNotification } from "@/lib/discord"
-import { getSiteUrl } from "@/lib/site-seo"
 
 /** 重複 INSERT（unique 制約）かどうか */
 function isUniqueConstraintViolation(error: { code?: string; message?: string }): boolean {
@@ -183,57 +180,6 @@ export async function createSkillPurchaseTransaction(
 
   const newTxId = (insertedRow as { id?: unknown } | null)?.id
   const txIdStr = typeof newTxId === "string" && newTxId.length > 0 ? newTxId : null
-
-  if (initialStatus === "active" && txIdStr) {
-    const { error: nErr } = await createTransactionNotification(supabase, {
-      recipient_id: sellerId,
-      type: NOTIFICATION_TYPE.purchase,
-      content: "あなたのスキルに新しい購入がありました。チャットを確認してください。",
-      reason: `transaction_id:${txIdStr}`,
-    })
-    if (nErr) {
-      console.error("[createSkillPurchaseTransaction] createTransactionNotification failed", nErr)
-    }
-    const webhookUrl = process.env.DISCORD_WEBHOOK_PURCHASE?.trim() ?? ""
-    if (webhookUrl) {
-      try {
-        const [{ data: buyerProfile }, { data: sellerProfile }] = await Promise.all([
-          supabase.from("profiles").select("display_name").eq("id", params.buyerId).maybeSingle(),
-          supabase.from("profiles").select("display_name").eq("id", sellerId).maybeSingle(),
-        ])
-        const buyerName =
-          ((buyerProfile as { display_name?: string | null } | null)?.display_name ?? "").trim() || params.buyerId
-        const sellerName =
-          ((sellerProfile as { display_name?: string | null } | null)?.display_name ?? "").trim() || sellerId
-        const baseUrl = getSiteUrl().replace(/\/$/, "")
-        await sendDiscordNotification(
-          webhookUrl,
-          [
-            "🛒 **取引開始（購入）**",
-            `- 購入者: ${buyerName}`,
-            `- 講師: ${sellerName}`,
-            `- 商品: ${skillRow.title?.trim() || params.skillId}`,
-            `- 取引チャット: ${baseUrl}/chat/${encodeURIComponent(txIdStr)}`,
-            `- 管理画面: ${baseUrl}/admin`,
-          ].join("\n"),
-        )
-      } catch (discordError) {
-        console.error("[transactions] discord purchase notification failed", discordError)
-      }
-    }
-    try {
-      await fetch("/api/notifications/event-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          event: "transaction_established",
-          transactionId: txIdStr,
-        }),
-      })
-    } catch {
-      // メール通知失敗で取引作成を失敗扱いにしない
-    }
-  }
 
   return {
     inserted: true,
