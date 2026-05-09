@@ -144,18 +144,19 @@ async function main() {
   const ogHomeSvg = (() => {
     const W = 1200
     const H = 630
-    const tile = 220
+    /** キャンバスいっぱいに近いロックアップ（余白は高さ 630 に合わせてタイルを最大化） */
+    const tile = 420
     const rx = Math.round(tile * 0.2)
     const logoPad = Math.round(tile * 0.083)
     const logoInner = tile - logoPad * 2
-    const gap = 32
-    const fontPx = 76
-    const approxTextW = 360
+    const gap = 14
+    const fontPx = 132
+    const approxTextW = 580
     const groupW = tile + gap + approxTextW
     const startX = Math.round((W - groupW) / 2)
     const tileY = Math.round((H - tile) / 2)
     const textX = startX + tile + gap
-    const textY = Math.round(H / 2 + fontPx * 0.28)
+    const textY = Math.round(H / 2)
     const fontStack =
       "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
 
@@ -167,7 +168,7 @@ async function main() {
 ${markInner}
     </svg>
   </svg>
-  <text xml:space="preserve" x="${textX}" y="${textY}" font-size="${fontPx}" font-weight="700" font-family="${fontStack}">
+  <text xml:space="preserve" x="${textX}" y="${textY}" font-size="${fontPx}" font-weight="700" font-family="${fontStack}" dominant-baseline="central">
     <tspan fill="${BRAND_RED}">Grit</tspan><tspan fill="${WHITE}">Vib</tspan>
   </text>
 </svg>`
