@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Loader2, Menu, Search } from "lucide-react"
+import { Loader2, Menu, Search, X } from "lucide-react"
 import { NotificationBell } from "@/components/notification-bell"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -426,7 +426,15 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
               onClick={() => setIsMenuOpen(false)}
             />
             <div className="pointer-events-auto max-h-[min(88svh,calc(100svh-4rem))] w-full shrink-0 overflow-hidden rounded-t-2xl border-x border-t border-zinc-800 bg-zinc-950 shadow-[0_-16px_48px_rgba(0,0,0,0.55)]">
-              <nav className="flex max-h-[min(88svh,calc(100svh-4rem))] flex-col gap-2 overflow-y-auto px-4 pb-[max(2rem,calc(1rem+env(safe-area-inset-bottom)))] pt-4">
+              <nav className="relative flex max-h-[min(88svh,calc(100svh-4rem))] flex-col gap-2 overflow-y-auto px-4 pb-[max(2rem,calc(1rem+env(safe-area-inset-bottom)))] pt-4">
+                <button
+                  type="button"
+                  aria-label="メニューを閉じる"
+                  className="absolute right-3 top-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900/80 text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <X className="h-4 w-4" />
+                </button>
                 {isAuthenticated ? (
                   <>
                     {profileLoading || profileSummary ? (
