@@ -92,9 +92,9 @@ export default function RootLayout({
     <html
       lang="ja"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} min-h-[100dvh] antialiased md:h-full md:min-h-full`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="flex min-h-[100dvh] flex-col md:min-h-full">
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
@@ -104,7 +104,7 @@ export default function RootLayout({
           <MobileHeaderMenuProvider>
             <AccessibilityModeSync />
             <ConsoleGuard />
-            <div className="flex min-h-full flex-col">
+            <div className="flex min-h-[100dvh] flex-col md:min-h-full">
               <MaintenanceGuard>
                 <div className="flex-1">{children}</div>
               </MaintenanceGuard>

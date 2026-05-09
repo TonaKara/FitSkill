@@ -112,7 +112,7 @@ export default function HomePageClient({ heroStats }: HomePageClientProps) {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-0">
+    <div className="min-h-[100dvh] bg-background pb-20 md:min-h-screen md:pb-0">
       <LogoutSuccessToast />
       <Header searchKeyword={searchKeyword} onSearchKeywordChange={setSearchKeyword} />
 
@@ -184,7 +184,7 @@ export default function HomePageClient({ heroStats }: HomePageClientProps) {
       {showFilters ? (
         <div className="fixed inset-0 z-50 bg-black/60 p-4" onClick={() => setShowFilters(false)}>
           <section
-            className="mx-auto mt-8 max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-border bg-background p-4 md:p-6"
+            className="mx-auto mt-8 max-h-[85dvh] w-full max-w-2xl overflow-y-auto rounded-xl border border-border bg-background p-4 md:max-h-[85vh] md:p-6"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
