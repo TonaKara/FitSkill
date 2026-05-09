@@ -601,7 +601,7 @@ export default function SkillDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[100dvh] items-center justify-center bg-black text-zinc-200 md:min-h-screen">
+      <div className="flex min-h-[100svh] items-center justify-center bg-black text-zinc-200 md:min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-red-500" aria-hidden />
         <span className="ml-2 text-sm">読み込み中...</span>
       </div>
@@ -610,7 +610,7 @@ export default function SkillDetailPage() {
 
   if (!skill) {
     return (
-      <div className="min-h-[100dvh] bg-black px-4 py-16 text-center text-zinc-200 md:min-h-screen">
+      <div className="min-h-[100svh] bg-black px-4 py-16 text-center text-zinc-200 md:min-h-screen">
         <p className="text-lg font-semibold text-white">スキルが見つかりません</p>
         <p className="mt-2 text-sm text-zinc-400">URL をご確認ください。</p>
         <Button asChild className="mt-8 bg-red-600 text-white hover:bg-red-500">
@@ -1001,7 +1001,7 @@ export default function SkillDetailPage() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-black pb-24 pt-6 text-zinc-100 md:min-h-screen">
+    <div className="min-h-[100svh] bg-black pb-24 pt-6 text-zinc-100 md:min-h-screen">
       {notice ? <NotificationToast notice={notice} onClose={() => setNotice(null)} /> : null}
       <div className="mx-auto max-w-3xl px-4 md:px-6">
         <Button

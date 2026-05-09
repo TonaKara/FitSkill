@@ -7,7 +7,8 @@ const baseLinkClass =
 export function Footer() {
   return (
     <footer className="border-t border-zinc-800 bg-black text-zinc-100">
-      <div className="mx-auto grid w-full max-w-6xl gap-10 px-6 py-12 md:grid-cols-3">
+      {/* スマホ: 固定ボトムナビ（h-16 + safe-area）と重ならないよう下余白を確保。PC は従来どおり py-12 */}
+      <div className="mx-auto grid w-full max-w-6xl gap-10 px-6 pt-12 pb-[calc(3rem+4rem+env(safe-area-inset-bottom,0px))] md:grid-cols-3 md:py-12">
         <section className="space-y-4">
           <h2 className="text-base font-semibold text-white">サービスについて</h2>
           <nav className="flex flex-col gap-2">

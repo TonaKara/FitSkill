@@ -129,7 +129,7 @@ export function BottomNav() {
   return (
     <nav
       className={cn(
-        "fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden",
+        "fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur supports-[backdrop-filter]:bg-background/80 transform-gpu will-change-transform md:hidden",
         isMobileMenuOpen && "hidden",
       )}
     >

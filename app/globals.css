@@ -204,3 +204,15 @@
   border-color: var(--accent-color) !important;
 }
 
+/*
+ * モバイル Chrome: アドレスバー表示・非表示で 100dvh が変わり続けレイアウトが揺れる問題への対策。
+ * - 文書の最小高さは svh（UI が出たときの「小さい」ビューポート）で固定し、下端のガタつき・隙間を抑える。
+ * - 端でのオーバースクロールを抑え、固定ヘッダー／フッタとブラウザ UI の干渉を軽減する。
+ */
+@media (max-width: 767.98px) {
+  html,
+  body {
+    overscroll-behavior-y: none;
+  }
+}
+

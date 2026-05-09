@@ -312,7 +312,7 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
   return (
     <header
       className={cn(
-        "sticky top-0 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80",
+        "sticky top-0 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 transform-gpu will-change-transform md:transform-none md:will-change-auto",
         /* ボトムナビ（z-50）より手前に出し、メニュー最下段が隠れないようにする */
         isMenuOpen ? "z-[70]" : "z-50",
       )}
@@ -417,7 +417,7 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
             role="dialog"
             aria-modal="true"
             aria-label="アカウントメニュー"
-            className="fixed inset-x-0 top-16 z-[60] flex h-[calc(100dvh-4rem)] max-h-[calc(100dvh-4rem)] min-h-0 flex-col md:hidden"
+            className="fixed inset-x-0 top-16 z-[60] flex h-[calc(100svh-4rem)] max-h-[calc(100svh-4rem)] min-h-0 flex-col md:hidden"
           >
             <button
               type="button"
@@ -425,8 +425,8 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
               className="min-h-0 flex-1 bg-black/45 backdrop-blur-[1px]"
               onClick={() => setIsMenuOpen(false)}
             />
-            <div className="pointer-events-auto max-h-[min(88dvh,calc(100dvh-4rem))] w-full shrink-0 overflow-hidden rounded-t-2xl border-x border-t border-zinc-800 bg-zinc-950 shadow-[0_-16px_48px_rgba(0,0,0,0.55)]">
-              <nav className="flex max-h-[min(88dvh,calc(100dvh-4rem))] flex-col gap-2 overflow-y-auto px-4 pb-[max(2rem,calc(1rem+env(safe-area-inset-bottom)))] pt-4">
+            <div className="pointer-events-auto max-h-[min(88svh,calc(100svh-4rem))] w-full shrink-0 overflow-hidden rounded-t-2xl border-x border-t border-zinc-800 bg-zinc-950 shadow-[0_-16px_48px_rgba(0,0,0,0.55)]">
+              <nav className="flex max-h-[min(88svh,calc(100svh-4rem))] flex-col gap-2 overflow-y-auto px-4 pb-[max(2rem,calc(1rem+env(safe-area-inset-bottom)))] pt-4">
                 {isAuthenticated ? (
                   <>
                     {profileLoading || profileSummary ? (
@@ -528,7 +528,7 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
         showLogoutConfirm &&
         createPortal(
           <div
-            className="fixed inset-0 z-[10000] flex min-h-[100dvh] w-full items-center justify-center overflow-y-auto bg-black/50 p-4 sm:p-6"
+            className="fixed inset-0 z-[10000] flex min-h-[100svh] w-full items-center justify-center overflow-y-auto bg-black/50 p-4 sm:p-6 md:min-h-screen"
             role="presentation"
             onClick={handleLogoutCancel}
           >

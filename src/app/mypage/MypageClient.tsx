@@ -1922,7 +1922,7 @@ export default function MypageClient() {
 
   if (authLoading || shouldBlockByProfileLoading) {
     return (
-      <div className={`flex min-h-[100dvh] items-center justify-center md:min-h-screen ${isDarkMode ? "bg-zinc-950 text-zinc-200" : "bg-background text-foreground"}`}>
+      <div className={`flex min-h-[100svh] items-center justify-center md:min-h-screen ${isDarkMode ? "bg-zinc-950 text-zinc-200" : "bg-background text-foreground"}`}>
         <Loader2 className="mr-2 h-5 w-5 animate-spin text-red-500" aria-hidden />
         読み込み中...
       </div>
@@ -1931,7 +1931,7 @@ export default function MypageClient() {
 
   return (
     <div
-      className={`min-h-[100dvh] mypage-accent md:min-h-screen ${
+      className={`min-h-[100svh] mypage-accent md:min-h-screen ${
         isDarkMode ? "bg-zinc-950 text-zinc-50" : "bg-background text-foreground mypage-theme-light"
       }`}
     >
