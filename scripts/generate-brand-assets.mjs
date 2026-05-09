@@ -4,7 +4,7 @@
  * 出力: output/（作業用）＋ 以下へ同期
  * - public/apple-touch-icon.png（180×180、検索・ホーム画面用）
  * - public/og-logo.png（小アイコン用・赤角丸タイル＋白マーク＝ブランドロゴ）
- * - public/og-home.png（トップ https://gritvib.com/ の OG のみ・同上ロゴを大きく／背景 #09090b）
+ * - public/og-home.png（トップ OG のみ・1200×630・左にブランドロゴ／右に HOME 相当テキスト）
  * - app/favicon.ico, app/icon.png（タブ用）
  * - sns-icon-1080.png, favicon-32.png, favicon.ico, apple-touch-icon-180.png, header-1200x300.png
  */
@@ -140,23 +140,41 @@ async function main() {
   await fs.copyFile(applePngPath, path.join(PUBLIC_DIR, "apple-touch-icon.png"))
   await writePng(ogLogoSvg, path.join(PUBLIC_DIR, "og-logo.png"), 144)
 
+  /** トップ OGP テキスト（src/lib/site-seo.ts の HOME_* と揃えること） */
+  const OG_HOME_TITLE_L1 = "GritVib | フィットネススキルの"
+  const OG_HOME_TITLE_L2 = "マーケットプレイス"
+  const OG_HOME_DESC_L1 = "プロのトレーナーから初心者まで、"
+  const OG_HOME_DESC_L2 = "誰でもフィットネススキルを教えたり"
+  const OG_HOME_DESC_L3 = "学んだりできるマーケットプレイス。"
+
   const ogHomeSvg = (() => {
     const W = 1200
     const H = 630
-    const size = 520
-    const rx = Math.round(size * 0.225)
-    const pad = Math.round(size * 0.083)
-    const inner = size - pad * 2
-    const x0 = (W - size) / 2
-    const y0 = (H - size) / 2
+    const padX = 52
+    const gap = 44
+    const logoSize = 400
+    const rx = Math.round(logoSize * 0.225)
+    const logoPad = Math.round(logoSize * 0.083)
+    const logoInner = logoSize - logoPad * 2
+    const logoX = padX
+    const logoY = Math.round((H - logoSize) / 2)
+    const textX = padX + logoSize + gap
+
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
   <rect width="${W}" height="${H}" fill="${OG_SITE_BG}"/>
-  <svg xmlns="http://www.w3.org/2000/svg" x="${x0}" y="${y0}" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-    <rect width="${size}" height="${size}" rx="${rx}" fill="${BRAND_RED}"/>
-    <svg x="${pad}" y="${pad}" width="${inner}" height="${inner}" viewBox="140 154 720 720" preserveAspectRatio="xMidYMid meet">
+  <svg xmlns="http://www.w3.org/2000/svg" x="${logoX}" y="${logoY}" width="${logoSize}" height="${logoSize}" viewBox="0 0 ${logoSize} ${logoSize}">
+    <rect width="${logoSize}" height="${logoSize}" rx="${rx}" fill="${BRAND_RED}"/>
+    <svg x="${logoPad}" y="${logoPad}" width="${logoInner}" height="${logoInner}" viewBox="140 154 720 720" preserveAspectRatio="xMidYMid meet">
 ${markInner}
     </svg>
   </svg>
+  <text xml:space="preserve" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Hiragino Sans', 'Noto Sans JP', sans-serif">
+    <tspan x="${textX}" y="214" font-size="32" font-weight="700" fill="#fafafa">${OG_HOME_TITLE_L1}</tspan>
+    <tspan x="${textX}" y="262" font-size="32" font-weight="700" fill="#fafafa">${OG_HOME_TITLE_L2}</tspan>
+    <tspan x="${textX}" y="332" font-size="22" font-weight="400" fill="#a3a3a3">${OG_HOME_DESC_L1}</tspan>
+    <tspan x="${textX}" y="368" font-size="22" font-weight="400" fill="#a3a3a3">${OG_HOME_DESC_L2}</tspan>
+    <tspan x="${textX}" y="404" font-size="22" font-weight="400" fill="#a3a3a3">${OG_HOME_DESC_L3}</tspan>
+  </text>
 </svg>`
   })()
   await writePng(ogHomeSvg, path.join(PUBLIC_DIR, "og-home.png"), 144)
