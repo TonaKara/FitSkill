@@ -28,26 +28,73 @@ type ProfileSummary = {
 type MobileMypageMode = "student" | "instructor"
 const MOBILE_MYPAGE_MODE_STORAGE_KEY = "mobile_mypage_mode_preference"
 
-const MOBILE_STUDENT_MENU: Array<{ label: string; href: string }> = [
-  { label: "お気に入り", href: "/mypage?mode=student&tab=favorites" },
-  { label: "リクエスト", href: "/mypage?mode=student&tab=requests" },
-  { label: "相談中の案件", href: "/mypage?mode=student&tab=inquiry" },
-  { label: "進行中の取引（受講中）", href: "/mypage?mode=student&tab=learning" },
-  { label: "取引履歴", href: "/mypage?mode=student&tab=transactions" },
-  { label: "プロフィール設定", href: "/mypage?mode=student&tab=profile" },
-  { label: "アカウント設定", href: "/mypage?mode=student&tab=account" },
+type MobileMenuLink = { label: string; href: string }
+
+type MobileMenuGroup = {
+  heading: string
+  description: string
+  items: MobileMenuLink[]
+}
+
+/** スマホヘッダーメニュー — マイページ各タブへのリンク（グループは視認性のためのUIのみ） */
+const MOBILE_STUDENT_MENU_GROUPS: MobileMenuGroup[] = [
+  {
+    heading: "お気に入り",
+    description: "気になるスキルを保存してすぐに開けます",
+    items: [{ label: "お気に入り", href: "/mypage?mode=student&tab=favorites" }],
+  },
+  {
+    heading: "取引・コミュニケーション",
+    description: "リクエスト・相談・進行中のレッスン",
+    items: [
+      { label: "リクエスト", href: "/mypage?mode=student&tab=requests" },
+      { label: "相談中の案件", href: "/mypage?mode=student&tab=inquiry" },
+      { label: "進行中の取引（受講中）", href: "/mypage?mode=student&tab=learning" },
+    ],
+  },
+  {
+    heading: "取引履歴",
+    description: "過去のやり取りを一覧で確認",
+    items: [{ label: "取引履歴", href: "/mypage?mode=student&tab=transactions" }],
+  },
+  {
+    heading: "プロフィール・アカウント",
+    description: "表示プロフィール・セキュリティ・ログアウトなど",
+    items: [
+      { label: "プロフィール設定", href: "/mypage?mode=student&tab=profile" },
+      { label: "アカウント設定", href: "/mypage?mode=student&tab=account" },
+    ],
+  },
 ]
 
-const MOBILE_INSTRUCTOR_MENU: Array<{ label: string; href: string }> = [
-  { label: "出品管理", href: "/mypage?mode=instructor&tab=listings" },
-  { label: "リクエスト", href: "/mypage?mode=instructor&tab=requests" },
-  { label: "相談", href: "/mypage?mode=instructor&tab=inquiry" },
-  { label: "進行中の取引（対応中）", href: "/mypage?mode=instructor&tab=teaching" },
-  { label: "取引履歴", href: "/mypage?mode=instructor&tab=transactions" },
-  { label: "レビュー", href: "/mypage?mode=instructor&tab=reviews" },
-  { label: "売上・振込", href: "/mypage?mode=instructor&tab=payout" },
-  { label: "プロフィール設定", href: "/mypage?mode=instructor&tab=profile" },
-  { label: "アカウント設定", href: "/mypage?mode=instructor&tab=account" },
+const MOBILE_INSTRUCTOR_MENU_GROUPS: MobileMenuGroup[] = [
+  {
+    heading: "出品・売上",
+    description: "出品スキル・売上・振込・振込先の管理",
+    items: [
+      { label: "出品管理", href: "/mypage?mode=instructor&tab=listings" },
+      { label: "売上・振込", href: "/mypage?mode=instructor&tab=payout" },
+    ],
+  },
+  {
+    heading: "取引・案件",
+    description: "リクエストから進行中のレッスン・履歴まで",
+    items: [
+      { label: "リクエスト", href: "/mypage?mode=instructor&tab=requests" },
+      { label: "相談", href: "/mypage?mode=instructor&tab=inquiry" },
+      { label: "進行中の取引（対応中）", href: "/mypage?mode=instructor&tab=teaching" },
+      { label: "取引履歴", href: "/mypage?mode=instructor&tab=transactions" },
+    ],
+  },
+  {
+    heading: "評価・プロフィール",
+    description: "評価・公開プロフィール・アカウント",
+    items: [
+      { label: "評価", href: "/mypage?mode=instructor&tab=reviews" },
+      { label: "プロフィール設定", href: "/mypage?mode=instructor&tab=profile" },
+      { label: "アカウント設定", href: "/mypage?mode=instructor&tab=account" },
+    ],
+  },
 ]
 
 export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {}) {
@@ -60,6 +107,8 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
   const [profileLoading, setProfileLoading] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement | null>(null)
+  const mobileMenuButtonRef = useRef<HTMLButtonElement | null>(null)
+  const mobileMenuPanelRef = useRef<HTMLDivElement | null>(null)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
   const [portalReady, setPortalReady] = useState(false)
@@ -169,6 +218,50 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
       document.removeEventListener("keydown", onKeyDown)
     }
   }, [userMenuOpen])
+
+  /** スマホ: メニュー展開中にパネル／ハンバーガー外をタップしたら閉じる */
+  useEffect(() => {
+    if (!isMenuOpen) {
+      return
+    }
+    const onPointerDown = (event: MouseEvent | TouchEvent) => {
+      if (typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches) {
+        return
+      }
+      const target = event.target
+      if (!(target instanceof Node)) {
+        return
+      }
+      if (mobileMenuButtonRef.current?.contains(target)) {
+        return
+      }
+      if (mobileMenuPanelRef.current?.contains(target)) {
+        return
+      }
+      setIsMenuOpen(false)
+    }
+    document.addEventListener("mousedown", onPointerDown)
+    document.addEventListener("touchstart", onPointerDown, { passive: true })
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown)
+      document.removeEventListener("touchstart", onPointerDown)
+    }
+  }, [isMenuOpen])
+
+  /** スマホ: メニューオーバーレイ表示中は背面スクロールしない */
+  useEffect(() => {
+    if (!isMenuOpen || typeof document === "undefined") {
+      return
+    }
+    if (typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches) {
+      return
+    }
+    const prev = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [isMenuOpen])
 
   const handleLoginClick = () => {
     if (isAuthLoading) {
@@ -294,94 +387,131 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
               </Button>
             )}
             <Button
+              ref={mobileMenuButtonRef}
               variant="ghost"
               size="icon"
               className="md:hidden"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
+              aria-expanded={isMenuOpen}
+              aria-controls="header-mobile-menu"
+              aria-label={isMenuOpen ? "メニューを閉じる" : "メニューを開く"}
             >
               <Menu className="h-5 w-5" />
             </Button>
           </div>
         </div>
 
-        {/* Mobile Menu */}
+        {/* Mobile Menu — fixed オーバーレイ（本文レイアウトを押し下げない） */}
         {isMenuOpen && (
-          <div className="border-t border-border py-4 md:hidden">
-            <nav className="flex flex-col gap-2">
-              {isAuthenticated ? (
-                <>
-                  {profileLoading || profileSummary ? (
-                    <div className="mb-2 flex items-center gap-3 rounded-lg border border-border bg-popover px-3 py-2.5">
-                      {profileLoading ? (
-                        <>
-                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-muted">
-                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden />
-                          </span>
-                          <p className="text-xs text-muted-foreground">プロフィールを読み込み中…</p>
-                        </>
-                      ) : profileSummary ? (
-                        <>
-                          <div
-                            className="h-10 w-10 shrink-0 rounded-full bg-cover bg-center ring-2 ring-border"
-                            style={{ backgroundImage: `url(${profileSummary.avatarUrl})` }}
-                            role="img"
-                            aria-hidden
-                          />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">ログイン中</p>
-                            <p className="truncate text-sm font-semibold text-foreground">{profileSummary.displayName}</p>
-                          </div>
-                        </>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  <div className="mb-1 flex w-full rounded-lg border border-zinc-800 bg-zinc-900/80 p-1">
-                    <button
-                      type="button"
-                      onClick={() => setMobileMypageMode("student")}
-                      className={`flex-1 rounded-md px-3 py-2 text-xs font-semibold transition-colors ${
-                        mobileMypageMode === "student"
-                          ? "bg-red-600 text-white shadow-sm shadow-black/30"
-                          : "text-zinc-400 hover:text-zinc-100"
-                      }`}
-                    >
-                      受講生として利用
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setMobileMypageMode("instructor")}
-                      className={`flex-1 rounded-md px-3 py-2 text-xs font-semibold transition-colors ${
-                        mobileMypageMode === "instructor"
-                          ? "bg-red-600 text-white shadow-sm shadow-black/30"
-                          : "text-zinc-400 hover:text-zinc-100"
-                      }`}
-                    >
-                      講師として利用
-                    </button>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    {(mobileMypageMode === "student" ? MOBILE_STUDENT_MENU : MOBILE_INSTRUCTOR_MENU).map((item) => (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={() => setIsMenuOpen(false)}
-                        className="rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
+          <div
+            ref={mobileMenuPanelRef}
+            id="header-mobile-menu"
+            role="dialog"
+            aria-modal="true"
+            aria-label="アカウントメニュー"
+            className="fixed inset-x-0 bottom-0 top-16 z-[60] flex flex-col md:hidden"
+          >
+            <button
+              type="button"
+              aria-label="メニューを閉じる"
+              className="min-h-0 flex-1 bg-black/45 backdrop-blur-[1px]"
+              onClick={() => setIsMenuOpen(false)}
+            />
+            <div className="pointer-events-auto max-h-[min(88vh,calc(100dvh-4rem))] w-full shrink-0 overflow-hidden rounded-t-2xl border-x border-t border-zinc-800 bg-zinc-950 shadow-[0_-16px_48px_rgba(0,0,0,0.55)]">
+              <nav className="flex max-h-[min(88vh,calc(100dvh-4rem))] flex-col gap-2 overflow-y-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">
+                {isAuthenticated ? (
+                  <>
+                    {profileLoading || profileSummary ? (
+                      <div className="mb-2 flex items-center gap-3 rounded-lg border border-border bg-popover px-3 py-2.5">
+                        {profileLoading ? (
+                          <>
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-muted">
+                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden />
+                            </span>
+                            <p className="text-xs text-muted-foreground">プロフィールを読み込み中…</p>
+                          </>
+                        ) : profileSummary ? (
+                          <>
+                            <div
+                              className="h-10 w-10 shrink-0 rounded-full bg-cover bg-center ring-2 ring-border"
+                              style={{ backgroundImage: `url(${profileSummary.avatarUrl})` }}
+                              role="img"
+                              aria-hidden
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">ログイン中</p>
+                              <p className="truncate text-sm font-semibold text-foreground">{profileSummary.displayName}</p>
+                            </div>
+                          </>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    <div className="mb-1 flex w-full rounded-lg border border-zinc-800 bg-zinc-900/80 p-1">
+                      <button
+                        type="button"
+                        onClick={() => setMobileMypageMode("student")}
+                        className={`flex-1 rounded-md px-3 py-2 text-xs font-semibold transition-colors ${
+                          mobileMypageMode === "student"
+                            ? "bg-red-600 text-white shadow-sm shadow-black/30"
+                            : "text-zinc-400 hover:text-zinc-100"
+                        }`}
                       >
-                        {item.label}
-                      </Link>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <Button
-                  className="mt-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
-                  onClick={handleLoginClick}
-                  disabled={isAuthLoading}
-                >
-                  ログイン
-                </Button>
-              )}
-            </nav>
+                        受講生として利用
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMobileMypageMode("instructor")}
+                        className={`flex-1 rounded-md px-3 py-2 text-xs font-semibold transition-colors ${
+                          mobileMypageMode === "instructor"
+                            ? "bg-red-600 text-white shadow-sm shadow-black/30"
+                            : "text-zinc-400 hover:text-zinc-100"
+                        }`}
+                      >
+                        講師として利用
+                      </button>
+                    </div>
+                    <div className="space-y-3 pb-1">
+                      {(mobileMypageMode === "student" ? MOBILE_STUDENT_MENU_GROUPS : MOBILE_INSTRUCTOR_MENU_GROUPS).map(
+                        (group) => (
+                          <section
+                            key={group.heading}
+                            className="overflow-hidden rounded-xl border-2 border-primary bg-gradient-to-b from-zinc-900/85 to-zinc-950/95 shadow-[0_10px_36px_rgba(0,0,0,0.4)] shadow-primary/15"
+                          >
+                            <div className="border-b border-primary/35 bg-zinc-900/55 px-3 py-2.5">
+                              <h2 className="text-base font-extrabold leading-snug tracking-tight text-primary sm:text-[1.0625rem]">
+                                {group.heading}
+                              </h2>
+                              <p className="mt-1 text-[11px] leading-snug text-zinc-500">{group.description}</p>
+                            </div>
+                            <ul className="divide-y divide-zinc-800/80">
+                              {group.items.map((item) => (
+                                <li key={item.href}>
+                                  <Link
+                                    href={item.href}
+                                    onClick={() => setIsMenuOpen(false)}
+                                    className="block px-3 py-2.5 text-[13px] font-medium text-zinc-100 transition-colors hover:bg-zinc-800/90 hover:text-white sm:text-sm"
+                                  >
+                                    {item.label}
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          </section>
+                        ),
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <Button
+                    className="w-full bg-primary font-semibold text-primary-foreground hover:bg-primary/90"
+                    onClick={handleLoginClick}
+                    disabled={isAuthLoading}
+                  >
+                    ログイン
+                  </Button>
+                )}
+              </nav>
+            </div>
           </div>
         )}
       </div>
