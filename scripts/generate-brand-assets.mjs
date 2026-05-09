@@ -4,7 +4,7 @@
  * 出力: output/（作業用）＋ 以下へ同期
  * - public/apple-touch-icon.png（180×180、検索・ホーム画面用）
  * - public/og-logo.png（小アイコン用・赤角丸タイル＋白マーク＝ブランドロゴ）
- * - public/og-home.png（トップ OG のみ・1200×630・左にブランドロゴ／右に HOME 相当テキスト）
+ * - public/og-home.png（トップ OG のみ・1200×630・ヘッダー左上と同じ赤タイル＋マーク＋「Grit」「Vib」）
  * - app/favicon.ico, app/icon.png（タブ用）
  * - sns-icon-1080.png, favicon-32.png, favicon.ico, apple-touch-icon-180.png, header-1200x300.png
  */
@@ -140,40 +140,35 @@ async function main() {
   await fs.copyFile(applePngPath, path.join(PUBLIC_DIR, "apple-touch-icon.png"))
   await writePng(ogLogoSvg, path.join(PUBLIC_DIR, "og-logo.png"), 144)
 
-  /** トップ OGP テキスト（src/lib/site-seo.ts の HOME_* と揃えること） */
-  const OG_HOME_TITLE_L1 = "GritVib | フィットネススキルの"
-  const OG_HOME_TITLE_L2 = "マーケットプレイス"
-  const OG_HOME_DESC_L1 = "プロのトレーナーから初心者まで、"
-  const OG_HOME_DESC_L2 = "誰でもフィットネススキルを教えたり"
-  const OG_HOME_DESC_L3 = "学んだりできるマーケットプレイス。"
-
+  /** トップ OGP 用：header.tsx のブランド（赤タイル＋BrandMarkSvg＋Grit赤/Vib白）を 1200×630 中央に配置 */
   const ogHomeSvg = (() => {
     const W = 1200
     const H = 630
-    const padX = 52
-    const gap = 44
-    const logoSize = 400
-    const rx = Math.round(logoSize * 0.225)
-    const logoPad = Math.round(logoSize * 0.083)
-    const logoInner = logoSize - logoPad * 2
-    const logoX = padX
-    const logoY = Math.round((H - logoSize) / 2)
-    const textX = padX + logoSize + gap
+    const tile = 220
+    const rx = Math.round(tile * 0.2)
+    const logoPad = Math.round(tile * 0.083)
+    const logoInner = tile - logoPad * 2
+    const gap = 32
+    const fontPx = 76
+    const approxTextW = 360
+    const groupW = tile + gap + approxTextW
+    const startX = Math.round((W - groupW) / 2)
+    const tileY = Math.round((H - tile) / 2)
+    const textX = startX + tile + gap
+    const textY = Math.round(H / 2 + fontPx * 0.28)
+    const fontStack =
+      "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
 
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
   <rect width="${W}" height="${H}" fill="${OG_SITE_BG}"/>
-  <svg xmlns="http://www.w3.org/2000/svg" x="${logoX}" y="${logoY}" width="${logoSize}" height="${logoSize}" viewBox="0 0 ${logoSize} ${logoSize}">
-    <rect width="${logoSize}" height="${logoSize}" rx="${rx}" fill="${BRAND_RED}"/>
+  <svg xmlns="http://www.w3.org/2000/svg" x="${startX}" y="${tileY}" width="${tile}" height="${tile}" viewBox="0 0 ${tile} ${tile}">
+    <rect width="${tile}" height="${tile}" rx="${rx}" fill="${BRAND_RED}"/>
     <svg x="${logoPad}" y="${logoPad}" width="${logoInner}" height="${logoInner}" viewBox="140 154 720 720" preserveAspectRatio="xMidYMid meet">
 ${markInner}
     </svg>
   </svg>
-  <text xml:space="preserve" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Hiragino Sans', 'Noto Sans JP', sans-serif">
-    <tspan x="${textX}" y="214" font-size="32" font-weight="700" fill="#fafafa">${OG_HOME_TITLE_L1}</tspan>
-    <tspan x="${textX}" y="262" font-size="32" font-weight="700" fill="#fafafa">${OG_HOME_TITLE_L2}</tspan>
-    <tspan x="${textX}" y="332" font-size="22" font-weight="400" fill="#a3a3a3">${OG_HOME_DESC_L1}</tspan>
-    <tspan x="${textX}" y="368" font-size="22" font-weight="400" fill="#a3a3a3">${OG_HOME_DESC_L2}</tspan>
-    <tspan x="${textX}" y="404" font-size="22" font-weight="400" fill="#a3a3a3">${OG_HOME_DESC_L3}</tspan>
+  <text xml:space="preserve" x="${textX}" y="${textY}" font-size="${fontPx}" font-weight="700" font-family="${fontStack}">
+    <tspan fill="${BRAND_RED}">Grit</tspan><tspan fill="${WHITE}">Vib</tspan>
   </text>
 </svg>`
   })()

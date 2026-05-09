@@ -27,10 +27,7 @@ export const LAYOUT_TITLE_DEFAULT = "GritVib | 経歴不問のフィットネス
 export const LAYOUT_DESCRIPTION =
   "経歴や肩書にとらわれず、フィットネスの知識や指導スキルをシェア・取引できるマーケットプレイス。パーソナルトレーニングやオンラインレッスンなど、相談から始められる透明な取引で運動をもっと身近に。"
 
-/**
- * トップページ（https://gritvib.com/）専用の検索・OG テキスト。
- * トップ用 OG 画像（public/og-home.png）の折り返し文言は scripts/generate-brand-assets.mjs の OG_HOME_* と揃えること。
- */
+/** トップページ（https://gritvib.com/）専用の検索・OG テキスト（画像内テキストではない） */
 export const HOME_TITLE_ABSOLUTE = "GritVib | フィットネススキルのマーケットプレイス"
 
 export const HOME_DESCRIPTION =
