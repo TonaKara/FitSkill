@@ -1,4 +1,4 @@
-import type { Metadata, Viewport } from "next";
+﻿import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ConsoleGuard } from "@/components/ConsoleGuard";
 import { AccessibilityModeSync } from "@/components/AccessibilityModeSync";
@@ -56,7 +56,7 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  /** 子ルートごとに url / title を誤結合しないよう、サイト共通フィールドのみ。 */
+  // Keep only site-level Open Graph fields in root metadata.
   openGraph: {
     type: "website",
     locale: "ja_JP",
@@ -68,12 +68,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     description: LAYOUT_DESCRIPTION,
   },
-  /**
-   * - `/favicon.svg` … `public/favicon.svg`（ベクター・ブランドマーク）
-   * - `/favicon.ico` … 互換用（`public` / `app`）
-   * - `/apple-touch-icon.png` … `public/apple-touch-icon.png`
-   * metadata の相対パスは metadataBase（getSiteUrl）起点で絶対 URL 化
-   */
+  // Shared icon metadata.
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
@@ -92,9 +87,9 @@ export default function RootLayout({
     <html
       lang="ja"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} min-h-[100svh] antialiased md:h-full md:min-h-full`}
+      className={`${geistSans.variable} ${geistMono.variable} min-h-[100dvh] antialiased md:h-full md:min-h-full`}
     >
-      <body className="flex min-h-[100svh] flex-col md:min-h-full">
+      <body className="flex min-h-[100dvh] flex-col md:min-h-full">
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
@@ -104,7 +99,7 @@ export default function RootLayout({
           <MobileHeaderMenuProvider>
             <AccessibilityModeSync />
             <ConsoleGuard />
-            <div className="flex min-h-[100svh] flex-col md:min-h-full">
+            <div className="flex min-h-[100dvh] flex-col md:min-h-full">
               <MaintenanceGuard>
                 <div className="flex-1">{children}</div>
               </MaintenanceGuard>
