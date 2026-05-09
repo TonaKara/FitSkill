@@ -1,10 +1,11 @@
 "use client"
 
 import { Home, Heart, PlusCircle, MessageCircle, User } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { useMemo, useState } from "react"
+import { useMobileHeaderMenu } from "@/components/mobile-header-menu-context"
 
 const navItems = [
   { id: "home", label: "ホーム", icon: Home },
@@ -16,6 +17,8 @@ const navItems = [
 
 export function BottomNav() {
   const router = useRouter()
+  const pathname = usePathname()
+  const { isMobileMenuOpen } = useMobileHeaderMenu()
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
   const [activeItem, setActiveItem] = useState("home")
   const [isCreateChecking, setIsCreateChecking] = useState(false)
@@ -119,8 +122,17 @@ export function BottomNav() {
     router.push("/login")
   }
 
+  if (pathname === "/chat" || pathname.startsWith("/chat/")) {
+    return null
+  }
+
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden">
+    <nav
+      className={cn(
+        "fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden",
+        isMobileMenuOpen && "hidden",
+      )}
+    >
       <div className="mx-auto grid h-16 max-w-lg grid-cols-5 items-center px-4">
         {leftItems.map((item) => {
           const Icon = item.icon

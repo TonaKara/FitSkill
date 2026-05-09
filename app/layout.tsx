@@ -2,7 +2,9 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ConsoleGuard } from "@/components/ConsoleGuard";
 import { AccessibilityModeSync } from "@/components/AccessibilityModeSync";
+import { BottomNav } from "@/components/bottom-nav";
 import { ConditionalFooter } from "@/components/layout/ConditionalFooter";
+import { MobileHeaderMenuProvider } from "@/components/mobile-header-menu-context";
 import { MaintenanceGuard } from "@/components/MaintenanceGuard";
 import { ThemeProvider } from "@/components/theme-provider";
 import {
@@ -99,14 +101,17 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AccessibilityModeSync />
-          <ConsoleGuard />
-          <div className="flex min-h-full flex-col">
-            <MaintenanceGuard>
-              <div className="flex-1">{children}</div>
-            </MaintenanceGuard>
-            <ConditionalFooter />
-          </div>
+          <MobileHeaderMenuProvider>
+            <AccessibilityModeSync />
+            <ConsoleGuard />
+            <div className="flex min-h-full flex-col">
+              <MaintenanceGuard>
+                <div className="flex-1">{children}</div>
+              </MaintenanceGuard>
+              <BottomNav />
+              <ConditionalFooter />
+            </div>
+          </MobileHeaderMenuProvider>
         </ThemeProvider>
       </body>
     </html>

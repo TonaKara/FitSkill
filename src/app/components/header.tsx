@@ -14,6 +14,7 @@ import { BrandMarkSvg } from "@/components/BrandMarkSvg"
 import { resolveProfileAvatarUrl } from "@/lib/profile-avatar"
 import { getLogoutSuccessHref } from "@/components/logout-success-toast"
 import { UserMenu } from "@/components/user-menu"
+import { useMobileHeaderMenu } from "@/components/mobile-header-menu-context"
 import { cn } from "@/lib/utils"
 
 type HeaderProps = {
@@ -101,7 +102,7 @@ const MOBILE_INSTRUCTOR_MENU_GROUPS: MobileMenuGroup[] = [
 export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {}) {
   const router = useRouter()
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const { isMobileMenuOpen: isMenuOpen, setMobileMenuOpen: setIsMenuOpen } = useMobileHeaderMenu()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isAuthLoading, setIsAuthLoading] = useState(true)
   const [profileSummary, setProfileSummary] = useState<ProfileSummary | null>(null)

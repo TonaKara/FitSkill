@@ -5,7 +5,6 @@ import { Header } from "@/components/header"
 import { LogoutSuccessToast } from "@/components/logout-success-toast"
 import { HeroBanner } from "@/components/hero-banner"
 import { DEFAULT_HOME_SKILL_FILTERS, SKILL_SORT_OPTIONS, SkillGrid, type SkillSortOptionId } from "@/components/skill-grid"
-import { BottomNav } from "@/components/bottom-nav"
 import { SlidersHorizontal, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
@@ -368,7 +367,6 @@ export default function HomePageClient({ heroStats }: HomePageClientProps) {
         </div>
       ) : null}
 
-      <BottomNav />
     </div>
   )
 }
