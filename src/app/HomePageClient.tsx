@@ -115,7 +115,7 @@ export default function HomePageClient({ heroStats }: HomePageClientProps) {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold text-foreground md:text-2xl">スキル一覧</h2>
-              <p className="mt-1 text-sm text-muted-foreground">あなたにぴったりのフィットネススキルを見つけよう</p>
+              <p className="mt-1 text-sm text-muted-foreground">ぴったりのフィットネススキルを見つけよう</p>
             </div>
 
             <div className="hidden items-center gap-3 md:flex">

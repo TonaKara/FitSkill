@@ -65,7 +65,7 @@ export function HeroBanner({ onBrowseSkillsClick, heroStats }: HeroBannerProps) 
           <div className="max-w-2xl">
             {/* Title */}
             <h1
-              className={`${anton.className} mb-3 whitespace-nowrap text-xl font-black italic uppercase leading-tight tracking-tighter text-foreground sm:text-3xl md:text-4xl lg:text-5xl`}
+              className={`${anton.className} mb-3 whitespace-nowrap font-black italic uppercase leading-tight tracking-tighter text-foreground max-sm:text-[clamp(1.25rem,calc(0.88rem+2.6vw),1.875rem)] sm:text-3xl md:text-4xl lg:text-5xl`}
             >
               <span className="inline-block">
                 「楽しい」が、
