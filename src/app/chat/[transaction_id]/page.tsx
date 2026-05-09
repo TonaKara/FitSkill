@@ -2,7 +2,7 @@
 
 import Image from "next/image"
 import Link from "next/link"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ArrowLeft, Link2, Loader2, Plus, Send, X } from "lucide-react"
@@ -332,6 +332,7 @@ function shouldShowMessageText(m: MessageRow): boolean {
 export default function ChatTransactionPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
   const transactionId =
     typeof params.transaction_id === "string"
@@ -339,6 +340,24 @@ export default function ChatTransactionPage() {
       : Array.isArray(params.transaction_id)
         ? params.transaction_id[0]
         : ""
+
+  const chatPathWithQuery = useMemo(() => {
+    if (!transactionId) {
+      return "/chat"
+    }
+    const q = searchParams.toString()
+    return q ? `/chat/${transactionId}?${q}` : `/chat/${transactionId}`
+  }, [transactionId, searchParams])
+
+  const fromCheckoutFlow = searchParams.get("from") === "checkout"
+
+  const handleHeaderBack = useCallback(() => {
+    if (fromCheckoutFlow) {
+      router.push("/")
+      return
+    }
+    router.back()
+  }, [fromCheckoutFlow, router])
 
   const [authLoading, setAuthLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
@@ -384,6 +403,21 @@ export default function ChatTransactionPage() {
   const expandedImageRef = useRef<HTMLImageElement>(null)
   const shouldAutoScrollRef = useRef(true)
   const initialAutoScrollDoneRef = useRef(false)
+
+  const forceScrollToBottom = useCallback(() => {
+    shouldAutoScrollRef.current = true
+    const el = listRef.current
+    if (!el) {
+      return
+    }
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight
+      requestAnimationFrame(() => {
+        el.scrollTop = el.scrollHeight
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
+      })
+    })
+  }, [])
 
   const handlePinchZoomUpdate = useCallback(({ x, y, scale }: UpdateAction) => {
     const img = expandedImageRef.current
@@ -482,7 +516,7 @@ export default function ChatTransactionPage() {
         return
       }
       if (!data.user) {
-        router.replace(`/login?redirect=${encodeURIComponent(`/chat/${transactionId}`)}`)
+        router.replace(`/login?redirect=${encodeURIComponent(chatPathWithQuery)}`)
         setAuthLoading(false)
         return
       }
@@ -501,7 +535,7 @@ export default function ChatTransactionPage() {
     return () => {
       mounted = false
     }
-  }, [router, supabase, transactionId])
+  }, [router, supabase, transactionId, chatPathWithQuery])
 
   const loadTransactionAndPeer = useCallback(async () => {
     if (!transactionId || !userId) {
@@ -856,6 +890,7 @@ export default function ChatTransactionPage() {
         return { error: true as const }
       }
       setMessages((prev) => mergeMessageRow(prev, inserted as MessageRow))
+      forceScrollToBottom()
       if (transaction && userId) {
         const recipientId =
           userId === String(transaction.buyer_id) ? transaction.seller_id : transaction.buyer_id
@@ -886,7 +921,7 @@ export default function ChatTransactionPage() {
       }
       return { error: false as const }
     },
-    [supabase, transactionId, userId, transaction],
+    [supabase, transactionId, userId, transaction, forceScrollToBottom],
   )
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1031,7 +1066,10 @@ export default function ChatTransactionPage() {
           updateResult: data ?? null,
           latestRow: latestRow ?? null,
         })
-        setNotice({ variant: "error", message: "取引情報の更新に失敗しました" })
+        setNotice({
+          variant: "error",
+          message: "取引情報の更新に失敗しました。時間を置いて再度お試しください。",
+        })
         return
       }
 
@@ -1070,7 +1108,10 @@ export default function ChatTransactionPage() {
         userId,
         error: extractSupabaseErrorDetails(error),
       })
-      setNotice({ variant: "error", message: "取引情報の更新に失敗しました" })
+      setNotice({
+          variant: "error",
+          message: "取引情報の更新に失敗しました。時間を置いて再度お試しください。",
+        })
     } finally {
       setCompleting(false)
     }
@@ -1347,9 +1388,7 @@ export default function ChatTransactionPage() {
   }
 
   if (!userId) {
-    const redirectTo = transactionId
-      ? `/login?redirect=${encodeURIComponent(`/chat/${String(transactionId)}`)}`
-      : "/login"
+    const redirectTo = transactionId ? `/login?redirect=${encodeURIComponent(chatPathWithQuery)}` : "/login"
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black px-4 text-zinc-100">
         <p className="text-center text-sm text-zinc-300">この取引チャットを開くにはログインが必要です。</p>
@@ -1381,7 +1420,7 @@ export default function ChatTransactionPage() {
             type="button"
             variant="outline"
             className="mb-8 border-zinc-700 bg-zinc-900 text-zinc-200 hover:border-red-500 hover:bg-zinc-800"
-            onClick={() => router.back()}
+            onClick={handleHeaderBack}
           >
             <span className="inline-flex items-center gap-2">
               <ArrowLeft className="h-4 w-4" />
@@ -1405,7 +1444,7 @@ export default function ChatTransactionPage() {
               variant="ghost"
               size="icon"
               className="shrink-0 text-zinc-400 hover:bg-zinc-800 hover:text-white"
-              onClick={() => router.back()}
+              onClick={handleHeaderBack}
             >
               <span aria-label="戻る">
                 <ArrowLeft className="h-5 w-5" />

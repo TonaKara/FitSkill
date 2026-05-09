@@ -69,7 +69,13 @@ export function TransactionReviewCard({
         comment: comment.trim() || null,
       })
       if (error || !data) {
-        onError(error?.message ?? "送信に失敗しました。")
+        const dupMsg = "この取引にはすでに評価を送信済みです。"
+        const msg = error?.message?.trim() ?? ""
+        onError(
+          msg === dupMsg
+            ? dupMsg
+            : "評価の送信に失敗しました。時間を置いて再度お試しください。",
+        )
         return
       }
       setLocalReview(data)

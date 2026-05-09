@@ -153,13 +153,13 @@ export function ThumbnailCropModal({
 
   return (
     <div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/85 p-3 backdrop-blur-sm sm:p-4"
+      className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-black/85 p-3 backdrop-blur-sm sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="thumbnail-crop-title"
     >
-      <div className="thumbnail-crop-modal relative flex max-h-[92vh] w-[min(78vw,1320px)] min-w-0 flex-col overflow-hidden rounded-2xl border border-red-500/40 bg-zinc-950 shadow-[0_0_80px_rgba(198,40,40,0.25)]">
-        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-800 px-4 py-3 md:px-6">
+      <div className="thumbnail-crop-modal relative my-2 flex max-h-[96svh] w-[min(92vw,1320px)] min-w-0 flex-col overflow-hidden rounded-2xl border border-red-500/40 bg-zinc-950 shadow-[0_0_80px_rgba(198,40,40,0.25)] sm:my-0 sm:w-[min(78vw,1320px)]">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-800 bg-zinc-950 px-4 py-3 md:px-6">
           <div>
             <h2 id="thumbnail-crop-title" className="text-base font-bold text-white md:text-lg">
               {heading}
@@ -179,8 +179,8 @@ export function ThumbnailCropModal({
           </Button>
         </div>
 
-        <div className="thumbnail-crop-stage flex min-h-0 flex-1 flex-col items-center justify-center overflow-auto bg-zinc-900/45 px-2 py-5 sm:min-h-[min(42vh,400px)] sm:px-4 md:px-6">
-          <div className="thumbnail-crop-media-shell relative mx-auto w-fit max-w-full min-w-0">
+        <div className="thumbnail-crop-stage flex min-h-0 flex-1 flex-col items-center justify-center overflow-x-hidden overflow-y-auto overscroll-contain bg-zinc-900/45 px-2 pb-6 pt-8 sm:min-h-[min(42vh,400px)] sm:px-4 md:px-6">
+          <div className="thumbnail-crop-media-shell relative mx-auto mt-1 w-fit max-w-full min-w-0">
             <ReactCrop
               crop={crop}
               onChange={(next) => setCrop(next)}
@@ -196,7 +196,7 @@ export function ThumbnailCropModal({
                 src={imageSrc}
                 alt="切り抜き対象"
                 onLoad={onImageLoad}
-                className="thumbnail-crop-source block h-auto max-h-[min(72vh,860px)] w-auto max-w-full object-contain"
+                className="thumbnail-crop-source block h-auto max-h-[calc(100svh-300px)] w-auto max-w-full object-contain sm:max-h-[min(72vh,860px)]"
               />
             </ReactCrop>
           </div>
@@ -204,7 +204,7 @@ export function ThumbnailCropModal({
 
         {error ? <p className="shrink-0 px-4 pb-2 text-center text-sm text-red-400 md:px-6">{error}</p> : null}
 
-        <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-zinc-800 bg-black/40 px-4 py-4 sm:flex-row sm:justify-end md:px-6">
+        <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-zinc-800 bg-zinc-950 px-4 py-4 sm:flex-row sm:justify-end md:px-6">
           <Button
             type="button"
             variant="outline"

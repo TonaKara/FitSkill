@@ -1,10 +1,12 @@
 import { readFile } from "fs/promises"
 import path from "path"
 import { ImageResponse } from "next/og"
+import { LAYOUT_TITLE_DEFAULT } from "@/lib/site-seo"
 
 export const runtime = "nodejs"
 
-export const alt = "GritVib"
+/** トップ以外の既定 OG。トップ `/` は `app/page.tsx` の metadata で `og-home.png` を指定 */
+export const alt = LAYOUT_TITLE_DEFAULT
 export const size = { width: 1200, height: 630 }
 export const contentType = "image/png"
 

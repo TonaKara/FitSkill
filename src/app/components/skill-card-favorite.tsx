@@ -9,13 +9,19 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 
 type SkillCardFavoriteProps = {
   skillId: string
+  /**
+   * 親が既に件数を取得済みのとき渡す（一覧の二重取得による「一瞬 0」表示を防ぐ）
+   */
+  initialFavoriteCount?: number
 }
 
-export function SkillCardFavorite({ skillId }: SkillCardFavoriteProps) {
+export function SkillCardFavorite({ skillId, initialFavoriteCount }: SkillCardFavoriteProps) {
   const router = useRouter()
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
-  /** UI に表示しているのはこの count（お気に入り件数） */
-  const [count, setCount] = useState(0)
+  /** null = 未取得（この間は 0 と誤表示しない） */
+  const [count, setCount] = useState<number | null>(() =>
+    typeof initialFavoriteCount === "number" ? initialFavoriteCount : null,
+  )
   const [favorited, setFavorited] = useState(false)
   const [loading, setLoading] = useState(true)
   const [pending, setPending] = useState(false)
@@ -45,6 +51,9 @@ export function SkillCardFavorite({ skillId }: SkillCardFavoriteProps) {
   }, [supabase, load])
 
   useEffect(() => {
+    if (loading) {
+      return
+    }
     const channel = supabase
       .channel(`skill-favorites:${skillId}`)
       .on(
@@ -57,10 +66,10 @@ export function SkillCardFavorite({ skillId }: SkillCardFavoriteProps) {
         },
         (payload: { eventType: string }) => {
           if (payload.eventType === "INSERT") {
-            setCount((n) => n + 1)
+            setCount((n) => (n == null ? 1 : n + 1))
           }
           if (payload.eventType === "DELETE") {
-            setCount((n) => Math.max(0, n - 1))
+            setCount((n) => (n == null ? 0 : Math.max(0, n - 1)))
           }
         },
       )
@@ -69,14 +78,11 @@ export function SkillCardFavorite({ skillId }: SkillCardFavoriteProps) {
     return () => {
       void supabase.removeChannel(channel)
     }
-  }, [supabase, skillId])
+  }, [supabase, skillId, loading])
 
   const handleClick = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-
-    console.log("ボタンが押されました")
-    console.log("現在のカウント:", count)
 
     if (loading || pending) {
       return
@@ -119,11 +125,21 @@ export function SkillCardFavorite({ skillId }: SkillCardFavoriteProps) {
       className="absolute right-3 top-3 h-auto min-w-8 gap-1 rounded-full bg-background/50 px-2 py-1.5 backdrop-blur-sm hover:bg-background/80 hover:text-primary"
       onClick={(e) => void handleClick(e)}
       disabled={loading || pending}
+      aria-busy={loading || pending}
       aria-pressed={favorited}
       aria-label={favorited ? "お気に入りから外す" : "お気に入りに追加"}
     >
       <Heart className={`h-4 w-4 shrink-0 ${favorited ? "fill-primary text-primary" : ""}`} />
-      <span className="text-xs font-medium tabular-nums leading-none text-foreground">{count}</span>
+      <span className="min-w-[0.65rem] text-xs font-medium tabular-nums leading-none text-foreground">
+        {count === null ? (
+          <span
+            className="inline-block min-h-[0.85rem] min-w-[0.65rem] animate-pulse rounded-sm bg-foreground/20 align-middle"
+            aria-hidden
+          />
+        ) : (
+          count
+        )}
+      </span>
     </Button>
   )
 }

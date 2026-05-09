@@ -3,7 +3,6 @@ import { createTransactionNotification, NOTIFICATION_TYPE } from "@/lib/transact
 import { canBuyerPurchaseSkill } from "@/lib/consultation"
 import { sendDiscordNotification } from "@/lib/discord"
 import { getSiteUrl } from "@/lib/site-seo"
-import { isStripePaymentsConfigured } from "@/lib/stripe-config"
 
 /** 重複 INSERT（unique 制約）かどうか */
 function isUniqueConstraintViolation(error: { code?: string; message?: string }): boolean {
@@ -16,7 +15,7 @@ function isUniqueConstraintViolation(error: { code?: string; message?: string })
 
 /**
  * スキルごとの「現在の申し込み人数」。
- * 完了済み（`status = 'completed'`）以外の取引を件数に含める。
+ * 実際に取引チャットとして進行中の status のみを件数に含める。
  */
 export async function countActiveTransactionsForSkill(
   supabase: SupabaseClient,
@@ -113,35 +112,33 @@ export async function createSkillPurchaseTransaction(
     return { inserted: false, errorMessage: "講師情報の取得に失敗しました。" }
   }
 
-  const stripeEnabled = isStripePaymentsConfigured()
-  let initialStatus: "active" | "awaiting_payment" = "active"
+  // 支払い導線の安全性を優先:
+  // 購入フローは常に Stripe Connect 登録済み講師のオンライン決済を前提にし、
+  // 取引作成時は必ず awaiting_payment で開始する。
+  const { data: sellerProfile, error: spErr } = await supabase
+    .from("profiles")
+    .select("stripe_connect_account_id, stripe_connect_charges_enabled")
+    .eq("id", sellerId)
+    .maybeSingle()
 
-  if (stripeEnabled) {
-    const { data: sellerProfile, error: spErr } = await supabase
-      .from("profiles")
-      .select("stripe_connect_account_id, stripe_connect_charges_enabled")
-      .eq("id", sellerId)
-      .maybeSingle()
-
-    if (spErr) {
-      return { inserted: false, errorMessage: spErr.message }
-    }
-
-    const sp = sellerProfile as {
-      stripe_connect_account_id?: string | null
-      stripe_connect_charges_enabled?: boolean | null
-    } | null
-
-    if (!sp?.stripe_connect_account_id?.trim() || sp.stripe_connect_charges_enabled !== true) {
-      return {
-        inserted: false,
-        errorMessage:
-          "講師の振込先（Stripe）の登録が完了していないため、オンライン決済できません。しばらくしてから再度お試しください。",
-      }
-    }
-
-    initialStatus = "awaiting_payment"
+  if (spErr) {
+    return { inserted: false, errorMessage: spErr.message }
   }
+
+  const sp = sellerProfile as {
+    stripe_connect_account_id?: string | null
+    stripe_connect_charges_enabled?: boolean | null
+  } | null
+
+  if (!sp?.stripe_connect_account_id?.trim() || sp.stripe_connect_charges_enabled !== true) {
+    return {
+      inserted: false,
+      errorMessage:
+        "講師の振込先（Stripe）の登録が完了していないため、オンライン決済できません。しばらくしてから再度お試しください。",
+    }
+  }
+
+  const initialStatus: "awaiting_payment" = "awaiting_payment"
 
   const { data: insertedRow, error: insertError } = await supabase
     .from("transactions")

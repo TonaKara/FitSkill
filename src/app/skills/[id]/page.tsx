@@ -29,7 +29,7 @@ import { formatErrorMessageOnly } from "@/lib/notifications"
 import type { AppNotice } from "@/lib/notifications"
 import { createCheckoutSession, finalizeCheckoutSessionAfterSuccess } from "@/actions/checkout"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
-import { countActiveTransactionsForSkill, createSkillPurchaseTransaction } from "@/lib/transactions"
+import { countActiveTransactionsForSkill } from "@/lib/transactions"
 import { createGeneralNotification } from "@/lib/transaction-notifications"
 import {
   fetchConsultationSettings,
@@ -92,6 +92,28 @@ const CHECKABLE_TRANSACTION_STATUSES = [
   ...TERMINAL_REPURCHASE_STATUSES,
 ] as const
 const PRIORITIZED_TRANSACTION_STATUSES = ["awaiting_payment", ...CHAT_TRANSITION_STATUSES] as const
+
+function canOpenChatFromSkillPage(
+  tx: ActiveTransactionRow | null,
+  options?: { currentUserId?: string | null },
+): boolean {
+  if (!tx || !tx.status) {
+    return false
+  }
+  if (!CHAT_TRANSITION_STATUSES.includes(tx.status as (typeof CHAT_TRANSITION_STATUSES)[number])) {
+    return false
+  }
+  // 支払い保護（最優先）:
+  // 有料取引は Stripe 反映値（payment_intent_id）が付くまで購入者のチャット遷移を禁止する。
+  // クライアント環境変数の有無には依存させず、決済完了シグナルのみを信頼する。
+  const currentUserId = options?.currentUserId?.trim() ?? ""
+  const isBuyerView = currentUserId.length > 0 && tx.buyer_id === currentUserId
+  const isPaidTransaction = Number(tx.price ?? 0) > 0
+  if (isBuyerView && isPaidTransaction) {
+    return Boolean((tx.stripe_payment_intent_id ?? "").trim())
+  }
+  return true
+}
 
 function normalizeProfile(profiles: SkillDetailRow["profiles"]): ProfileEmbed | null {
   if (!profiles) {
@@ -343,7 +365,7 @@ export default function SkillDetailPage() {
                 if (checkoutAutoRedirectStorageKey && typeof window !== "undefined") {
                   window.sessionStorage.setItem(checkoutAutoRedirectStorageKey, "1")
                 }
-                router.replace(`/chat/${finalized.transactionId}`)
+                router.replace(`/chat/${finalized.transactionId}?from=checkout`)
                 return
               }
             } else {
@@ -366,16 +388,12 @@ export default function SkillDetailPage() {
         const rows = await fetchActiveTransaction()
         const latest = rows?.[0]
         const st = latest?.status
-        if (
-          latest?.id != null &&
-          st &&
-          CHAT_TRANSITION_STATUSES.includes(st as (typeof CHAT_TRANSITION_STATUSES)[number])
-        ) {
+        if (canOpenChatFromSkillPage(latest, { currentUserId: userId })) {
           const tid = String(latest.id)
           if (checkoutAutoRedirectStorageKey && typeof window !== "undefined") {
             window.sessionStorage.setItem(checkoutAutoRedirectStorageKey, "1")
           }
-          router.replace(`/chat/${tid}`)
+          router.replace(`/chat/${tid}?from=checkout`)
           return
         }
         await new Promise((r) => setTimeout(r, 300))
@@ -486,11 +504,7 @@ export default function SkillDetailPage() {
       const status = latest?.status ?? null
       setTransactionRows(rows)
       setTransactionStatus(status)
-      if (
-        latest?.id != null &&
-        status &&
-        CHAT_TRANSITION_STATUSES.includes(status as (typeof CHAT_TRANSITION_STATUSES)[number])
-      ) {
+      if (canOpenChatFromSkillPage(latest, { currentUserId: userId })) {
         setActiveTransaction(latest)
       } else {
         setActiveTransaction(null)
@@ -517,11 +531,7 @@ export default function SkillDetailPage() {
           const status = latest?.status ?? null
           setTransactionRows(rows)
           setTransactionStatus(status)
-          if (
-            latest?.id != null &&
-            status &&
-            CHAT_TRANSITION_STATUSES.includes(status as (typeof CHAT_TRANSITION_STATUSES)[number])
-          ) {
+          if (canOpenChatFromSkillPage(latest, { currentUserId: userId })) {
             setActiveTransaction(latest)
           } else {
             setActiveTransaction(null)
@@ -551,11 +561,7 @@ export default function SkillDetailPage() {
         const status = latest?.status ?? null
         setTransactionRows(rows)
         setTransactionStatus(status)
-        if (
-          latest?.id != null &&
-          status &&
-          CHAT_TRANSITION_STATUSES.includes(status as (typeof CHAT_TRANSITION_STATUSES)[number])
-        ) {
+        if (canOpenChatFromSkillPage(latest, { currentUserId: userId })) {
           setActiveTransaction(latest)
         } else {
           setActiveTransaction(null)
@@ -639,17 +645,11 @@ export default function SkillDetailPage() {
   const isOwnSkill = Boolean(userId && skill.user_id === userId)
   const latestTransaction = transactionRows[0] ?? null
   const latestTransactionStatus = transactionStatus ?? latestTransaction?.status ?? null
-  const canTransitionChatByStatus =
-    latestTransactionStatus === "pending" ||
-    latestTransactionStatus === "in_progress" ||
-    latestTransactionStatus === "active" ||
-    latestTransactionStatus === "approval_pending" ||
-    latestTransactionStatus === "disputed"
   const canRepurchaseByStatus =
     latestTransactionStatus === "completed" ||
     latestTransactionStatus === "canceled" ||
     latestTransactionStatus === "refunded"
-  const hasActivePurchase = !isOwnSkill && Boolean(latestTransaction?.id != null && canTransitionChatByStatus)
+  const hasActivePurchase = !isOwnSkill && Boolean(canOpenChatFromSkillPage(latestTransaction, { currentUserId: userId }))
   const consultationEnabled = !consultationSettingsLoadError && consultationSettings?.is_enabled === true
   const chatConsultationEnabled =
     !consultationSettingsLoadError && consultationSettings?.is_chat_enabled === true
@@ -663,12 +663,6 @@ export default function SkillDetailPage() {
     consultationEnabled &&
     !consultationAccepted &&
     consultationAnswer?.status !== "pending"
-  const isBuyerAwaitingPayment =
-    Boolean(
-      userId &&
-        latestTransaction?.buyer_id === userId &&
-        latestTransactionStatus === "awaiting_payment",
-    )
   const shouldShowConsultationAction =
     !isOwnSkill && !consultationSettingsLoadError && consultationEnabled && !consultationAccepted
   const shouldShowPurchaseButton =
@@ -676,7 +670,7 @@ export default function SkillDetailPage() {
     !transactionStatusLoading &&
     !consultationSettingsLoadError &&
     (!consultationEnabled || consultationAccepted) &&
-    (transactionRows.length === 0 || canRepurchaseByStatus || isBuyerAwaitingPayment)
+    (transactionRows.length === 0 || canRepurchaseByStatus)
 
   const handlePurchaseIntent = () => {
     setPurchaseError(null)
@@ -699,6 +693,12 @@ export default function SkillDetailPage() {
     setPurchaseConfirmOpen(true)
   }
 
+  /**
+   * 購入フロー（崩さないこと）:
+   * - チャット可能な取引が既にあればチャットへ（Stripe へ行かない）
+   * - それ以外は Checkout セッション作成 → `window.location.href` で Stripe へ遷移
+   * - 決済成功後は `checkout.ts` の finalize で取引を作成/確定し、本ページの `checkout=success` 処理でチャットへ
+   */
   const executePurchaseAfterConfirm = async () => {
     if (!skill || !userId) {
       setPurchaseConfirmOpen(false)
@@ -708,9 +708,9 @@ export default function SkillDetailPage() {
       return
     }
     setPurchasePending(true)
-    setPurchaseProgressLabel("取引を作成中...")
+    setPurchaseProgressLabel("決済ページへ移動中...")
     try {
-      // insert 前の最終確認（ボタン表示の遅延と DB のずれ対策）
+      // 二重遷移防止: 既にチャット可能な取引があるならそちらを優先
       const latestActive = await fetchLatestRelevantTransaction()
 
       if (latestActive === undefined) {
@@ -724,12 +724,7 @@ export default function SkillDetailPage() {
 
       const latestActiveRow = (latestActive as ActiveTransactionRow[] | null)?.[0]
       const latestStatus = latestActiveRow?.status ?? null
-      if (
-        latestActiveRow &&
-        latestActiveRow.id &&
-        latestStatus &&
-        CHAT_TRANSITION_STATUSES.includes(latestStatus as (typeof CHAT_TRANSITION_STATUSES)[number])
-      ) {
+      if (canOpenChatFromSkillPage(latestActiveRow, { currentUserId: userId })) {
         setTransactionRows([latestActiveRow])
         setTransactionStatus(latestStatus)
         setActiveTransaction(latestActiveRow)
@@ -738,93 +733,17 @@ export default function SkillDetailPage() {
         return
       }
 
-      if (
-        latestActiveRow &&
-        latestActiveRow.id &&
-        latestStatus === "awaiting_payment" &&
-        latestActiveRow.buyer_id === userId
-      ) {
-        setTransactionRows([latestActiveRow])
-        setTransactionStatus(latestStatus)
-        const ok = await startStripePaymentForTransaction(String(skill.id))
-        if (!ok) {
-          setPurchaseError("決済の開始に失敗しました。もう一度お試しください。")
-          return
-        }
-        setPurchaseConfirmOpen(false)
+      const ok = await startStripePaymentForTransaction(String(skill.id))
+      if (!ok) {
+        setPurchaseError("決済の開始に失敗しました。もう一度お試しください。")
         return
       }
-
-      const { inserted, errorMessage, transactionId, requiresPayment } = await createSkillPurchaseTransaction(
-        supabase,
-        {
-          skillId: skillId,
-          buyerId: userId,
-        },
-      )
-
-      if (errorMessage || !inserted) {
-        if (!errorMessage) {
-          setPurchaseError("取引の作成に失敗しました。")
-          return
-        }
-        setPurchaseError(
-          formatErrorMessageOnly({ message: errorMessage }, isAdmin, {
-            unknownErrorMessage: "取引の作成に失敗しました。",
-          }),
-        )
-        return
-      }
-
-      if (requiresPayment && transactionId) {
-        const ok = await startStripePaymentForTransaction(String(skill.id))
-        if (!ok) {
-          setPurchaseError("決済の開始に失敗しました。もう一度お試しください。")
-          return
-        }
-        setPurchaseConfirmOpen(false)
-        return
-      } else if (transactionId) {
-        setPurchaseProgressLabel("チャットへ移動中...")
-        router.push(`/chat/${transactionId}`)
-        return
-      }
-
-      setPurchaseProgressLabel("取引情報を更新中...")
-      let refreshed: ActiveTransactionRow | null = null
-      for (let i = 0; i < 10; i += 1) {
-        const refreshedRows = await fetchActiveTransaction()
-        if (refreshedRows === undefined) {
-          continue
-        }
-        const latest = refreshedRows[0] ?? null
-        const status = latest?.status ?? null
-        if (
-          latest?.id != null &&
-          status &&
-          CHAT_TRANSITION_STATUSES.includes(status as (typeof CHAT_TRANSITION_STATUSES)[number])
-        ) {
-          refreshed = latest
-          setTransactionRows(refreshedRows)
-          setTransactionStatus(status)
-          break
-        }
-        await new Promise((resolve) => window.setTimeout(resolve, 250))
-      }
-
-      if (!refreshed || refreshed.id == null) {
-        setPurchaseError("取引の反映待ちに失敗しました。時間をおいて再度お試しください。")
-        return
-      }
-
-      setActiveTransaction(refreshed)
-      setPurchaseProgressLabel("チャットへ移動中...")
-      router.push(`/chat/${String(refreshed.id)}`)
+      setPurchaseConfirmOpen(false)
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "取引の作成に失敗しました。"
+      const msg = e instanceof Error ? e.message : "決済の開始に失敗しました。"
       setPurchaseError(
         formatErrorMessageOnly({ message: msg }, isAdmin, {
-          unknownErrorMessage: "取引の作成に失敗しました。",
+          unknownErrorMessage: "決済の開始に失敗しました。",
         }),
       )
     } finally {
@@ -844,12 +763,6 @@ export default function SkillDetailPage() {
   const showConsultationQ2 = consultationLabel.q2.trim().length > 0
   const showConsultationQ3 = consultationLabel.q3.trim().length > 0
   const showConsultationFree = consultationLabel.free.trim().length > 0
-  const consultationAnswerPlaceholders = {
-    q1: "例 : 現在の悩みを教えてください",
-    q2: "例 : 目標を教えてください",
-    q3: "例 : これまでの運動経験を教えてください",
-    free: "例 : その他、事前に伝えておきたいこと",
-  }
 
   const handleConsultationSubmit = async () => {
     if (!skillId || !consultationEnabled) {
@@ -1262,7 +1175,6 @@ export default function SkillDetailPage() {
                         rows={3}
                         value={consultationForm.a1}
                         onChange={(event) => setConsultationForm((prev) => ({ ...prev, a1: event.target.value }))}
-                        placeholder={consultationAnswerPlaceholders.q1}
                         className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
                       />
                     </div>
@@ -1274,7 +1186,6 @@ export default function SkillDetailPage() {
                         rows={3}
                         value={consultationForm.a2}
                         onChange={(event) => setConsultationForm((prev) => ({ ...prev, a2: event.target.value }))}
-                        placeholder={consultationAnswerPlaceholders.q2}
                         className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
                       />
                     </div>
@@ -1286,7 +1197,6 @@ export default function SkillDetailPage() {
                         rows={3}
                         value={consultationForm.a3}
                         onChange={(event) => setConsultationForm((prev) => ({ ...prev, a3: event.target.value }))}
-                        placeholder={consultationAnswerPlaceholders.q3}
                         className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
                       />
                     </div>
@@ -1298,7 +1208,6 @@ export default function SkillDetailPage() {
                         rows={4}
                         value={consultationForm.free}
                         onChange={(event) => setConsultationForm((prev) => ({ ...prev, free: event.target.value }))}
-                        placeholder={consultationAnswerPlaceholders.free}
                         className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
                       />
                     </div>
@@ -1338,9 +1247,7 @@ export default function SkillDetailPage() {
                   ? "満枠対応中"
                   : purchasePending
                     ? purchaseProgressLabel
-                    : isBuyerAwaitingPayment
-                      ? "お支払いを完了する"
-                      : "購入する"}
+                    : "購入する"}
               </Button>
               <button
                 type="button"
@@ -1397,11 +1304,7 @@ export default function SkillDetailPage() {
               }
               const latest = refreshedRows[0] ?? null
               const status = latest?.status ?? null
-              if (
-                latest?.id != null &&
-                status &&
-                CHAT_TRANSITION_STATUSES.includes(status as (typeof CHAT_TRANSITION_STATUSES)[number])
-              ) {
+              if (canOpenChatFromSkillPage(latest, { currentUserId: userId })) {
                 refreshed = latest
                 setTransactionRows(refreshedRows)
                 setTransactionStatus(status)
@@ -1416,7 +1319,7 @@ export default function SkillDetailPage() {
               return
             }
             setActiveTransaction(refreshed)
-            router.push(`/chat/${String(refreshed.id)}`)
+            router.push(`/chat/${String(refreshed.id)}?from=checkout`)
           }}
         />
 

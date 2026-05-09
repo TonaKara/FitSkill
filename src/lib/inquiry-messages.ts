@@ -292,7 +292,7 @@ export async function insertInquiryMessage(
     sender_id: payload.sender_id,
     type: INQUIRY_NOTIFICATION_TYPE,
     title: "新しい相談メッセージ",
-    reason: `inquiry:${row.id}`,
+    reason: `inquiry:${row.id}|skill:${origin}`,
     content: "相談チャットに新しいメッセージが届きました。",
     is_admin_origin: false,
     is_read: false,

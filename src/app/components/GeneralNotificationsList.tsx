@@ -93,7 +93,10 @@ export function GeneralNotificationsList({ userId, adminOrigin, onRead }: Genera
     if (n.type === "inquiry_message") {
       const peerId = n.sender_id?.trim() ?? ""
       if (peerId) {
-        return `/inquiry/${encodeURIComponent(peerId)}`
+        const reason = n.reason?.trim() ?? ""
+        const skillMatch = /\|skill:([0-9]+)\s*$/.exec(reason)
+        const q = skillMatch?.[1] ? `?skill_id=${encodeURIComponent(skillMatch[1])}` : ""
+        return `/inquiry/${encodeURIComponent(peerId)}${q}`
       }
       return "/inquiry/list"
     }

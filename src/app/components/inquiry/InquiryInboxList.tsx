@@ -21,8 +21,13 @@ type InquiryInboxListProps = {
   emptyHint?: string
 }
 
-function threadHref(peerId: string): string {
-  return `/inquiry/${encodeURIComponent(peerId)}`
+function threadHref(peerId: string, lastOriginSkillId: string): string {
+  const base = `/inquiry/${encodeURIComponent(peerId)}`
+  const sid = lastOriginSkillId.trim()
+  if (sid.length > 0) {
+    return `${base}?skill_id=${encodeURIComponent(sid)}`
+  }
+  return base
 }
 
 export function InquiryInboxList({
@@ -64,7 +69,7 @@ export function InquiryInboxList({
         return (
           <li key={t.peer_id}>
             <Link
-              href={threadHref(t.peer_id)}
+              href={threadHref(t.peer_id, t.last_origin_skill_id)}
               className={`flex gap-3 px-3 py-3 transition-colors md:px-4 ${
                 active ? "bg-red-950/40 ring-1 ring-inset ring-red-500/30" : "hover:bg-zinc-900/80"
               }`}
@@ -73,10 +78,10 @@ export function InquiryInboxList({
                 <Image src={avatarSrc} alt="" fill className="object-cover" sizes="48px" unoptimized />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="truncate font-semibold text-zinc-100">{name}</p>
                   <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
-                    <span className="rounded-full border border-red-500/35 bg-red-950/50 px-2 py-0.5 text-[10px] font-medium text-red-200">
+                    <span className="rounded-full border border-red-500/35 bg-red-950/50 px-2.5 py-1 text-xs font-medium leading-none text-red-200">
                       {skillTitle.length > 18 ? `${skillTitle.slice(0, 18)}…` : skillTitle}
                     </span>
                   </div>

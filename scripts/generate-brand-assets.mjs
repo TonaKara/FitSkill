@@ -3,7 +3,8 @@
  *
  * 出力: output/（作業用）＋ 以下へ同期
  * - public/apple-touch-icon.png（180×180、検索・ホーム画面用）
- * - public/og-logo.png（OG 用・赤角丸＋白マーク。黒背景＋白三角のみの旧資産を置き換え）
+ * - public/og-logo.png（小アイコン用・赤角丸タイル＋白マーク＝ブランドロゴ）
+ * - public/og-home.png（トップ https://gritvib.com/ の OG のみ・同上ロゴを大きく／背景 #09090b）
  * - app/favicon.ico, app/icon.png（タブ用）
  * - sns-icon-1080.png, favicon-32.png, favicon.ico, apple-touch-icon-180.png, header-1200x300.png
  */
@@ -27,6 +28,8 @@ const APP_DIR = path.join(ROOT, "app")
 const BRAND_RED = "#c62828"
 const WHITE = "#ffffff"
 const BLACK = "#000000"
+/** app/globals ダーク背景に近い色（ヘッダー周りと揃える） */
+const OG_SITE_BG = "#09090b"
 
 function svgInnerContent(full) {
   const m = full.match(/<svg[^>]*>([\s\S]*)<\/svg>\s*$/i)
@@ -136,6 +139,27 @@ async function main() {
   await fs.mkdir(PUBLIC_DIR, { recursive: true })
   await fs.copyFile(applePngPath, path.join(PUBLIC_DIR, "apple-touch-icon.png"))
   await writePng(ogLogoSvg, path.join(PUBLIC_DIR, "og-logo.png"), 144)
+
+  const ogHomeSvg = (() => {
+    const W = 1200
+    const H = 630
+    const size = 520
+    const rx = Math.round(size * 0.225)
+    const pad = Math.round(size * 0.083)
+    const inner = size - pad * 2
+    const x0 = (W - size) / 2
+    const y0 = (H - size) / 2
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+  <rect width="${W}" height="${H}" fill="${OG_SITE_BG}"/>
+  <svg xmlns="http://www.w3.org/2000/svg" x="${x0}" y="${y0}" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    <rect width="${size}" height="${size}" rx="${rx}" fill="${BRAND_RED}"/>
+    <svg x="${pad}" y="${pad}" width="${inner}" height="${inner}" viewBox="140 154 720 720" preserveAspectRatio="xMidYMid meet">
+${markInner}
+    </svg>
+  </svg>
+</svg>`
+  })()
+  await writePng(ogHomeSvg, path.join(PUBLIC_DIR, "og-home.png"), 144)
   await writePng(headerBannerSvg(markInner), path.join(OUT_DIR, "header-1200x300.png"), 144)
 
   const favicon32 = await sharp(Buffer.from(faviconBaseSvg, "utf8"), { density: 256 })

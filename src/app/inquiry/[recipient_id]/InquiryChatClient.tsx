@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
@@ -32,6 +32,122 @@ type SkillHeaderRow = {
   price: number
   category: string
   thumbnail_url: string | null
+}
+
+type InquiryTimelineItem =
+  | { kind: "skill_context"; skillId: string; source: "thread" | "nav_pending"; key: string }
+  | { kind: "message"; message: InquiryMessageRow }
+
+function mapRecordToSkillHeader(rec: Record<string, unknown>): SkillHeaderRow | null {
+  const sid = normalizeSkillBigIntId(rec.id)
+  if (sid == null) {
+    return null
+  }
+  return {
+    id: sid,
+    user_id: String(rec.user_id ?? ""),
+    title: String(rec.title ?? ""),
+    price: Number(rec.price ?? 0),
+    category: String(rec.category ?? ""),
+    thumbnail_url: (rec.thumbnail_url as string | null) ?? null,
+  }
+}
+
+function buildInquiryTimeline(messages: InquiryMessageRow[], skillIdFromQuery: string | null): InquiryTimelineItem[] {
+  const items: InquiryTimelineItem[] = []
+  let prevSkill: string | null = null
+  for (const m of messages) {
+    const sid = m.origin_skill_id
+    if (sid !== prevSkill) {
+      items.push({
+        kind: "skill_context",
+        skillId: sid,
+        source: "thread",
+        key: `ctx-${m.id}-${sid}`,
+      })
+      prevSkill = sid
+    }
+    items.push({ kind: "message", message: m })
+  }
+  const lastSkill = messages.length > 0 ? messages[messages.length - 1].origin_skill_id : null
+  if (skillIdFromQuery != null && skillIdFromQuery !== lastSkill) {
+    items.push({
+      kind: "skill_context",
+      skillId: skillIdFromQuery,
+      source: "nav_pending",
+      key: `nav-${skillIdFromQuery}`,
+    })
+  }
+  return items
+}
+
+function InquirySkillContextBlock({
+  skillId,
+  detail,
+  userId,
+  source,
+}: {
+  skillId: string
+  detail: SkillHeaderRow | undefined
+  userId: string | null
+  source: "thread" | "nav_pending"
+}) {
+  const thumb = detail ? resolveSkillThumbnailUrl(detail.thumbnail_url) : resolveSkillThumbnailUrl(null)
+  const purchaseHref =
+    detail != null && userId != null && detail.user_id !== userId
+      ? `/skills/${encodeURIComponent(skillId)}`
+      : null
+
+  return (
+    <li className="list-none" aria-label="相談スキル">
+      <div
+        className={`mx-auto max-w-lg rounded-xl border px-3 py-3 ${
+          source === "nav_pending"
+            ? "border-amber-500/35 bg-amber-950/25"
+            : "border-red-500/25 bg-zinc-900/80"
+        }`}
+      >
+        <p className="mb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+          {source === "nav_pending" ? "こちらのスキルについて相談" : "相談スキル"}
+        </p>
+        {!detail ? (
+          <div className="flex items-center justify-center gap-2 py-2 text-xs text-zinc-500">
+            <Loader2 className="h-4 w-4 shrink-0 animate-spin text-red-500" aria-hidden />
+            スキル情報を読み込み中…
+          </div>
+        ) : (
+          <div className="flex gap-3">
+            <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-zinc-800">
+              <Image src={thumb} alt="" fill className="object-cover" sizes="96px" unoptimized />
+            </div>
+            <div className="min-w-0 flex-1">
+              <span className="inline-block rounded-full border border-red-500/35 bg-red-950/40 px-2 py-0.5 text-[10px] font-medium text-red-200">
+                {detail.category}
+              </span>
+              <p className="mt-1 line-clamp-2 text-sm font-semibold text-white">{detail.title}</p>
+              <p className="mt-0.5 text-xs text-zinc-400">
+                ¥{Number(detail.price ?? 0).toLocaleString()} / 回
+              </p>
+              {purchaseHref ? (
+                <Button
+                  asChild
+                  size="sm"
+                  className="mt-2 h-8 bg-red-600 text-xs font-bold text-white hover:bg-red-500"
+                >
+                  <Link href={purchaseHref}>このスキルで取引を始める（購入ページへ）</Link>
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        )}
+        {source === "nav_pending" ? (
+          <p className="mt-2 text-center text-[10px] text-zinc-500">
+            下の送信欄から送るメッセージは、このスキルについての相談として届きます。
+          </p>
+        ) : null}
+      </div>
+    </li>
+  )
 }
 
 type InquiryPeerProfileWithCustomId = InquiryPeerProfile & { custom_id: string | null }
@@ -66,12 +182,28 @@ export function InquiryChatClient() {
   const [senderProfiles, setSenderProfiles] = useState<Record<string, InquiryPeerProfileWithCustomId>>({})
   const [myProfile, setMyProfile] = useState<InquiryPeerProfileWithCustomId | null>(null)
 
-  const [headerSkill, setHeaderSkill] = useState<SkillHeaderRow | null>(null)
-  const [headerSkillLoading, setHeaderSkillLoading] = useState(false)
+  const [skillDetailById, setSkillDetailById] = useState<Record<string, SkillHeaderRow>>({})
+  const messagesScrollRef = useRef<HTMLDivElement | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement | null>(null)
+  const initialScrollDoneRef = useRef(false)
 
   const [text, setText] = useState("")
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
+
+  const forceScrollToBottom = useCallback(() => {
+    const el = messagesScrollRef.current
+    if (!el) {
+      return
+    }
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight
+      requestAnimationFrame(() => {
+        el.scrollTop = el.scrollHeight
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
+      })
+    })
+  }, [])
 
   const skillIdFromQuery = useMemo(() => {
     const raw = searchParams.get("skill_id")
@@ -210,6 +342,10 @@ export function InquiryChatClient() {
   }, [loadMessages])
 
   useEffect(() => {
+    initialScrollDoneRef.current = false
+  }, [peerId, skillIdFromQuery])
+
+  useEffect(() => {
     if (!messages.length) {
       return
     }
@@ -270,7 +406,8 @@ export function InquiryChatClient() {
         return
       }
       const ownerId = String((sk as { user_id: string }).user_id)
-      if (ownerId !== peerId) {
+      const skillInvolvesThread = ownerId === peerId || ownerId === userId
+      if (!skillInvolvesThread) {
         router.replace(`/skills/${encodeURIComponent(skillIdFromQuery)}`)
         return
       }
@@ -290,56 +427,95 @@ export function InquiryChatClient() {
     }
   }, [skillIdFromQuery, userId, peerId, supabase, router])
 
+  /** スキル詳細の「質問する」や一覧の ?skill_id= を最優先（別商品から開いた文脈を維持） */
   const effectiveOriginSkillId = useMemo((): string | null => {
-    if (messages.length > 0) {
-      return messages[messages.length - 1]?.origin_skill_id ?? null
-    }
     if (skillIdFromQuery != null) {
       return skillIdFromQuery
+    }
+    if (messages.length > 0) {
+      return messages[messages.length - 1]?.origin_skill_id ?? null
     }
     return null
   }, [messages, skillIdFromQuery])
 
+  const inquiryTimeline = useMemo(
+    () => buildInquiryTimeline(messages, skillIdFromQuery),
+    [messages, skillIdFromQuery],
+  )
+
+  const skillIdsToLoad = useMemo(() => {
+    const ids = new Set<string>()
+    for (const item of inquiryTimeline) {
+      if (item.kind === "skill_context") {
+        ids.add(item.skillId)
+      }
+    }
+    if (effectiveOriginSkillId) {
+      ids.add(effectiveOriginSkillId)
+    }
+    return [...ids]
+  }, [inquiryTimeline, effectiveOriginSkillId])
+
+  const skillIdsLoadKey = useMemo(() => [...skillIdsToLoad].sort().join(","), [skillIdsToLoad])
+
   useEffect(() => {
-    if (effectiveOriginSkillId == null) {
-      setHeaderSkill(null)
+    if (!skillIdsLoadKey) {
+      return
+    }
+    const ids = skillIdsLoadKey.split(",").filter((s) => s.length > 0)
+    if (ids.length === 0) {
       return
     }
     let cancelled = false
-    setHeaderSkillLoading(true)
     void (async () => {
       const { data, error } = await supabase
         .from("skills")
         .select("id, user_id, title, price, category, thumbnail_url")
-        .eq("id", effectiveOriginSkillId)
-        .maybeSingle()
-      if (cancelled) {
+        .in("id", ids)
+      if (cancelled || error || !data) {
         return
       }
-      if (error || !data) {
-        setHeaderSkill(null)
-      } else {
-        const rec = data as Record<string, unknown>
-        const sid = normalizeSkillBigIntId(rec.id)
-        if (sid == null) {
-          setHeaderSkill(null)
-        } else {
-          setHeaderSkill({
-            id: sid,
-            user_id: String(rec.user_id ?? ""),
-            title: String(rec.title ?? ""),
-            price: Number(rec.price ?? 0),
-            category: String(rec.category ?? ""),
-            thumbnail_url: (rec.thumbnail_url as string | null) ?? null,
-          })
+      setSkillDetailById((prev) => {
+        const next = { ...prev }
+        for (const row of data as Record<string, unknown>[]) {
+          const mapped = mapRecordToSkillHeader(row)
+          if (mapped) {
+            next[mapped.id] = mapped
+          }
         }
-      }
-      setHeaderSkillLoading(false)
+        return next
+      })
     })()
     return () => {
       cancelled = true
     }
-  }, [supabase, effectiveOriginSkillId])
+  }, [supabase, skillIdsLoadKey])
+
+  useEffect(() => {
+    if (preChatGuardPending || messagesLoading || initialScrollDoneRef.current || inquiryTimeline.length === 0) {
+      return
+    }
+    if (!messagesScrollRef.current) {
+      return
+    }
+    const el = messagesScrollRef.current
+    const raf1 = requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight
+      const raf2 = requestAnimationFrame(() => {
+        el.scrollTop = el.scrollHeight
+        messagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" })
+        const timeoutId = window.setTimeout(() => {
+          el.scrollTop = el.scrollHeight
+          initialScrollDoneRef.current = true
+        }, 80)
+        void timeoutId
+      })
+      void raf2
+    })
+    return () => {
+      cancelAnimationFrame(raf1)
+    }
+  }, [preChatGuardPending, messagesLoading, inquiryTimeline.length, skillIdsLoadKey, skillIdFromQuery, peerId])
 
   const peerProfile = peerProfiles[peerId]
   const peerName = peerProfile?.display_name?.trim() || "ユーザー"
@@ -445,6 +621,7 @@ export function InquiryChatClient() {
     }
     setText("")
     setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row]))
+    forceScrollToBottom()
     void loadInbox()
     void fetch("/api/notifications/inquiry-email", {
       method: "POST",
@@ -512,15 +689,6 @@ export function InquiryChatClient() {
     )
   }
 
-  const thumb = headerSkill ? resolveSkillThumbnailUrl(headerSkill.thumbnail_url) : resolveSkillThumbnailUrl(null)
-  const purchaseHref =
-    effectiveOriginSkillId != null &&
-    userId != null &&
-    headerSkill != null &&
-    headerSkill.user_id !== userId
-      ? `/skills/${effectiveOriginSkillId}`
-      : null
-
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       <Header />
@@ -559,119 +727,104 @@ export function InquiryChatClient() {
             </div>
           </div>
 
-          <div className="shrink-0 border-b border-zinc-800 bg-zinc-900/40 px-3 py-3 md:px-4">
-            {headerSkillLoading ? (
-              <div className="flex items-center gap-2 text-xs text-zinc-500">
-                <Loader2 className="h-4 w-4 animate-spin text-red-500" />
-                スキル情報を読み込み中...
-              </div>
-            ) : headerSkill ? (
-              <div className="flex gap-3">
-                <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-zinc-800">
-                  <Image src={thumb} alt="" fill className="object-cover" sizes="96px" unoptimized />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <span className="inline-block rounded-full border border-red-500/35 bg-red-950/40 px-2 py-0.5 text-[10px] font-medium text-red-200">
-                    {headerSkill.category}
-                  </span>
-                  <p className="mt-1 line-clamp-2 text-sm font-semibold text-white">{headerSkill.title}</p>
-                  <p className="mt-0.5 text-xs text-zinc-400">
-                    ¥{Number(headerSkill.price ?? 0).toLocaleString()} / 回
-                  </p>
-                  {purchaseHref ? (
-                    <Button
-                      asChild
-                      size="sm"
-                      className="mt-2 h-8 bg-red-600 text-xs font-bold text-white hover:bg-red-500"
-                    >
-                      <Link href={purchaseHref}>このスキルで取引を始める（購入ページへ）</Link>
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-            ) : (
-              <p className="text-xs text-amber-200/90">
-                表示するスキルがありません。スキル詳細の「出品者に質問する」から開くか、メッセージを送信すると文脈が表示されます。
-              </p>
-            )}
-          </div>
-
-          <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 md:px-4">
+          <div ref={messagesScrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 py-4 md:px-4">
             {messagesLoading ? (
               <div className="flex justify-center py-12 text-zinc-500">
                 <Loader2 className="h-6 w-6 animate-spin text-red-500" />
               </div>
             ) : messagesError ? (
               <p className="text-center text-sm text-red-400">{messagesError}</p>
-            ) : messages.length === 0 ? (
-              <p className="text-center text-sm text-zinc-500">メッセージはまだありません。下の欄から送信してください。</p>
+            ) : inquiryTimeline.length === 0 ? (
+              <p className="text-center text-sm text-zinc-500">
+                メッセージはまだありません。スキル詳細の「出品者に質問する」から開くか、下の欄から送信してください。
+              </p>
             ) : (
-              <ul className="flex flex-col gap-3">
-                {messages.map((m) => {
-                  const mine = m.sender_id === userId
-                  const senderProfile = senderProfiles[m.sender_id]
-                  const isPeerSender = m.sender_id === peerId
-                  const label = mine
-                    ? "自分"
-                    : isPeerSender
-                      ? peerName
-                      : senderProfile?.display_name?.trim() || "ユーザー"
-                  const avatarSrc = resolveProfileAvatarUrl(
-                    mine ? myProfile?.avatar_url ?? null : isPeerSender ? peerProfile?.avatar_url ?? null : senderProfile?.avatar_url ?? null,
-                    label,
-                  )
-                  const senderProfilePath = buildProfilePath(m.sender_id, senderProfile?.custom_id ?? null)
-                  return (
-                    <li key={m.id}>
-                      {mine ? (
-                        <div className="flex w-full justify-end">
-                          <div className="flex min-w-0 max-w-[85%] flex-col items-end gap-1">
-                            <p className="max-w-full truncate px-1 text-xs text-zinc-500">{label}</p>
-                            <div className="rounded-2xl bg-red-900/50 px-3 py-2 text-sm leading-relaxed text-red-50">
-                              <p className="whitespace-pre-wrap break-words">{m.content}</p>
-                              <p className="mt-1 text-[10px] opacity-70">
-                                {new Date(m.created_at).toLocaleString("ja-JP", {
-                                  month: "short",
-                                  day: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                                {m.is_read ? " · 既読" : " · 未読"}
-                              </p>
+              <>
+                <ul className="flex flex-col gap-3">
+                  {inquiryTimeline.map((item) => {
+                    if (item.kind === "skill_context") {
+                      return (
+                        <InquirySkillContextBlock
+                          key={item.key}
+                          skillId={item.skillId}
+                          detail={skillDetailById[item.skillId]}
+                          userId={userId}
+                          source={item.source}
+                        />
+                      )
+                    }
+                    const m = item.message
+                    const mine = m.sender_id === userId
+                    const senderProfile = senderProfiles[m.sender_id]
+                    const isPeerSender = m.sender_id === peerId
+                    const label = mine
+                      ? "自分"
+                      : isPeerSender
+                        ? peerName
+                        : senderProfile?.display_name?.trim() || "ユーザー"
+                    const avatarSrc = resolveProfileAvatarUrl(
+                      mine ? myProfile?.avatar_url ?? null : isPeerSender ? peerProfile?.avatar_url ?? null : senderProfile?.avatar_url ?? null,
+                      label,
+                    )
+                    const senderProfilePath = buildProfilePath(m.sender_id, senderProfile?.custom_id ?? null)
+                    return (
+                      <li key={m.id}>
+                        {mine ? (
+                          <div className="flex w-full justify-end">
+                            <div className="flex min-w-0 max-w-[85%] flex-col items-end gap-1">
+                              <p className="max-w-full truncate px-1 text-xs text-zinc-500">{label}</p>
+                              <div className="rounded-2xl bg-red-900/50 px-3 py-2 text-sm leading-relaxed text-red-50">
+                                <p className="whitespace-pre-wrap break-words">{m.content}</p>
+                                <p className="mt-1 text-[10px] opacity-70">
+                                  {new Date(m.created_at).toLocaleString("ja-JP", {
+                                    month: "short",
+                                    day: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                  {m.is_read ? " · 既読" : " · 未読"}
+                                </p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ) : (
-                        <div className="flex w-full items-start justify-start gap-2">
-                          <Link
-                            href={senderProfilePath}
-                            className="shrink-0"
-                            aria-label={`${label}のプロフィールへ`}
-                          >
-                            <div className="relative h-9 w-9 overflow-hidden rounded-full border border-zinc-700 bg-zinc-900">
-                              <Image src={avatarSrc} alt="" fill className="object-cover" sizes="36px" unoptimized />
-                            </div>
-                          </Link>
-                          <div className="min-w-0 max-w-[calc(100%-2.75rem)]">
-                            <p className="mb-1 truncate text-xs text-zinc-400">{label}</p>
-                            <div className="rounded-2xl bg-zinc-800 px-3 py-2 text-sm leading-relaxed text-zinc-100">
-                              <p className="whitespace-pre-wrap break-words">{m.content}</p>
-                              <p className="mt-1 text-[10px] opacity-70">
-                                {new Date(m.created_at).toLocaleString("ja-JP", {
-                                  month: "short",
-                                  day: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                              </p>
+                        ) : (
+                          <div className="flex w-full items-start justify-start gap-2">
+                            <Link
+                              href={senderProfilePath}
+                              className="shrink-0"
+                              aria-label={`${label}のプロフィールへ`}
+                            >
+                              <div className="relative h-9 w-9 overflow-hidden rounded-full border border-zinc-700 bg-zinc-900">
+                                <Image src={avatarSrc} alt="" fill className="object-cover" sizes="36px" unoptimized />
+                              </div>
+                            </Link>
+                            <div className="min-w-0 max-w-[calc(100%-2.75rem)]">
+                              <p className="mb-1 truncate text-xs text-zinc-400">{label}</p>
+                              <div className="rounded-2xl bg-zinc-800 px-3 py-2 text-sm leading-relaxed text-zinc-100">
+                                <p className="whitespace-pre-wrap break-words">{m.content}</p>
+                                <p className="mt-1 text-[10px] opacity-70">
+                                  {new Date(m.created_at).toLocaleString("ja-JP", {
+                                    month: "short",
+                                    day: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
-                    </li>
-                  )
-                })}
-              </ul>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+                {messages.length === 0 ? (
+                  <p className="mt-4 text-center text-sm text-zinc-500">
+                    メッセージはまだありません。下の欄から送信してください。
+                  </p>
+                ) : null}
+                <div ref={messagesEndRef} />
+              </>
             )}
           </div>
 

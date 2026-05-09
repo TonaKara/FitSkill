@@ -12,6 +12,8 @@ import { saveHomeListScrollPosition } from "@/lib/home-list-scroll"
 interface SkillCardProps {
   /** DB のスキル UUID のときのみ指定。お気に入り・件数のリアルタイム更新を有効にする */
   favoriteSkillId?: string
+  /** 一覧などで件数が既に分かっているとき（未取得の 0 表示チラつき防止） */
+  initialFavoriteCount?: number
   skill: {
     id: number | string
     title: string
@@ -31,7 +33,7 @@ interface SkillCardProps {
   }
 }
 
-export function SkillCard({ skill, favoriteSkillId }: SkillCardProps) {
+export function SkillCard({ skill, favoriteSkillId, initialFavoriteCount }: SkillCardProps) {
   const router = useRouter()
   const canOpenDetail = Boolean(skill.detailHref)
 
@@ -87,7 +89,11 @@ export function SkillCard({ skill, favoriteSkillId }: SkillCardProps) {
 
         {/* Like Button */}
         {favoriteSkillId ? (
-          <SkillCardFavorite skillId={favoriteSkillId} />
+          <SkillCardFavorite
+            key={favoriteSkillId}
+            skillId={favoriteSkillId}
+            initialFavoriteCount={initialFavoriteCount}
+          />
         ) : (
           <Button
             type="button"

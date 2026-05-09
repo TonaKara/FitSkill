@@ -687,7 +687,12 @@ export function SkillGrid({ filters, sortBy, searchKeyword }: SkillGridProps) {
       ) : null}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {filteredAndSortedItems.map((item) => (
-          <SkillCard key={item.key} favoriteSkillId={item.favoriteSkillId} skill={item.skill} />
+          <SkillCard
+            key={item.key}
+            favoriteSkillId={item.favoriteSkillId}
+            skill={item.skill}
+            initialFavoriteCount={item.sortMeta.favoritesCount}
+          />
         ))}
       </div>
     </div>

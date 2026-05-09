@@ -1,5 +1,6 @@
 /**
- * ブランドマーク（scripts/brand-assets/logo-mark.svg と同一パス）。
+ * ヘッダー用のシンボルマーク（scripts/brand-assets/logo-mark.svg と同一パス）。
+ * アプリアイコン等で使う「赤角丸タイル＋このマーク」が正式なブランドロゴ（ロックアップ）。
  * `fill="currentColor"` のため、祖先の `text-*` / `color` で色を決める。
  */
 export function BrandMarkSvg({ className }: { className?: string }) {

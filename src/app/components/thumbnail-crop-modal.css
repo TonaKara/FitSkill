@@ -16,8 +16,14 @@
   vertical-align: top;
 }
 
+/* hidden だと枠線・ハンドルが画像端で欠けて見えることがある */
 .thumbnail-crop-modal .thumbnail-crop-react .ReactCrop__child-wrapper {
-  overflow: hidden;
+  overflow: visible;
+}
+
+/* 端でのハンドルタップ余白（切り抜き座標は img 基準のためズレない） */
+.thumbnail-crop-modal .thumbnail-crop-media-shell {
+  padding: 10px 8px 14px;
 }
 
 .thumbnail-crop-modal .thumbnail-crop-source {

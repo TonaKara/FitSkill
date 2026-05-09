@@ -297,39 +297,10 @@ export async function createCheckoutSession(skillId: string | number): Promise<C
       expectedUserId: skill.user_id,
     })
 
-    /** 未払い取引が無い Checkout は作成しない（二重セッション・課金ずれ防止）。メタデータで取引と必ず紐づける */
-    const { data: awaitingRows, error: awaitingErr } = await supabase
-      .from("transactions")
-      .select("id")
-      .eq("skill_id", normalizedSkillId)
-      .eq("buyer_id", user.id)
-      .eq("status", "awaiting_payment")
-      .order("created_at", { ascending: false })
-      .limit(2)
-
-    if (awaitingErr) {
-      return { ok: false, error: awaitingErr.message }
-    }
-    const awaitingList = awaitingRows ?? []
-    if (awaitingList.length === 0) {
-      return {
-        ok: false,
-        error:
-          "決済待ちの取引がありません。スキルページで購入手続きを最初からやり直してください。",
-      }
-    }
-    if (awaitingList.length > 1) {
-      return {
-        ok: false,
-        error:
-          "決済待ちの取引が複数検出されました。ページを更新して状況を確認するか、時間を置いて再度お試しください。",
-      }
-    }
-    const pendingTransactionId = String((awaitingList[0] as { id?: unknown }).id ?? "").trim()
-    if (!pendingTransactionId) {
-      return { ok: false, error: "決済待ち取引の参照に失敗しました。" }
-    }
-
+    /**
+     * Checkout は skill/buyer/seller を metadata に載せるのみ（事前の awaiting_payment 行は不要）。
+     * 取引の INSERT / active 化は `finalizeCheckoutSessionAfterSuccess` に一本化する。
+     */
     // 決済後の資金は講師Connect口座へ移しつつ、銀行振込は取引完了まで手動保留にする。
     await holdSellerPayoutsManually(stripe, sellerConnectAccountId)
 
@@ -356,24 +327,20 @@ export async function createCheckoutSession(skillId: string | number): Promise<C
           destination: sellerConnectAccountId,
         },
         metadata: {
-          transactionId: pendingTransactionId,
           buyerId: user.id,
           payout_policy: "destination_charge_manual_payout_hold_until_completion",
           platform_fee_amount: String(applicationFeeAmount),
-          transaction_id: pendingTransactionId,
           skill_id: skill.id,
           buyer_id: user.id,
           seller_id: skill.user_id,
         },
       },
       metadata: {
-        transactionId: pendingTransactionId,
         buyerId: user.id,
         skill_id: skill.id,
         buyer_id: user.id,
         seller_id: skill.user_id,
         amount: String(amount),
-        transaction_id: pendingTransactionId,
       },
     })
 

@@ -370,6 +370,7 @@ export default function MypageClient() {
   const [listings, setListings] = useState<ListedSkill[]>([])
   const [listingsLoading, setListingsLoading] = useState(false)
   const [listingsError, setListingsError] = useState<string | null>(null)
+  const [listingPublishConfirmId, setListingPublishConfirmId] = useState<string | null>(null)
   const [publishingListingId, setPublishingListingId] = useState<string | null>(null)
 
   const [favoriteSkills, setFavoriteSkills] = useState<FavoriteSkillItem[]>([])
@@ -853,7 +854,7 @@ export default function MypageClient() {
         variant: "error",
         message: isAdmin
           ? raw || "Stripe の画面を開けませんでした。"
-          : "Stripe の画面を開けませんでした。時間を置いて再度お試しください。接続や環境変数（Stripe・認証）をご確認ください。",
+          : "Stripe の画面を開けませんでした。時間を置いて再度お試しください。",
       })
     }
   }, [isAdmin])
@@ -893,15 +894,9 @@ export default function MypageClient() {
     setListingsLoading(false)
   }, [supabase, userId])
 
-  const handlePublishListing = useCallback(async (skillId: string) => {
-    if (!userId || publishingListingId) {
-      return
-    }
-    const target = listings.find((item) => item.id === skillId)
-    const confirmed = window.confirm(
-      `「${target?.title ?? "このスキル"}」を公開しますか？`,
-    )
-    if (!confirmed) {
+  const executePublishListing = useCallback(async () => {
+    const skillId = listingPublishConfirmId
+    if (!userId || !skillId || publishingListingId) {
       return
     }
     setPublishingListingId(skillId)
@@ -911,6 +906,7 @@ export default function MypageClient() {
       .eq("id", skillId)
       .eq("user_id", userId)
     setPublishingListingId(null)
+    setListingPublishConfirmId(null)
 
     if (error) {
       setNotice(toErrorNotice(error, isAdmin, { unknownErrorMessage: "スキルの公開に失敗しました。" }))
@@ -921,7 +917,7 @@ export default function MypageClient() {
       prev.map((item) => (item.id === skillId ? { ...item, is_published: true } : item)),
     )
     setNotice({ variant: "success", message: "スキルを公開しました。" })
-  }, [supabase, userId, publishingListingId, isAdmin, listings])
+  }, [supabase, userId, publishingListingId, isAdmin, listingPublishConfirmId])
 
   useEffect(() => {
     if (userId && section === "listings") {
@@ -2318,7 +2314,7 @@ export default function MypageClient() {
                               type="button"
                               size="sm"
                               disabled={publishingListingId === skill.id}
-                              onClick={() => void handlePublishListing(skill.id)}
+                              onClick={() => setListingPublishConfirmId(skill.id)}
                               className="bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-60"
                             >
                               {publishingListingId === skill.id ? (
@@ -3278,6 +3274,67 @@ export default function MypageClient() {
                   disabled={profileSaving}
                 >
                   このIDで保存する
+                </Button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {typeof document !== "undefined" &&
+        listingPublishConfirmId &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[10000] flex min-h-[100dvh] w-full items-center justify-center overflow-y-auto bg-black/70 p-4 sm:p-6"
+            role="presentation"
+            onClick={() => {
+              if (!publishingListingId) {
+                setListingPublishConfirmId(null)
+              }
+            }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="listing-publish-confirm-title"
+              className="my-auto w-full max-w-sm shrink-0 rounded-xl border border-zinc-700 bg-zinc-950 p-6 shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <h2
+                id="listing-publish-confirm-title"
+                className="text-center text-base font-semibold leading-relaxed text-zinc-100"
+              >
+                このスキルを公開しますか？
+              </h2>
+              <p className="mt-2 text-center text-sm text-zinc-400">
+                「
+                {listings.find((item) => item.id === listingPublishConfirmId)?.title ?? "このスキル"}
+                」を一覧に表示する状態で保存されます。
+              </p>
+              <div className="mt-6 flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 border-zinc-600 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
+                  onClick={() => setListingPublishConfirmId(null)}
+                  disabled={Boolean(publishingListingId)}
+                >
+                  キャンセル
+                </Button>
+                <Button
+                  type="button"
+                  className="flex-1 bg-emerald-600 font-semibold text-white hover:bg-emerald-500"
+                  onClick={() => void executePublishListing()}
+                  disabled={Boolean(publishingListingId)}
+                >
+                  {publishingListingId ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                      公開中...
+                    </>
+                  ) : (
+                    "公開する"
+                  )}
                 </Button>
               </div>
             </div>

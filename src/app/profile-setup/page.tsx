@@ -390,10 +390,16 @@ export default function ProfileSetupPage() {
             message: parts.length > 0 ? parts.join(" — ") : GENERIC_SAVE_FAILED,
           })
         } else {
-          const apiMsg =
+          const rawErr =
             typeof responsePayload.error === "string" && responsePayload.error.trim().length > 0
               ? responsePayload.error.trim()
-              : GENERIC_SAVE_FAILED
+              : ""
+          const allowedUserMessages = new Set([
+            GENERIC_SAVE_FAILED,
+            "保存に失敗しました。",
+            "このカスタムIDは既に使用されています。",
+          ])
+          const apiMsg = rawErr && allowedUserMessages.has(rawErr) ? rawErr : GENERIC_SAVE_FAILED
           setNotice({ variant: "error", message: apiMsg })
         }
         return

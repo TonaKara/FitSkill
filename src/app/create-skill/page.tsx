@@ -132,6 +132,8 @@ function CreateSkillPageContent() {
   const [editSkillId, setEditSkillId] = useState<string | null>(null)
   const [editLoadFinished, setEditLoadFinished] = useState(() => editParam == null)
   const [isPublished, setIsPublished] = useState(true)
+  const [initialIsPublished, setInitialIsPublished] = useState(true)
+  const [showVisibilitySaveConfirm, setShowVisibilitySaveConfirm] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showFinalConfirm, setShowFinalConfirm] = useState(false)
   const [finalConfirmKey, setFinalConfirmKey] = useState(0)
@@ -152,6 +154,7 @@ function CreateSkillPageContent() {
       setEditLoadFinished(true)
       setForm(DEFAULT_FORM)
       setIsPublished(true)
+      setInitialIsPublished(true)
       setThumbnailFile(null)
       setThumbnailUrl("")
       setThumbnailPreview((prev) => {
@@ -248,7 +251,9 @@ function CreateSkillPageContent() {
         prefecture: row.location_prefecture?.trim() ?? "",
       })
       setEditSkillId(row.id)
-      setIsPublished(row.is_published !== false)
+      const published = row.is_published !== false
+      setIsPublished(published)
+      setInitialIsPublished(published)
 
       const tu = row.thumbnail_url?.trim()
       if (tu) {
@@ -516,11 +521,28 @@ function CreateSkillPageContent() {
       return
     }
     if (editSkillId) {
+      if (isPublished !== initialIsPublished) {
+        setShowVisibilitySaveConfirm(true)
+        return
+      }
       void executeSubmitAfterConfirm()
       return
     }
     setFinalConfirmKey((k) => k + 1)
     setShowFinalConfirm(true)
+  }
+
+  const handleVisibilitySaveCancel = () => {
+    if (!isSubmitting) {
+      setShowVisibilitySaveConfirm(false)
+    }
+  }
+
+  const handleVisibilitySaveConfirm = () => {
+    if (!isSubmitting) {
+      setShowVisibilitySaveConfirm(false)
+      void executeSubmitAfterConfirm()
+    }
   }
 
   const executeSubmitAfterConfirm = async () => {
@@ -606,6 +628,7 @@ function CreateSkillPageContent() {
           chatEnabled: chatConsultationEnabled,
         })
 
+        setInitialIsPublished(isPublished)
         setPriceError("")
         router.push("/mypage?tab=listings&updated=1")
         router.refresh()
@@ -678,6 +701,7 @@ function CreateSkillPageContent() {
       setIsSubmitting(false)
       setIsUploadingImage(false)
       setShowFinalConfirm(false)
+      setShowVisibilitySaveConfirm(false)
     }
   }
 
@@ -725,7 +749,6 @@ function CreateSkillPageContent() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-5">
               <section className="space-y-3 rounded-xl border border-zinc-800/80 bg-zinc-900/25 p-4">
-                <h2 className="text-sm font-semibold text-zinc-100">サムネイル設定</h2>
                 <div className="space-y-2">
                   <label htmlFor="thumbnail" className="text-sm font-semibold text-zinc-200">
                     サムネイル画像
@@ -1135,6 +1158,63 @@ function CreateSkillPageContent() {
       </div>
 
       {portalReady &&
+        showVisibilitySaveConfirm &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[10000] flex min-h-[100dvh] w-full items-center justify-center overflow-y-auto bg-black/60 p-4 sm:p-6"
+            role="presentation"
+            onClick={handleVisibilitySaveCancel}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="visibility-save-confirm-title"
+              className="my-auto w-full max-w-sm shrink-0 rounded-xl border border-zinc-700 bg-zinc-950 p-6 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2
+                id="visibility-save-confirm-title"
+                className="text-center text-base font-semibold leading-relaxed text-zinc-100"
+              >
+                {isPublished ? "このスキルを公開して保存しますか？" : "このスキルを非公開にして保存しますか？"}
+              </h2>
+              <p className="mt-2 text-center text-sm text-zinc-400">
+                {isPublished
+                  ? "保存するとスキル一覧に表示され、購入者が閲覧できる状態になります。"
+                  : "保存するとスキル一覧から非表示になります（すでに開始した取引には影響しません）。"}
+              </p>
+              <div className="mt-6 flex gap-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="flex-1 border-zinc-600 bg-zinc-800 font-medium text-zinc-100 hover:bg-zinc-700"
+                  onClick={handleVisibilitySaveCancel}
+                  disabled={isSubmitting}
+                >
+                  キャンセル
+                </Button>
+                <Button
+                  type="button"
+                  className="flex-1 bg-red-600 font-medium text-white hover:bg-red-500"
+                  onClick={handleVisibilitySaveConfirm}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                      保存中...
+                    </>
+                  ) : (
+                    "保存する"
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {portalReady &&
         showDeleteConfirm &&
         createPortal(
           <div
@@ -1207,6 +1287,12 @@ function CreateSkillPageContent() {
                 最終確認
               </h2>
               <p className="mt-1 text-center text-xs text-zinc-500">内容をご確認のうえ、同意して手続きを完了してください。</p>
+              <p className="mt-4 rounded-lg border border-zinc-700 bg-zinc-900/60 px-3 py-2 text-center text-sm text-zinc-300">
+                公開設定:{" "}
+                <span className="font-semibold text-zinc-100">
+                  {isPublished ? "公開中（一覧に表示）" : "非公開（一覧には表示しません）"}
+                </span>
+              </p>
               <div className="mt-5">
                 <TradeFinalConfirmStep
                   variant="seller"

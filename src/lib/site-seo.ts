@@ -21,18 +21,17 @@ export function getSiteUrl(): string {
   return SITE_URL
 }
 
-/** ルートレイアウトのデフォルト（子ページが title を上書きしない場合） */
+/** ルートレイアウトのデフォルト（子ページが title を上書きしない場合）— トップ以外の既定 */
 export const LAYOUT_TITLE_DEFAULT = "GritVib | 経歴不問のフィットネススキルシェア"
 
 export const LAYOUT_DESCRIPTION =
   "経歴や肩書にとらわれず、フィットネスの知識や指導スキルをシェア・取引できるマーケットプレイス。パーソナルトレーニングやオンラインレッスンなど、相談から始められる透明な取引で運動をもっと身近に。"
 
-/** トップページ専用（検索スニペット向け・他ページより訴求を強く） */
-export const HOME_TITLE_ABSOLUTE =
-  "GritVib | 経歴不問のフィットネススキルシェア — 相談から始める安心取引"
+/** トップページ（https://gritvib.com/）専用の検索・OG テキスト */
+export const HOME_TITLE_ABSOLUTE = "GritVib | フィットネススキルのマーケットプレイス"
 
 export const HOME_DESCRIPTION =
-  "資格や実績の有無に関わらずスキルを出品でき、学びたい人とつながれるGritVib（グリットヴィブ）。パーソナル・オンラインレッスンなどフィットネス指導のスキルシェアを、相談から透明な取引で。"
+  "プロのトレーナーから初心者まで、誰でもフィットネススキルを教えたり学んだりできるマーケットプレイス。"
 
 export const SITE_KEYWORDS = [
   "GritVib",
