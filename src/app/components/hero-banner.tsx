@@ -77,8 +77,13 @@ export function HeroBanner({ onBrowseSkillsClick, heroStats }: HeroBannerProps) 
             </h1>
             
             {/* Description */}
-            <p className="mb-6 text-sm text-muted-foreground md:text-base">
-              プロのトレーナーから初心者まで、誰でもフィットネススキルを教えたり学んだりできるマーケットプレイス
+            <p className="mb-6 text-left leading-relaxed text-muted-foreground md:text-left md:text-base md:leading-normal">
+              <span className="block whitespace-nowrap text-[12px] sm:text-[13px] md:hidden">
+                誰でもフィットネススキルを教えたり学んだりできるマーケットプレイス
+              </span>
+              <span className="hidden whitespace-nowrap md:inline">
+                プロのトレーナーから初心者まで、誰でもフィットネススキルを教えたり学んだりできるマーケットプレイス
+              </span>
             </p>
             
             {/* Stats (管理者のみ表示) */}

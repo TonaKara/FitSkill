@@ -1137,7 +1137,7 @@ export default function SkillDetailPage() {
           </div>
         </div>
 
-        <div className="sticky bottom-0 left-0 right-0 z-10 mt-8 border-t border-zinc-800 bg-black/90 py-4 backdrop-blur-md md:static md:border-0 md:bg-transparent md:py-0 md:backdrop-blur-none">
+        <div className="mt-8 border-t border-zinc-800 py-4 md:border-0 md:py-0">
           {showAskSeller || showPreOfferPrimary ? (
             <div
               className={cn(

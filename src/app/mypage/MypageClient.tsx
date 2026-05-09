@@ -6,7 +6,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useTheme } from "next-themes"
-import { Copy, Heart, Loader2, Pencil, ShieldAlert, Star, X } from "lucide-react"
+import { ChevronRight, Copy, Heart, Loader2, Pencil, ShieldAlert, Star, X } from "lucide-react"
 import { Header } from "@/components/header"
 import {
   ACCENT_COLOR_OPTIONS,
@@ -1892,6 +1892,59 @@ export default function MypageClient() {
     }
     return baseMenu.filter((item) => item.id !== "listings" && item.id !== "payout")
   }, [currentMode, isBannedUser])
+
+  /** スマホ版ナビのみ — PCサイドバーと同一のセクションへ遷移する */
+  const mobileNavGroups = useMemo(() => {
+    const pickOrdered = (ids: MypageSection[]): MenuItem[] => {
+      const byId = new Map(primaryMenu.map((m) => [m.id, m]))
+      return ids.map((id) => byId.get(id)).filter((m): m is MenuItem => Boolean(m))
+    }
+    const settingsItems: MenuItem[] = [...SETTINGS_MENU]
+
+    if (currentMode === "student") {
+      return [
+        {
+          heading: "お気に入り",
+          description: "気になるスキルを保存してすぐに開けます",
+          items: pickOrdered(["favorites"]),
+        },
+        {
+          heading: "取引・コミュニケーション",
+          description: "リクエスト・相談・レッスンの進行状況",
+          items: pickOrdered(["requests", "inquiry", "learning"]),
+        },
+        {
+          heading: "取引履歴",
+          description: "過去のやり取りを一覧で確認",
+          items: pickOrdered(["transactions"]),
+        },
+        {
+          heading: "プロフィール・アカウント",
+          description: "表示プロフィール・評価・ログアウトなど",
+          items: settingsItems,
+        },
+      ].filter((g) => g.items.length > 0)
+    }
+
+    return [
+      {
+        heading: "出品・売上",
+        description: "出品スキルの管理と振込・売上の確認",
+        items: pickOrdered(["listings", "payout"]),
+      },
+      {
+        heading: "案件・取引",
+        description: "リクエストから進行中のレッスンまで",
+        items: pickOrdered(["requests", "inquiry", "teaching", "transactions"]),
+      },
+      {
+        heading: "プロフィール・アカウント",
+        description: "表示プロフィール・評価・ログアウトなど",
+        items: settingsItems,
+      },
+    ].filter((g) => g.items.length > 0)
+  }, [currentMode, primaryMenu])
+
   const accountLabel = SETTINGS_MENU.find((item) => item.id === "account")?.label ?? "アカウント設定"
 
   useEffect(() => {
@@ -1941,7 +1994,76 @@ export default function MypageClient() {
           aria-label="マイページメニュー"
           className="sticky top-16 z-40 border-b border-zinc-800 bg-zinc-950/95 backdrop-blur md:static md:top-0 md:w-56 md:shrink-0 md:border-b-0 md:border-r md:bg-zinc-950 md:pt-6"
         >
-          <div className="flex gap-1 overflow-x-auto px-3 py-2 md:flex-col md:gap-4 md:overflow-visible md:px-4 md:py-0">
+          <div className="space-y-4 px-3 py-3 md:hidden">
+            <div className="flex w-full rounded-xl border border-zinc-800 bg-zinc-900/90 p-1 shadow-inner shadow-black/20">
+              <button
+                type="button"
+                onClick={() => handleModeChange("student")}
+                className={`flex-1 rounded-lg px-3 py-2.5 text-xs font-bold transition-colors ${
+                  currentMode === "student"
+                    ? "bg-red-600 text-white shadow-sm shadow-black/30"
+                    : "text-zinc-400 hover:text-zinc-100"
+                }`}
+              >
+                受講生モード
+              </button>
+              <button
+                type="button"
+                onClick={() => handleModeChange("instructor")}
+                className={`flex-1 rounded-lg px-3 py-2.5 text-xs font-bold transition-colors ${
+                  currentMode === "instructor"
+                    ? "bg-red-600 text-white shadow-sm shadow-black/30"
+                    : "text-zinc-400 hover:text-zinc-100"
+                }`}
+              >
+                講師モード
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {mobileNavGroups.map((group) => (
+                <section
+                  key={group.heading}
+                  className="overflow-hidden rounded-xl border border-zinc-800/90 bg-gradient-to-b from-zinc-900/80 to-zinc-950/90 shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
+                >
+                  <div className="border-b border-zinc-800/80 bg-zinc-900/50 px-4 py-3">
+                    <h2 className="text-sm font-bold tracking-tight text-white">{group.heading}</h2>
+                    <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">{group.description}</p>
+                  </div>
+                  <ul className="divide-y divide-zinc-800/80">
+                    {group.items.map((item) => {
+                      const active = section === item.id
+                      return (
+                        <li key={item.id}>
+                          <button
+                            type="button"
+                            onClick={() => handleSectionChange(item.id)}
+                            className={`flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium transition-colors ${
+                              active
+                                ? "bg-red-950/50 text-white shadow-[inset_3px_0_0_0_var(--accent-color)]"
+                                : "text-zinc-300 hover:bg-zinc-900/80 hover:text-white"
+                            }`}
+                            aria-current={active ? "page" : undefined}
+                          >
+                            <span className="min-w-0 flex-1">{item.label}</span>
+                            <ChevronRight className="h-4 w-4 shrink-0 text-zinc-600" aria-hidden />
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </section>
+              ))}
+            </div>
+
+            {isAdmin ? (
+              <Button asChild className="w-full bg-red-600 text-xs font-bold text-white hover:bg-red-500">
+                <Link href="/admin">管理者ページへ</Link>
+              </Button>
+            ) : null}
+          </div>
+
+          <div className="hidden gap-1 overflow-x-auto px-3 py-2 md:flex md:flex-col md:gap-4 md:overflow-visible md:px-4 md:py-0">
             <div className="flex w-full shrink-0 rounded-lg border border-zinc-800 bg-zinc-900/80 p-1">
               <button
                 type="button"
@@ -1988,7 +2110,7 @@ export default function MypageClient() {
               })}
             </div>
 
-            <div className="hidden border-t border-zinc-800 pt-3 md:block">
+            <div className="border-t border-zinc-800 pt-3">
               <p className="px-3 pb-2 text-[11px] font-semibold tracking-widest text-zinc-500">設定</p>
               {SETTINGS_MENU.map((item) => {
                 const active = section === item.id
@@ -1998,27 +2120,6 @@ export default function MypageClient() {
                     type="button"
                     onClick={() => handleSectionChange(item.id)}
                     className={`mt-1 w-full rounded-md border px-3 py-2.5 text-left text-sm font-medium transition-all ${
-                      active
-                        ? "border-red-500/60 bg-red-950/60 text-white shadow-[inset_3px_0_0_0_var(--accent-color)]"
-                        : "border-transparent text-zinc-400 hover:border-zinc-800 hover:bg-zinc-900 hover:text-zinc-100"
-                    }`}
-                    aria-current={active ? "page" : undefined}
-                  >
-                    {item.label}
-                  </button>
-                )
-              })}
-            </div>
-
-            <div className="flex gap-1 md:hidden">
-              {SETTINGS_MENU.map((item) => {
-                const active = section === item.id
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => handleSectionChange(item.id)}
-                    className={`shrink-0 rounded-lg border px-3 py-2 text-left text-sm font-medium transition-all ${
                       active
                         ? "border-red-500/60 bg-red-950/60 text-white shadow-[inset_3px_0_0_0_var(--accent-color)]"
                         : "border-transparent text-zinc-400 hover:border-zinc-800 hover:bg-zinc-900 hover:text-zinc-100"
