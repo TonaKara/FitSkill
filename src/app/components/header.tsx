@@ -417,7 +417,7 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
             role="dialog"
             aria-modal="true"
             aria-label="アカウントメニュー"
-            className="fixed inset-x-0 top-16 z-[60] flex h-[calc(100dvh-4rem)] max-h-[calc(100dvh-4rem)] min-h-0 flex-col md:hidden"
+            className="fixed inset-x-0 top-16 z-[60] flex h-[calc(100svh-4rem)] max-h-[calc(100svh-4rem)] min-h-0 flex-col md:hidden"
           >
             <button
               type="button"
@@ -425,8 +425,8 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
               className="min-h-0 flex-1 bg-black/45 backdrop-blur-[1px]"
               onClick={() => setIsMenuOpen(false)}
             />
-            <div className="pointer-events-auto max-h-[min(88dvh,calc(100dvh-4rem))] w-full shrink-0 overflow-hidden rounded-t-2xl border-x border-t border-zinc-800 bg-zinc-950 shadow-[0_-16px_48px_rgba(0,0,0,0.55)]">
-              <nav className="flex max-h-[min(88dvh,calc(100dvh-4rem))] flex-col gap-2 overflow-y-auto px-4 pb-[max(2rem,calc(1rem+env(safe-area-inset-bottom)))] pt-4">
+            <div className="pointer-events-auto max-h-[min(88svh,calc(100svh-4rem))] w-full shrink-0 overflow-hidden rounded-t-2xl border-x border-t border-zinc-800 bg-zinc-950 shadow-[0_-16px_48px_rgba(0,0,0,0.55)]">
+              <nav className="flex max-h-[min(88svh,calc(100svh-4rem))] flex-col gap-2 overflow-y-auto px-4 pb-[max(2rem,calc(1rem+env(safe-area-inset-bottom)))] pt-4">
                 {isAuthenticated ? (
                   <>
                     {profileLoading || profileSummary ? (

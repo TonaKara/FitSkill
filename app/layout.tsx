@@ -1,4 +1,4 @@
-﻿import type { Metadata, Viewport } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ConsoleGuard } from "@/components/ConsoleGuard";
 import { AccessibilityModeSync } from "@/components/AccessibilityModeSync";
@@ -87,9 +87,9 @@ export default function RootLayout({
     <html
       lang="ja"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} min-h-[100dvh] antialiased md:h-full md:min-h-full`}
+      className={`${geistSans.variable} ${geistMono.variable} h-[100svh] min-h-[100svh] antialiased md:h-full md:min-h-full`}
     >
-      <body className="flex min-h-[100dvh] flex-col md:min-h-full">
+      <body className="flex h-[100svh] min-h-[100svh] flex-col overflow-hidden md:h-full md:min-h-full md:overflow-visible">
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
@@ -99,9 +99,9 @@ export default function RootLayout({
           <MobileHeaderMenuProvider>
             <AccessibilityModeSync />
             <ConsoleGuard />
-            <div className="flex min-h-[100dvh] flex-col md:min-h-full">
+            <div className="flex h-[100svh] min-h-0 flex-1 flex-col overflow-hidden md:h-auto md:min-h-full md:overflow-visible">
               <MaintenanceGuard>
-                <div className="flex-1">{children}</div>
+                <main className="flex-1 overflow-y-auto overscroll-contain">{children}</main>
               </MaintenanceGuard>
               <BottomNav />
               <ConditionalFooter />

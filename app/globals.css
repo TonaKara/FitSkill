@@ -136,8 +136,14 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html,
+  body {
+    height: 100svh;
+    min-height: 100svh;
+  }
   body {
     @apply bg-background text-foreground antialiased;
+    overflow: hidden;
   }
 }
 
@@ -205,7 +211,7 @@
 }
 
 /*
- * モバイル Chrome: アドレスバー表示・非表示で 100dvh が変わり続けレイアウトが揺れる問題への対策。
+ * モバイル Chrome: アドレスバー表示・非表示でビューポート高が揺れても崩れにくくする対策。
  * - 文書の最小高さは svh（UI が出たときの「小さい」ビューポート）で固定し、下端のガタつき・隙間を抑える。
  * - 端でのオーバースクロールを抑え、固定ヘッダー／フッタとブラウザ UI の干渉を軽減する。
  */
