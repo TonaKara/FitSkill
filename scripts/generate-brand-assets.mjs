@@ -140,23 +140,46 @@ async function main() {
   await fs.copyFile(applePngPath, path.join(PUBLIC_DIR, "apple-touch-icon.png"))
   await writePng(ogLogoSvg, path.join(PUBLIC_DIR, "og-logo.png"), 144)
 
-  /** トップ OGP 用：header.tsx のブランド（赤タイル＋BrandMarkSvg＋Grit赤/Vib白）を 1200×630 中央に配置 */
+  /**
+   * トップ OGP：header.tsx と同じタイル・マーク・角丸・文字サイズ比率でスケール（md 以上基準）。
+   * キャンバス端には余白を確保。マークは viewBox 内で左寄りのため赤タイル右側が空いて見える→ワードマークを
+   * タイルにオプティカルに寄せる（必要なら textPullRef で調整）。
+   */
   const ogHomeSvg = (() => {
     const W = 1200
     const H = 630
-    /** キャンバスいっぱいに近いロックアップ（余白は高さ 630 に合わせてタイルを最大化） */
-    const tile = 420
-    const rx = Math.round(tile * 0.2)
-    const logoPad = Math.round(tile * 0.083)
-    const logoInner = tile - logoPad * 2
-    const gap = 14
-    const fontPx = 132
-    const approxTextW = 580
-    const groupW = tile + gap + approxTextW
-    const startX = Math.round((W - groupW) / 2)
-    const tileY = Math.round((H - tile) / 2)
-    const textX = startX + tile + gap
-    const textY = Math.round(H / 2)
+    const refTile = 40
+    const refMark = 36
+    const refRx = 10
+    /** タイル右端からの追加オフセット（ref）。0 でギリギリ接続相当 */
+    const refGapOg = 0
+    /**
+     * タイル右端より左へ寄せる量（ref）。マークと「G」の見かけ上の距離を詰める（軽くタイルと重なる場合あり）
+     */
+    const textPullRef = 19
+    const refFont = 20
+    /** 「GritVib」20px bold / tracking-tight の概算幅（中央寄せ用） */
+    const refApproxWordmark = 94
+    const insetPad = (refTile - refMark) / 2
+
+    const groupWRef = refTile + refGapOg + refApproxWordmark - textPullRef
+    const groupH = refTile
+    const marginPx = 76
+    const s = Math.min((W - 2 * marginPx) / groupWRef, (H - 2 * marginPx) / groupH)
+
+    const tile = refTile * s
+    const rx = refRx * s
+    const logoPad = insetPad * s
+    const logoInner = refMark * s
+    const gap = refGapOg * s
+    const pull = textPullRef * s
+    const fontPx = refFont * s
+
+    const scaledGroupW = tile + gap + refApproxWordmark * s - pull
+    const startX = (W - scaledGroupW) / 2
+    const tileY = (H - tile) / 2
+    const textX = startX + tile + gap - pull
+    const textY = H / 2
     const fontStack =
       "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
 
@@ -168,7 +191,7 @@ async function main() {
 ${markInner}
     </svg>
   </svg>
-  <text xml:space="preserve" x="${textX}" y="${textY}" font-size="${fontPx}" font-weight="700" font-family="${fontStack}" dominant-baseline="central">
+  <text text-anchor="start" xml:space="preserve" x="${textX}" y="${textY}" font-size="${fontPx}" font-weight="700" font-family="${fontStack}" letter-spacing="-0.025em" dominant-baseline="central">
     <tspan fill="${BRAND_RED}">Grit</tspan><tspan fill="${WHITE}">Vib</tspan>
   </text>
 </svg>`
