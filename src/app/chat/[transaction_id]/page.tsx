@@ -400,6 +400,11 @@ export default function ChatTransactionPage() {
   const listRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const disputeEvidenceInputRef = useRef<HTMLInputElement>(null)
+  /** 異議申し立てフォーム・関連ボタン領域（外側クリックでフォームを閉じる判定用） */
+  const disputeBuyerActionsRef = useRef<HTMLDivElement>(null)
+  /** オーバーレイ上のフォームパネル（外側クリック判定のホワイトリスト） */
+  const disputeFormPanelRef = useRef<HTMLDivElement>(null)
   const expandedImageRef = useRef<HTMLImageElement>(null)
   const shouldAutoScrollRef = useRef(true)
   const initialAutoScrollDoneRef = useRef(false)
@@ -498,6 +503,26 @@ export default function ChatTransactionPage() {
       URL.revokeObjectURL(url)
     }
   }, [disputeEvidenceFile])
+
+  /** チャット本体・ヘッダー周辺の「フォーム外」押下で閉じる（ルートで capture してメッセージ一覧も確実に拾う） */
+  const dismissDisputePickerIfOutside = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!showDisputeReasonPicker) {
+        return
+      }
+      const t = e.target
+      if (!(t instanceof Node)) {
+        return
+      }
+      const actions = disputeBuyerActionsRef.current
+      const panel = disputeFormPanelRef.current
+      if (actions?.contains(t) || panel?.contains(t)) {
+        return
+      }
+      setShowDisputeReasonPicker(false)
+    },
+    [showDisputeReasonPicker],
+  )
 
   const handleMessageListScroll = useCallback(() => {
     const el = listRef.current
@@ -1301,20 +1326,25 @@ export default function ChatTransactionPage() {
     }
     setShowDisputeReasonPicker(false)
     setDisputeEvidenceFile(null)
-    if (transaction) {
-      void createTransactionNotification(supabase, {
-        recipient_id: String(transaction.seller_id),
-        type: NOTIFICATION_TYPE.dispute,
-        content: "取引に異議申し立てがありました。内容を確認してください。",
-        reason: `transaction_id:${String(transactionId)}`,
-      }).then(({ error: nErr }) => {
-        if (nErr) {
-          console.error("[dispute] createTransactionNotification", {
-            message: nErr.message,
-            code: nErr.code,
-            details: nErr.details,
-          })
-        }
+    try {
+      const inAppRes = await fetch("/api/notifications/dispute-inapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transactionId: String(transactionId) }),
+        keepalive: true,
+      })
+      if (!inAppRes.ok) {
+        console.error("[dispute] dispute-inapp failed", await inAppRes.text().catch(() => ""))
+        setNotice({
+          variant: "error",
+          message: "異議申し立ては記録されましたが、お知らせの作成に失敗しました。時間をおいてから通知を確認してください。",
+        })
+      }
+    } catch (e) {
+      console.error("[dispute] dispute-inapp", e)
+      setNotice({
+        variant: "error",
+        message: "異議申し立ては記録されましたが、お知らせの作成に失敗しました。時間をおいてから通知を確認してください。",
       })
     }
     try {
@@ -1354,6 +1384,9 @@ export default function ChatTransactionPage() {
 
   const handleDisputeEvidenceClear = () => {
     setDisputeEvidenceFile(null)
+    if (disputeEvidenceInputRef.current) {
+      disputeEvidenceInputRef.current.value = ""
+    }
   }
 
   const handleLinkIntegrationConfirm = async (payload: LinkMessagePayload) => {
@@ -1433,7 +1466,10 @@ export default function ChatTransactionPage() {
   }
 
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-black text-zinc-100">
+    <div
+      className="flex h-[100dvh] flex-col overflow-hidden bg-black text-zinc-100"
+      onPointerDownCapture={dismissDisputePickerIfOutside}
+    >
       {notice ? <NotificationToast notice={notice} onClose={() => setNotice(null)} /> : null}
       <header className="sticky top-0 z-10 border-b border-zinc-800 bg-zinc-950/95 backdrop-blur">
         <div className="mx-auto flex max-w-2xl flex-col gap-3 px-4 py-3">
@@ -1502,7 +1538,7 @@ export default function ChatTransactionPage() {
           ) : null}
 
           {isBuyer && isApprovalPending ? (
-            <div className="flex flex-col gap-2 pl-[52px]">
+            <div ref={disputeBuyerActionsRef} className="flex flex-col gap-2 pl-[52px]">
               <p className="text-xs text-amber-200/90">
                 完了申請が届いています。問題がなければ承認、問題があれば異議申し立てを行ってください。
               </p>
@@ -1532,85 +1568,9 @@ export default function ChatTransactionPage() {
                   異議申し立て
                 </Button>
               </div>
-              {showDisputeReasonPicker ? (
-                <div className="mt-1 flex w-full min-w-0 flex-col gap-2 rounded-lg border border-zinc-700 bg-zinc-900/70 p-2">
-                  <select
-                    value={disputeReason}
-                    onChange={(e) => setDisputeReason(e.target.value)}
-                    className="h-9 rounded-md border border-zinc-600 bg-zinc-950 px-2 text-sm text-zinc-100"
-                  >
-                    {DISPUTE_REASON_OPTIONS.map((reason) => (
-                      <option key={reason} value={reason}>
-                        {reason}
-                      </option>
-                    ))}
-                  </select>
-                  <textarea
-                    value={disputed_reason_detail}
-                    onChange={(e) => setDisputedReasonDetail(e.target.value)}
-                    rows={4}
-                    placeholder="詳細をご記入ください"
-                    className="w-full rounded-md border border-zinc-600 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500"
-                    maxLength={2000}
-                  />
-                  <div className="flex w-full min-w-0 flex-wrap items-center gap-2">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleDisputeEvidenceSelect}
-                      disabled={completing || disputedEvidenceUploading}
-                      className="block max-w-full text-xs text-zinc-300 file:mr-3 file:rounded-md file:border file:border-zinc-600 file:bg-zinc-900 file:px-3 file:py-1.5 file:text-xs file:text-zinc-100 hover:file:bg-zinc-800"
-                    />
-                    {disputedEvidenceUploading ? (
-                      <span className="inline-flex items-center gap-1 text-xs text-amber-200">
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        アップロード中...
-                      </span>
-                    ) : null}
-                  </div>
-                  {disputeEvidencePreviewUrl ? (
-                    <div className="w-full min-w-0">
-                      <div className="flex w-32 max-w-full flex-col gap-2">
-                        <div className="relative w-32 max-w-full overflow-hidden rounded-md border border-zinc-700 bg-zinc-100 p-1 aspect-square">
-                          {/* eslint-disable-next-line @next/next/no-img-element -- ローカルプレビュー用 blob URL */}
-                          <img
-                            src={disputeEvidencePreviewUrl}
-                            alt="証拠写真プレビュー"
-                            className="h-full w-full rounded object-contain"
-                          />
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={handleDisputeEvidenceClear}
-                          disabled={completing || disputedEvidenceUploading}
-                          className="h-7 border border-zinc-600 bg-zinc-900 text-xs text-zinc-100 hover:bg-zinc-800"
-                        >
-                          削除
-                        </Button>
-                      </div>
-                    </div>
-                  ) : null}
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={completing || disputedEvidenceUploading}
-                    onClick={() => void handleDisputeSubmit()}
-                    className="w-fit bg-red-600 text-white hover:bg-red-500"
-                  >
-                    {completing || disputedEvidenceUploading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        送信中...
-                      </>
-                    ) : (
-                      "理由を送信"
-                    )}
-                  </Button>
-                </div>
+              {completeError && !showDisputeReasonPicker ? (
+                <span className="text-xs text-red-400">{completeError}</span>
               ) : null}
-              {completeError ? <span className="text-xs text-red-400">{completeError}</span> : null}
             </div>
           ) : null}
 
@@ -1660,6 +1620,7 @@ export default function ChatTransactionPage() {
         </div>
       </header>
 
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
       <div
         ref={listRef}
         onScroll={handleMessageListScroll}
@@ -1924,6 +1885,158 @@ export default function ChatTransactionPage() {
         </form>
         {sendError ? <p className="mx-auto max-w-2xl px-4 pb-2 text-center text-xs text-red-400">{sendError}</p> : null}
       </footer>
+
+      {showDisputeReasonPicker && isBuyer && isApprovalPending ? (
+        <>
+          <div className="absolute inset-0 z-20 bg-black/50" aria-hidden />
+          <div
+            ref={disputeFormPanelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="dispute-form-title"
+            className="absolute inset-x-0 bottom-0 z-30 flex max-h-[min(85dvh,calc(100%-0.5rem))] flex-col rounded-t-2xl border border-zinc-700 border-b-0 bg-zinc-950 shadow-[0_-12px_48px_rgba(0,0,0,0.55)]"
+          >
+            <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 overflow-y-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">
+              <div className="flex items-start justify-between gap-2">
+                <h2 id="dispute-form-title" className="text-base font-semibold text-white">
+                  異議申し立て
+                </h2>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 text-zinc-400 hover:text-white"
+                  aria-label="閉じる"
+                  disabled={completing}
+                  onClick={() => setShowDisputeReasonPicker(false)}
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
+              <p className="text-xs text-zinc-400">
+                内容を確認のうえ送信してください。運営が内容を確認します。
+              </p>
+              {completeError ? (
+                <p className="rounded-md border border-red-500/40 bg-red-950/40 px-3 py-2 text-xs text-red-200">
+                  {completeError}
+                </p>
+              ) : null}
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="dispute-reason" className="text-xs font-medium text-zinc-300">
+                  理由
+                </label>
+                <select
+                  id="dispute-reason"
+                  value={disputeReason}
+                  onChange={(e) => setDisputeReason(e.target.value)}
+                  disabled={completing}
+                  className="h-10 rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 disabled:opacity-50"
+                >
+                  {DISPUTE_REASON_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="dispute-detail" className="text-xs font-medium text-zinc-300">
+                  詳細（任意）
+                </label>
+                <textarea
+                  id="dispute-detail"
+                  value={disputed_reason_detail}
+                  onChange={(e) => setDisputedReasonDetail(e.target.value)}
+                  disabled={completing}
+                  rows={4}
+                  maxLength={2000}
+                  placeholder="状況を具体的にご記入ください"
+                  className="min-h-[5rem] resize-y rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 disabled:opacity-50"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs font-medium text-zinc-300">証拠写真（任意）</span>
+                <input
+                  ref={disputeEvidenceInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={completing}
+                  onChange={handleDisputeEvidenceSelect}
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={completing}
+                    onClick={() => disputeEvidenceInputRef.current?.click()}
+                    className="border-zinc-600 bg-zinc-900 text-zinc-200 hover:border-red-500 hover:bg-zinc-800"
+                  >
+                    写真を選択
+                  </Button>
+                  {disputeEvidenceFile ? (
+                    <>
+                      <span className="max-w-[12rem] truncate text-xs text-zinc-400 sm:max-w-xs">
+                        {disputeEvidenceFile.name}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={completing}
+                        className="h-8 px-2 text-xs text-zinc-400 hover:text-white"
+                        onClick={handleDisputeEvidenceClear}
+                      >
+                        取り消し
+                      </Button>
+                    </>
+                  ) : null}
+                </div>
+                {disputeEvidencePreviewUrl ? (
+                  <div className="relative mt-1 overflow-hidden rounded-md border border-zinc-700 bg-black/40">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- ローカルプレビュー用 blob URL */}
+                    <img
+                      src={disputeEvidencePreviewUrl}
+                      alt=""
+                      className="max-h-40 w-full object-contain"
+                    />
+                  </div>
+                ) : null}
+                <p className="text-[11px] text-zinc-500">画像のみ・10MB以下</p>
+              </div>
+              <div className="flex flex-wrap justify-end gap-2 border-t border-zinc-800 pt-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={completing}
+                  onClick={() => setShowDisputeReasonPicker(false)}
+                  className="border-zinc-600 bg-zinc-900 text-zinc-200"
+                >
+                  キャンセル
+                </Button>
+                <Button
+                  type="button"
+                  disabled={completing || disputedEvidenceUploading}
+                  onClick={() => void handleDisputeSubmit()}
+                  className="bg-red-600 text-white hover:bg-red-500"
+                >
+                  {completing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      送信中...
+                    </>
+                  ) : (
+                    "異議を送信"
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </>
+      ) : null}
+
+      </div>
 
       {isSeller || isBuyer ? (
         <ChatLinkIntegrationModal

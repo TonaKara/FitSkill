@@ -1,6 +1,6 @@
 "use client"
 
-import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react"
+import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Loader2 } from "lucide-react"
@@ -61,6 +61,7 @@ export default function ContactPage() {
   const [form, setForm] = useState<ContactFormState>(DEFAULT_FORM)
   const [attachment, setAttachment] = useState<File | null>(null)
   const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null)
+  const attachmentInputRef = useRef<HTMLInputElement>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [notice, setNotice] = useState<AppNotice | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -129,6 +130,9 @@ export default function ContactPage() {
 
   const handleAttachmentClear = () => {
     setAttachment(null)
+    if (attachmentInputRef.current) {
+      attachmentInputRef.current.value = ""
+    }
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -365,13 +369,29 @@ export default function ContactPage() {
                 >
                   添付ファイル<span className="text-xs font-medium text-zinc-400">任意</span>
                 </label>
-                <Input
-                  id="contact-attachment"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleAttachmentSelect}
-                  className="cursor-pointer border-zinc-700 bg-zinc-900 text-zinc-200 file:mr-4 file:rounded-md file:border-0 file:bg-red-600 file:px-3 file:py-1 file:text-sm file:font-semibold file:text-white hover:file:bg-red-500"
-                />
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+                  <input
+                    ref={attachmentInputRef}
+                    id="contact-attachment"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={isSubmitting}
+                    onChange={handleAttachmentSelect}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isSubmitting}
+                    className="h-10 border-zinc-600 bg-zinc-900 text-zinc-200 hover:border-red-500 hover:bg-zinc-800"
+                    onClick={() => attachmentInputRef.current?.click()}
+                  >
+                    ファイルを選択
+                  </Button>
+                  <span className="min-h-5 break-all text-xs text-zinc-400 sm:text-sm">
+                    {attachment ? attachment.name : "選択されていません"}
+                  </span>
+                </div>
                 {attachmentPreviewUrl ? (
                   <div className="w-full min-w-0">
                     <div className="flex w-36 max-w-full flex-col gap-2">

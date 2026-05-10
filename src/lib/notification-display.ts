@@ -2,6 +2,58 @@ import type { NotificationRow } from "@/lib/transaction-notifications"
 
 export const NOTIFICATION_TYPE_ANNOUNCEMENT = "announcement" as const
 
+/**
+ * 運営通知の表示用に、文頭の「商品名：」「商品：」等の冗長ラベルを除く（DB 値は変更しない）。
+ */
+export function sanitizeAdminNotificationDisplayText(raw: string | null | undefined): string {
+  const s = (raw ?? "").trim()
+  if (!s) {
+    return ""
+  }
+  const normalized = s.normalize("NFKC")
+  return normalized
+    .split(/\r?\n/)
+    .map((line) =>
+      line.replace(/^(商品名|商品|スキル名|スキル)\s*[：:]\s*/i, "").trimEnd(),
+    )
+    .join("\n")
+    .trim()
+}
+
+/**
+ * `content` 先頭に、別カラムと同じ件名・理由がテンプレートで重複している場合は除く（レガシー・他経路の結合対策）。
+ */
+function stripLeadingDuplicateAdminPreamble(
+  content: string,
+  title: string | null | undefined,
+  reason: string | null | undefined,
+): string {
+  const t = sanitizeAdminNotificationDisplayText(title)
+  const r = sanitizeAdminNotificationDisplayText(reason)
+  if (!content.trim()) {
+    return content
+  }
+  const lines = content.split(/\r?\n/)
+  let i = 0
+  while (i < lines.length) {
+    const lineNorm = sanitizeAdminNotificationDisplayText(lines[i])
+    if (lineNorm === "") {
+      i++
+      continue
+    }
+    if (t && lineNorm === t) {
+      i++
+      continue
+    }
+    if (r && lineNorm === r) {
+      i++
+      continue
+    }
+    break
+  }
+  return lines.slice(i).join("\n").trim()
+}
+
 /** `reason` 欄の `transaction_id:<uuid>` から取引ID（チャット遷移用） */
 export function parseTransactionIdFromNotificationReason(reason: string | null | undefined): string | null {
   const t = (reason ?? "").trim()
@@ -55,24 +107,75 @@ export function getAdminOpsListSubject(n: NotificationRow): string {
     return getGeneralNotificationListSubject(n)
   }
   if (n?.type === NOTIFICATION_TYPE_ANNOUNCEMENT) {
-    const t = n.title?.trim()
+    const t = sanitizeAdminNotificationDisplayText(n.title)
     if (t) {
       return truncateSubject(t, 120)
     }
     return "運営よりお知らせ"
   }
-  const fromTitle = n?.title?.trim()
+  const fromTitle = sanitizeAdminNotificationDisplayText(n.title)
   if (fromTitle) {
     return truncateSubject(fromTitle, 100)
   }
   return "運営からの連絡"
 }
 
+function adminOpsCategoryBracketLabel(n: NotificationRow): string {
+  const r = sanitizeAdminNotificationDisplayText(n.reason)
+  if (r) {
+    if (/^transaction_id:/i.test(r)) {
+      return "取引・チャット"
+    }
+    return r
+  }
+  if (n.type === NOTIFICATION_TYPE_ANNOUNCEMENT) {
+    return "お知らせ"
+  }
+  return TYPE_SUBJECT[n.type ?? ""] ?? "運営からの連絡"
+}
+
+/** 運営通知の件名行（DB の title を優先、なければ種別に応じた既定文言）。 */
+function getAdminOpsHeadlineSubject(n: NotificationRow): string {
+  if (!n?.is_admin_origin) {
+    return getGeneralNotificationListSubject(n)
+  }
+  if (n?.type === NOTIFICATION_TYPE_ANNOUNCEMENT) {
+    return sanitizeAdminNotificationDisplayText(n.title) || "運営よりお知らせ"
+  }
+  const fromTitle = sanitizeAdminNotificationDisplayText(n.title)
+  if (fromTitle) {
+    return fromTitle
+  }
+  return TYPE_SUBJECT[n.type ?? ""] ?? "運営からの連絡"
+}
+
 /**
- * 運営タブ: 本文（DB の `content` をそのまま使用）。
+ * 運営タブ・アコーディオン見出し用タイトル（2行）。
+ * 1行目: 【カテゴリ（理由）】、2行目: 件名。
  */
-export function getAdminOpsListBody(n: NotificationRow): string {
-  return n?.content?.trim() || "（本文なし）"
+export function getAdminOpsAccordionTitle(n: NotificationRow): string {
+  if (!n?.is_admin_origin) {
+    return getGeneralNotificationListSubject(n)
+  }
+  const category = adminOpsCategoryBracketLabel(n)
+  const headline = getAdminOpsHeadlineSubject(n)
+  return `【${category}】\n${headline}`
+}
+
+/**
+ * 運営タブ・アコーディオン展開部の本文（`content` のみ）。
+ */
+export function getAdminOpsAccordionContent(n: NotificationRow): string {
+  if (!n?.is_admin_origin) {
+    const c = sanitizeAdminNotificationDisplayText(n?.content)
+    return c.length > 0 ? c : "（内容なし）"
+  }
+  const c = stripLeadingDuplicateAdminPreamble(
+    sanitizeAdminNotificationDisplayText(n?.content),
+    n.title,
+    n.reason,
+  )
+  return c.length > 0 ? c : "（内容なし）"
 }
 
 /**

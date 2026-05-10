@@ -6,7 +6,7 @@ import { ExternalLink, Loader2, X } from "lucide-react"
 import { DisputeEvidenceImage } from "@/components/DisputeEvidenceImage"
 import { Button } from "@/components/ui/button"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
-import { createAdminOriginNotification, sendAdminNotification } from "@/lib/transaction-notifications"
+import { createAdminOriginNotification } from "@/lib/transaction-notifications"
 import { completeTransactionWithPayout } from "@/actions/payout"
 
 const ADMIN_REASON_OPTIONS = [
@@ -173,50 +173,31 @@ export function DisputeAdminDetailModal({
         onNotify("対象の取引が見つからないか、すでに更新されています。", "error")
         return
       }
-      let notificationFailed = false
-      if (sellerId) {
-        const { error: sellerNotificationError } = await sendAdminNotification(supabase, {
-          title: "異議申し立て承認",
-          reason: adminReason,
-          content:
-            "購入者より不足の連絡があり、異議申し立てが承認されました。現在取引が再開されていますので、不足分の対応をお願いします",
-          target_user_id: sellerId,
+      let notifyFailed = false
+      try {
+        const res = await fetch("/api/notifications/dispute-decision-notify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            transactionId,
+            result: "approved",
+            adminReason,
+          }),
         })
-        if (sellerNotificationError) {
-          notificationFailed = true
-          console.error("[DisputeAdminDetailModal] seller reopen notification failed", sellerNotificationError)
+        if (!res.ok) {
+          notifyFailed = true
+          console.error("[DisputeAdminDetailModal] dispute-decision-notify approved", await res.text().catch(() => ""))
         }
-      }
-      if (buyerId) {
-        const { error: buyerNotificationError } = await sendAdminNotification(supabase, {
-          title: "異議申し立て承認",
-          reason: adminReason,
-          content:
-            "異議申し立てが認められました。取引を再開しますので、出品者と交渉を続けてください",
-          target_user_id: buyerId,
-        })
-        if (buyerNotificationError) {
-          notificationFailed = true
-          console.error("[DisputeAdminDetailModal] buyer reopen notification failed", buyerNotificationError)
-        }
+      } catch (e) {
+        notifyFailed = true
+        console.error("[DisputeAdminDetailModal] dispute-decision-notify approved", e)
       }
       onNotify(
-        notificationFailed
-          ? "承認（取引再開）は反映しましたが、一部通知の送信に失敗しました。"
+        notifyFailed
+          ? "承認（取引再開）は反映しましたが、メールまたはアプリ内通知の送信に失敗しました。"
           : "承認（取引再開）を反映し、当事者へ通知しました。",
-        notificationFailed ? "error" : "success",
+        notifyFailed ? "error" : "success",
       )
-      void fetch("/api/notifications/event-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          event: "dispute_result",
-          transactionId,
-          result: "approved",
-        }),
-      }).catch(() => {
-        // メール通知失敗で異議承認を失敗扱いにしない
-      })
       onClose()
       onAfterMutation()
     } finally {
@@ -238,21 +219,32 @@ export function DisputeAdminDetailModal({
     setActionBusy(true)
     try {
       await completeTransactionWithPayout(transactionId, "dispute_rejection")
-      onNotify("棄却（取引完了）を反映しました。Stripe Connect の入金スケジュールに従って精算されます。", "success")
-      if (sellerId) {
-        await createAdminOriginNotification(supabase, {
-          recipient_id: sellerId,
-          type: "admin_dispute_result",
-          content: `運営対応: 異議申し立てを棄却し、取引を完了扱いにしました。理由: ${adminReason}`,
+      let inAppFailed = false
+      try {
+        const res = await fetch("/api/notifications/dispute-decision-notify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            transactionId,
+            result: "rejected",
+            adminReason,
+            skipEmail: true,
+          }),
         })
+        if (!res.ok) {
+          inAppFailed = true
+          console.error("[DisputeAdminDetailModal] dispute-decision-notify rejected", await res.text().catch(() => ""))
+        }
+      } catch (e) {
+        inAppFailed = true
+        console.error("[DisputeAdminDetailModal] dispute-decision-notify rejected", e)
       }
-      if (buyerId) {
-        await createAdminOriginNotification(supabase, {
-          recipient_id: buyerId,
-          type: "admin_dispute_result",
-          content: `運営対応: 異議申し立てを棄却し、取引を完了扱いにしました。理由: ${adminReason}`,
-        })
-      }
+      onNotify(
+        inAppFailed
+          ? "棄却（取引完了）とメールは送信しましたが、アプリ内通知の作成に失敗しました。"
+          : "棄却（取引完了）を反映しました。当事者へメール・アプリ内通知を送信しました。",
+        inAppFailed ? "error" : "success",
+      )
       onClose()
       onAfterMutation()
     } catch (error) {

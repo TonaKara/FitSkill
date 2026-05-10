@@ -1091,7 +1091,7 @@ export default function SkillDetailPage() {
           ) : null}
           {consultationEnabled ? (
             <p className="mb-3 rounded-lg border border-red-500/40 bg-red-950/30 px-3 py-2 text-sm text-red-200">
-              こちらのスキルには事前オファーが設定されています。ご購入前に申し込みが必要です。
+              こちらのスキルには事前オファーが設定されています。初回ご購入前に申し込みが必要です。
             </p>
           ) : null}
           {purchaseError ? (

@@ -11,9 +11,8 @@ import {
 } from "@/lib/transaction-notifications"
 import {
   getGeneralNotificationListSubject,
-  getAdminOpsListBody,
-  getAdminOpsListReason,
-  getAdminOpsListSubject,
+  getAdminOpsAccordionContent,
+  getAdminOpsAccordionTitle,
   getNotificationBodySectionLabel,
   parseTransactionIdFromNotificationReason,
 } from "@/lib/notification-display"
@@ -69,6 +68,9 @@ export function GeneralNotificationsList({ userId, adminOrigin, onRead }: Genera
   const markAsRead = useCallback(
     async (n: NotificationRow) => {
       if (markInFlight.current || n.is_read) {
+        return
+      }
+      if (n.recipient_id == null) {
         return
       }
       markInFlight.current = true
@@ -266,10 +268,8 @@ export function GeneralNotificationsList({ userId, adminOrigin, onRead }: Genera
     <ul className="max-h-80 space-y-1.5 overflow-y-auto px-1 pb-1">
       {rows.map((n) => {
         const isOpen = openIds.has(n.id)
-        const subject = getAdminOpsListSubject(n)
-        const reason = getAdminOpsListReason(n)
-        const body = getAdminOpsListBody(n)
-        const sectionLabel = getNotificationBodySectionLabel(n)
+        const accordionTitle = getAdminOpsAccordionTitle(n)
+        const accordionContent = getAdminOpsAccordionContent(n)
         return (
           <li key={n.id} className="overflow-hidden rounded-md border border-border/70 bg-background/50">
             <button
@@ -283,7 +283,9 @@ export function GeneralNotificationsList({ userId, adminOrigin, onRead }: Genera
                   : "bg-primary/5 font-medium text-foreground ring-1 ring-primary/20 hover:bg-primary/10",
               )}
             >
-              <span className="min-w-0 flex-1 line-clamp-2 leading-snug">{subject}</span>
+              <span className="min-w-0 flex-1 whitespace-pre-wrap line-clamp-4 leading-snug">
+                {accordionTitle}
+              </span>
               <div className="flex shrink-0 flex-col items-end gap-0.5">
                 <ChevronDown
                   className={cn("h-4 w-4 text-zinc-500 transition-transform", isOpen && "rotate-180")}
@@ -299,19 +301,8 @@ export function GeneralNotificationsList({ userId, adminOrigin, onRead }: Genera
               </div>
             </button>
             {isOpen ? (
-              <div className="space-y-2 border-t border-border/60 bg-secondary/30 px-2.5 py-2.5 text-sm text-foreground/90">
-                {n?.title?.trim() ? (
-                  <p className="text-[11px] text-muted-foreground">商品名: {n.title.trim()}</p>
-                ) : null}
-                {sectionLabel ? (
-                  <p className="text-xs font-semibold tracking-wide text-muted-foreground">{sectionLabel}</p>
-                ) : null}
-                {reason ? (
-                  <p className="text-xs text-muted-foreground">
-                    <span className="text-foreground/90">{reason}</span>
-                  </p>
-                ) : null}
-                <p className="whitespace-pre-wrap break-words leading-relaxed">{body}</p>
+              <div className="border-t border-border/60 bg-secondary/30 px-2.5 py-2.5 text-sm text-foreground/90">
+                <p className="whitespace-pre-wrap break-words leading-relaxed">{accordionContent}</p>
               </div>
             ) : null}
           </li>

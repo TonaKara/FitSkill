@@ -21,6 +21,8 @@ export interface Notification {
   reason: string | null
   content: string | null
   is_admin_origin: boolean
+  /** 全体お知らせ（recipient_id IS NULL）のとき true */
+  is_global?: boolean
   is_read: boolean
   created_at: string
 }
@@ -51,7 +53,8 @@ type CreateAnnouncementRpcPayload = {
   p_title: string
   p_reason: string | null
   p_content: string
-  p_target_user_id?: string
+  /** 全体配信でも PostgREST が (text,text,text,uuid) に確実にマッチするよう明示する */
+  p_target_user_id: string | null
 }
 
 function parseRpcTargetUserId(value: string | null): string | null {
@@ -85,6 +88,9 @@ export function userFacingAnnouncementRpcMessage(error: NotificationError): stri
   if (/not_authenticated/i.test(msg) || msg.includes("not_authenticated")) {
     return "ログインが必要です。セッションを確認してください。"
   }
+  if (/row-level security|violates row-level security/i.test(msg)) {
+    return "お知らせ配信がデータベースの権限設定により拒否されました。send_admin_notification のマイグレーション適用を確認してください。"
+  }
   const maybeSchemaIssue =
     msg.includes("send_admin_notification") ||
     msg.includes("schema cache") ||
@@ -95,10 +101,35 @@ export function userFacingAnnouncementRpcMessage(error: NotificationError): stri
   return `お知らせ配信に失敗しました: ${msg}`
 }
 
+function serializeRpcError(error: {
+  message?: string
+  code?: string
+  details?: string
+  hint?: string
+  toJSON?: () => unknown
+}): Record<string, unknown> {
+  if (typeof error.toJSON === "function") {
+    try {
+      const j = error.toJSON()
+      if (j != null && typeof j === "object") {
+        return j as Record<string, unknown>
+      }
+    } catch {
+      /* fall through */
+    }
+  }
+  return {
+    message: error.message ?? "",
+    code: error.code ?? null,
+    details: error.details ?? null,
+    hint: error.hint ?? null,
+  }
+}
+
 function logRpcFailure(
   label: string,
   payload: {
-    error: { message: string; code?: string; details?: string; hint?: string }
+    error: { message: string; code?: string; details?: string; hint?: string; toJSON?: () => unknown }
     status: number | null
     statusText: string | null
     rpcName: string
@@ -106,13 +137,11 @@ function logRpcFailure(
   },
 ) {
   const { error, status, statusText, rpcName, args } = payload
+  const flatErr = serializeRpcError(error)
   console.error(`[${label}] ${rpcName} RPC failed`, {
     httpStatus: status,
     httpStatusText: statusText,
-    message: error.message,
-    code: error.code ?? null,
-    details: error.details ?? null,
-    hint: error.hint ?? null,
+    ...flatErr,
     args,
     errorSerialized: (() => {
       try {
@@ -206,13 +235,24 @@ export async function fetchGeneralNotifications(
   adminOrigin: boolean,
   limit = 50,
 ): Promise<{ data: NotificationRow[]; error: NotificationError | null }> {
-  const { data, error } = await supabase
+  let q = supabase
     .from("notifications")
-    .select("id, recipient_id, sender_id, type, title, reason, content, is_admin_origin, is_read, created_at")
-    .or(`recipient_id.eq.${userId},recipient_id.is.null`)
+    .select(
+      "id, recipient_id, sender_id, type, title, reason, content, is_admin_origin, is_read, created_at, is_global",
+    )
     .eq("is_admin_origin", adminOrigin)
     .order("created_at", { ascending: false })
     .limit(limit)
+
+  if (adminOrigin) {
+    q = q.or(
+      `recipient_id.eq.${userId},and(recipient_id.is.null,is_global.eq.true,is_admin_origin.eq.true,type.eq.announcement)`,
+    )
+  } else {
+    q = q.eq("recipient_id", userId)
+  }
+
+  const { data, error } = await q
   if (error) {
     return {
       data: [],
@@ -233,6 +273,7 @@ export async function fetchGeneralNotifications(
     reason: row.reason ?? null,
     content: row.content ?? null,
     is_admin_origin: row.is_admin_origin === true,
+    is_global: row.is_global === true,
     is_read: row.is_read === true,
     created_at: String(row.created_at ?? ""),
   }))
@@ -243,6 +284,7 @@ export async function countUnreadNotifications(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<number> {
+  /** 全体お知らせは recipient_id が NULL の共有 1 行のため、ユーザー別の未読にできない。ベル数字は自分宛てのみ。 */
   const { count, error } = await supabase
     .from("notifications")
     .select("*", { count: "exact", head: true })
@@ -359,9 +401,7 @@ export async function sendAdminNotification(
     p_title: params.title,
     p_reason,
     p_content: params.content,
-  }
-  if (p_target_user_id != null) {
-    rpcArgs.p_target_user_id = p_target_user_id
+    p_target_user_id: p_target_user_id,
   }
   const response = await supabase.rpc("send_admin_notification", rpcArgs)
   const status = (response as { status?: number }).status ?? null

@@ -64,7 +64,6 @@ export function NotificationBell() {
           event: "*",
           schema: "public",
           table: "notifications",
-          filter: `recipient_id=eq.${userId}`,
         },
         () => {
           void refreshUnread()

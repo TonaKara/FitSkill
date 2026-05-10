@@ -149,27 +149,6 @@ export async function completeTransactionWithPayout(
 
   const chatUrl = `${getAppBaseUrl()}/chat/${encodeURIComponent(tx.id)}`
 
-  await Promise.all([
-    sendUserEventEmail({
-      topic: "transaction_completed",
-      userId: tx.buyer_id,
-      subject: "【GritVib】取引が完了しました",
-      heading: "取引完了通知",
-      intro: "対象の取引は完了しました。",
-      ctaLabel: "取引チャットを開く",
-      ctaUrl: chatUrl,
-    }),
-    sendUserEventEmail({
-      topic: "transaction_completed",
-      userId: tx.seller_id,
-      subject: "【GritVib】取引が完了しました",
-      heading: "取引完了通知",
-      intro: "対象の取引は完了しました。",
-      ctaLabel: "取引チャットを開く",
-      ctaUrl: chatUrl,
-    }),
-  ])
-
   if (mode === "dispute_rejection") {
     await Promise.all([
       sendUserEventEmail({
@@ -187,6 +166,27 @@ export async function completeTransactionWithPayout(
         subject: "【GritVib】異議申し立てが棄却されました",
         heading: "異議申し立て結果通知",
         intro: "異議申し立ては棄却され、取引は完了しました。",
+        ctaLabel: "取引チャットを開く",
+        ctaUrl: chatUrl,
+      }),
+    ])
+  } else {
+    await Promise.all([
+      sendUserEventEmail({
+        topic: "transaction_completed",
+        userId: tx.buyer_id,
+        subject: "【GritVib】取引が完了しました",
+        heading: "取引完了通知",
+        intro: "対象の取引は完了しました。",
+        ctaLabel: "取引チャットを開く",
+        ctaUrl: chatUrl,
+      }),
+      sendUserEventEmail({
+        topic: "transaction_completed",
+        userId: tx.seller_id,
+        subject: "【GritVib】取引が完了しました",
+        heading: "取引完了通知",
+        intro: "対象の取引は完了しました。",
         ctaLabel: "取引チャットを開く",
         ctaUrl: chatUrl,
       }),
