@@ -51,6 +51,8 @@ const config: Config = {
         primary: {
           DEFAULT: "var(--color-primary)",
           foreground: "var(--color-primary-foreground)",
+          /** ページ背景上のテキスト・アイコン（色は globals の --primary-readable） */
+          readable: "var(--color-primary-readable)",
         },
         secondary: {
           DEFAULT: "var(--color-secondary)",

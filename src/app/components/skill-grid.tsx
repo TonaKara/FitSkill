@@ -673,7 +673,7 @@ export function SkillGrid({ filters, sortBy, searchKeyword }: SkillGridProps) {
   if (loading) {
     return (
       <div className="flex min-h-[160px] items-center justify-center rounded-lg border border-dashed border-border bg-muted/20">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" aria-hidden />
+        <Loader2 className="h-6 w-6 animate-spin text-primary-readable" aria-hidden />
         <span className="ml-2 text-sm text-muted-foreground">スキル一覧を読み込み中...</span>
       </div>
     )

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { ExternalLink, Loader2 } from "lucide-react"
+import { ExternalLink, Loader2, Undo2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { getIsAdminFromProfile } from "@/lib/admin"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
@@ -68,6 +68,7 @@ export default function AdminTransactionsPage() {
   const [rows, setRows] = useState<TransactionRow[]>([])
   const [skillTitleMap, setSkillTitleMap] = useState<Record<string, string>>({})
   const [profileNameMap, setProfileNameMap] = useState<Record<string, string>>({})
+  const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -226,6 +227,24 @@ export default function AdminTransactionsPage() {
     setCurrentPage(1)
   }, [search])
 
+  const handleMarkTransactionRefunded = async (transactionId: string) => {
+    const ok = window.confirm(
+      `取引 ${transactionId} のステータスを「返金済み」に変更しますか？\n実際の Stripe 返金はダッシュボード側の操作が必要な場合があります。`,
+    )
+    if (!ok) {
+      return
+    }
+    setStatusUpdatingId(transactionId)
+    setErrorMessage(null)
+    const { error } = await supabase.from("transactions").update({ status: "refunded" }).eq("id", transactionId)
+    setStatusUpdatingId(null)
+    if (error) {
+      setErrorMessage(error.message || "ステータスの更新に失敗しました。")
+      return
+    }
+    setRows((prev) => prev.map((r) => (r.id === transactionId ? { ...r, status: "refunded" } : r)))
+  }
+
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
   const safeCurrentPage = Math.min(currentPage, totalPages)
 
@@ -303,6 +322,8 @@ export default function AdminTransactionsPage() {
                     const statusLabel = statusRaw ? (STATUS_LABELS[statusRaw] ?? statusRaw) : "—"
                     const buyerName = profileNameMap[buyerId] ?? buyerId
                     const sellerName = profileNameMap[sellerId] ?? sellerId
+                    const canSetRefunded = statusRaw !== "refunded"
+                    const statusBusy = statusUpdatingId === row.id
 
                     return (
                       <tr key={row.id} className="border-b border-zinc-900/70">
@@ -312,7 +333,36 @@ export default function AdminTransactionsPage() {
                         <td className="px-3 py-2 text-zinc-200">{formatPrice(row.price)}</td>
                         <td className="max-w-[220px] px-3 py-2 text-zinc-200">{buyerName || "—"}</td>
                         <td className="max-w-[220px] px-3 py-2 text-zinc-200">{sellerName || "—"}</td>
-                        <td className="px-3 py-2 text-zinc-200">{statusLabel}</td>
+                        <td className="min-w-[11rem] px-3 py-2 text-zinc-200">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {statusRaw === "refunded" ? (
+                              <span className="inline-flex items-center rounded-lg bg-[var(--accent-color)] px-2.5 py-1 text-xs font-black tracking-wide text-white shadow-[0_0_20px_color-mix(in_srgb,var(--accent-color),transparent_50%)] ring-2 ring-white/35 ring-offset-2 ring-offset-zinc-950">
+                                返金済み
+                              </span>
+                            ) : (
+                              <>
+                                <span>{statusLabel}</span>
+                                {canSetRefunded ? (
+                                  <button
+                                    type="button"
+                                    title="返金済みにする"
+                                    aria-label="返金済みにする"
+                                    disabled={statusBusy || loading}
+                                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-600 bg-zinc-900 text-zinc-300 transition-colors hover:border-[var(--accent-color)] hover:bg-[color-mix(in_srgb,var(--accent-color),transparent_88%)] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                    onClick={() => {
+                                      void handleMarkTransactionRefunded(row.id)
+                                    }}
+                                  >
+                                    <Undo2 className="h-4 w-4" aria-hidden />
+                                  </button>
+                                ) : null}
+                              </>
+                            )}
+                            {statusBusy ? (
+                              <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-red-500" aria-hidden />
+                            ) : null}
+                          </div>
+                        </td>
                         <td className="px-3 py-2">
                           {stripeUrl ? (
                             <Link

@@ -7,17 +7,35 @@ const DEFAULT_ACCENT_COLOR = "#c62828"
 
 export const ACCENT_COLOR_OPTIONS = [
   { id: "red", label: "Red（デフォルト）", value: "#c62828" },
-  { id: "yellow", label: "Yellow", value: "#d69e00" },
+  /** ボタン塗りと前景のコントラスト改善（旧 #d69e00） */
+  { id: "yellow", label: "Yellow", value: "#b45309" },
   { id: "blue", label: "Blue", value: "#2563eb" },
-  { id: "green", label: "Green", value: "#2f855a" },
+  /** primary-foreground との AA 確保（旧 #2f855a） */
+  { id: "green", label: "Green", value: "#276749" },
 ] as const
 
-function resolveAccentColor(raw: string | null): string {
+/** localStorage に残った旧 Hex を現行パレットへ寄せる */
+const LEGACY_ACCENT_HEX: Record<string, string> = {
+  "#d69e00": "#b45309",
+  "#2f855a": "#276749",
+}
+
+function normalizeAccentHex(raw: string): string {
+  const key = raw.trim().toLowerCase()
+  return LEGACY_ACCENT_HEX[key] ?? raw.trim()
+}
+
+export function resolveStoredAccentColor(raw: string | null): string {
   if (!raw) {
     return DEFAULT_ACCENT_COLOR
   }
-  const hit = ACCENT_COLOR_OPTIONS.find((option) => option.value === raw)
+  const migrated = normalizeAccentHex(raw)
+  const hit = ACCENT_COLOR_OPTIONS.find((option) => option.value.toLowerCase() === migrated.toLowerCase())
   return hit?.value ?? DEFAULT_ACCENT_COLOR
+}
+
+function resolveAccentColor(raw: string | null): string {
+  return resolveStoredAccentColor(raw)
 }
 
 function applyAccentColor(color: string) {
@@ -41,7 +59,11 @@ export function AccessibilityModeSync() {
       return
     }
     const accentRaw = window.localStorage.getItem(ACCENT_COLOR_STORAGE_KEY)
-    applyAccentColor(resolveAccentColor(accentRaw))
+    const resolved = resolveStoredAccentColor(accentRaw)
+    if (accentRaw != null && resolved !== accentRaw.trim()) {
+      window.localStorage.setItem(ACCENT_COLOR_STORAGE_KEY, resolved)
+    }
+    applyAccentColor(resolved)
   }, [])
 
   return null

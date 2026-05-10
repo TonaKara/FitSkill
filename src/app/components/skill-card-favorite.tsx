@@ -122,14 +122,14 @@ export function SkillCardFavorite({ skillId, initialFavoriteCount }: SkillCardFa
       type="button"
       variant="ghost"
       size="icon"
-      className="absolute right-3 top-3 h-auto min-w-8 gap-1 rounded-full bg-background/50 px-2 py-1.5 backdrop-blur-sm hover:bg-background/80 hover:text-primary"
+      className="absolute right-3 top-3 h-auto min-w-8 gap-1 rounded-full bg-background/50 px-2 py-1.5 backdrop-blur-sm hover:bg-background/80 hover:text-primary-readable"
       onClick={(e) => void handleClick(e)}
       disabled={loading || pending}
       aria-busy={loading || pending}
       aria-pressed={favorited}
       aria-label={favorited ? "お気に入りから外す" : "お気に入りに追加"}
     >
-      <Heart className={`h-4 w-4 shrink-0 ${favorited ? "fill-primary text-primary" : ""}`} />
+      <Heart className={`h-4 w-4 shrink-0 ${favorited ? "fill-primary-readable text-primary-readable" : ""}`} />
       <span className="min-w-[0.65rem] text-xs font-medium tabular-nums leading-none text-foreground">
         {count === null ? (
           <span

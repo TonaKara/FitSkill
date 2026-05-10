@@ -23,6 +23,8 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  /* アクセントをページ背景上のテキスト・アイコンで使うとき（WCAG AA 向けに background と調和） */
+  --color-primary-readable: var(--primary-readable);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -61,14 +63,16 @@
   --brand-red: var(--accent-color);
   --brand-red-deep: #a32121;
 
-  --background: oklch(0.985 0 0);
+  /* ライト: 眩しさを抑えたオフホイト（ページ背景）。カード類は #fff でわずかな段差を付ける */
+  --background: #fafafa;
   --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
+  --card: #ffffff;
   --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
+  --popover: #ffffff;
   --popover-foreground: oklch(0.145 0 0);
   --primary: var(--brand-red);
   --primary-foreground: oklch(0.985 0 0);
+  --primary-readable: color-mix(in srgb, var(--accent-color) 82%, black);
   --secondary: oklch(0.96 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.96 0 0);
@@ -85,7 +89,7 @@
   --chart-3: oklch(0.5 0.12 200);
   --chart-4: oklch(0.65 0.2 140);
   --chart-5: oklch(0.6 0.22 330);
-  --sidebar: oklch(0.985 0 0);
+  --sidebar: #fafafa;
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: var(--brand-red);
   --sidebar-primary-foreground: oklch(0.985 0 0);
@@ -99,6 +103,7 @@
   /* 背景はほぼ純黒、サーフェスは #1A1A1A 付近 */
   --background: oklch(0 0 0);
   --foreground: oklch(0.985 0 0);
+  --primary-readable: color-mix(in srgb, var(--accent-color) 58%, white);
   --card: oklch(0.14 0 0);
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.12 0 0);
@@ -136,6 +141,11 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    transition:
+      background-color 0.25s ease,
+      color 0.25s ease;
+  }
   html,
   body {
     height: 100svh;
@@ -144,6 +154,9 @@
   body {
     @apply bg-background text-foreground antialiased;
     overflow: hidden;
+    transition:
+      background-color 0.25s ease,
+      color 0.25s ease;
   }
 }
 
@@ -161,23 +174,101 @@
   background-color: #ffffff !important;
 }
 
-.mypage-theme-light .text-zinc-50,
-.mypage-theme-light .text-zinc-100,
-.mypage-theme-light .text-zinc-200,
-.mypage-theme-light .text-white {
-  color: #111827 !important;
+/* 本文・ナビ・ダイアログ内はライトモードで黒（全面適用すると暗スクリム上の説明文が読めなくなるためスコープする） */
+.mypage-theme-light main .text-zinc-50,
+.mypage-theme-light main .text-zinc-100,
+.mypage-theme-light main .text-zinc-200,
+.mypage-theme-light main .text-zinc-300,
+.mypage-theme-light main .text-zinc-400,
+.mypage-theme-light main .text-zinc-500,
+.mypage-theme-light main .text-zinc-600,
+.mypage-theme-light [role="dialog"] .text-zinc-50,
+.mypage-theme-light [role="dialog"] .text-zinc-100,
+.mypage-theme-light [role="dialog"] .text-zinc-200,
+.mypage-theme-light [role="dialog"] .text-zinc-300,
+.mypage-theme-light [role="dialog"] .text-zinc-400,
+.mypage-theme-light [role="dialog"] .text-zinc-500,
+.mypage-theme-light [role="dialog"] .text-zinc-600 {
+  color: #000000 !important;
 }
 
-.mypage-theme-light .text-zinc-300,
-.mypage-theme-light .text-zinc-400,
-.mypage-theme-light .text-zinc-500 {
-  color: #4b5563 !important;
+.mypage-theme-light main .text-white,
+.mypage-theme-light [role="dialog"] .text-white {
+  color: #000000 !important;
+}
+
+/* 赤・緑・ローズの実色ボタン上のラベルは白のまま */
+.mypage-theme-light .bg-red-600.text-white,
+.mypage-theme-light .bg-red-500.text-white,
+.mypage-theme-light .bg-red-700.text-white,
+.mypage-theme-light .bg-red-800.text-white,
+.mypage-theme-light .bg-red-950.text-white,
+.mypage-theme-light .bg-red-950\/30.text-white,
+.mypage-theme-light .bg-red-950\/60.text-white,
+.mypage-theme-light .bg-emerald-600.text-white,
+.mypage-theme-light .bg-emerald-500.text-white,
+.mypage-theme-light .bg-rose-600.text-white,
+.mypage-theme-light .bg-rose-500.text-white {
+  color: #ffffff !important;
 }
 
 .mypage-theme-light .border-zinc-800,
 .mypage-theme-light .border-zinc-700,
 .mypage-theme-light .border-zinc-600 {
   border-color: #d1d5db !important;
+}
+
+/* プレフィックス付きユーティリティは .bg-zinc-950 と別クラスのため、ライト時は別途指定 */
+@media (min-width: 768px) {
+  .mypage-theme-light .md\:bg-zinc-950 {
+    background-color: #ffffff !important;
+  }
+  .mypage-theme-light .md\:border-zinc-800 {
+    border-color: #d1d5db !important;
+  }
+}
+
+.mypage-theme-light .bg-zinc-800 {
+  background-color: #e5e7eb !important;
+}
+
+.mypage-theme-light .bg-zinc-950\/50,
+.mypage-theme-light .bg-zinc-950\/40 {
+  background-color: #f9fafb !important;
+}
+
+.mypage-theme-light .divide-zinc-800 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #e5e7eb !important;
+}
+
+.mypage-theme-light .hover\:bg-zinc-900:hover {
+  background-color: #f3f4f6 !important;
+}
+.mypage-theme-light .hover\:bg-zinc-800:hover {
+  background-color: #e5e7eb !important;
+}
+.mypage-theme-light .hover\:border-zinc-800:hover {
+  border-color: #d1d5db !important;
+}
+.mypage-theme-light .hover\:border-zinc-600:hover {
+  border-color: #d1d5db !important;
+}
+.mypage-theme-light .hover\:border-zinc-500:hover {
+  border-color: #9ca3af !important;
+}
+.mypage-theme-light .hover\:text-zinc-100:hover,
+.mypage-theme-light .hover\:text-zinc-200:hover {
+  color: #000000 !important;
+}
+.mypage-theme-light .hover\:bg-zinc-800\/80:hover {
+  background-color: rgb(229 231 235 / 0.8) !important;
+}
+.mypage-theme-light .hover\:bg-zinc-900\/70:hover {
+  background-color: rgb(243 244 246 / 0.7) !important;
+}
+
+.mypage-theme-light .focus-visible\:ring-offset-zinc-950:focus-visible {
+  --tw-ring-offset-color: #ffffff !important;
 }
 
 /* マイページ内はアクセントカラー設定を赤系UIにも反映 */

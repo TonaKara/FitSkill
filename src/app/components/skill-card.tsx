@@ -118,7 +118,7 @@ export function SkillCard({ skill, favoriteSkillId, initialFavoriteCount }: Skil
 
       <CardContent className="p-4">
         {/* Title */}
-        <h3 className="mb-2 line-clamp-2 text-base font-bold text-foreground group-hover:text-primary transition-colors">
+        <h3 className="mb-2 line-clamp-2 text-base font-bold text-foreground group-hover:text-primary-readable transition-colors">
           {skill.title}
         </h3>
 
@@ -134,7 +134,7 @@ export function SkillCard({ skill, favoriteSkillId, initialFavoriteCount }: Skil
         {/* Stats */}
         <div className="mb-3 flex items-center gap-4 text-xs text-muted-foreground">
           <div className="flex items-center gap-1">
-            <Star className="h-3.5 w-3.5 fill-primary text-primary" />
+            <Star className="h-3.5 w-3.5 fill-primary-readable text-primary-readable" />
             <span className="font-medium text-foreground">{Number(skill.rating).toFixed(1)}</span>
             <span>({skill.reviewCount}件)</span>
           </div>
@@ -151,7 +151,7 @@ export function SkillCard({ skill, favoriteSkillId, initialFavoriteCount }: Skil
         {/* Price */}
         <div className="flex items-center justify-between">
           <div className="flex items-baseline gap-1">
-            <span className="text-lg font-bold text-primary">
+            <span className="text-lg font-bold text-primary-readable">
               ¥{skill.price.toLocaleString()}
             </span>
             <span className="text-xs text-muted-foreground">/回</span>

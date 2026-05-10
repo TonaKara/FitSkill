@@ -10,6 +10,7 @@ import { Copy, Heart, Loader2, Pencil, ShieldAlert, Star, X } from "lucide-react
 import { Header } from "@/components/header"
 import {
   ACCENT_COLOR_OPTIONS,
+  resolveStoredAccentColor,
   setAccentColorValue,
 } from "@/components/AccessibilityModeSync"
 import { Button } from "@/components/ui/button"
@@ -512,11 +513,9 @@ export default function MypageClient() {
     if (typeof window === "undefined") {
       return
     }
-    const savedAccent = window.localStorage.getItem("accent_color_value")
-    const validAccent = ACCENT_COLOR_OPTIONS.some((option) => option.value === savedAccent)
-      ? (savedAccent as string)
-      : "#c62828"
-    setAccentColorValueState(validAccent)
+    const resolved = resolveStoredAccentColor(window.localStorage.getItem("accent_color_value"))
+    setAccentColorValueState(resolved)
+    setAccentColorValue(resolved)
   }, [])
 
   useEffect(() => {
@@ -2066,7 +2065,7 @@ export default function MypageClient() {
                 className={`flex-1 rounded-md px-3 py-2 text-xs font-semibold transition-colors ${
                   currentMode === "student"
                     ? "bg-red-600 text-white shadow-sm shadow-black/30"
-                    : "text-zinc-400 hover:text-zinc-100"
+                    : "text-zinc-700 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-100"
                 }`}
               >
                 受講生として利用
@@ -2077,7 +2076,7 @@ export default function MypageClient() {
                 className={`flex-1 rounded-md px-3 py-2 text-xs font-semibold transition-colors ${
                   currentMode === "instructor"
                     ? "bg-red-600 text-white shadow-sm shadow-black/30"
-                    : "text-zinc-400 hover:text-zinc-100"
+                    : "text-zinc-700 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-100"
                 }`}
               >
                 講師として利用
@@ -2092,10 +2091,10 @@ export default function MypageClient() {
                     key={item.id}
                     type="button"
                     onClick={() => handleSectionChange(item.id)}
-                    className={`shrink-0 rounded-lg border px-3 py-2 text-left text-sm font-medium transition-all md:rounded-md md:px-3 md:py-2.5 ${
+                    className={`shrink-0 rounded-lg border px-3 py-2 text-left text-sm font-medium transition-[border-color,background-color,box-shadow] duration-200 md:rounded-md md:px-3 md:py-2.5 ${
                       active
                         ? "border-red-500/60 bg-red-950/60 text-white shadow-[inset_3px_0_0_0_var(--accent-color)]"
-                        : "border-transparent text-zinc-400 hover:border-zinc-800 hover:bg-zinc-900 hover:text-zinc-100"
+                        : "border-transparent text-zinc-800 hover:border-zinc-300 hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-400 dark:hover:border-zinc-800 dark:hover:bg-zinc-900 dark:hover:text-zinc-100"
                     }`}
                     aria-current={active ? "page" : undefined}
                   >
@@ -2106,7 +2105,9 @@ export default function MypageClient() {
             </div>
 
             <div className="border-t border-zinc-800 pt-3">
-              <p className="px-3 pb-2 text-[11px] font-semibold tracking-widest text-zinc-500">設定</p>
+              <p className="px-3 pb-2 text-[11px] font-semibold tracking-widest text-zinc-600 dark:text-zinc-500">
+                設定
+              </p>
               {SETTINGS_MENU.map((item) => {
                 const active = section === item.id
                 return (
@@ -2114,10 +2115,10 @@ export default function MypageClient() {
                     key={item.id}
                     type="button"
                     onClick={() => handleSectionChange(item.id)}
-                    className={`mt-1 w-full rounded-md border px-3 py-2.5 text-left text-sm font-medium transition-all ${
+                    className={`mt-1 w-full rounded-md border px-3 py-2.5 text-left text-sm font-medium transition-[border-color,background-color,box-shadow] duration-200 ${
                       active
                         ? "border-red-500/60 bg-red-950/60 text-white shadow-[inset_3px_0_0_0_var(--accent-color)]"
-                        : "border-transparent text-zinc-400 hover:border-zinc-800 hover:bg-zinc-900 hover:text-zinc-100"
+                        : "border-transparent text-zinc-800 hover:border-zinc-300 hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-400 dark:hover:border-zinc-800 dark:hover:bg-zinc-900 dark:hover:text-zinc-100"
                     }`}
                     aria-current={active ? "page" : undefined}
                   >
@@ -3182,7 +3183,7 @@ export default function MypageClient() {
                 <div className="mt-8 border-t border-zinc-800 pt-8">
                   <h2 className="text-sm font-semibold text-zinc-200">表示テーマ</h2>
                   <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-                    ライトモード / ダークモードを切り替えられます（初期設定は現在のダークモードです）。
+                    ライトモード / ダークモードを切り替えられます（初期設定はダークモードです）。
                   </p>
                   <div className="mt-4 flex items-center justify-between rounded-xl border border-zinc-700 bg-zinc-950/60 px-4 py-3">
                     <span className="text-sm font-medium text-zinc-200">
@@ -3195,7 +3196,11 @@ export default function MypageClient() {
                       aria-label="表示テーマを切り替える"
                       disabled={!themeReady}
                       onClick={handleThemeToggle}
-                      className="flex h-8 w-14 items-center rounded-full bg-red-600 px-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 disabled:opacity-60"
+                      className={`flex h-8 w-14 items-center rounded-full px-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 disabled:opacity-60 ${
+                        !themeReady || isDarkMode
+                          ? "bg-red-600 focus-visible:ring-red-500"
+                          : "bg-zinc-600 focus-visible:ring-zinc-500"
+                      }`}
                     >
                       <span
                         className={`block h-6 w-6 rounded-full bg-white shadow-md transition-[margin] duration-200 ease-out ${
@@ -3246,7 +3251,11 @@ export default function MypageClient() {
                       aria-label="メール通知を受け取る"
                       disabled={profileLoading || emailNotificationSaving}
                       onClick={() => void handleEmailNotificationMasterChange(!emailNotificationSettings.master)}
-                      className="flex h-8 w-14 shrink-0 items-center rounded-full bg-red-600 px-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 disabled:opacity-60"
+                      className={`flex h-8 w-14 shrink-0 items-center rounded-full px-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 disabled:opacity-60 ${
+                        emailNotificationSettings.master
+                          ? "bg-red-600 focus-visible:ring-red-500"
+                          : "bg-zinc-600 focus-visible:ring-zinc-500"
+                      }`}
                     >
                       <span
                         className={`block h-6 w-6 rounded-full bg-white shadow-md transition-[margin] duration-200 ease-out ${
@@ -3280,7 +3289,9 @@ export default function MypageClient() {
                             aria-label={`${item.label}のメールを受け取る`}
                             disabled={disabled}
                             onClick={() => void handleEmailNotificationTopicChange(item.key, !checked)}
-                            className="mt-0.5 flex h-8 w-14 shrink-0 items-center rounded-full bg-red-600 px-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 disabled:opacity-60"
+                            className={`mt-0.5 flex h-8 w-14 shrink-0 items-center rounded-full px-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 disabled:opacity-60 ${
+                              checked ? "bg-red-600 focus-visible:ring-red-500" : "bg-zinc-600 focus-visible:ring-zinc-500"
+                            }`}
                           >
                             <span
                               className={`block h-6 w-6 rounded-full bg-white shadow-md transition-[margin] duration-200 ease-out ${

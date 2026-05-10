@@ -159,13 +159,13 @@ export function BottomNav() {
               <Icon
                 className={cn(
                   "h-5 w-5 transition-colors",
-                  isActive ? "text-primary" : "text-muted-foreground"
+                  isActive ? "text-primary-readable" : "text-muted-foreground"
                 )}
               />
               <span
                 className={cn(
                   "text-[10px] font-medium transition-colors",
-                  isActive ? "text-primary" : "text-muted-foreground"
+                  isActive ? "text-primary-readable" : "text-muted-foreground"
                 )}
               >
                 {item.label}
@@ -183,7 +183,7 @@ export function BottomNav() {
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary shadow-lg shadow-primary/30">
               <createItem.icon className="h-6 w-6 text-primary-foreground" />
             </div>
-            <span className="text-[10px] font-medium text-primary">{createItem.label}</span>
+            <span className="text-[10px] font-medium text-primary-readable">{createItem.label}</span>
           </button>
         ) : null}
         {rightItems.map((item) => {
@@ -212,13 +212,13 @@ export function BottomNav() {
               <Icon
                 className={cn(
                   "h-5 w-5 transition-colors",
-                  isActive ? "text-primary" : "text-muted-foreground"
+                  isActive ? "text-primary-readable" : "text-muted-foreground"
                 )}
               />
               <span
                 className={cn(
                   "text-[10px] font-medium transition-colors",
-                  isActive ? "text-primary" : "text-muted-foreground"
+                  isActive ? "text-primary-readable" : "text-muted-foreground"
                 )}
               >
                 {item.label}

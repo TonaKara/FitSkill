@@ -344,7 +344,7 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
             </div>
             <span className="text-base font-bold tracking-tight sm:text-lg md:text-xl">
               <span className="text-[#c62828]">Grit</span>
-              <span className="text-white">Vib</span>
+              <span className="text-zinc-950 dark:text-white">Vib</span>
             </span>
           </Link>
 
@@ -370,17 +370,17 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
 
           {/* Navigation - Desktop */}
           <nav className="hidden items-center gap-6 md:flex">
-            <Link href="/" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
+            <Link href="/" className="text-sm font-medium text-foreground hover:text-primary-readable transition-colors">
               スキルを探す
             </Link>
             <button
               type="button"
               onClick={handleCreateSkillClick}
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
+              className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary-readable"
             >
               スキルを出品
             </button>
-            <Link href="/guide" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+            <Link href="/guide" className="text-sm font-medium text-muted-foreground hover:text-primary-readable transition-colors">
               使い方
             </Link>
           </nav>
@@ -509,7 +509,7 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
                             className="overflow-hidden rounded-xl border-2 border-primary bg-gradient-to-b from-zinc-900/85 to-zinc-950/95 shadow-[0_10px_36px_rgba(0,0,0,0.4)] shadow-primary/15"
                           >
                             <div className="border-b border-primary/35 bg-zinc-900/55 px-3 py-2.5">
-                              <h2 className="text-base font-extrabold leading-snug tracking-tight text-primary sm:text-[1.0625rem]">
+                              <h2 className="text-base font-extrabold leading-snug tracking-tight text-primary-readable sm:text-[1.0625rem]">
                                 {group.heading}
                               </h2>
                               <p className="mt-1 text-[11px] leading-snug text-zinc-500">{group.description}</p>

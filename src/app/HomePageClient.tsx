@@ -164,7 +164,7 @@ export default function HomePageClient({ heroStats }: HomePageClientProps) {
           <Button
             variant="outline"
             size="lg"
-            className="border-primary text-primary transition-all hover:bg-primary hover:text-primary-foreground"
+            className="border-primary text-primary-readable transition-all hover:bg-primary hover:text-primary-foreground"
           >
             もっと見る
           </Button>

@@ -31,7 +31,7 @@ function Stats({ isAdmin, skillsCount, usersCount }: StatsProps) {
     <div className="mb-6 flex flex-wrap gap-6">
       <div className="flex items-center gap-2">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-          <TrendingUp className="h-5 w-5 text-primary" />
+          <TrendingUp className="h-5 w-5 text-primary-readable" />
         </div>
         <div>
           <p className="text-lg font-bold text-foreground">{skillsCount.toLocaleString("ja-JP")}</p>
@@ -40,7 +40,7 @@ function Stats({ isAdmin, skillsCount, usersCount }: StatsProps) {
       </div>
       <div className="flex items-center gap-2">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-          <Zap className="h-5 w-5 text-primary" />
+          <Zap className="h-5 w-5 text-primary-readable" />
         </div>
         <div>
           <p className="text-lg font-bold text-foreground">{usersCount.toLocaleString("ja-JP")}</p>

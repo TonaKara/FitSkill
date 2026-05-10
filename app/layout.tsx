@@ -94,7 +94,8 @@ export default function RootLayout({
           attribute="class"
           defaultTheme="dark"
           enableSystem
-          disableTransitionOnChange
+          storageKey="theme"
+          disableTransitionOnChange={false}
         >
           <MobileHeaderMenuProvider>
             <AccessibilityModeSync />
