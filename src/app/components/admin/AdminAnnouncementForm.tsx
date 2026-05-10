@@ -89,11 +89,6 @@ export function AdminAnnouncementForm() {
       content: payloadContent,
       target_user_id: null,
     }
-    console.debug("[AdminAnnouncementForm] send_admin_notification payload", {
-      title: trimmedTitle,
-      reason: reason.trim(),
-      target_user_id: null,
-    })
     const { error } = await sendAdminNotification(supabase, announcementPayload)
     setSending(false)
     if (error) {
@@ -112,25 +107,6 @@ export function AdminAnnouncementForm() {
         message: userFacingAnnouncementRpcMessage(error),
       })
       return
-    }
-    const debugSince = new Date(Date.now() - 60_000).toISOString()
-    const { data: debugRows, error: debugError } = await supabase
-      .from("notifications")
-      .select("id, created_at, recipient_id")
-      .eq("is_admin_origin", true)
-      .eq("type", "announcement")
-      .eq("title", trimmedTitle)
-      .eq("content", payloadContent)
-      .gte("created_at", debugSince)
-      .order("created_at", { ascending: false })
-      .limit(50)
-    if (debugError) {
-      console.error("[AdminAnnouncementForm] debug count fetch failed", debugError)
-    } else {
-      console.debug("[AdminAnnouncementForm] recent inserted rows for same payload", {
-        count: debugRows?.length ?? 0,
-        rows: debugRows ?? [],
-      })
     }
     setTitle("")
     setReason("")

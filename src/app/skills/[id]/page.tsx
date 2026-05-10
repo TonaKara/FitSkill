@@ -246,21 +246,11 @@ export default function SkillDetailPage() {
       // 一時的な取得失敗時は既存 state を維持し、ボタンの誤切り替えを防ぐ
       return undefined
     }
-    const firstStatus = rows.length > 0 ? rows[0]?.status : null
-    console.log("[skills:fetchActiveTransaction] rows", {
-      skillId,
-      userId,
-      statuses: CHECKABLE_TRANSACTION_STATUSES,
-      rowsLength: rows.length,
-      firstStatus,
-      rows,
-    })
     return rows
   }, [fetchLatestRelevantTransaction, skillId, userId])
 
   const startStripePaymentForTransaction = useCallback(
     async (targetSkillId: string): Promise<boolean> => {
-      console.log("[skills:startStripePaymentForTransaction] start", { skillId: targetSkillId })
       setPurchaseProgressLabel("決済を準備中...")
       try {
         const result = await createCheckoutSession(targetSkillId)
@@ -277,11 +267,6 @@ export default function SkillDetailPage() {
           return false
         }
         const { url } = result
-        console.log("[skills:startStripePaymentForTransaction] createCheckoutSession result", {
-          skillId: targetSkillId,
-          hasUrl: Boolean(url),
-          url,
-        })
         if (!url) {
           setPurchaseError("決済ページを作成できませんでした。")
           return false

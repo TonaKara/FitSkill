@@ -21,6 +21,21 @@ export function getSiteUrl(): string {
   return SITE_URL
 }
 
+/**
+ * リダイレクト・メール内リンク・Stripe return URL 用の公開オリジン。
+ * `NEXT_PUBLIC_APP_URL` を最優先し、未設定時は本番・プレビューは {@link getSiteUrl}、開発のみ localhost。
+ */
+export function getAppBaseUrl(): string {
+  const explicit = process.env.NEXT_PUBLIC_APP_URL?.trim()
+  if (explicit) {
+    return explicit.replace(/\/$/, "")
+  }
+  if (process.env.NODE_ENV !== "production") {
+    return "http://localhost:3000"
+  }
+  return getSiteUrl()
+}
+
 /** ルートレイアウトのデフォルト（子ページが title を上書きしない場合）— トップ以外の既定 */
 export const LAYOUT_TITLE_DEFAULT = "GritVib | 経歴不問のフィットネススキルシェア"
 

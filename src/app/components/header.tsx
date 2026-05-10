@@ -111,6 +111,7 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
   const [isAuthLoading, setIsAuthLoading] = useState(true)
   const [profileSummary, setProfileSummary] = useState<ProfileSummary | null>(null)
   const [profileLoading, setProfileLoading] = useState(false)
+  const profileFetchUserIdRef = useRef<string | null>(null)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement | null>(null)
   const mobileMenuButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -160,12 +161,20 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
       setIsAuthLoading(false)
 
       if (!user) {
+        profileFetchUserIdRef.current = null
         setProfileSummary(null)
         setProfileLoading(false)
         return
       }
 
-      setProfileLoading(true)
+      const prevUid = profileFetchUserIdRef.current
+      const userIdChanged = prevUid !== user.id
+      profileFetchUserIdRef.current = user.id
+      if (userIdChanged) {
+        setProfileSummary(null)
+        setProfileLoading(true)
+      }
+
       const { data } = await supabase
         .from("profiles")
         .select("display_name, avatar_url")
@@ -307,7 +316,9 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
     if (!error) {
       setShowLogoutConfirm(false)
       setIsAuthenticated(false)
+      profileFetchUserIdRef.current = null
       setProfileSummary(null)
+      setProfileLoading(false)
       router.push(getLogoutSuccessHref())
       router.refresh()
     }

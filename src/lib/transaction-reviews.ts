@@ -165,24 +165,5 @@ export async function submitTransactionReview(
     }
   }
 
-  const { data: refreshedProfile, error: refreshedProfileError } = await supabase
-    .from("profiles")
-    .select("rating_avg, review_count")
-    .eq("id", params.revieweeId)
-    .maybeSingle()
-
-  console.log("[submitTransactionReview] refreshed profile stats", {
-    revieweeId: params.revieweeId,
-    data: refreshedProfile,
-    error: refreshedProfileError
-      ? {
-          message: refreshedProfileError.message,
-          code: (refreshedProfileError as { code?: string }).code ?? null,
-          details: (refreshedProfileError as { details?: string }).details ?? null,
-          hint: (refreshedProfileError as { hint?: string }).hint ?? null,
-        }
-      : null,
-  })
-
   return { data: mapRatingRowToReviewRow(data as RatingsRow), error: null }
 }

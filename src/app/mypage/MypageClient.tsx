@@ -28,6 +28,14 @@ import {
   getNextDisplayNameChangeEligibleAt,
   parseProfileDate,
 } from "@/lib/display-name-policy"
+import {
+  coerceEmailNotificationSettingsForSave,
+  DEFAULT_EMAIL_NOTIFICATION_SETTINGS,
+  EMAIL_NOTIFICATION_TOPIC_ITEMS,
+  parseEmailNotificationSettings,
+  type EmailNotificationSettings,
+  type EmailNotificationTopicKey,
+} from "@/lib/email-notification-settings"
 import { normalizeProfileCategory } from "@/lib/profile-fields"
 import { buildProfilePath, isReservedCustomId, isValidCustomIdFormat, normalizeCustomId } from "@/lib/profile-path"
 import { SKILL_CATEGORY_OPTIONS } from "@/lib/skill-categories"
@@ -43,7 +51,11 @@ import {
 } from "@/lib/profile-ratings"
 import { createGeneralNotification } from "@/lib/transaction-notifications"
 import { autoCompleteTransactions } from "@/lib/transactions"
-import { checkAndFinalizeStripeStatus, getStripeOnboardingUrl } from "@/actions/stripe"
+import {
+  checkAndFinalizeStripeStatus,
+  getStripeExpressDashboardUrl,
+  getStripeOnboardingUrl,
+} from "@/actions/stripe"
 import { getLogoutSuccessHref } from "@/components/logout-success-toast"
 import { MypageInquirySection } from "./MypageInquirySection"
 
@@ -366,6 +378,8 @@ export default function MypageClient() {
   const customIdConfirmBypassRef = useRef(false)
   /** 連続する loadProfile の完了順が逆転して古いデータで上書きしないようにする */
   const profileLoadGenerationRef = useRef(0)
+  /** 同一ユーザーで一度でもプロフィールを反映済みなら、再取得時に全画面ローダーを出さない */
+  const profileHydratedUserIdRef = useRef<string | null>(null)
 
   const [listings, setListings] = useState<ListedSkill[]>([])
   const [listingsLoading, setListingsLoading] = useState(false)
@@ -419,6 +433,10 @@ export default function MypageClient() {
   const [pendingCustomIdForConfirm, setPendingCustomIdForConfirm] = useState("")
   const [accentColorValue, setAccentColorValueState] = useState<string>("#c62828")
   const [themeReady, setThemeReady] = useState(false)
+  const [emailNotificationSettings, setEmailNotificationSettings] = useState<EmailNotificationSettings>(() => ({
+    ...DEFAULT_EMAIL_NOTIFICATION_SETTINGS,
+  }))
+  const [emailNotificationSaving, setEmailNotificationSaving] = useState(false)
   const filteredReviewComments =
     selectedReviewStars == null
       ? reviewComments
@@ -656,6 +674,17 @@ export default function MypageClient() {
     }
   }, [router, supabase])
 
+  useEffect(() => {
+    if (!userId) {
+      profileHydratedUserIdRef.current = null
+      setProfileLoading(false)
+      return
+    }
+    if (profileHydratedUserIdRef.current !== userId) {
+      setProfileLoading(true)
+    }
+  }, [userId])
+
   const loadProfile = useCallback(async () => {
     if (!userId) {
       return
@@ -663,11 +692,13 @@ export default function MypageClient() {
     const generation = ++profileLoadGenerationRef.current
     const isStale = () => generation !== profileLoadGenerationRef.current
 
-    setProfileLoading(true)
+    if (profileHydratedUserIdRef.current !== userId) {
+      setProfileLoading(true)
+    }
     const { data, error } = await supabase
       .from("profiles")
       .select(
-        "id, display_name, custom_id, avatar_url, bio, fitness_history, category, last_name_change, rating_avg, review_count, stripe_connect_account_id, is_stripe_registered, stripe_connect_charges_enabled",
+        "id, display_name, custom_id, avatar_url, bio, fitness_history, category, last_name_change, rating_avg, review_count, stripe_connect_account_id, is_stripe_registered, stripe_connect_charges_enabled, email_notification_settings",
       )
       .eq("id", userId)
       .maybeSingle()
@@ -677,6 +708,7 @@ export default function MypageClient() {
     }
 
     if (error) {
+      profileHydratedUserIdRef.current = null
       setNotice(
         toErrorNotice(error, isAdmin, { unknownErrorMessage: "プロフィールの読み込みに失敗しました。" }),
       )
@@ -712,6 +744,7 @@ export default function MypageClient() {
     setIsStripeRegistered(row?.is_stripe_registered === true)
     setStripeConnectChargesEnabled(row?.stripe_connect_charges_enabled === true)
     setStripeConnectAccountId(stripeAccountId)
+    setEmailNotificationSettings(parseEmailNotificationSettings(row?.email_notification_settings))
 
     setPendingAvatarFile(null)
     setAvatarMarkedForRemoval(false)
@@ -724,26 +757,78 @@ export default function MypageClient() {
       return
     }
 
+    profileHydratedUserIdRef.current = userId
     setProfileLoading(false)
   }, [supabase, userId, isAdmin])
+
+  const persistEmailNotificationSettings = useCallback(
+    async (next: EmailNotificationSettings) => {
+      if (!userId) {
+        return
+      }
+      const coerced = coerceEmailNotificationSettingsForSave(next)
+      setEmailNotificationSettings(coerced)
+      setEmailNotificationSaving(true)
+      const { error } = await supabase.from("profiles").update({ email_notification_settings: coerced }).eq("id", userId)
+      setEmailNotificationSaving(false)
+      if (error) {
+        setNotice(
+          toErrorNotice(error, isAdmin, { unknownErrorMessage: "メール通知設定の保存に失敗しました。" }),
+        )
+        void loadProfile()
+      }
+    },
+    [userId, supabase, isAdmin, loadProfile],
+  )
+
+  const handleEmailNotificationMasterChange = useCallback(
+    async (enabled: boolean) => {
+      if (emailNotificationSaving || profileLoading || !userId) {
+        return
+      }
+      const next = enabled
+        ? { ...DEFAULT_EMAIL_NOTIFICATION_SETTINGS }
+        : coerceEmailNotificationSettingsForSave({ ...emailNotificationSettings, master: false })
+      await persistEmailNotificationSettings(next)
+    },
+    [
+      emailNotificationSaving,
+      profileLoading,
+      userId,
+      emailNotificationSettings,
+      persistEmailNotificationSettings,
+    ],
+  )
+
+  const handleEmailNotificationTopicChange = useCallback(
+    async (key: EmailNotificationTopicKey, enabled: boolean) => {
+      if (emailNotificationSaving || profileLoading || !userId || !emailNotificationSettings.master) {
+        return
+      }
+      await persistEmailNotificationSettings({
+        ...emailNotificationSettings,
+        [key]: enabled,
+      })
+    },
+    [emailNotificationSaving, profileLoading, userId, emailNotificationSettings, persistEmailNotificationSettings],
+  )
+
+  const deferProfileFetchForStripeReturn = section === "payout" && stripeReturnParam === "return"
 
   useEffect(() => {
     if (!userId) {
       return
     }
-    // プロフィール情報が必要なタブに入ったときのみ取得する。
-    if (section === "profile" || section === "payout" || section === "reviews" || section === "account") {
-      /**
-       * Stripe オンボーディング復帰（?stripe=return）時は、ここで loadProfile すると
-       * checkAndFinalizeStripeStatus より先に古い行が読まれ profileLoading が false になり、
-       * 未登録 UI が一瞬出たり最後に勝つ競合が起きる。同期は下の finalize 専用フローだけが行う。
-       */
-      if (section === "payout" && stripeReturnParam === "return") {
-        return
-      }
-      void loadProfile()
+    /**
+     * Stripe オンボーディング復帰（?stripe=return）時は、ここで loadProfile すると
+     * checkAndFinalizeStripeStatus より先に古い行が読まれ profileLoading が false になり、
+     * 未登録 UI が一瞬出たり最後に勝つ競合が起きる。同期は finalize 専用フローだけが行う。
+     */
+    if (deferProfileFetchForStripeReturn) {
+      return
     }
-  }, [userId, section, loadProfile, stripeReturnParam])
+    void loadProfile()
+  }, [userId, loadProfile, deferProfileFetchForStripeReturn])
 
   useEffect(() => {
     if (!userId || section !== "payout") {
@@ -858,6 +943,27 @@ export default function MypageClient() {
       })
     }
   }, [isAdmin])
+
+  /** 登録済み: 講師登録確認モーダルを出さずダッシュボードへ */
+  const handleStripeDashboardOpen = useCallback(async () => {
+    if (payoutLinkBusy || profileLoading) {
+      return
+    }
+    setPayoutLinkBusy(true)
+    try {
+      const url = await getStripeExpressDashboardUrl()
+      window.location.assign(url)
+    } catch (err) {
+      setPayoutLinkBusy(false)
+      const raw = err instanceof Error ? err.message : String(err)
+      setNotice({
+        variant: "error",
+        message: isAdmin
+          ? raw || "Stripe ダッシュボードを開けませんでした。"
+          : "Stripe ダッシュボードを開けませんでした。時間を置いて再度お試しください。",
+      })
+    }
+  }, [isAdmin, payoutLinkBusy, profileLoading])
 
   const handleOpenStripeOnboardingConfirm = useCallback(() => {
     if (payoutLinkBusy || profileLoading) {
@@ -1892,7 +1998,9 @@ export default function MypageClient() {
   }, [section])
 
   const shouldBlockByProfileLoading =
-    userId != null && (section === "profile" || section === "payout" || section === "reviews") && profileLoading
+    userId != null &&
+    (section === "profile" || section === "payout" || section === "reviews" || section === "account") &&
+    profileLoading
   const primaryMenu = useMemo(() => {
     const baseMenu = currentMode === "instructor" ? INSTRUCTOR_PRIMARY_MENU : STUDENT_PRIMARY_MENU
     if (!isBannedUser) {
@@ -2992,7 +3100,7 @@ export default function MypageClient() {
                       type="button"
                       className="bg-red-600 text-white hover:bg-red-500"
                       disabled={payoutLinkBusy || profileLoading}
-                      onClick={handleOpenStripeOnboardingConfirm}
+                      onClick={() => void handleStripeDashboardOpen()}
                     >
                       {payoutLinkBusy ? (
                         <>
@@ -3123,6 +3231,70 @@ export default function MypageClient() {
                 </div>
 
                 <div className="mt-8 border-t border-zinc-800 pt-8">
+                  <h2 className="text-sm font-semibold text-zinc-200">メール通知</h2>
+                  <p className="mt-2 text-sm leading-relaxed text-zinc-400">
+                    登録メール宛の通知の受信設定です。初期状態はすべてオンです。オフにした項目はメールを送りません。
+                    ヘッダーの通知やマイページのお知らせなど<strong className="font-semibold text-zinc-300">アプリ内通知は、ここがオンでもオフでも常に届きます</strong>
+                    。「メール通知」をオフにするとメールはすべて止まり、種類のトグルもオフ表示になります。
+                  </p>
+                  <div className="mt-4 flex items-center justify-between rounded-xl border border-zinc-700 bg-zinc-950/60 px-4 py-3">
+                    <span className="text-sm font-medium text-zinc-200">メール通知</span>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={emailNotificationSettings.master}
+                      aria-label="メール通知を受け取る"
+                      disabled={profileLoading || emailNotificationSaving}
+                      onClick={() => void handleEmailNotificationMasterChange(!emailNotificationSettings.master)}
+                      className="flex h-8 w-14 shrink-0 items-center rounded-full bg-red-600 px-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 disabled:opacity-60"
+                    >
+                      <span
+                        className={`block h-6 w-6 rounded-full bg-white shadow-md transition-[margin] duration-200 ease-out ${
+                          emailNotificationSettings.master ? "ml-auto" : "ml-0"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  <ul className="mt-4 space-y-3">
+                    {EMAIL_NOTIFICATION_TOPIC_ITEMS.map((item) => {
+                      const disabled =
+                        profileLoading || emailNotificationSaving || !emailNotificationSettings.master
+                      const checked = emailNotificationSettings.master && emailNotificationSettings[item.key]
+                      return (
+                        <li
+                          key={item.key}
+                          className={`flex items-start justify-between gap-3 rounded-xl border px-4 py-3 ${
+                            disabled ? "border-zinc-800 bg-zinc-950/40 opacity-70" : "border-zinc-700 bg-zinc-950/60"
+                          }`}
+                        >
+                          <div className="min-w-0 pt-0.5">
+                            <p className="text-sm font-medium text-zinc-200">{item.label}</p>
+                            {item.hint ? (
+                              <p className="mt-1 text-xs leading-relaxed text-zinc-500">{item.hint}</p>
+                            ) : null}
+                          </div>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={checked}
+                            aria-label={`${item.label}のメールを受け取る`}
+                            disabled={disabled}
+                            onClick={() => void handleEmailNotificationTopicChange(item.key, !checked)}
+                            className="mt-0.5 flex h-8 w-14 shrink-0 items-center rounded-full bg-red-600 px-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 disabled:opacity-60"
+                          >
+                            <span
+                              className={`block h-6 w-6 rounded-full bg-white shadow-md transition-[margin] duration-200 ease-out ${
+                                checked ? "ml-auto" : "ml-0"
+                              }`}
+                            />
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+
+                <div className="mt-8 border-t border-zinc-800 pt-8">
                   <h2 className="text-sm font-semibold text-zinc-200">セッション</h2>
                   <p className="mt-2 text-sm leading-relaxed text-zinc-400">
                     ログアウトすると、このブラウザでのログイン状態が解除されます。
@@ -3222,7 +3394,7 @@ export default function MypageClient() {
         >
           <Loader2 className="h-10 w-10 shrink-0 animate-spin text-red-500" aria-hidden />
           <div className="max-w-md space-y-2">
-            <p className="text-base font-bold text-white">Stripe の登録画面を準備しています</p>
+            <p className="text-base font-bold text-white">Stripe の画面を準備しています</p>
             <p className="text-sm leading-relaxed text-zinc-300">
               しばらくすると Stripe のサイトへ移動します。この画面のままお待ちください。
             </p>

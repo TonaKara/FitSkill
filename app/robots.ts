@@ -1,8 +1,8 @@
 import type { MetadataRoute } from "next"
-
-const SITE = "https://gritvib.com"
+import { getSiteUrl } from "@/lib/site-seo"
 
 export default function robots(): MetadataRoute.Robots {
+  const site = getSiteUrl().replace(/\/$/, "")
   return {
     rules: {
       userAgent: "*",
@@ -19,7 +19,7 @@ export default function robots(): MetadataRoute.Robots {
         "/maintenance",
       ],
     },
-    sitemap: `${SITE}/sitemap.xml`,
-    host: SITE,
+    sitemap: `${site}/sitemap.xml`,
+    host: site,
   }
 }

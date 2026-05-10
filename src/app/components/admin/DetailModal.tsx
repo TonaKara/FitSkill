@@ -61,7 +61,6 @@ export function DetailModal({
           setAttachmentUrl(null)
           setAttachmentSecurityBlocked(false)
         }
-        console.log("Image URL:", null)
         return
       }
 
@@ -77,7 +76,6 @@ export function DetailModal({
         return
       }
       const imageUrl = data?.signedUrl ?? null
-      console.log("生成されたURL:", imageUrl)
       if (!imageUrl) {
         if (!cancelled) {
           setAttachmentUrl(null)

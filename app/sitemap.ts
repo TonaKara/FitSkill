@@ -1,20 +1,20 @@
 import type { MetadataRoute } from "next"
 import { fetchPublishedSkillIds } from "../src/lib/published-skill-ids"
-import { SITE_URL } from "@/lib/site-seo"
+import { getSiteUrl } from "@/lib/site-seo"
 
 /** Supabase 等 Node API を安全に使う（Edge だと生成失敗して HTML エラーになることがある） */
 export const runtime = "nodejs"
 
-function staticEntries(lastModified: Date): MetadataRoute.Sitemap {
+function staticEntries(site: string, lastModified: Date): MetadataRoute.Sitemap {
   return [
-    { url: SITE_URL, lastModified, changeFrequency: "daily", priority: 1 },
-    { url: `${SITE_URL}/about`, lastModified, changeFrequency: "monthly", priority: 0.8 },
-    { url: `${SITE_URL}/guide`, lastModified, changeFrequency: "monthly", priority: 0.8 },
-    { url: `${SITE_URL}/contact`, lastModified, changeFrequency: "monthly", priority: 0.6 },
-    { url: `${SITE_URL}/legal/terms`, lastModified, changeFrequency: "yearly", priority: 0.3 },
-    { url: `${SITE_URL}/legal/privacy-policy`, lastModified, changeFrequency: "yearly", priority: 0.3 },
+    { url: site, lastModified, changeFrequency: "daily", priority: 1 },
+    { url: `${site}/about`, lastModified, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${site}/guide`, lastModified, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${site}/contact`, lastModified, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${site}/legal/terms`, lastModified, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${site}/legal/privacy-policy`, lastModified, changeFrequency: "yearly", priority: 0.3 },
     {
-      url: `${SITE_URL}/legal/specified-commercial-transactions`,
+      url: `${site}/legal/specified-commercial-transactions`,
       lastModified,
       changeFrequency: "yearly",
       priority: 0.3,
@@ -23,13 +23,14 @@ function staticEntries(lastModified: Date): MetadataRoute.Sitemap {
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const site = getSiteUrl().replace(/\/$/, "")
   const lastModified = new Date()
-  const base = staticEntries(lastModified)
+  const base = staticEntries(site, lastModified)
 
   try {
     const skillIds = await fetchPublishedSkillIds()
     const skillUrls: MetadataRoute.Sitemap = skillIds.map((id) => ({
-      url: `${SITE_URL}/skills/${id}`,
+      url: `${site}/skills/${id}`,
       lastModified,
       changeFrequency: "weekly" as const,
       priority: 0.9,

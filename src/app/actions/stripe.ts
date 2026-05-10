@@ -4,6 +4,7 @@ import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import Stripe from "stripe"
 import { assertStripeConnectAccountOwnership } from "@/lib/stripe-account-ownership"
+import { getAppBaseUrl, getSiteUrl } from "@/lib/site-seo"
 
 type StripeProfileRow = {
   stripe_connect_account_id: string | null
@@ -13,7 +14,6 @@ const STRIPE_ONBOARDING_DEFAULTS = {
   country: "JP" as const,
   businessType: "individual" as const,
   mcc: "8299", // 教育 > その他
-  websiteUrl: "https://gritvib.com",
   productDescription: "フィットネスの知識や技術を共有します。",
 }
 
@@ -25,7 +25,8 @@ function getStripeClient() {
   return new Stripe(secretKey)
 }
 
-async function disableAutomaticPayouts(
+/** Connect 口座の銀行への振込スケジュールを日次自動に統一（新規・既存ともドリフト防止で再適用） */
+async function setConnectedAccountPayoutScheduleDaily(
   stripe: Stripe,
   accountId: string,
 ): Promise<void> {
@@ -33,7 +34,7 @@ async function disableAutomaticPayouts(
     settings: {
       payouts: {
         schedule: {
-          interval: "manual",
+          interval: "daily",
         },
       },
     },
@@ -74,7 +75,8 @@ export async function getStripeOnboardingUrl(consented: boolean) {
 
   const { supabase, user } = await getAuthedSupabase()
   const stripe = getStripeClient()
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
+  const baseUrl = getAppBaseUrl()
+  const publicSiteUrl = getSiteUrl()
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
@@ -93,7 +95,7 @@ export async function getStripeOnboardingUrl(consented: boolean) {
       business_type: STRIPE_ONBOARDING_DEFAULTS.businessType,
       business_profile: {
         mcc: STRIPE_ONBOARDING_DEFAULTS.mcc,
-        url: STRIPE_ONBOARDING_DEFAULTS.websiteUrl,
+        url: publicSiteUrl,
         product_description: STRIPE_ONBOARDING_DEFAULTS.productDescription,
       },
       individual: {
@@ -105,7 +107,7 @@ export async function getStripeOnboardingUrl(consented: boolean) {
     })
     accountId = account.id
 
-    await disableAutomaticPayouts(stripe, accountId)
+    await setConnectedAccountPayoutScheduleDaily(stripe, accountId)
 
     const { error: updateError } = await supabase
       .from("profiles")
@@ -116,8 +118,8 @@ export async function getStripeOnboardingUrl(consented: boolean) {
     }
   }
 
-  // オンボーディングに進む時点で、自動振込を常に無効化しておく。
-  // 既存口座にも毎回適用することで、設定ドリフトを防ぐ。
+  // オンボーディングに進む前に、振込スケジュールを日次にそろえる。
+  // 既存口座にも毎回適用して設定ドリフトを防ぐ。
   await assertStripeConnectAccountOwnership({
     stripe,
     accountId,
@@ -127,7 +129,7 @@ export async function getStripeOnboardingUrl(consented: boolean) {
     business_type: STRIPE_ONBOARDING_DEFAULTS.businessType,
     business_profile: {
       mcc: STRIPE_ONBOARDING_DEFAULTS.mcc,
-      url: STRIPE_ONBOARDING_DEFAULTS.websiteUrl,
+      url: publicSiteUrl,
       product_description: STRIPE_ONBOARDING_DEFAULTS.productDescription,
     },
     individual: {
@@ -136,7 +138,7 @@ export async function getStripeOnboardingUrl(consented: boolean) {
       },
     },
   })
-  await disableAutomaticPayouts(stripe, accountId)
+  await setConnectedAccountPayoutScheduleDaily(stripe, accountId)
 
   const accountLink = await stripe.accountLinks.create({
     account: accountId,
@@ -145,8 +147,38 @@ export async function getStripeOnboardingUrl(consented: boolean) {
     refresh_url: `${baseUrl}/mypage?tab=payout&mode=instructor&stripe=return`,
   })
 
-  console.log("[Stripe onboarding URL]", accountLink.url)
   return accountLink.url
+}
+
+/**
+ * オンボーディング済みの講師が Stripe Express ダッシュボードを開くとき用（確認モーダル不要）。
+ */
+export async function getStripeExpressDashboardUrl() {
+  const { supabase, user } = await getAuthedSupabase()
+  const stripe = getStripeClient()
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("stripe_connect_account_id")
+    .eq("id", user.id)
+    .single<StripeProfileRow>()
+  if (profileError) {
+    throw new Error(profileError.message)
+  }
+
+  const accountId = profile?.stripe_connect_account_id?.trim() || ""
+  if (!accountId) {
+    throw new Error("Stripe Connect の口座が見つかりません。")
+  }
+
+  await assertStripeConnectAccountOwnership({
+    stripe,
+    accountId,
+    expectedUserId: user.id,
+  })
+
+  const loginLink = await stripe.accounts.createLoginLink(accountId)
+  return loginLink.url
 }
 
 export async function checkAndFinalizeStripeStatus() {
@@ -199,7 +231,7 @@ export async function checkAndFinalizeStripeStatus() {
     return { finalized: false }
   }
 
-  await disableAutomaticPayouts(stripe, accountId)
+  await setConnectedAccountPayoutScheduleDaily(stripe, accountId)
 
   const { error: updateError } = await supabase
     .from("profiles")

@@ -248,12 +248,6 @@ export async function autoCompleteTransactions(
         // メール通知失敗で自動完了処理を失敗扱いにしない
       }
     }
-    // TODO: Send notification
-    console.log("[Notification] ステータスが変更されました", {
-      changedTo: "completed",
-      reason: "auto_complete_timeout",
-      count: updatedCount,
-    })
   }
 
   return updatedCount

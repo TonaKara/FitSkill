@@ -1,6 +1,11 @@
+/**
+ * イベントに応じた **メール（Resend）** のみを送る API。
+ * アプリ内 `notifications` は呼び出し元で作成済みであること（設定のオンオフはメールにのみ適用）。
+ */
 import { createClient } from "@supabase/supabase-js"
 import { requireApiUser } from "@/lib/api-auth"
-import { getAppUrl, sendUserEventEmail } from "@/lib/event-email"
+import { sendUserEventEmail } from "@/lib/event-email"
+import { getAppBaseUrl } from "@/lib/site-seo"
 
 type Body = {
   event?:
@@ -53,7 +58,7 @@ export async function POST(req: Request) {
     const { user } = auth.context
     const body = (await req.json()) as Body
     const event = String(body.event ?? "").trim()
-    const appUrl = getAppUrl().replace(/\/$/, "")
+    const appUrl = getAppBaseUrl()
 
     if (event === "consultation_received") {
       const answerId = String(body.answerId ?? "").trim()
@@ -66,6 +71,7 @@ export async function POST(req: Request) {
       const answer = data as { buyer_id?: string; seller_id?: string; skill_id?: number | string } | null
       if (!answer || answer.buyer_id !== user.id) return Response.json({ error: "forbidden" }, { status: 403 })
       await sendUserEventEmail({
+        topic: "consultation_offer",
         userId: String(answer.seller_id ?? ""),
         subject: "【GritVib】新しい事前オファーが届きました",
         heading: "事前オファー通知",
@@ -91,6 +97,7 @@ export async function POST(req: Request) {
       const answer = data as { buyer_id?: string; seller_id?: string; skill_id?: number | string; status?: string } | null
       if (!answer || answer.seller_id !== user.id) return Response.json({ error: "forbidden" }, { status: 403 })
       await sendUserEventEmail({
+        topic: "consultation_decision",
         userId: String(answer.buyer_id ?? ""),
         subject: `【GritVib】事前オファーが${decision === "accepted" ? "承認" : "拒否"}されました`,
         heading: `事前オファー${decision === "accepted" ? "承認" : "拒否"}通知`,
@@ -117,6 +124,7 @@ export async function POST(req: Request) {
       if (user.id !== tx.buyer_id && user.id !== tx.seller_id) return Response.json({ error: "forbidden" }, { status: 403 })
       const recipientId = user.id === tx.buyer_id ? String(tx.seller_id ?? "") : String(tx.buyer_id ?? "")
       await sendUserEventEmail({
+        topic: "transaction_chat",
         userId: recipientId,
         subject: "【GritVib】取引チャットに新しいメッセージが届きました",
         heading: "取引チャット通知",
@@ -141,6 +149,7 @@ export async function POST(req: Request) {
       const chatUrl = `${appUrl}/chat/${encodeURIComponent(transactionId)}`
       await Promise.all([
         sendUserEventEmail({
+          topic: "transaction_established",
           userId: String(tx.seller_id ?? ""),
           subject: "【GritVib】取引が成立しました",
           heading: "取引成立通知",
@@ -149,6 +158,7 @@ export async function POST(req: Request) {
           ctaUrl: chatUrl,
         }),
         sendUserEventEmail({
+          topic: "transaction_established",
           userId: String(tx.buyer_id ?? ""),
           subject: "【GritVib】取引が成立しました",
           heading: "取引成立通知",
@@ -171,6 +181,7 @@ export async function POST(req: Request) {
       const tx = data as { buyer_id?: string; seller_id?: string } | null
       if (!tx || user.id !== tx.seller_id) return Response.json({ error: "forbidden" }, { status: 403 })
       await sendUserEventEmail({
+        topic: "completion_request",
         userId: String(tx.buyer_id ?? ""),
         subject: "【GritVib】取引完了申請が届きました",
         heading: "取引完了申請通知",
@@ -198,6 +209,7 @@ export async function POST(req: Request) {
       const chatUrl = `${appUrl}/chat/${encodeURIComponent(transactionId)}`
       await Promise.all([
         sendUserEventEmail({
+          topic: "transaction_completed",
           userId: String(tx.buyer_id ?? ""),
           subject: "【GritVib】取引が完了しました",
           heading: "取引完了通知",
@@ -206,6 +218,7 @@ export async function POST(req: Request) {
           ctaUrl: chatUrl,
         }),
         sendUserEventEmail({
+          topic: "transaction_completed",
           userId: String(tx.seller_id ?? ""),
           subject: "【GritVib】取引が完了しました",
           heading: "取引完了通知",
@@ -242,6 +255,7 @@ export async function POST(req: Request) {
           : "異議申し立ては棄却され、取引は完了しました。"
       await Promise.all([
         sendUserEventEmail({
+          topic: "dispute_result",
           userId: String(tx.buyer_id ?? ""),
           subject,
           heading: "異議申し立て結果通知",
@@ -250,6 +264,7 @@ export async function POST(req: Request) {
           ctaUrl: `${appUrl}/chat/${encodeURIComponent(transactionId)}`,
         }),
         sendUserEventEmail({
+          topic: "dispute_result",
           userId: String(tx.seller_id ?? ""),
           subject,
           heading: "異議申し立て結果通知",
@@ -268,6 +283,7 @@ export async function POST(req: Request) {
       const admin = await isAdminUser(supabaseAdmin, user.id)
       if (!admin) return Response.json({ error: "forbidden" }, { status: 403 })
       await sendUserEventEmail({
+        topic: "account_notice",
         userId: targetUserId,
         subject: "【GritVib】アカウント利用制限のお知らせ",
         heading: "アカウント利用制限通知",
@@ -292,6 +308,7 @@ export async function POST(req: Request) {
       const skill = data as { user_id?: string | null; title?: string | null; id?: string | number } | null
       if (!skill?.user_id) return Response.json({ error: "skill owner not found" }, { status: 404 })
       await sendUserEventEmail({
+        topic: "account_notice",
         userId: skill.user_id,
         subject: `【GritVib】商品が${action === "deleted" ? "削除" : "非公開"}されました`,
         heading: "商品モデレーション通知",

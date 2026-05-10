@@ -2,9 +2,16 @@ import "server-only"
 
 import { createClient } from "@supabase/supabase-js"
 import { Resend } from "resend"
+import {
+  type EmailNotificationTopicKey,
+  parseEmailNotificationSettings,
+  shouldSendEmailForTopic,
+} from "@/lib/email-notification-settings"
 
 type SendUserEventEmailParams = {
   userId: string
+  /** ユーザー別メール通知設定でフィルタする種別 */
+  topic: EmailNotificationTopicKey
   subject: string
   heading: string
   intro: string
@@ -71,10 +78,10 @@ function renderHtml(params: {
 </html>`
 }
 
-export function getAppUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL ?? "https://gritvib.com"
-}
-
+/**
+ * 取引・相談などのイベントメールを Resend で送信する。
+ * メール送信のみ {@link shouldSendEmailForTopic} でフィルタする。アプリ内通知は呼び出し側で常に行うこと。
+ */
 export async function sendUserEventEmail(params: SendUserEventEmailParams): Promise<void> {
   const userId = params.userId.trim()
   if (!userId) {
@@ -86,7 +93,18 @@ export async function sendUserEventEmail(params: SendUserEventEmailParams): Prom
     return
   }
 
-  const userResult = await supabaseAdmin.auth.admin.getUserById(userId)
+  const [{ data: prefRow }, userResult] = await Promise.all([
+    supabaseAdmin.from("profiles").select("email_notification_settings").eq("id", userId).maybeSingle(),
+    supabaseAdmin.auth.admin.getUserById(userId),
+  ])
+  const prefs = parseEmailNotificationSettings(
+    (prefRow as { email_notification_settings?: unknown } | null)?.email_notification_settings,
+  )
+  // メール（Resend）のみスキップ。notifications への insert は各 API／クライアントが別途実行済みであること。
+  if (!shouldSendEmailForTopic(prefs, params.topic)) {
+    return
+  }
+
   const to = userResult.data.user?.email?.trim() ?? ""
   if (!to) {
     return

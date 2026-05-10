@@ -3,7 +3,8 @@
 import { createServerClient } from "@supabase/ssr"
 import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
-import { getAppUrl, sendUserEventEmail } from "@/lib/event-email"
+import { sendUserEventEmail } from "@/lib/event-email"
+import { getAppBaseUrl } from "@/lib/site-seo"
 
 type AdminProfileRow = {
   is_admin: boolean | null
@@ -146,10 +147,11 @@ export async function completeTransactionWithPayout(
     }
   }
 
-  const chatUrl = `${getAppUrl().replace(/\/$/, "")}/chat/${encodeURIComponent(tx.id)}`
+  const chatUrl = `${getAppBaseUrl()}/chat/${encodeURIComponent(tx.id)}`
 
   await Promise.all([
     sendUserEventEmail({
+      topic: "transaction_completed",
       userId: tx.buyer_id,
       subject: "【GritVib】取引が完了しました",
       heading: "取引完了通知",
@@ -158,6 +160,7 @@ export async function completeTransactionWithPayout(
       ctaUrl: chatUrl,
     }),
     sendUserEventEmail({
+      topic: "transaction_completed",
       userId: tx.seller_id,
       subject: "【GritVib】取引が完了しました",
       heading: "取引完了通知",
@@ -170,6 +173,7 @@ export async function completeTransactionWithPayout(
   if (mode === "dispute_rejection") {
     await Promise.all([
       sendUserEventEmail({
+        topic: "dispute_result",
         userId: tx.buyer_id,
         subject: "【GritVib】異議申し立てが棄却されました",
         heading: "異議申し立て結果通知",
@@ -178,6 +182,7 @@ export async function completeTransactionWithPayout(
         ctaUrl: chatUrl,
       }),
       sendUserEventEmail({
+        topic: "dispute_result",
         userId: tx.seller_id,
         subject: "【GritVib】異議申し立てが棄却されました",
         heading: "異議申し立て結果通知",

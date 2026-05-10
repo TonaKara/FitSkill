@@ -354,13 +354,6 @@ export async function sendAdminNotification(
   params: CreateAnnouncementParams,
 ): Promise<{ error: NotificationError | null }> {
   const p_target_user_id = parseRpcTargetUserId(params.target_user_id)
-  if (p_target_user_id != null) {
-    console.debug("[sendAdminNotification] target_user_id is set (individual send)", {
-      p_target_user_id,
-    })
-  } else {
-    console.debug("[sendAdminNotification] global send (target_user_id omitted)")
-  }
   const p_reason = parseRpcReason(params.reason)
   const rpcArgs: CreateAnnouncementRpcPayload = {
     p_title: params.title,

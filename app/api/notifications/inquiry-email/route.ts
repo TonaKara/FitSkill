@@ -2,6 +2,11 @@
 import { createClient } from "@supabase/supabase-js"
 import { Resend } from "resend"
 import { requireApiUser } from "@/lib/api-auth"
+import {
+  parseEmailNotificationSettings,
+  shouldSendEmailForTopic,
+} from "@/lib/email-notification-settings"
+import { getAppBaseUrl } from "@/lib/site-seo"
 import InquiryMessageEmail from "../../../../src/emails/InquiryMessageEmail"
 
 function getAdminSupabaseClient() {
@@ -76,9 +81,9 @@ export async function POST(req: Request) {
       admin.from("profiles").select("display_name").eq("id", msg.sender_id).maybeSingle<{ display_name: string | null }>(),
       admin
         .from("profiles")
-        .select("display_name")
+        .select("display_name, email_notification_settings")
         .eq("id", msg.recipient_id)
-        .maybeSingle<{ display_name: string | null }>(),
+        .maybeSingle<{ display_name: string | null; email_notification_settings?: unknown }>(),
       admin
         .from("skills")
         .select("title")
@@ -92,7 +97,13 @@ export async function POST(req: Request) {
       return Response.json({ ok: true, skipped: "recipient_email_not_found" })
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://gritvib.com"
+    const recipientPrefs = parseEmailNotificationSettings(recipientProfile?.email_notification_settings)
+    // 相談メール（Resend）のみ抑制。insertInquiryMessage 側のアプリ内通知は既に作成済み。
+    if (!shouldSendEmailForTopic(recipientPrefs, "inquiry_chat")) {
+      return Response.json({ ok: true, skipped: "recipient_email_notifications_disabled" })
+    }
+
+    const baseUrl = getAppBaseUrl()
     const chatUrl = `${baseUrl}/inquiry/${encodeURIComponent(msg.sender_id)}?skill_id=${encodeURIComponent(
       String(msg.origin_skill_id),
     )}`

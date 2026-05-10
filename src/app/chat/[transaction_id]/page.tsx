@@ -739,7 +739,6 @@ export default function ChatTransactionPage() {
       console.error("【既読更新エラー】:", error)
       return
     }
-    console.log("【既読更新成功】:", data)
     setMessages((prev) =>
       prev.map((m) =>
         m.sender_id !== userId && m.is_read === false ? { ...m, is_read: true } : m,

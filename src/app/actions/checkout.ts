@@ -6,9 +6,9 @@ import { cookies } from "next/headers"
 import Stripe from "stripe"
 import { canBuyerPurchaseSkill } from "@/lib/consultation"
 import { sendDiscordNotification } from "@/lib/discord"
-import { getAppUrl, sendUserEventEmail } from "@/lib/event-email"
+import { sendUserEventEmail } from "@/lib/event-email"
 import { SELLER_FEE_RATE } from "@/lib/seller-fee-preview"
-import { getSiteUrl } from "@/lib/site-seo"
+import { getAppBaseUrl, getSiteUrl } from "@/lib/site-seo"
 import { assertStripeConnectAccountOwnership } from "@/lib/stripe-account-ownership"
 
 type SkillRow = {
@@ -77,21 +77,6 @@ function getStripeClient() {
 function computeApplicationFeeAmount(totalAmountYen: number): number {
   // 規約の手数料率 15% を円単位で適用（小数点以下は切り捨て）
   return Math.floor(totalAmountYen * SELLER_FEE_RATE)
-}
-
-async function holdSellerPayoutsManually(
-  stripe: Stripe,
-  connectedAccountId: string,
-): Promise<void> {
-  await stripe.accounts.update(connectedAccountId, {
-    settings: {
-      payouts: {
-        schedule: {
-          interval: "manual",
-        },
-      },
-    },
-  })
 }
 
 function getSupabaseAdminClient() {
@@ -176,9 +161,10 @@ async function ensureSellerPurchaseNotification(params: {
     }
   }
 
-  const chatUrl = `${getAppUrl().replace(/\/$/, "")}/chat/${encodeURIComponent(transactionId)}`
+  const chatUrl = `${getAppBaseUrl()}/chat/${encodeURIComponent(transactionId)}`
   await Promise.all([
     sendUserEventEmail({
+      topic: "transaction_established",
       userId: sellerId,
       subject: "【GritVib】取引が成立しました",
       heading: "取引成立通知",
@@ -187,6 +173,7 @@ async function ensureSellerPurchaseNotification(params: {
       ctaUrl: chatUrl,
     }),
     sendUserEventEmail({
+      topic: "transaction_established",
       userId: buyerId,
       subject: "【GritVib】取引が成立しました",
       heading: "取引成立通知",
@@ -234,7 +221,7 @@ export async function createCheckoutSession(skillId: string | number): Promise<C
 
     const { supabase, user } = await getAuthedSupabase()
     const stripe = getStripeClient()
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
+    const appUrl = getAppBaseUrl()
 
     const { data: skill, error: skillError } = await supabase
       .from("skills")
@@ -300,10 +287,8 @@ export async function createCheckoutSession(skillId: string | number): Promise<C
     /**
      * Checkout は skill/buyer/seller を metadata に載せるのみ（事前の awaiting_payment 行は不要）。
      * 取引の INSERT / active 化は `finalizeCheckoutSessionAfterSuccess` に一本化する。
+     * 講師口座への振込スケジュールはオンボーディング時に日次へ設定済み（`stripe.ts`）。
      */
-    // 決済後の資金は講師Connect口座へ移しつつ、銀行振込は取引完了まで手動保留にする。
-    await holdSellerPayoutsManually(stripe, sellerConnectAccountId)
-
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items: [
@@ -328,7 +313,7 @@ export async function createCheckoutSession(skillId: string | number): Promise<C
         },
         metadata: {
           buyerId: user.id,
-          payout_policy: "destination_charge_manual_payout_hold_until_completion",
+          payout_policy: "destination_charge_daily_schedule",
           platform_fee_amount: String(applicationFeeAmount),
           skill_id: skill.id,
           buyer_id: user.id,

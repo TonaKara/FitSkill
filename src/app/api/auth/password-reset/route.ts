@@ -1,7 +1,6 @@
 import { createClient } from "@supabase/supabase-js"
 import { NextRequest, NextResponse } from "next/server"
-
-const RESET_REDIRECT_TO = "https://gritvib.com/auth/update-password"
+import { getAppBaseUrl } from "@/lib/site-seo"
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000
 const MAX_ATTEMPTS_PER_IP = 5
 const MAX_ATTEMPTS_PER_EMAIL = 3
@@ -83,7 +82,8 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    await supabase.auth.resetPasswordForEmail(email, { redirectTo: RESET_REDIRECT_TO })
+    const redirectTo = `${getAppBaseUrl()}/auth/update-password`
+    await supabase.auth.resetPasswordForEmail(email, { redirectTo })
   } catch {
     // アカウント有無や内部状態を推測されないよう、成功時と同一レスポンスにする。
   }
