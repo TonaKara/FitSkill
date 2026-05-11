@@ -13,6 +13,7 @@ export const EMAIL_NOTIFICATION_TOPIC_KEYS = [
   "transaction_established",
   "completion_request",
   "transaction_completed",
+  "checkout_refund",
   "dispute_result",
   "account_notice",
   "inquiry_chat",
@@ -32,6 +33,7 @@ export const DEFAULT_EMAIL_NOTIFICATION_SETTINGS: EmailNotificationSettings = {
   transaction_established: true,
   completion_request: true,
   transaction_completed: true,
+  checkout_refund: true,
   dispute_result: true,
   account_notice: true,
   inquiry_chat: true,
@@ -49,6 +51,11 @@ export const EMAIL_NOTIFICATION_TOPIC_ITEMS: {
   { key: "transaction_established", label: "取引の成立" },
   { key: "completion_request", label: "取引完了の申請", hint: "出品者から完了申請があったとき（受講者向け）" },
   { key: "transaction_completed", label: "取引の完了" },
+  {
+    key: "checkout_refund",
+    label: "購入時の自動返金",
+    hint: "申し込み枠の確保に失敗し、お支払いが自動返金されたとき",
+  },
   { key: "dispute_result", label: "異議申し立ての審査結果" },
   {
     key: "account_notice",

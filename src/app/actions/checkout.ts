@@ -4,11 +4,17 @@ import { createServerClient } from "@supabase/ssr"
 import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import Stripe from "stripe"
+import {
+  attachSkillCheckoutReservationSession,
+  claimSkillApplicationAfterPayment,
+  refundStripePaymentIntent,
+  releaseSkillCheckoutReservation,
+  reserveSkillCheckoutSlot,
+} from "@/lib/checkout-fulfillment"
 import { canBuyerPurchaseSkill } from "@/lib/consultation"
-import { sendDiscordNotification } from "@/lib/discord"
-import { sendUserEventEmail } from "@/lib/event-email"
+import { ensureSellerPurchaseNotification, notifyBuyerCheckoutRefunded } from "@/lib/purchase-notification"
 import { SELLER_FEE_RATE } from "@/lib/seller-fee-preview"
-import { getAppBaseUrl, getSiteUrl } from "@/lib/site-seo"
+import { getAppBaseUrl } from "@/lib/site-seo"
 import { assertStripeConnectAccountOwnership } from "@/lib/stripe-account-ownership"
 
 type SkillRow = {
@@ -40,32 +46,6 @@ type FinalizeCheckoutSessionResult =
       error: string
     }
 
-function isMissingStripePaymentIntentColumnError(message: string): boolean {
-  const normalized = String(message ?? "").toLowerCase()
-  return normalized.includes("stripe_payment_intent_id") && normalized.includes("could not find")
-}
-
-async function findTransactionByPaymentIntent(params: {
-  supabaseAdmin: ReturnType<typeof getSupabaseAdminClient>
-  paymentIntentId: string | null
-}) {
-  const { supabaseAdmin, paymentIntentId } = params
-  if (!paymentIntentId) {
-    return null
-  }
-  const { data, error } = await supabaseAdmin
-    .from("transactions")
-    .select("id, status")
-    .eq("stripe_payment_intent_id", paymentIntentId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  if (error) {
-    throw new Error(error.message)
-  }
-  return data as { id?: string; status?: string } | null
-}
-
 function getStripeClient() {
   const secretKey = process.env.STRIPE_SECRET_KEY
   if (!secretKey) {
@@ -86,102 +66,6 @@ function getSupabaseAdminClient() {
     throw new Error("Supabase admin environment variables are missing")
   }
   return createClient(supabaseUrl, serviceRoleKey)
-}
-
-async function ensureSellerPurchaseNotification(params: {
-  supabaseAdmin: ReturnType<typeof getSupabaseAdminClient>
-  transactionId: string
-  sellerId: string
-  buyerId: string
-  skillId: string
-}) {
-  const { supabaseAdmin, transactionId, sellerId, buyerId, skillId } = params
-
-  const { data: existingNotification, error: existingNotificationError } = await supabaseAdmin
-    .from("notifications")
-    .select("id")
-    .eq("recipient_id", sellerId)
-    .eq("type", "purchase")
-    .eq("reason", `transaction_id:${transactionId}`)
-    .limit(1)
-    .maybeSingle()
-
-  if (existingNotificationError) {
-    throw new Error(existingNotificationError.message)
-  }
-
-  if (existingNotification?.id) {
-    return
-  }
-
-  const { error: notificationInsertError } = await supabaseAdmin.from("notifications").insert({
-    recipient_id: sellerId,
-    sender_id: buyerId,
-    type: "purchase",
-    title: "新しい購入",
-    reason: `transaction_id:${transactionId}`,
-    content: "あなたのスキルに新しい購入がありました。チャットを確認してください。",
-    is_admin_origin: false,
-    is_read: false,
-  })
-
-  if (notificationInsertError) {
-    throw new Error(notificationInsertError.message)
-  }
-
-  const webhookUrl = process.env.DISCORD_WEBHOOK_PURCHASE?.trim() ?? ""
-  if (webhookUrl) {
-    try {
-      const [{ data: buyerProfile }, { data: sellerProfile }, { data: skillRow }] = await Promise.all([
-        supabaseAdmin.from("profiles").select("display_name").eq("id", buyerId).maybeSingle(),
-        supabaseAdmin.from("profiles").select("display_name").eq("id", sellerId).maybeSingle(),
-        supabaseAdmin.from("skills").select("title").eq("id", skillId).maybeSingle(),
-      ])
-      const buyerName =
-        ((buyerProfile as { display_name?: string | null } | null)?.display_name ?? "").trim() || buyerId
-      const sellerName =
-        ((sellerProfile as { display_name?: string | null } | null)?.display_name ?? "").trim() || sellerId
-      const skillTitle = ((skillRow as { title?: string | null } | null)?.title ?? "").trim() || skillId
-      const baseUrl = getSiteUrl().replace(/\/$/, "")
-      const chatUrl = `${baseUrl}/chat/${encodeURIComponent(transactionId)}`
-      const adminUrl = `${baseUrl}/admin`
-      await sendDiscordNotification(
-        webhookUrl,
-        [
-          "🛒 **取引開始（購入）**",
-          `- 購入者: ${buyerName}`,
-          `- 講師: ${sellerName}`,
-          `- 商品: ${skillTitle}`,
-          `- 取引チャット: ${chatUrl}`,
-          `- 管理画面: ${adminUrl}`,
-        ].join("\n"),
-      )
-    } catch (discordError) {
-      console.error("[checkout] discord purchase notification failed", discordError)
-    }
-  }
-
-  const chatUrl = `${getAppBaseUrl()}/chat/${encodeURIComponent(transactionId)}`
-  await Promise.all([
-    sendUserEventEmail({
-      topic: "transaction_established",
-      userId: sellerId,
-      subject: "【GritVib】取引が成立しました",
-      heading: "取引成立通知",
-      intro: "あなたのスキルが購入され、取引が開始されました。",
-      ctaLabel: "取引チャットを開く",
-      ctaUrl: chatUrl,
-    }),
-    sendUserEventEmail({
-      topic: "transaction_established",
-      userId: buyerId,
-      subject: "【GritVib】取引が成立しました",
-      heading: "取引成立通知",
-      intro: "購入手続きが完了し、取引が開始されました。",
-      ctaLabel: "取引チャットを開く",
-      ctaUrl: chatUrl,
-    }),
-  ])
 }
 
 async function getAuthedSupabase() {
@@ -220,6 +104,7 @@ export async function createCheckoutSession(skillId: string | number): Promise<C
     }
 
     const { supabase, user } = await getAuthedSupabase()
+    const supabaseAdmin = getSupabaseAdminClient()
     const stripe = getStripeClient()
     const appUrl = getAppBaseUrl()
 
@@ -250,6 +135,16 @@ export async function createCheckoutSession(skillId: string | number): Promise<C
       }
       return { ok: false, error: "このスキルは事前相談の承認後に購入できます。" }
     }
+
+    const reservationResult = await reserveSkillCheckoutSlot(supabaseAdmin, {
+      skillId: skill.id,
+      buyerId: user.id,
+      sellerId: skill.user_id,
+    })
+    if (!reservationResult.ok) {
+      return { ok: false, error: reservationResult.errorMessage }
+    }
+    const reservationId = reservationResult.reservationId
 
     const amount = Math.max(0, Math.round(Number(skill.price)))
     if (amount < 1) {
@@ -285,52 +180,64 @@ export async function createCheckoutSession(skillId: string | number): Promise<C
     })
 
     /**
-     * Checkout は skill/buyer/seller を metadata に載せるのみ（事前の awaiting_payment 行は不要）。
-     * 取引の INSERT / active 化は `finalizeCheckoutSessionAfterSuccess` に一本化する。
+     * Checkout 開始時に仮押さえを確保し、決済完了後は RPC で取引を確定する。
      * 講師口座への振込スケジュールはオンボーディング時に日次へ設定済み（`stripe.ts`）。
      */
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: "jpy",
-            unit_amount: amount,
-            product_data: {
-              name: skill.title,
+    let session: Stripe.Checkout.Session
+    try {
+      session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: "jpy",
+              unit_amount: amount,
+              product_data: {
+                name: skill.title,
+              },
             },
           },
-        },
-      ],
-      success_url: `${appUrl}/skills/${skill.id}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appUrl}/skills/${skill.id}?checkout=cancel`,
-      payment_intent_data: {
-        capture_method: "automatic",
-        application_fee_amount: applicationFeeAmount,
-        transfer_data: {
-          destination: sellerConnectAccountId,
+        ],
+        success_url: `${appUrl}/skills/${skill.id}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${appUrl}/skills/${skill.id}?checkout=cancel`,
+        payment_intent_data: {
+          capture_method: "automatic",
+          application_fee_amount: applicationFeeAmount,
+          transfer_data: {
+            destination: sellerConnectAccountId,
+          },
+          metadata: {
+            buyerId: user.id,
+            payout_policy: "destination_charge_daily_schedule",
+            platform_fee_amount: String(applicationFeeAmount),
+            skill_id: skill.id,
+            buyer_id: user.id,
+            seller_id: skill.user_id,
+            checkout_reservation_id: reservationId,
+          },
         },
         metadata: {
           buyerId: user.id,
-          payout_policy: "destination_charge_daily_schedule",
-          platform_fee_amount: String(applicationFeeAmount),
           skill_id: skill.id,
           buyer_id: user.id,
           seller_id: skill.user_id,
+          amount: String(amount),
+          checkout_reservation_id: reservationId,
         },
-      },
-      metadata: {
-        buyerId: user.id,
-        skill_id: skill.id,
-        buyer_id: user.id,
-        seller_id: skill.user_id,
-        amount: String(amount),
-      },
-    })
+      })
 
-    if (!session.url) {
-      return { ok: false, error: "Failed to create checkout session URL" }
+      if (!session.url) {
+        throw new Error("Failed to create checkout session URL")
+      }
+
+      await attachSkillCheckoutReservationSession(supabaseAdmin, {
+        reservationId,
+        checkoutSessionId: session.id,
+      })
+    } catch (error) {
+      await releaseSkillCheckoutReservation(supabaseAdmin, { reservationId })
+      throw error
     }
 
     return {
@@ -378,231 +285,50 @@ export async function finalizeCheckoutSessionAfterSuccess(
     }
 
     const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : null
-    const txByPaymentIntent = await findTransactionByPaymentIntent({
-      supabaseAdmin,
-      paymentIntentId,
+    const transactionIdMeta = session.metadata?.transaction_id?.trim() || null
+    const claimResult = await claimSkillApplicationAfterPayment(supabaseAdmin, {
+      skillId,
+      buyerId,
+      sellerId,
+      stripePaymentIntentId: paymentIntentId,
+      targetTransactionId: transactionIdMeta,
+      stripeCheckoutSessionId: normalizedSessionId,
     })
-    if (txByPaymentIntent?.id) {
-      await ensureSellerPurchaseNotification({
-        supabaseAdmin,
-        transactionId: String(txByPaymentIntent.id),
-        sellerId,
-        buyerId,
-        skillId,
-      })
-      return { ok: true, transactionId: String(txByPaymentIntent.id), status: String(txByPaymentIntent.status ?? "active") }
-    }
 
-    const transactionIdMeta = session.metadata?.transaction_id?.trim()
-    if (transactionIdMeta && paymentIntentId) {
-      const { data: targeted, error: targetedError } = await supabaseAdmin
-        .from("transactions")
-        .select("id, status, buyer_id, seller_id, skill_id")
-        .eq("id", transactionIdMeta)
-        .maybeSingle()
-
-      if (targetedError) {
-        return { ok: false, error: targetedError.message }
-      }
-
-      const tr = targeted as {
-        id?: string
-        status?: string | null
-        buyer_id?: string | null
-        seller_id?: string | null
-        skill_id?: string | null
-      } | null
-
-      if (tr?.id) {
-        if (
-          String(tr.buyer_id ?? "").trim() !== buyerId ||
-          String(tr.seller_id ?? "").trim() !== sellerId ||
-          String(tr.skill_id ?? "").trim() !== skillId
-        ) {
-          return { ok: false, error: "決済情報と取引が一致しません。" }
-        }
-
-        const st = String(tr.status ?? "")
-        if (st === "awaiting_payment") {
-          let { data: activatedTx, error: activateError } = await supabaseAdmin
-            .from("transactions")
-            .update({
-              status: "active",
-              stripe_payment_intent_id: paymentIntentId,
-              completed_at: null,
-              auto_complete_at: null,
-            })
-            .eq("id", String(tr.id))
-            .eq("status", "awaiting_payment")
-            .select("id, status")
-            .maybeSingle()
-
-          if (activateError && isMissingStripePaymentIntentColumnError(activateError.message)) {
-            ;({ data: activatedTx, error: activateError } = await supabaseAdmin
-              .from("transactions")
-              .update({
-                status: "active",
-                completed_at: null,
-                auto_complete_at: null,
-              })
-              .eq("id", String(tr.id))
-              .eq("status", "awaiting_payment")
-              .select("id, status")
-              .maybeSingle())
-          }
-          if (activateError) {
-            return { ok: false, error: activateError.message }
-          }
-          if (!activatedTx?.id || !activatedTx?.status) {
-            return { ok: false, error: "取引開始状態への更新に失敗しました。" }
-          }
-          await ensureSellerPurchaseNotification({
+    if (!claimResult.ok) {
+      if (paymentIntentId) {
+        const refundResult = await refundStripePaymentIntent(stripe, paymentIntentId)
+        if (refundResult.created) {
+          await notifyBuyerCheckoutRefunded({
             supabaseAdmin,
-            transactionId: String(activatedTx.id),
-            sellerId,
             buyerId,
             skillId,
+            reason: claimResult.reason,
           })
-          return { ok: true, transactionId: String(activatedTx.id), status: String(activatedTx.status) }
         }
-
-        await ensureSellerPurchaseNotification({
-          supabaseAdmin,
-          transactionId: String(tr.id),
-          sellerId,
-          buyerId,
-          skillId,
-        })
-        return { ok: true, transactionId: String(tr.id), status: st || "active" }
       }
-    }
-
-    const { data: existingTx, error: existingTxError } = await supabaseAdmin
-      .from("transactions")
-      .select("id, status")
-      .eq("skill_id", skillId)
-      .eq("buyer_id", buyerId)
-      .in("status", ["awaiting_payment", "pending", "active", "in_progress", "approval_pending", "disputed"])
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    if (existingTxError) {
-      return { ok: false, error: existingTxError.message }
-    }
-
-    if (existingTx?.id) {
-      if (existingTx.status === "awaiting_payment") {
-        let { data: activatedTx, error: activateError } = await supabaseAdmin
-          .from("transactions")
-          .update({
-            status: "active",
-            stripe_payment_intent_id: paymentIntentId,
-            completed_at: null,
-            auto_complete_at: null,
-          })
-          .eq("id", String(existingTx.id))
-          .eq("status", "awaiting_payment")
-          .select("id, status")
-          .maybeSingle()
-
-        if (activateError && isMissingStripePaymentIntentColumnError(activateError.message)) {
-          ;({ data: activatedTx, error: activateError } = await supabaseAdmin
-            .from("transactions")
-            .update({
-              status: "active",
-              completed_at: null,
-              auto_complete_at: null,
-            })
-            .eq("id", String(existingTx.id))
-            .eq("status", "awaiting_payment")
-            .select("id, status")
-            .maybeSingle())
-        }
-        if (activateError) {
-          return { ok: false, error: activateError.message }
-        }
-        if (!activatedTx?.id || !activatedTx?.status) {
-          return { ok: false, error: "取引開始状態への更新に失敗しました。" }
-        }
-        await ensureSellerPurchaseNotification({
-          supabaseAdmin,
-          transactionId: String(activatedTx.id),
-          sellerId,
-          buyerId,
-          skillId,
-        })
-        return { ok: true, transactionId: String(activatedTx.id), status: String(activatedTx.status) }
+      return {
+        ok: false,
+        error:
+          claimResult.reason === "duplicate_payment"
+            ? "重複した決済が検出されたため、自動返金されます。取引チャットをご確認ください。"
+            : "申し込み枠が満杯のため、決済は自動返金されます。時間をおいて再度お試しください。",
       }
-      if (String(existingTx.status) !== "awaiting_payment") {
-        await ensureSellerPurchaseNotification({
-          supabaseAdmin,
-          transactionId: String(existingTx.id),
-          sellerId,
-          buyerId,
-          skillId,
-        })
-      }
-      return { ok: true, transactionId: String(existingTx.id), status: String(existingTx.status) }
-    }
-
-    const { data: skill, error: skillError } = await supabaseAdmin
-      .from("skills")
-      .select("price, user_id")
-      .eq("id", skillId)
-      .maybeSingle()
-    if (skillError) {
-      return { ok: false, error: skillError.message }
-    }
-    const skillRow = skill as { price?: unknown; user_id?: string | null } | null
-    if (!skillRow || typeof skillRow.price !== "number") {
-      return { ok: false, error: "スキル価格の取得に失敗しました。" }
-    }
-    if ((skillRow.user_id ?? "").trim() !== sellerId) {
-      return { ok: false, error: "決済情報と出品者情報が一致しません。" }
-    }
-
-    let { data: insertedTx, error: insertError } = await supabaseAdmin
-      .from("transactions")
-      .insert({
-        skill_id: skillId,
-        buyer_id: buyerId,
-        seller_id: sellerId,
-        price: Math.max(0, Math.round(skillRow.price)),
-        status: "active",
-        stripe_payment_intent_id: paymentIntentId,
-      })
-      .select("id, status")
-      .single()
-
-    if (insertError && isMissingStripePaymentIntentColumnError(insertError.message)) {
-      ;({ data: insertedTx, error: insertError } = await supabaseAdmin
-        .from("transactions")
-        .insert({
-          skill_id: skillId,
-          buyer_id: buyerId,
-          seller_id: sellerId,
-          price: Math.max(0, Math.round(skillRow.price)),
-          status: "active",
-        })
-        .select("id, status")
-        .single())
-    }
-    if (insertError) {
-      return { ok: false, error: insertError.message }
-    }
-    if (!insertedTx?.id || !insertedTx?.status) {
-      return { ok: false, error: "取引作成に失敗しました。" }
     }
 
     await ensureSellerPurchaseNotification({
       supabaseAdmin,
-      transactionId: String(insertedTx.id),
+      transactionId: claimResult.row.transaction_id,
       sellerId,
       buyerId,
       skillId,
     })
 
-    return { ok: true, transactionId: String(insertedTx.id), status: String(insertedTx.status) }
+    return {
+      ok: true,
+      transactionId: claimResult.row.transaction_id,
+      status: claimResult.row.status,
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : "決済反映中に不明なエラーが発生しました。"
     console.error("[finalizeCheckoutSessionAfterSuccess] unexpected error", {

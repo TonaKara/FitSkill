@@ -38,7 +38,17 @@ Deno.serve(async (req) => {
     if (event.type === "payment_intent.succeeded") {
       const pi = event.data.object as Stripe.PaymentIntent
       const transactionId = pi.metadata?.transaction_id?.trim()
+      const checkoutSkillId = pi.metadata?.skill_id?.trim()
       if (!transactionId) {
+        if (checkoutSkillId) {
+          return new Response(
+            JSON.stringify({ received: true, skipped: "checkout flow handled by app webhook" }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            },
+          )
+        }
         return new Response(JSON.stringify({ received: true, skipped: "no transaction_id in metadata" }), {
           status: 200,
           headers: { "Content-Type": "application/json" },

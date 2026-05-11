@@ -10,6 +10,15 @@ function isUniqueConstraintViolation(error: { code?: string; message?: string })
   return m.includes("duplicate key") || m.includes("unique constraint") || m.includes("already exists")
 }
 
+export const ONGOING_PURCHASE_STATUSES = [
+  "awaiting_payment",
+  "pending",
+  "in_progress",
+  "active",
+  "approval_pending",
+  "disputed",
+] as const
+
 /**
  * スキルごとの「現在の申し込み人数」。
  * 実際に取引チャットとして進行中の status のみを件数に含める。
@@ -32,6 +41,33 @@ export async function countActiveTransactionsForSkill(
 
   const n = Number(data)
   return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0
+}
+
+export async function findOngoingPurchaseTransactionForSkill(
+  supabase: SupabaseClient,
+  params: { skillId: string; buyerId: string },
+): Promise<{ id: string; status: string } | null> {
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("id, status")
+    .eq("skill_id", params.skillId)
+    .eq("buyer_id", params.buyerId)
+    .in("status", [...ONGOING_PURCHASE_STATUSES])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (error) {
+    return null
+  }
+
+  const row = data as { id?: unknown; status?: unknown } | null
+  const id = row?.id
+  const status = row?.status
+  if (typeof id === "string" && id.length > 0 && typeof status === "string" && status.length > 0) {
+    return { id, status }
+  }
+  return null
 }
 
 /**

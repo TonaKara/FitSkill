@@ -28,6 +28,7 @@ import { getIsAdminFromProfile } from "@/lib/admin"
 import { formatErrorMessageOnly } from "@/lib/notifications"
 import type { AppNotice } from "@/lib/notifications"
 import { createCheckoutSession, finalizeCheckoutSessionAfterSuccess } from "@/actions/checkout"
+import { isCheckoutCapacityFinalizeError } from "@/lib/checkout-fulfillment"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { countActiveTransactionsForSkill } from "@/lib/transactions"
 import { createGeneralNotification } from "@/lib/transaction-notifications"
@@ -355,10 +356,13 @@ export default function SkillDetailPage() {
               }
             } else {
               const isMissingColumn = finalized.error.includes("stripe_payment_intent_id")
-              if (isMissingColumn || finalizeState.attempts >= 5) {
+              const isCapacityError = isCheckoutCapacityFinalizeError(finalized.error)
+              if (isMissingColumn || isCapacityError || finalizeState.attempts >= 5) {
                 finalizeState.stopped = true
                 if (isMissingColumn) {
                   setPurchaseError("決済情報の反映に失敗しました。時間をおいて再度お試しください。")
+                } else if (isCapacityError) {
+                  setPurchaseError(finalized.error)
                 }
               }
               console.warn("[skills:checkout-finalize] pending", {
