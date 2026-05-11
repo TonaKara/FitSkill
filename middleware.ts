@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 import { getBanStatusFromProfile } from "@/lib/ban"
 import { shouldRedirectPublicUserToMaintenance } from "@/lib/maintenance-access"
+import { getCanonicalHostname } from "@/lib/site-seo"
 
 /**
  * このミドルウェアは 403 Forbidden を返さない。
@@ -14,6 +15,19 @@ import { shouldRedirectPublicUserToMaintenance } from "@/lib/maintenance-access"
  * - /sitemap.xml は拡張子ありだが明示しておく（環境によっては判定漏れ防止）
  * - ルート配下の opengraph-image・twitter-image はパスに含まれるため contains で明示
  */
+function redirectWwwToCanonicalHost(request: NextRequest): NextResponse | null {
+  const requestHost = request.nextUrl.hostname.toLowerCase()
+  const canonicalHost = getCanonicalHostname()
+  if (requestHost !== `www.${canonicalHost}`) {
+    return null
+  }
+  const redirectUrl = request.nextUrl.clone()
+  redirectUrl.hostname = canonicalHost
+  redirectUrl.protocol = "https:"
+  redirectUrl.port = ""
+  return NextResponse.redirect(redirectUrl, 301)
+}
+
 function isBypassMiddlewarePath(pathname: string): boolean {
   if (pathname.startsWith("/_next") || pathname.startsWith("/api")) {
     return true
@@ -78,6 +92,11 @@ async function canBannedUserAccessChatPath(args: {
 }
 
 export async function middleware(request: NextRequest) {
+  const wwwRedirect = redirectWwwToCanonicalHost(request)
+  if (wwwRedirect) {
+    return wwwRedirect
+  }
+
   const { pathname } = request.nextUrl
 
   if (isBypassMiddlewarePath(pathname)) {

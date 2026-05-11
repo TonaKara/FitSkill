@@ -1,22 +1,56 @@
 /** サイト全体の SEO 定数（metadataBase 解決・各ページ metadata の共有用） */
 
-/** 正規 URL・OG の共通起点（必ず HTTPS） */
+/** 正規 URL・OG の共通起点（必ず HTTPS・www なし） */
 export const SITE_URL = "https://gritvib.com" as const
+
+const CANONICAL_HOSTNAME = new URL(SITE_URL).hostname.toLowerCase()
+
+function parsePublicOrigin(raw: string): URL {
+  return new URL(raw.includes("://") ? raw : `https://${raw}`)
+}
+
+/** gritvib.com 系のホストは apex + HTTPS に揃える（canonical / metadataBase 用） */
+export function normalizeSiteOrigin(raw: string): string {
+  const url = parsePublicOrigin(raw.trim())
+  const hostname = url.hostname.toLowerCase()
+  if (hostname === CANONICAL_HOSTNAME || hostname === `www.${CANONICAL_HOSTNAME}`) {
+    url.hostname = CANONICAL_HOSTNAME
+    url.protocol = "https:"
+    url.port = ""
+  }
+  url.pathname = ""
+  url.search = ""
+  url.hash = ""
+  return url.origin.replace(/\/$/, "")
+}
+
+/** 本番の正規オリジン（環境変数が www でも apex に正規化） */
+export function getProductionCanonicalOrigin(): string {
+  const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.trim() || process.env.NEXT_PUBLIC_APP_URL?.trim()
+  if (fromEnv) {
+    return normalizeSiteOrigin(fromEnv)
+  }
+  return SITE_URL
+}
+
+/** www → apex リダイレクト先ホスト名 */
+export function getCanonicalHostname(): string {
+  return new URL(getProductionCanonicalOrigin()).hostname.toLowerCase()
+}
 
 /**
  * metadataBase・OG 等の絶対 URL 解決用。
- * - 本番: Vercel で `NEXT_PUBLIC_SITE_URL=https://gritvib.com` を推奨
+ * - 本番: `NEXT_PUBLIC_SITE_URL=https://gritvib.com`（www なし）を推奨
  * - プレビュー: `VERCEL_URL` を自動利用（デプロイごとのホストで favicon / apple-touch が正しく解決される）
  */
 export function getSiteUrl(): string {
-  const trim = (u: string) => u.replace(/\/$/, "")
   const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.trim()
   if (fromEnv) {
-    return trim(fromEnv)
+    return normalizeSiteOrigin(fromEnv)
   }
   const vercel = process.env.VERCEL_URL?.trim()
   if (vercel) {
-    return trim(`https://${vercel}`)
+    return `https://${vercel}`.replace(/\/$/, "")
   }
   return SITE_URL
 }
@@ -28,7 +62,7 @@ export function getSiteUrl(): string {
 export function getAppBaseUrl(): string {
   const explicit = process.env.NEXT_PUBLIC_APP_URL?.trim()
   if (explicit) {
-    return explicit.replace(/\/$/, "")
+    return normalizeSiteOrigin(explicit)
   }
   if (process.env.NODE_ENV !== "production") {
     return "http://localhost:3000"
