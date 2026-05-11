@@ -220,7 +220,17 @@ export default function LoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: normalizedResendEmail }),
       })
-      const body = (await response.json().catch(() => null)) as { message?: string } | null
+      const body = (await response.json().catch(() => null)) as { message?: string; delivered?: boolean } | null
+      if (!response.ok || body?.delivered !== true) {
+        clearSignupVerificationResent()
+        setHasSignupVerificationResent(false)
+        setVerificationPanelNotice({
+          variant: "error",
+          message: body?.message ?? "確認メールの再送に失敗しました。時間を置いて再度お試しください。",
+        })
+        return
+      }
+
       const successMessage = body?.message ?? "確認メールを再送しました。受信ボックスをご確認ください。"
       const successNotice = toSuccessNotice(successMessage)
       markSignupVerificationResent()
@@ -228,6 +238,8 @@ export default function LoginPage() {
       setVerificationPanelNotice(successNotice)
       setNotice(successNotice)
     } catch {
+      clearSignupVerificationResent()
+      setHasSignupVerificationResent(false)
       setVerificationPanelNotice({
         variant: "error",
         message: "確認メールの再送に失敗しました。時間を置いて再度お試しください。",

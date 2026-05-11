@@ -45,6 +45,7 @@ function consumeAttempt(store: Map<string, RateLimitEntry>, key: string, limit: 
 }
 
 const GENERIC_MESSAGE = "確認メールを再送しました。受信ボックスをご確認ください。"
+const FAILURE_MESSAGE = "確認メールの再送に失敗しました。時間を置いて再度お試しください。"
 
 export async function POST(request: NextRequest) {
   let email = ""
@@ -52,31 +53,34 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as { email?: unknown }
     email = normalizeEmail(body.email)
   } catch {
-    return NextResponse.json({ message: GENERIC_MESSAGE })
+    return NextResponse.json({ message: FAILURE_MESSAGE, delivered: false }, { status: 400 })
   }
 
   if (!isLikelyEmail(email)) {
-    return NextResponse.json({ message: GENERIC_MESSAGE })
+    return NextResponse.json({ message: FAILURE_MESSAGE, delivered: false }, { status: 400 })
   }
 
   const now = Date.now()
   const ip = getClientIp(request)
   const blockedByIp = consumeAttempt(ipAttempts, ip, MAX_ATTEMPTS_PER_IP, now)
   if (blockedByIp) {
-    return NextResponse.json({ message: GENERIC_MESSAGE }, { status: 429 })
+    return NextResponse.json({ message: FAILURE_MESSAGE, delivered: false }, { status: 429 })
   }
 
   const emailRateLimit = emailAttempts.get(email)
   if (emailRateLimit && emailRateLimit.resetAt > now && emailRateLimit.count >= MAX_ATTEMPTS_PER_EMAIL) {
-    return NextResponse.json({ message: GENERIC_MESSAGE }, { status: 429 })
+    return NextResponse.json(
+      { message: "確認メールの再送は1回までです。届かない場合はお問い合わせください。", delivered: false },
+      { status: 429 },
+    )
   }
 
   const sent = await sendSignupConfirmationEmail(email)
   if (!sent) {
     console.error("[resend-signup-confirmation] delivery failed", { email })
-  } else {
-    consumeAttempt(emailAttempts, email, MAX_ATTEMPTS_PER_EMAIL, now)
+    return NextResponse.json({ message: FAILURE_MESSAGE, delivered: false }, { status: 502 })
   }
 
-  return NextResponse.json({ message: GENERIC_MESSAGE })
+  consumeAttempt(emailAttempts, email, MAX_ATTEMPTS_PER_EMAIL, now)
+  return NextResponse.json({ message: GENERIC_MESSAGE, delivered: true })
 }

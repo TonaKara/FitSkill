@@ -1,17 +1,11 @@
 import "server-only"
 
 import { createClient } from "@supabase/supabase-js"
+import { type EmailOtpType } from "@supabase/supabase-js"
 import { Resend } from "resend"
 import { buildSignupConfirmationRedirectUrl } from "@/lib/auth-email-flow"
 
-function getSupabasePublicClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  if (!url || !anonKey) {
-    return null
-  }
-  return createClient(url, anonKey)
-}
+type GenerateLinkType = "magiclink" | "invite"
 
 function getSupabaseAdminClient() {
   const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -58,14 +52,60 @@ function renderSignupConfirmationEmail(actionLink: string): string {
 </html>`
 }
 
+function buildVerificationCallbackUrl(hashedToken: string, otpType: EmailOtpType): string {
+  const callbackUrl = new URL(buildSignupConfirmationRedirectUrl())
+  callbackUrl.searchParams.set("token_hash", hashedToken)
+  callbackUrl.searchParams.set("type", otpType)
+  return callbackUrl.toString()
+}
+
+async function createSignupVerificationLink(
+  email: string,
+  linkType: GenerateLinkType,
+  otpType: EmailOtpType,
+): Promise<string | null> {
+  const admin = getSupabaseAdminClient()
+  if (!admin) {
+    return null
+  }
+
+  const redirectTo = buildSignupConfirmationRedirectUrl()
+  const { data, error } = await admin.auth.admin.generateLink({
+    type: linkType,
+    email,
+    options: {
+      redirectTo,
+    },
+  })
+
+  if (error) {
+    console.error("[signup-confirmation-resend] admin.generateLink failed", {
+      linkType,
+      message: error.message,
+      code: error.code,
+      status: error.status,
+    })
+    return null
+  }
+
+  const hashedToken = data?.properties?.hashed_token?.trim() ?? ""
+  if (hashedToken) {
+    return buildVerificationCallbackUrl(hashedToken, otpType)
+  }
+
+  const actionLink = data?.properties?.action_link?.trim() ?? ""
+  return actionLink || null
+}
+
 async function sendSignupConfirmationViaResend(to: string, actionLink: string): Promise<boolean> {
   const resend = getResendClient()
   if (!resend) {
+    console.error("[signup-confirmation-resend] RESEND_API_KEY is not configured")
     return false
   }
 
   const fromAddress = process.env.RESEND_FROM_EMAIL ?? "GritVib <notifications@gritvib.com>"
-  const { error } = await resend.emails.send({
+  const { data, error } = await resend.emails.send({
     from: fromAddress,
     to,
     subject: "GritVib メールアドレスの確認",
@@ -77,52 +117,31 @@ async function sendSignupConfirmationViaResend(to: string, actionLink: string): 
     return false
   }
 
+  if (!data?.id) {
+    console.error("[signup-confirmation-resend] resend.emails.send returned no message id", { to })
+    return false
+  }
+
   return true
 }
 
 export async function sendSignupConfirmationEmail(email: string): Promise<boolean> {
-  const redirectTo = buildSignupConfirmationRedirectUrl()
-  const supabase = getSupabasePublicClient()
-  if (!supabase) {
-    return false
+  const linkCandidates: Array<{ linkType: GenerateLinkType; otpType: EmailOtpType }> = [
+    { linkType: "magiclink", otpType: "magiclink" },
+    { linkType: "invite", otpType: "invite" },
+  ]
+
+  for (const candidate of linkCandidates) {
+    const actionLink = await createSignupVerificationLink(email, candidate.linkType, candidate.otpType)
+    if (!actionLink) {
+      continue
+    }
+
+    const sent = await sendSignupConfirmationViaResend(email, actionLink)
+    if (sent) {
+      return true
+    }
   }
 
-  const { error } = await supabase.auth.resend({
-    type: "signup",
-    email,
-    options: {
-      emailRedirectTo: redirectTo,
-    },
-  })
-
-  if (!error) {
-    return true
-  }
-
-  console.error("[signup-confirmation-resend] supabase.auth.resend failed", {
-    message: error.message,
-    code: error.code,
-    status: error.status,
-  })
-
-  const admin = getSupabaseAdminClient()
-  if (!admin) {
-    return false
-  }
-
-  const { data, error: linkError } = await admin.auth.admin.generateLink({
-    type: "magiclink",
-    email,
-    options: {
-      redirectTo,
-    },
-  })
-
-  const actionLink = data?.properties?.action_link?.trim() ?? ""
-  if (linkError || !actionLink) {
-    console.error("[signup-confirmation-resend] admin.generateLink failed", linkError)
-    return false
-  }
-
-  return sendSignupConfirmationViaResend(email, actionLink)
+  return false
 }

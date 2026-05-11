@@ -55,7 +55,7 @@ export function clearSignupPendingVerificationEmail(): void {
   window.sessionStorage.removeItem(SIGNUP_PENDING_VERIFICATION_EMAIL_KEY)
 }
 
-export const SIGNUP_VERIFICATION_RESENT_KEY = "gritvib.signup.verification_resent"
+export const SIGNUP_VERIFICATION_RESENT_KEY = "gritvib.signup.verification_resent.v2"
 
 export function markSignupVerificationResent(): void {
   if (typeof window === "undefined") {
