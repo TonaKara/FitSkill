@@ -12,6 +12,9 @@ import { NotificationToast } from "@/components/ui/notification-toast"
 import {
   buildSignupConfirmationRedirectUrl,
   clearSignupPendingVerificationEmail,
+  clearSignupVerificationResent,
+  hasSignupVerificationBeenResent,
+  markSignupVerificationResent,
   persistSignupPendingVerificationEmail,
   readSignupPendingVerificationEmail,
 } from "@/lib/auth-email-flow"
@@ -72,6 +75,7 @@ export default function LoginPage() {
   const [verificationPanelNotice, setVerificationPanelNotice] = useState<AppNotice | null>(null)
   const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState(false)
   const [isSignupVerificationRecovery, setIsSignupVerificationRecovery] = useState(false)
+  const [hasSignupVerificationResent, setHasSignupVerificationResent] = useState(false)
 
   const isSignup = mode === "signup"
   const isReset = mode === "reset"
@@ -105,7 +109,10 @@ export default function LoginPage() {
     registeredSignupEmail.length > 0 &&
     normalizedResendEmail !== registeredSignupEmail
   const canResendSignupVerification =
-    isAwaitingSignupVerification && isLikelyEmail(normalizedResendEmail) && !resendEmailChangedFromRegistered
+    isAwaitingSignupVerification &&
+    !hasSignupVerificationResent &&
+    isLikelyEmail(normalizedResendEmail) &&
+    !resendEmailChangedFromRegistered
 
   useEffect(() => {
     if (searchParams.get("error") !== "auth_callback") {
@@ -136,7 +143,15 @@ export default function LoginPage() {
       variant: "error",
       message,
     })
+    setHasSignupVerificationResent(hasSignupVerificationBeenResent())
   }, [searchParams])
+
+  useEffect(() => {
+    if (!isAwaitingSignupVerification) {
+      return
+    }
+    setHasSignupVerificationResent(hasSignupVerificationBeenResent())
+  }, [isAwaitingSignupVerification])
 
   const resetSignupFormFields = () => {
     setConfirmEmail("")
@@ -152,6 +167,8 @@ export default function LoginPage() {
     setVerificationPanelNotice(null)
     setIsSignupVerificationRecovery(false)
     clearSignupPendingVerificationEmail()
+    clearSignupVerificationResent()
+    setHasSignupVerificationResent(false)
     setMode("login")
     setNotice(null)
     resetSignupFormFields()
@@ -164,6 +181,8 @@ export default function LoginPage() {
     setVerificationPanelNotice(null)
     setIsSignupVerificationRecovery(false)
     clearSignupPendingVerificationEmail()
+    clearSignupVerificationResent()
+    setHasSignupVerificationResent(false)
     setMode("signup")
     setNotice(null)
     setEmail(nextEmail)
@@ -172,7 +191,7 @@ export default function LoginPage() {
   }
 
   const handleResendSignupVerification = async () => {
-    if (!isAwaitingSignupVerification || isResendingVerificationEmail) {
+    if (!isAwaitingSignupVerification || isResendingVerificationEmail || hasSignupVerificationResent) {
       return
     }
 
@@ -202,9 +221,12 @@ export default function LoginPage() {
         body: JSON.stringify({ email: normalizedResendEmail }),
       })
       const body = (await response.json().catch(() => null)) as { message?: string } | null
-      setVerificationPanelNotice(
-        toSuccessNotice(body?.message ?? "確認メールを再送しました。受信ボックスをご確認ください。"),
-      )
+      const successMessage = body?.message ?? "確認メールを再送しました。受信ボックスをご確認ください。"
+      const successNotice = toSuccessNotice(successMessage)
+      markSignupVerificationResent()
+      setHasSignupVerificationResent(true)
+      setVerificationPanelNotice(successNotice)
+      setNotice(successNotice)
     } catch {
       setVerificationPanelNotice({
         variant: "error",
@@ -365,6 +387,8 @@ export default function LoginPage() {
         setVerificationPanelNotice(null)
         setSignupVerificationEmail(normalizedEmail)
         persistSignupPendingVerificationEmail(normalizedEmail)
+        clearSignupVerificationResent()
+        setHasSignupVerificationResent(false)
         setIsSignupVerificationRecovery(false)
         resetSignupFormFields()
         return
@@ -537,11 +561,28 @@ export default function LoginPage() {
                 <p className="font-semibold text-zinc-100">メールが届かない場合</p>
                 <ul className="mt-3 list-disc space-y-2 pl-5">
                   <li>迷惑メールフォルダやプロモーションタブをご確認ください。</li>
-                  <li>数分待ってから、宛先を確認して「確認メールを再送する」をお試しください。</li>
-                  <li>メールアドレスを間違えた場合は、入力欄を直して「このメールアドレスで登録し直す」をお試しください。</li>
-                  <li>それでも届かない場合は、別のメールアドレスで登録するか、お問い合わせください。</li>
+                  {hasSignupVerificationResent ? (
+                    <>
+                      <li>確認メールの再送は1回までです。届かない場合はお問い合わせください。</li>
+                      <li>メールアドレスを間違えた場合は、「このメールアドレスで登録し直す」をお試しください。</li>
+                    </>
+                  ) : (
+                    <>
+                      <li>数分待ってから、宛先を確認して「確認メールを再送する」をお試しください（1回まで）。</li>
+                      <li>メールアドレスを間違えた場合は、入力欄を直して「このメールアドレスで登録し直す」をお試しください。</li>
+                    </>
+                  )}
                 </ul>
               </div>
+
+              {hasSignupVerificationResent ? (
+                <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-4 text-sm leading-relaxed text-amber-100">
+                  <p className="font-semibold text-amber-200">確認メールは再送済みです</p>
+                  <p className="mt-3 text-amber-100/90">
+                    それでも届かない場合は、下の「お問い合わせ」からご連絡ください。
+                  </p>
+                </div>
+              ) : null}
 
               <Button
                 type="button"
@@ -554,6 +595,8 @@ export default function LoginPage() {
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     再送中...
                   </>
+                ) : hasSignupVerificationResent ? (
+                  "確認メールは再送済みです"
                 ) : (
                   "確認メールを再送する"
                 )}
@@ -573,8 +616,12 @@ export default function LoginPage() {
               <Button
                 type="button"
                 asChild
-                variant="outline"
-                className="h-11 w-full border-zinc-600 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
+                variant={hasSignupVerificationResent ? "default" : "outline"}
+                className={
+                  hasSignupVerificationResent
+                    ? "h-11 w-full bg-red-600 text-white hover:bg-red-500"
+                    : "h-11 w-full border-zinc-600 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
+                }
               >
                 <Link href="/contact">お問い合わせ</Link>
               </Button>

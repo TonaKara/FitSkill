@@ -1,10 +1,9 @@
-import { createClient } from "@supabase/supabase-js"
 import { NextRequest, NextResponse } from "next/server"
-import { buildSignupConfirmationRedirectUrl } from "@/lib/auth-email-flow"
+import { sendSignupConfirmationEmail } from "@/lib/signup-confirmation-resend"
 
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000
-const MAX_ATTEMPTS_PER_IP = 5
-const MAX_ATTEMPTS_PER_EMAIL = 3
+const MAX_ATTEMPTS_PER_IP = 8
+const MAX_ATTEMPTS_PER_EMAIL = 1
 
 type RateLimitEntry = {
   count: number
@@ -45,15 +44,6 @@ function consumeAttempt(store: Map<string, RateLimitEntry>, key: string, limit: 
   return false
 }
 
-function getSupabasePublicClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  if (!url || !anonKey) {
-    return null
-  }
-  return createClient(url, anonKey)
-}
-
 const GENERIC_MESSAGE = "確認メールを再送しました。受信ボックスをご確認ください。"
 
 export async function POST(request: NextRequest) {
@@ -72,26 +62,20 @@ export async function POST(request: NextRequest) {
   const now = Date.now()
   const ip = getClientIp(request)
   const blockedByIp = consumeAttempt(ipAttempts, ip, MAX_ATTEMPTS_PER_IP, now)
-  const blockedByEmail = consumeAttempt(emailAttempts, email, MAX_ATTEMPTS_PER_EMAIL, now)
-  if (blockedByIp || blockedByEmail) {
+  if (blockedByIp) {
     return NextResponse.json({ message: GENERIC_MESSAGE }, { status: 429 })
   }
 
-  const supabase = getSupabasePublicClient()
-  if (!supabase) {
-    return NextResponse.json({ message: GENERIC_MESSAGE })
+  const emailRateLimit = emailAttempts.get(email)
+  if (emailRateLimit && emailRateLimit.resetAt > now && emailRateLimit.count >= MAX_ATTEMPTS_PER_EMAIL) {
+    return NextResponse.json({ message: GENERIC_MESSAGE }, { status: 429 })
   }
 
-  try {
-    await supabase.auth.resend({
-      type: "signup",
-      email,
-      options: {
-        emailRedirectTo: buildSignupConfirmationRedirectUrl(),
-      },
-    })
-  } catch {
-    // アカウント有無や内部状態を推測されないよう、成功時と同一レスポンスにする。
+  const sent = await sendSignupConfirmationEmail(email)
+  if (!sent) {
+    console.error("[resend-signup-confirmation] delivery failed", { email })
+  } else {
+    consumeAttempt(emailAttempts, email, MAX_ATTEMPTS_PER_EMAIL, now)
   }
 
   return NextResponse.json({ message: GENERIC_MESSAGE })
