@@ -46,6 +46,7 @@ export default function LoginPage() {
 
   const [mode, setMode] = useState<AuthMode>("login")
   const [email, setEmail] = useState("")
+  const [confirmEmail, setConfirmEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [fullName, setFullName] = useState("")
@@ -69,10 +70,15 @@ export default function LoginPage() {
     return "ログイン"
   }, [isReset, isSignup])
   const passwordRuleState = useMemo(() => getPasswordRuleState(password), [password])
+  const normalizedEmail = email.trim().toLowerCase()
+  const normalizedConfirmEmail = confirmEmail.trim().toLowerCase()
+  const isEmailMatched =
+    !isSignup || (normalizedConfirmEmail.length > 0 && normalizedConfirmEmail === normalizedEmail)
   const isConfirmMatched = !isSignup || (confirmPassword.length > 0 && password === confirmPassword)
   const todayIsoDate = formatLocalIsoDate(new Date())
   const isSignupDisabled =
-    isSignup && (!passwordRuleState.isValid || !isConfirmMatched || !birthday.trim())
+    isSignup &&
+    (!passwordRuleState.isValid || !isEmailMatched || !isConfirmMatched || !birthday.trim())
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient()
@@ -98,7 +104,6 @@ export default function LoginPage() {
     setIsSubmitting(true)
 
     const supabase = getSupabaseBrowserClient()
-    const normalizedEmail = email.trim().toLowerCase()
     const trimmedDisplayName = displayName.trim()
     const trimmedFullName = fullName.trim()
 
@@ -131,6 +136,14 @@ export default function LoginPage() {
 
       if (isSignup && !trimmedDisplayName) {
         setNotice({ variant: "error", message: "表示名を入力してください。" })
+        return
+      }
+
+      if (isSignup && !isEmailMatched) {
+        setNotice({
+          variant: "error",
+          message: "メールアドレス（確認用）が一致していません。",
+        })
         return
       }
 
@@ -265,6 +278,7 @@ export default function LoginPage() {
               onClick={() => {
                 setMode("login")
                 setNotice(null)
+                setConfirmEmail("")
                 setConfirmPassword("")
                 setPassword("")
               }}
@@ -282,6 +296,7 @@ export default function LoginPage() {
               onClick={() => {
                 setMode("signup")
                 setNotice(null)
+                setConfirmEmail("")
                 setConfirmPassword("")
                 setPassword("")
               }}
@@ -371,6 +386,26 @@ export default function LoginPage() {
                 className="border-zinc-700 bg-zinc-900 text-zinc-50 placeholder:text-zinc-500 focus-visible:ring-red-500"
               />
             </div>
+
+            {isSignup && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-100" htmlFor="confirm_email">
+                  メールアドレス（確認用）
+                </label>
+                <Input
+                  id="confirm_email"
+                  type="email"
+                  value={confirmEmail}
+                  onChange={(event) => setConfirmEmail(event.target.value)}
+                  placeholder="確認のため同じメールアドレスを入力"
+                  autoComplete="email"
+                  className="border-zinc-700 bg-zinc-900 text-zinc-50 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                />
+                {confirmEmail.length > 0 && !isEmailMatched && (
+                  <p className="text-xs text-red-400">メールアドレスが一致していません。</p>
+                )}
+              </div>
+            )}
 
             {!isReset && (
               <div className="space-y-2">
