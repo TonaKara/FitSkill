@@ -1,8 +1,8 @@
 import type { MetadataRoute } from "next"
-import { getSiteUrl } from "@/lib/site-seo"
+import { buildSitemapEntryUrl, getSitemapBaseUrl } from "@/lib/site-seo"
 
 export default function robots(): MetadataRoute.Robots {
-  const site = getSiteUrl().replace(/\/$/, "")
+  const site = getSitemapBaseUrl()
   return {
     rules: {
       userAgent: "*",
@@ -19,7 +19,7 @@ export default function robots(): MetadataRoute.Robots {
         "/maintenance",
       ],
     },
-    sitemap: `${site}/sitemap.xml`,
+    sitemap: buildSitemapEntryUrl("/sitemap.xml"),
     host: site,
   }
 }

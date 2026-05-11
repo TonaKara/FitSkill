@@ -24,35 +24,67 @@ export function normalizeSiteOrigin(raw: string): string {
   return url.origin.replace(/\/$/, "")
 }
 
-/** 本番の正規オリジン（環境変数が www でも apex に正規化） */
-export function getProductionCanonicalOrigin(): string {
-  const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.trim() || process.env.NEXT_PUBLIC_APP_URL?.trim()
-  if (fromEnv) {
-    return normalizeSiteOrigin(fromEnv)
+function readTrustedPublicSiteOrigin(): string | null {
+  const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.trim()
+  if (!fromEnv) {
+    return null
   }
-  return SITE_URL
+  const normalized = normalizeSiteOrigin(fromEnv)
+  const hostname = new URL(normalized).hostname.toLowerCase()
+  if (hostname !== CANONICAL_HOSTNAME) {
+    return null
+  }
+  return normalized
+}
+
+/** 本番の正規オリジン（`NEXT_PUBLIC_SITE_URL` が gritvib.com 系のときのみ採用） */
+export function getProductionCanonicalOrigin(): string {
+  return readTrustedPublicSiteOrigin() ?? SITE_URL
+}
+
+/** canonical / metadataBase 用の正規オリジン（Vercel プレビュー URL は使わない） */
+export function getCanonicalSiteUrl(): string {
+  return getProductionCanonicalOrigin()
+}
+
+/** sitemap / robots 用のベース URL（常に独自ドメイン） */
+export function getSitemapBaseUrl(): string {
+  return SITE_URL.replace(/\/$/, "")
+}
+
+/** sitemap エントリ用の絶対 URL（例: `/about` → `https://gritvib.com/about`） */
+export function buildSitemapEntryUrl(pathname: string): string {
+  const base = getSitemapBaseUrl()
+  const normalized = pathname.trim()
+  if (!normalized || normalized === "/") {
+    return `${base}/`
+  }
+  const path = normalized.startsWith("/") ? normalized : `/${normalized}`
+  return `${base}${path}`
 }
 
 /** www → apex リダイレクト先ホスト名 */
 export function getCanonicalHostname(): string {
-  return new URL(getProductionCanonicalOrigin()).hostname.toLowerCase()
+  return new URL(getCanonicalSiteUrl()).hostname.toLowerCase()
+}
+
+/** 正規ドメイン上の canonical 絶対 URL（例: `/about` → `https://gritvib.com/about`） */
+export function buildCanonicalUrl(pathname: string): string {
+  const base = getCanonicalSiteUrl().replace(/\/$/, "")
+  const normalized = pathname.trim()
+  if (!normalized || normalized === "/") {
+    return `${base}/`
+  }
+  const path = normalized.startsWith("/") ? normalized : `/${normalized}`
+  return `${base}${path}`
 }
 
 /**
- * metadataBase・OG 等の絶対 URL 解決用。
- * - 本番: `NEXT_PUBLIC_SITE_URL=https://gritvib.com`（www なし）を推奨
- * - プレビュー: `VERCEL_URL` を自動利用（デプロイごとのホストで favicon / apple-touch が正しく解決される）
+ * metadataBase・OG・sitemap 等の絶対 URL 解決用。
+ * 検索向けの正規ホストは常に {@link getCanonicalSiteUrl}（既定 `https://gritvib.com`）。
  */
 export function getSiteUrl(): string {
-  const fromEnv = process.env.NEXT_PUBLIC_SITE_URL?.trim()
-  if (fromEnv) {
-    return normalizeSiteOrigin(fromEnv)
-  }
-  const vercel = process.env.VERCEL_URL?.trim()
-  if (vercel) {
-    return `https://${vercel}`.replace(/\/$/, "")
-  }
-  return SITE_URL
+  return getCanonicalSiteUrl()
 }
 
 /**

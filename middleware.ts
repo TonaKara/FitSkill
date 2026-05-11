@@ -15,6 +15,17 @@ import { getCanonicalHostname } from "@/lib/site-seo"
  * - /sitemap.xml は拡張子ありだが明示しておく（環境によっては判定漏れ防止）
  * - ルート配下の opengraph-image・twitter-image はパスに含まれるため contains で明示
  */
+function isVercelDeploymentHost(hostname: string): boolean {
+  return hostname.toLowerCase().endsWith(".vercel.app")
+}
+
+function withVercelNoIndex(request: NextRequest, response: NextResponse): NextResponse {
+  if (isVercelDeploymentHost(request.nextUrl.hostname)) {
+    response.headers.set("X-Robots-Tag", "noindex, nofollow")
+  }
+  return response
+}
+
 function redirectWwwToCanonicalHost(request: NextRequest): NextResponse | null {
   const requestHost = request.nextUrl.hostname.toLowerCase()
   const canonicalHost = getCanonicalHostname()
@@ -94,19 +105,19 @@ async function canBannedUserAccessChatPath(args: {
 export async function middleware(request: NextRequest) {
   const wwwRedirect = redirectWwwToCanonicalHost(request)
   if (wwwRedirect) {
-    return wwwRedirect
+    return withVercelNoIndex(request, wwwRedirect)
   }
 
   const { pathname } = request.nextUrl
 
   if (isBypassMiddlewarePath(pathname)) {
-    return NextResponse.next()
+    return withVercelNoIndex(request, NextResponse.next())
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   if (!supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.next()
+    return withVercelNoIndex(request, NextResponse.next())
   }
 
   let supabaseResponse = NextResponse.next({
@@ -141,7 +152,7 @@ export async function middleware(request: NextRequest) {
     })
     if (isBanned && !isAdmin && !allowForBannedBase && !allowBannedChat) {
       const bannedUrl = new URL("/banned", request.nextUrl)
-      return NextResponse.redirect(bannedUrl)
+      return withVercelNoIndex(request, NextResponse.redirect(bannedUrl))
     }
   }
 
@@ -150,24 +161,24 @@ export async function middleware(request: NextRequest) {
     const loginUrl = new URL("/login", request.nextUrl)
     const redirectTo = `${pathname}${request.nextUrl.search}`
     loginUrl.searchParams.set("redirect", redirectTo)
-    return NextResponse.redirect(loginUrl)
+    return withVercelNoIndex(request, NextResponse.redirect(loginUrl))
   }
 
   // メンテ中でもログインは可能にする（ログイン後、管理者は全ページ・一般ユーザーは /maintenance へ誘導される）
   if (pathname === "/login" || pathname.startsWith("/login/")) {
-    return supabaseResponse
+    return withVercelNoIndex(request, supabaseResponse)
   }
 
   if (pathname.startsWith("/admin") || pathname === "/maintenance") {
-    return supabaseResponse
+    return withVercelNoIndex(request, supabaseResponse)
   }
 
   const block = await shouldRedirectPublicUserToMaintenance(supabase)
   if (block) {
-    return NextResponse.redirect(new URL("/maintenance", request.url))
+    return withVercelNoIndex(request, NextResponse.redirect(new URL("/maintenance", request.url)))
   }
 
-  return supabaseResponse
+  return withVercelNoIndex(request, supabaseResponse)
 }
 
 export const config = {

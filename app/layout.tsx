@@ -8,7 +8,7 @@ import { MobileHeaderMenuProvider } from "@/components/mobile-header-menu-contex
 import { MaintenanceGuard } from "@/components/MaintenanceGuard";
 import { ThemeProvider } from "@/components/theme-provider";
 import {
-  getSiteUrl,
+  getCanonicalSiteUrl,
   LAYOUT_DESCRIPTION,
   LAYOUT_TITLE_DEFAULT,
   SITE_KEYWORDS,
@@ -25,7 +25,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const siteUrl = getSiteUrl();
+const siteUrl = getCanonicalSiteUrl();
 
 export const viewport: Viewport = {
   width: "device-width",
