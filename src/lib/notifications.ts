@@ -27,6 +27,10 @@ function resolveFriendlyErrorMessage(rawMessage: string, code?: string) {
     return "同じ内容のデータが既に登録されています。"
   }
 
+  if (normalized.includes("admin_publish_locked")) {
+    return "運営による非公開のため、ご自身で公開に戻すことはできません。"
+  }
+
   return DEFAULT_ERROR_MESSAGE
 }
 

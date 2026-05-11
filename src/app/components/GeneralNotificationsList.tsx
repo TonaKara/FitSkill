@@ -226,7 +226,7 @@ export function GeneralNotificationsList({ userId, adminOrigin, onRead }: Genera
   if (rows.length === 0) {
     return (
       <p className="px-3 py-4 text-center text-sm text-zinc-500">
-        {adminOrigin ? "運営通知はまだありません" : "通知はまだありません"}
+        {adminOrigin ? "運営からの通知はまだありません" : "通知はまだありません"}
       </p>
     )
   }

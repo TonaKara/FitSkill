@@ -35,6 +35,13 @@ Deno.serve(async (req) => {
   const supabaseAdmin = createClient(supabaseUrl, serviceKey)
 
   try {
+    if (event.type === "checkout.session.completed" || event.type === "checkout.session.expired") {
+      return new Response(JSON.stringify({ received: true, skipped: "checkout flow handled by app webhook" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    }
+
     if (event.type === "payment_intent.succeeded") {
       const pi = event.data.object as Stripe.PaymentIntent
       const transactionId = pi.metadata?.transaction_id?.trim()

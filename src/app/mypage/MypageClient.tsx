@@ -163,6 +163,7 @@ type ListedSkill = {
   price: number
   created_at: string | null
   is_published: boolean | null
+  admin_publish_locked: boolean | null
 }
 
 /** favorites 行 + 紐づく skills（一覧表示用） */
@@ -986,7 +987,7 @@ export default function MypageClient() {
     setListingsError(null)
     const { data, error } = await supabase
       .from("skills")
-      .select("id, title, category, price, created_at, is_published")
+      .select("id, title, category, price, created_at, is_published, admin_publish_locked")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
 
@@ -1002,6 +1003,15 @@ export default function MypageClient() {
   const executePublishListing = useCallback(async () => {
     const skillId = listingPublishConfirmId
     if (!userId || !skillId || publishingListingId) {
+      return
+    }
+    const targetListing = listings.find((item) => item.id === skillId)
+    if (targetListing?.admin_publish_locked) {
+      setListingPublishConfirmId(null)
+      setNotice({
+        variant: "error",
+        message: "運営による非公開のため、ご自身で公開に戻すことはできません。",
+      })
       return
     }
     setPublishingListingId(skillId)
@@ -1022,7 +1032,7 @@ export default function MypageClient() {
       prev.map((item) => (item.id === skillId ? { ...item, is_published: true } : item)),
     )
     setNotice({ variant: "success", message: "スキルを公開しました。" })
-  }, [supabase, userId, publishingListingId, isAdmin, listingPublishConfirmId])
+  }, [supabase, userId, publishingListingId, isAdmin, listingPublishConfirmId, listings])
 
   useEffect(() => {
     if (userId && section === "listings") {
@@ -2411,6 +2421,11 @@ export default function MypageClient() {
                             >
                               {skill.is_published === false ? "非公開" : "公開中"}
                             </span>
+                            {skill.admin_publish_locked ? (
+                              <span className="inline-flex rounded-full bg-amber-900/40 px-2.5 py-0.5 text-xs font-semibold text-amber-200">
+                                運営により非公開
+                              </span>
+                            ) : null}
                           </div>
                           <p className="mt-1 text-sm text-zinc-400">
                             {skill.category ?? "未分類"} · {Number(skill.price).toLocaleString("ja-JP")}
@@ -2418,7 +2433,7 @@ export default function MypageClient() {
                           </p>
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
-                          {skill.is_published === false ? (
+                          {skill.is_published === false && !skill.admin_publish_locked ? (
                             <Button
                               type="button"
                               size="sm"

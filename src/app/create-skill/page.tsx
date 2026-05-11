@@ -84,6 +84,7 @@ type SkillRow = {
   location_prefecture: string | null
   thumbnail_url: string | null
   is_published: boolean | null
+  admin_publish_locked: boolean | null
 }
 
 async function isStripeChargeEnabledForSeller(
@@ -133,6 +134,7 @@ function CreateSkillPageContent() {
   const [editLoadFinished, setEditLoadFinished] = useState(() => editParam == null)
   const [isPublished, setIsPublished] = useState(true)
   const [initialIsPublished, setInitialIsPublished] = useState(true)
+  const [adminPublishLocked, setAdminPublishLocked] = useState(false)
   const [showVisibilitySaveConfirm, setShowVisibilitySaveConfirm] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showFinalConfirm, setShowFinalConfirm] = useState(false)
@@ -215,7 +217,7 @@ function CreateSkillPageContent() {
       const { data, error } = await supabase
         .from("skills")
         .select(
-          "id, user_id, title, target_audience, description, category, price, duration_minutes, max_capacity, format, location_prefecture, thumbnail_url, is_published",
+          "id, user_id, title, target_audience, description, category, price, duration_minutes, max_capacity, format, location_prefecture, thumbnail_url, is_published, admin_publish_locked",
         )
         .eq("id", editParam)
         .maybeSingle()
@@ -251,7 +253,9 @@ function CreateSkillPageContent() {
         prefecture: row.location_prefecture?.trim() ?? "",
       })
       setEditSkillId(row.id)
-      const published = row.is_published !== false
+      const lockedByAdmin = row.admin_publish_locked === true
+      const published = lockedByAdmin ? false : row.is_published !== false
+      setAdminPublishLocked(lockedByAdmin)
       setIsPublished(published)
       setInitialIsPublished(published)
 
@@ -521,6 +525,13 @@ function CreateSkillPageContent() {
       return
     }
     if (editSkillId) {
+      if (adminPublishLocked && isPublished) {
+        setNotice({
+          variant: "error",
+          message: "運営による非公開のため、ご自身で公開に戻すことはできません。",
+        })
+        return
+      }
       if (isPublished !== initialIsPublished) {
         setShowVisibilitySaveConfirm(true)
         return
@@ -596,6 +607,7 @@ function CreateSkillPageContent() {
       const nowIso = new Date().toISOString()
 
       if (editSkillId) {
+        const nextPublished = adminPublishLocked ? false : isPublished
         const { error } = await supabase
           .from("skills")
           .update({
@@ -609,7 +621,7 @@ function CreateSkillPageContent() {
             max_capacity: maxCapacity,
             format: form.format,
             location_prefecture: form.format === "onsite" ? form.prefecture : null,
-            is_published: isPublished,
+            is_published: nextPublished,
             updated_at: nowIso,
           })
           .eq("id", editSkillId)
@@ -628,7 +640,7 @@ function CreateSkillPageContent() {
           chatEnabled: chatConsultationEnabled,
         })
 
-        setInitialIsPublished(isPublished)
+        setInitialIsPublished(nextPublished)
         setPriceError("")
         router.push("/mypage?tab=listings&updated=1")
         router.refresh()
@@ -1100,12 +1112,17 @@ function CreateSkillPageContent() {
               <fieldset className="space-y-3 rounded-lg border border-zinc-700 bg-zinc-900/50 p-4">
                 <legend className="px-1 text-sm font-semibold text-zinc-200">公開設定</legend>
                 <div className="flex flex-wrap gap-4">
-                  <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-200">
+                  <label
+                    className={`flex items-center gap-2 text-sm text-zinc-200 ${
+                      adminPublishLocked ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+                    }`}
+                  >
                     <input
                       type="radio"
                       name="skill-visibility"
                       className="h-4 w-4 border-zinc-600 text-red-600 focus:ring-red-500"
                       checked={isPublished}
+                      disabled={adminPublishLocked}
                       onChange={() => setIsPublished(true)}
                     />
                     公開中
@@ -1121,6 +1138,11 @@ function CreateSkillPageContent() {
                     非公開
                   </label>
                 </div>
+                {adminPublishLocked ? (
+                  <p className="text-xs text-amber-200">
+                    運営により非公開のため、ご自身で公開に戻すことはできません。
+                  </p>
+                ) : null}
               </fieldset>
 
               <Button

@@ -186,8 +186,46 @@ export function AdminTableCard({
       content: params.content,
     })
     if (error) {
-      console.error("[AdminTableCard] admin notification failed", error)
+      console.error("[AdminTableCard] admin notification failed", {
+        message: error.message,
+        code: error.code ?? null,
+        details: error.details ?? null,
+        hint: error.hint ?? null,
+        recipientId: params.recipientId,
+        type: params.type,
+      })
     }
+  }
+
+  const callAdminSkillModeration = async (params: {
+    skillId: string | number
+    action: "set_published" | "delete"
+    isPublished?: boolean
+    reason: string
+  }): Promise<{ ok: true; archived?: boolean } | { ok: false; message: string }> => {
+    const response = await fetch("/api/admin/skills/moderate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        skillId: params.skillId,
+        action: params.action,
+        isPublished: params.isPublished,
+        reason: params.reason,
+      }),
+      cache: "no-store",
+    })
+    const body = (await response.json().catch(() => null)) as {
+      ok?: boolean
+      error?: string
+      archived?: boolean
+    } | null
+    if (!response.ok || body?.ok !== true) {
+      return {
+        ok: false,
+        message: body?.error ?? `管理者操作に失敗しました (${response.status})`,
+      }
+    }
+    return { ok: true, archived: body?.archived === true }
   }
 
   const visibleRows = useMemo(() => {
@@ -477,22 +515,15 @@ export function AdminTableCard({
         return
       }
       const nextPublished = !currentPublished
-      const { data: updatedRows, error: updateError } = await supabase
-        .from("skills")
-        .update({ is_published: nextPublished })
-        .eq("id", skillRow.id)
-        .select("id, is_published")
-      if (updateError) {
-        console.error("[AdminTableCard] product publish toggle failed:", updateError)
-        setNotice({ variant: "error", message: "商品の公開状態変更に失敗しました。" })
-        return
-      }
-      if (!updatedRows || updatedRows.length === 0) {
-        console.error(
-          "[AdminTableCard] is_published update returned no rows. RLS policy may block update silently.",
-          { skillId: skillRow.id, expectedValue: nextPublished },
-        )
-        setNotice({ variant: "error", message: "更新対象が見つかりませんでした。RLS設定をご確認ください。" })
+      const result = await callAdminSkillModeration({
+        skillId: skillRow.id,
+        action: "set_published",
+        isPublished: nextPublished,
+        reason,
+      })
+      if (!result.ok) {
+        console.error("[AdminTableCard] product publish toggle failed:", result.message)
+        setNotice({ variant: "error", message: result.message || "商品の公開状態変更に失敗しました。" })
         return
       }
 
@@ -500,26 +531,19 @@ export function AdminTableCard({
         variant: "success",
         message: nextPublished ? "商品を公開しました" : "商品を非公開にしました",
       })
-      if (skillRow.user_id) {
-        await notifyAdminAction({
-          recipientId: skillRow.user_id,
-          type: "admin_product_visibility",
-          content: `運営対応: あなたの商品「${String(skillRow.id)}」を${nextPublished ? "公開" : "非公開"}に変更しました。理由: ${reason}`,
+      if (!nextPublished) {
+        void fetch("/api/notifications/event-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            event: "skill_moderated",
+            skillId: String(skillRow.id),
+            action: "unpublished",
+            reason,
+          }),
+        }).catch(() => {
+          // メール通知失敗で公開状態変更を失敗扱いにしない
         })
-        if (!nextPublished) {
-          void fetch("/api/notifications/event-email", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              event: "skill_moderated",
-              skillId: String(skillRow.id),
-              action: "unpublished",
-              reason,
-            }),
-          }).catch(() => {
-            // メール通知失敗で公開状態変更を失敗扱いにしない
-          })
-        }
       }
       setReloadTick((prev) => prev + 1)
     } finally {
@@ -543,37 +567,34 @@ export function AdminTableCard({
     }
     setActionPendingKey(rowKey)
     try {
-      const { data: ownerRow } = await supabase
-        .from("skills")
-        .select("id, user_id, title")
-        .eq("id", productId as string | number)
-        .maybeSingle<{ id: string | number; user_id: string | null; title: string | null }>()
-      const { error } = await supabase.from("skills").delete().eq("id", productId as string | number)
-      if (error) {
-        console.error("[AdminTableCard] product delete failed:", error)
-        setNotice({ variant: "error", message: "商品の削除に失敗しました。" })
+      const result = await callAdminSkillModeration({
+        skillId: productId,
+        action: "delete",
+        reason,
+      })
+      if (!result.ok) {
+        console.error("[AdminTableCard] product delete failed:", result.message)
+        setNotice({ variant: "error", message: result.message || "商品の削除に失敗しました。" })
         return
       }
-      setNotice({ variant: "success", message: "商品を削除しました" })
-      if (ownerRow?.user_id) {
-        await notifyAdminAction({
-          recipientId: ownerRow.user_id,
-          type: "admin_product_deleted",
-          content: `運営対応: 商品「${ownerRow.title ?? String(ownerRow.id)}」を削除しました。理由: ${reason}`,
-        })
-        void fetch("/api/notifications/event-email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            event: "skill_moderated",
-            skillId: String(ownerRow.id),
-            action: "deleted",
-            reason,
-          }),
-        }).catch(() => {
-          // メール通知失敗で削除処理を失敗扱いにしない
-        })
-      }
+      setNotice({
+        variant: "success",
+        message: result.archived
+          ? "取引履歴があるため、商品を非公開にしました（取引データは保持されます）"
+          : "商品を削除しました",
+      })
+      void fetch("/api/notifications/event-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "skill_moderated",
+          skillId: String(productId),
+          action: "deleted",
+          reason,
+        }),
+      }).catch(() => {
+        // メール通知失敗で削除処理を失敗扱いにしない
+      })
       setReloadTick((prev) => prev + 1)
     } finally {
       setActionPendingKey(null)
@@ -597,46 +618,34 @@ export function AdminTableCard({
     setActionPendingKey(rowKey)
     try {
       const nextPublished = !currentPublished
-      const { data: updatedRows, error: updateError } = await supabase
-        .from("skills")
-        .update({ is_published: nextPublished })
-        .eq("id", skillId as string | number)
-        .select("id, is_published")
-      if (updateError) {
-        console.error("[AdminTableCard] skill publish toggle failed:", updateError)
-        setNotice({ variant: "error", message: "商品の公開状態変更に失敗しました。" })
-        return
-      }
-      if (!updatedRows || updatedRows.length === 0) {
-        console.error("[AdminTableCard] skill is_published update returned no rows", { skillId })
-        setNotice({ variant: "error", message: "更新対象が見つかりませんでした。RLS設定をご確認ください。" })
+      const result = await callAdminSkillModeration({
+        skillId: skillId as string | number,
+        action: "set_published",
+        isPublished: nextPublished,
+        reason,
+      })
+      if (!result.ok) {
+        console.error("[AdminTableCard] skill publish toggle failed:", result.message)
+        setNotice({ variant: "error", message: result.message || "商品の公開状態変更に失敗しました。" })
         return
       }
       setNotice({
         variant: "success",
         message: nextPublished ? "商品を公開しました" : "商品を非公開にしました",
       })
-      const ownerId = typeof row.user_id === "string" ? row.user_id : null
-      if (ownerId) {
-        await notifyAdminAction({
-          recipientId: ownerId,
-          type: "admin_product_visibility",
-          content: `運営対応: あなたの商品「${String(skillId)}」を${nextPublished ? "公開" : "非公開"}に変更しました。理由: ${reason}`,
+      if (!nextPublished) {
+        void fetch("/api/notifications/event-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            event: "skill_moderated",
+            skillId: String(skillId),
+            action: "unpublished",
+            reason,
+          }),
+        }).catch(() => {
+          // メール通知失敗で公開状態変更を失敗扱いにしない
         })
-        if (!nextPublished) {
-          void fetch("/api/notifications/event-email", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              event: "skill_moderated",
-              skillId: String(skillId),
-              action: "unpublished",
-              reason,
-            }),
-          }).catch(() => {
-            // メール通知失敗で公開状態変更を失敗扱いにしない
-          })
-        }
       }
       setReloadTick((prev) => prev + 1)
     } finally {
@@ -659,33 +668,34 @@ export function AdminTableCard({
     }
     setActionPendingKey(rowKey)
     try {
-      const { error } = await supabase.from("skills").delete().eq("id", skillId as string | number)
-      if (error) {
-        console.error("[AdminTableCard] skill delete failed:", error)
-        setNotice({ variant: "error", message: "商品の削除に失敗しました。" })
+      const result = await callAdminSkillModeration({
+        skillId: skillId as string | number,
+        action: "delete",
+        reason,
+      })
+      if (!result.ok) {
+        console.error("[AdminTableCard] skill delete failed:", result.message)
+        setNotice({ variant: "error", message: result.message || "商品の削除に失敗しました。" })
         return
       }
-      setNotice({ variant: "success", message: "商品を削除しました" })
-      const ownerId = typeof row.user_id === "string" ? row.user_id : null
-      if (ownerId) {
-        await notifyAdminAction({
-          recipientId: ownerId,
-          type: "admin_product_deleted",
-          content: `運営対応: あなたの商品「${String(skillId)}」を削除しました。理由: ${reason}`,
-        })
-        void fetch("/api/notifications/event-email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            event: "skill_moderated",
-            skillId: String(skillId),
-            action: "deleted",
-            reason,
-          }),
-        }).catch(() => {
-          // メール通知失敗で削除処理を失敗扱いにしない
-        })
-      }
+      setNotice({
+        variant: "success",
+        message: result.archived
+          ? "取引履歴があるため、商品を非公開にしました（取引データは保持されます）"
+          : "商品を削除しました",
+      })
+      void fetch("/api/notifications/event-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "skill_moderated",
+          skillId: String(skillId),
+          action: "deleted",
+          reason,
+        }),
+      }).catch(() => {
+        // メール通知失敗で削除処理を失敗扱いにしない
+      })
       setReloadTick((prev) => prev + 1)
     } finally {
       setActionPendingKey(null)

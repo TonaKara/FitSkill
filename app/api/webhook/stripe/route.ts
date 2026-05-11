@@ -28,31 +28,101 @@ function getSupabaseAdminClient() {
   return createClient(supabaseUrl, serviceRoleKey)
 }
 
-async function markStripeEventAsProcessing(
-  supabase: ReturnType<typeof getSupabaseAdminClient>,
-  eventId: string,
-): Promise<"new" | "already_processed"> {
-  const { data, error } = await supabase
-    .from("stripe_webhook_events")
-    .insert({
-      stripe_event_id: eventId,
-      received_at: new Date().toISOString(),
-    })
-    .select("stripe_event_id")
-    .maybeSingle()
-  if (!error) {
-    return data?.stripe_event_id ? "new" : "new"
-  }
-  const normalized = String(error.message ?? "").toLowerCase()
-  if (
+type StripeWebhookEventRow = {
+  processed_at?: string | null
+}
+
+function isMissingStripeWebhookEventsTableError(message: string): boolean {
+  const normalized = String(message ?? "").toLowerCase()
+  return (
     normalized.includes("stripe_webhook_events") &&
     (normalized.includes("does not exist") || normalized.includes("could not find"))
-  ) {
-    // 冪等テーブル未作成環境では従来動作を維持（要SQL適用）
-    return "new"
+  )
+}
+
+function isDuplicateStripeWebhookEventError(error: { code?: string; message?: string }): boolean {
+  const code = String(error.code ?? "")
+  if (code === "23505") {
+    return true
   }
-  if ((error as { code?: string }).code === "23505" || normalized.includes("duplicate key")) {
-    return "already_processed"
+  const normalized = String(error.message ?? "").toLowerCase()
+  return normalized.includes("duplicate key")
+}
+
+async function claimStripeWebhookEvent(
+  supabase: ReturnType<typeof getSupabaseAdminClient>,
+  eventId: string,
+): Promise<"process" | "skip_completed"> {
+  const { error } = await supabase.from("stripe_webhook_events").insert({
+    stripe_event_id: eventId,
+    received_at: new Date().toISOString(),
+  })
+  if (!error) {
+    return "process"
+  }
+  if (isMissingStripeWebhookEventsTableError(error.message)) {
+    return "process"
+  }
+  if (!isDuplicateStripeWebhookEventError(error)) {
+    throw new Error(error.message)
+  }
+
+  const { data, error: existingError } = await supabase
+    .from("stripe_webhook_events")
+    .select("processed_at")
+    .eq("stripe_event_id", eventId)
+    .maybeSingle()
+  if (existingError) {
+    if (isMissingStripeWebhookEventsTableError(existingError.message)) {
+      return "process"
+    }
+    throw new Error(existingError.message)
+  }
+
+  const processedAt = (data as StripeWebhookEventRow | null)?.processed_at
+  if (processedAt) {
+    return "skip_completed"
+  }
+  return "process"
+}
+
+async function markStripeWebhookEventProcessed(
+  supabase: ReturnType<typeof getSupabaseAdminClient>,
+  eventId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("stripe_webhook_events")
+    .update({
+      processed_at: new Date().toISOString(),
+      last_error: null,
+    })
+    .eq("stripe_event_id", eventId)
+  if (!error) {
+    return
+  }
+  if (isMissingStripeWebhookEventsTableError(error.message)) {
+    return
+  }
+  throw new Error(error.message)
+}
+
+async function recordStripeWebhookEventFailure(
+  supabase: ReturnType<typeof getSupabaseAdminClient>,
+  eventId: string,
+  message: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("stripe_webhook_events")
+    .update({
+      last_error: message.slice(0, 1000),
+    })
+    .eq("stripe_event_id", eventId)
+    .is("processed_at", null)
+  if (!error) {
+    return
+  }
+  if (isMissingStripeWebhookEventsTableError(error.message)) {
+    return
   }
   throw new Error(error.message)
 }
@@ -134,8 +204,8 @@ export async function POST(req: Request) {
 
   try {
     const supabase = getSupabaseAdminClient()
-    const processingState = await markStripeEventAsProcessing(supabase, event.id)
-    if (processingState === "already_processed") {
+    const claimState = await claimStripeWebhookEvent(supabase, event.id)
+    if (claimState === "skip_completed") {
       return new Response(JSON.stringify({ received: true, skipped: "duplicate_event" }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -180,12 +250,20 @@ export async function POST(req: Request) {
         break
     }
 
+    await markStripeWebhookEventProcessed(supabase, event.id)
+
     return new Response(JSON.stringify({ received: true }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
+    try {
+      const supabase = getSupabaseAdminClient()
+      await recordStripeWebhookEventFailure(supabase, event.id, message)
+    } catch (recordError) {
+      console.error("[stripe webhook] failed to record webhook failure", recordError)
+    }
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
