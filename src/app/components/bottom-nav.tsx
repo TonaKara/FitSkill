@@ -12,7 +12,7 @@ const navItems = [
   { id: "favorites", label: "お気に入り", icon: Heart },
   { id: "create", label: "出品", icon: PlusCircle },
   { id: "messages", label: "メッセージ", icon: MessageCircle },
-  { id: "profile", label: "プロフィール設定", icon: User },
+  { id: "profile", label: "プロフィール", icon: User },
 ]
 
 export function BottomNav() {
