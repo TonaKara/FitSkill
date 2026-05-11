@@ -164,8 +164,13 @@ export async function middleware(request: NextRequest) {
     return withVercelNoIndex(request, NextResponse.redirect(loginUrl))
   }
 
-  // メンテ中でもログインは可能にする（ログイン後、管理者は全ページ・一般ユーザーは /maintenance へ誘導される）
-  if (pathname === "/login" || pathname.startsWith("/login/")) {
+  // メンテ中でもログイン・メール認証コールバックは可能にする
+  if (
+    pathname === "/login" ||
+    pathname.startsWith("/login/") ||
+    pathname === "/auth/callback" ||
+    pathname === "/auth/update-password"
+  ) {
     return withVercelNoIndex(request, supabaseResponse)
   }
 

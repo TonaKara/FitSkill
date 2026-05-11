@@ -95,6 +95,11 @@ export default function ProfileSetupPage() {
         router.replace("/login")
         return
       }
+      if (!data.user.email_confirmed_at) {
+        await supabase.auth.signOut()
+        router.replace("/login")
+        return
+      }
       setUserId(data.user.id)
       setIsAdmin(await getIsAdminFromProfile(supabase, data.user.id))
       setAuthLoading(false)

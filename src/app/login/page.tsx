@@ -2,13 +2,14 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Eye, EyeOff, Loader2, ShieldAlert } from "lucide-react"
 import { BrandMarkSvg } from "@/components/BrandMarkSvg"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { NotificationToast } from "@/components/ui/notification-toast"
+import { buildAuthCallbackRedirectUrl } from "@/lib/auth-email-flow"
 import { getIsAdminFromProfile } from "@/lib/admin"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { toErrorNotice, toSuccessNotice, type AppNotice } from "@/lib/notifications"
@@ -43,6 +44,7 @@ function getPasswordRuleState(password: string) {
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const [mode, setMode] = useState<AuthMode>("login")
   const [email, setEmail] = useState("")
@@ -79,6 +81,15 @@ export default function LoginPage() {
   const isSignupDisabled =
     isSignup &&
     (!passwordRuleState.isValid || !isEmailMatched || !isConfirmMatched || !birthday.trim())
+
+  useEffect(() => {
+    if (searchParams.get("error") === "auth_callback") {
+      setNotice({
+        variant: "error",
+        message: "メール認証に失敗しました。リンクの有効期限が切れている可能性があります。再度登録するか、ログインをお試しください。",
+      })
+    }
+  }, [searchParams])
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient()
@@ -196,6 +207,7 @@ export default function LoginPage() {
         email: normalizedEmail,
         password,
         options: {
+          emailRedirectTo: buildAuthCallbackRedirectUrl("/profile-setup"),
           data: {
             display_name: trimmedDisplayName,
             full_name: trimmedFullName || null,
@@ -208,8 +220,29 @@ export default function LoginPage() {
         throw signUpError
       }
 
-      if (!signUpData.user?.id) {
+      const signUpUser = signUpData.user
+      if (!signUpUser?.id) {
         throw new Error("ユーザー作成に失敗しました。")
+      }
+
+      const identities = signUpUser.identities ?? []
+      if (identities.length === 0) {
+        setNotice({
+          variant: "error",
+          message:
+            "このメールアドレスは登録済みか、確認メール送信待ちの可能性があります。受信ボックスをご確認ください。",
+        })
+        return
+      }
+
+      if (!signUpData.session) {
+        await supabase.auth.signOut()
+        setNotice(
+          toSuccessNotice(
+            "確認メールを送信しました。メール内のリンクを開いて認証を完了してから、プロフィール設定に進んでください。",
+          ),
+        )
+        return
       }
 
       try {
@@ -217,7 +250,7 @@ export default function LoginPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            userId: signUpData.user.id,
+            userId: signUpUser.id,
             email: normalizedEmail,
             displayName: trimmedDisplayName,
           }),
@@ -257,7 +290,7 @@ export default function LoginPage() {
             <CardTitle className="text-2xl font-bold tracking-wide text-white">{title}</CardTitle>
             <CardDescription className="mt-1 text-zinc-400">
               {isSignup
-                ? "メールアドレスでアカウントを作成し、プロフィール設定に進みます。"
+                ? "メールアドレスでアカウントを作成します。確認メールのリンクを開いたあと、プロフィール設定に進みます。"
                 : isReset
                   ? "登録済みメールアドレス宛に、再設定リンクを送信します。"
                   : "登録済みのアカウントでGritVibにログインします。"}
