@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { NotificationToast } from "@/components/ui/notification-toast"
-import { buildAuthCallbackRedirectUrl } from "@/lib/auth-email-flow"
+import { buildSignupConfirmationRedirectUrl } from "@/lib/auth-email-flow"
 import { getIsAdminFromProfile } from "@/lib/admin"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { toErrorNotice, toSuccessNotice, type AppNotice } from "@/lib/notifications"
@@ -25,6 +25,10 @@ function formatLocalIsoDate(date: Date) {
   const m = String(date.getMonth() + 1).padStart(2, "0")
   const d = String(date.getDate()).padStart(2, "0")
   return `${y}-${m}-${d}`
+}
+
+function isLikelyEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 }
 
 function getPasswordRuleState(password: string) {
@@ -59,10 +63,17 @@ export default function LoginPage() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [signupVerificationEmail, setSignupVerificationEmail] = useState<string | null>(null)
+  const [verificationPanelNotice, setVerificationPanelNotice] = useState<AppNotice | null>(null)
+  const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState(false)
 
   const isSignup = mode === "signup"
   const isReset = mode === "reset"
+  const isAwaitingSignupVerification = signupVerificationEmail !== null
   const title = useMemo(() => {
+    if (isAwaitingSignupVerification) {
+      return "メール認証の確認"
+    }
     if (isSignup) {
       return "新規登録"
     }
@@ -70,7 +81,7 @@ export default function LoginPage() {
       return "パスワード再設定"
     }
     return "ログイン"
-  }, [isReset, isSignup])
+  }, [isAwaitingSignupVerification, isReset, isSignup])
   const passwordRuleState = useMemo(() => getPasswordRuleState(password), [password])
   const normalizedEmail = email.trim().toLowerCase()
   const normalizedConfirmEmail = confirmEmail.trim().toLowerCase()
@@ -81,15 +92,98 @@ export default function LoginPage() {
   const isSignupDisabled =
     isSignup &&
     (!passwordRuleState.isValid || !isEmailMatched || !isConfirmMatched || !birthday.trim())
+  const normalizedResendEmail = email.trim().toLowerCase()
+  const registeredSignupEmail = signupVerificationEmail?.trim().toLowerCase() ?? ""
+  const resendEmailChangedFromRegistered =
+    isAwaitingSignupVerification &&
+    registeredSignupEmail.length > 0 &&
+    normalizedResendEmail !== registeredSignupEmail
+  const canResendSignupVerification =
+    isAwaitingSignupVerification && isLikelyEmail(normalizedResendEmail) && !resendEmailChangedFromRegistered
 
   useEffect(() => {
     if (searchParams.get("error") === "auth_callback") {
+      setSignupVerificationEmail(null)
+      setMode("login")
       setNotice({
         variant: "error",
         message: "メール認証に失敗しました。リンクの有効期限が切れている可能性があります。再度登録するか、ログインをお試しください。",
       })
     }
   }, [searchParams])
+
+  const resetSignupFormFields = () => {
+    setConfirmEmail("")
+    setConfirmPassword("")
+    setPassword("")
+    setFullName("")
+    setBirthday("")
+    setDisplayName("")
+  }
+
+  const returnToLoginFromSignupVerification = () => {
+    setSignupVerificationEmail(null)
+    setVerificationPanelNotice(null)
+    setMode("login")
+    setNotice(null)
+    resetSignupFormFields()
+    setEmail("")
+  }
+
+  const returnToSignupWithEditedEmail = () => {
+    const nextEmail = email.trim()
+    setSignupVerificationEmail(null)
+    setVerificationPanelNotice(null)
+    setMode("signup")
+    setNotice(null)
+    setEmail(nextEmail)
+    setConfirmEmail(nextEmail)
+    resetSignupFormFields()
+  }
+
+  const handleResendSignupVerification = async () => {
+    if (!isAwaitingSignupVerification || isResendingVerificationEmail) {
+      return
+    }
+
+    if (!isLikelyEmail(normalizedResendEmail)) {
+      setVerificationPanelNotice({
+        variant: "error",
+        message: "再送先のメールアドレスを正しく入力してください。",
+      })
+      return
+    }
+
+    if (resendEmailChangedFromRegistered) {
+      setVerificationPanelNotice({
+        variant: "error",
+        message:
+          "登録時と異なるメールアドレスには再送できません。下の「このメールアドレスで登録し直す」から新規登録をやり直してください。",
+      })
+      return
+    }
+
+    setVerificationPanelNotice(null)
+    setIsResendingVerificationEmail(true)
+    try {
+      const response = await fetch("/api/auth/resend-signup-confirmation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: normalizedResendEmail }),
+      })
+      const body = (await response.json().catch(() => null)) as { message?: string } | null
+      setVerificationPanelNotice(
+        toSuccessNotice(body?.message ?? "確認メールを再送しました。受信ボックスをご確認ください。"),
+      )
+    } catch {
+      setVerificationPanelNotice({
+        variant: "error",
+        message: "確認メールの再送に失敗しました。時間を置いて再度お試しください。",
+      })
+    } finally {
+      setIsResendingVerificationEmail(false)
+    }
+  }
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient()
@@ -207,7 +301,7 @@ export default function LoginPage() {
         email: normalizedEmail,
         password,
         options: {
-          emailRedirectTo: buildAuthCallbackRedirectUrl("/profile-setup"),
+          emailRedirectTo: buildSignupConfirmationRedirectUrl(),
           data: {
             display_name: trimmedDisplayName,
             full_name: trimmedFullName || null,
@@ -237,11 +331,10 @@ export default function LoginPage() {
 
       if (!signUpData.session) {
         await supabase.auth.signOut()
-        setNotice(
-          toSuccessNotice(
-            "確認メールを送信しました。メール内のリンクを開いて認証を完了してから、プロフィール設定に進んでください。",
-          ),
-        )
+        setNotice(null)
+        setVerificationPanelNotice(null)
+        setSignupVerificationEmail(normalizedEmail)
+        resetSignupFormFields()
         return
       }
 
@@ -289,11 +382,13 @@ export default function LoginPage() {
           <div>
             <CardTitle className="text-2xl font-bold tracking-wide text-white">{title}</CardTitle>
             <CardDescription className="mt-1 text-zinc-400">
-              {isSignup
-                ? "メールアドレスでアカウントを作成します。確認メールのリンクを開いたあと、プロフィール設定に進みます。"
-                : isReset
-                  ? "登録済みメールアドレス宛に、再設定リンクを送信します。"
-                  : "登録済みのアカウントでGritVibにログインします。"}
+              {isAwaitingSignupVerification
+                ? "確認メールのリンクを開いて認証を完了してください。認証後にプロフィール設定へ進みます。"
+                : isSignup
+                  ? "メールアドレスでアカウントを作成します。確認メールのリンクを開いたあと、プロフィール設定に進みます。"
+                  : isReset
+                    ? "登録済みメールアドレス宛に、再設定リンクを送信します。"
+                    : "登録済みのアカウントでGritVibにログインします。"}
             </CardDescription>
           </div>
 
@@ -305,12 +400,14 @@ export default function LoginPage() {
             <Link href="/">ホームに戻る</Link>
           </Button>
 
+          {!isAwaitingSignupVerification ? (
           <div className="grid grid-cols-2 rounded-lg border border-zinc-800 bg-zinc-900 p-1">
             <button
               type="button"
               onClick={() => {
                 setMode("login")
                 setNotice(null)
+                setSignupVerificationEmail(null)
                 setConfirmEmail("")
                 setConfirmPassword("")
                 setPassword("")
@@ -329,6 +426,7 @@ export default function LoginPage() {
               onClick={() => {
                 setMode("signup")
                 setNotice(null)
+                setSignupVerificationEmail(null)
                 setConfirmEmail("")
                 setConfirmPassword("")
                 setPassword("")
@@ -343,9 +441,116 @@ export default function LoginPage() {
               新規登録
             </button>
           </div>
+          ) : null}
         </CardHeader>
 
         <CardContent>
+          {isAwaitingSignupVerification ? (
+            <div className="space-y-5">
+              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-4 text-sm leading-relaxed text-zinc-100">
+                <p className="font-semibold text-emerald-200">確認メールを送信しました。</p>
+                <p className="mt-3 text-zinc-300">
+                  認証用メールを送信しました。メール内のリンクを開いて認証を完了してください。認証後にプロフィール設定へ進みます。
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-zinc-100" htmlFor="signup_verification_email">
+                  送信先メールアドレス
+                </label>
+                <Input
+                  id="signup_verification_email"
+                  type="email"
+                  value={email}
+                  onChange={(event) => {
+                    setEmail(event.target.value)
+                    setVerificationPanelNotice(null)
+                  }}
+                  autoComplete="email"
+                  className="border-zinc-700 bg-zinc-900 text-zinc-50 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                />
+                <p className="text-xs leading-relaxed text-zinc-400">
+                  再送前に宛先をご確認ください。登録時と違うアドレスに直す場合は、下の「このメールアドレスで登録し直す」をお使いください。
+                </p>
+                {email.trim().length > 0 && !isLikelyEmail(normalizedResendEmail) ? (
+                  <p className="text-xs text-red-400">メールアドレスの形式が正しくありません。</p>
+                ) : null}
+                {resendEmailChangedFromRegistered ? (
+                  <p className="text-xs text-amber-200">
+                    登録時のメールアドレス（{registeredSignupEmail}）と異なります。別アドレスで受け取るには登録し直してください。
+                  </p>
+                ) : null}
+              </div>
+
+              {verificationPanelNotice ? (
+                <div
+                  className={cn(
+                    "rounded-lg border px-4 py-3 text-sm leading-relaxed",
+                    verificationPanelNotice.variant === "error"
+                      ? "border-red-500/40 bg-red-500/10 text-red-100"
+                      : "border-emerald-500/30 bg-emerald-500/10 text-emerald-100",
+                  )}
+                >
+                  {verificationPanelNotice.message}
+                </div>
+              ) : null}
+
+              <div className="rounded-lg border border-zinc-800 bg-zinc-900/70 px-4 py-4 text-sm text-zinc-300">
+                <p className="font-semibold text-zinc-100">メールが届かない場合</p>
+                <ul className="mt-3 list-disc space-y-2 pl-5">
+                  <li>迷惑メールフォルダやプロモーションタブをご確認ください。</li>
+                  <li>数分待ってから、宛先を確認して「確認メールを再送する」をお試しください。</li>
+                  <li>メールアドレスを間違えた場合は、入力欄を直して「このメールアドレスで登録し直す」をお試しください。</li>
+                  <li>それでも届かない場合は、別のメールアドレスで登録するか、お問い合わせください。</li>
+                </ul>
+              </div>
+
+              <Button
+                type="button"
+                disabled={isResendingVerificationEmail || !canResendSignupVerification}
+                className="h-11 w-full bg-red-600 text-white hover:bg-red-500 disabled:opacity-60"
+                onClick={() => void handleResendSignupVerification()}
+              >
+                {isResendingVerificationEmail ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    再送中...
+                  </>
+                ) : (
+                  "確認メールを再送する"
+                )}
+              </Button>
+
+              {resendEmailChangedFromRegistered ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 w-full border-amber-500/50 bg-zinc-900 text-amber-100 hover:bg-zinc-800"
+                  onClick={returnToSignupWithEditedEmail}
+                >
+                  このメールアドレスで登録し直す
+                </Button>
+              ) : null}
+
+              <Button
+                type="button"
+                asChild
+                variant="outline"
+                className="h-11 w-full border-zinc-600 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
+              >
+                <Link href="/contact">お問い合わせ</Link>
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 w-full border-zinc-600 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
+                onClick={returnToLoginFromSignupVerification}
+              >
+                ログイン画面に戻る
+              </Button>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             {isSignup && (
               <div className="space-y-2">
@@ -560,6 +765,7 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
+          )}
         </CardContent>
       </Card>
     </div>

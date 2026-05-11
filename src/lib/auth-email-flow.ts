@@ -1,4 +1,4 @@
-import { getSiteUrl, normalizeSiteOrigin } from "@/lib/site-seo"
+import { getAppBaseUrl, normalizeSiteOrigin } from "@/lib/site-seo"
 
 export function sanitizeAuthNextPath(raw: string | null | undefined): string {
   const value = String(raw ?? "").trim()
@@ -11,11 +11,18 @@ export function sanitizeAuthNextPath(raw: string | null | undefined): string {
 export function buildAuthCallbackRedirectUrl(nextPath: string): string {
   const safeNext = sanitizeAuthNextPath(nextPath)
   const explicit = process.env.NEXT_PUBLIC_APP_URL?.trim()
-  const base = explicit
-    ? normalizeSiteOrigin(explicit)
-    : typeof window !== "undefined"
+  const base =
+    typeof window !== "undefined" && !explicit
       ? window.location.origin
-      : getSiteUrl()
+      : explicit
+        ? normalizeSiteOrigin(explicit)
+        : getAppBaseUrl()
   const params = new URLSearchParams({ next: safeNext })
   return `${base.replace(/\/$/, "")}/auth/callback?${params.toString()}`
+}
+
+export const SIGNUP_CONFIRMATION_NEXT_PATH = "/profile-setup"
+
+export function buildSignupConfirmationRedirectUrl(): string {
+  return buildAuthCallbackRedirectUrl(SIGNUP_CONFIRMATION_NEXT_PATH)
 }
