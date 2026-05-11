@@ -5,7 +5,13 @@ import { type EmailOtpType } from "@supabase/supabase-js"
 import { Resend } from "resend"
 import { buildSignupConfirmationRedirectUrl } from "@/lib/auth-email-flow"
 
-type GenerateLinkType = "magiclink" | "invite"
+type GenerateLinkType = "magiclink" | "invite" | "recovery"
+
+export type SignupConfirmationResendFailureReason = "missing_config" | "link_generation" | "delivery"
+
+export type SignupConfirmationResendResult =
+  | { ok: true }
+  | { ok: false; reason: SignupConfirmationResendFailureReason }
 
 function getSupabaseAdminClient() {
   const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -97,6 +103,14 @@ async function createSignupVerificationLink(
   return actionLink || null
 }
 
+function resolveResendFromAddress(): string {
+  const configured = process.env.RESEND_FROM_EMAIL?.trim()
+  if (configured) {
+    return configured
+  }
+  return "GritVib <notifications@gritvib.com>"
+}
+
 async function sendSignupConfirmationViaResend(to: string, actionLink: string): Promise<boolean> {
   const resend = getResendClient()
   if (!resend) {
@@ -104,7 +118,7 @@ async function sendSignupConfirmationViaResend(to: string, actionLink: string): 
     return false
   }
 
-  const fromAddress = process.env.RESEND_FROM_EMAIL ?? "GritVib <notifications@gritvib.com>"
+  const fromAddress = resolveResendFromAddress()
   const { data, error } = await resend.emails.send({
     from: fromAddress,
     to,
@@ -113,7 +127,12 @@ async function sendSignupConfirmationViaResend(to: string, actionLink: string): 
   })
 
   if (error) {
-    console.error("[signup-confirmation-resend] resend.emails.send failed", error)
+    console.error("[signup-confirmation-resend] resend.emails.send failed", {
+      to,
+      fromAddress,
+      message: error.message,
+      name: error.name,
+    })
     return false
   }
 
@@ -125,23 +144,35 @@ async function sendSignupConfirmationViaResend(to: string, actionLink: string): 
   return true
 }
 
-export async function sendSignupConfirmationEmail(email: string): Promise<boolean> {
+export async function sendSignupConfirmationEmail(email: string): Promise<SignupConfirmationResendResult> {
+  if (!getSupabaseAdminClient() || !getResendClient()) {
+    console.error("[signup-confirmation-resend] missing server configuration", {
+      hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+      hasResendApiKey: Boolean(process.env.RESEND_API_KEY),
+      hasResendFromEmail: Boolean(process.env.RESEND_FROM_EMAIL?.trim()),
+    })
+    return { ok: false, reason: "missing_config" }
+  }
+
   const linkCandidates: Array<{ linkType: GenerateLinkType; otpType: EmailOtpType }> = [
     { linkType: "magiclink", otpType: "magiclink" },
     { linkType: "invite", otpType: "invite" },
+    { linkType: "recovery", otpType: "recovery" },
   ]
 
+  let generatedLink = false
   for (const candidate of linkCandidates) {
     const actionLink = await createSignupVerificationLink(email, candidate.linkType, candidate.otpType)
     if (!actionLink) {
       continue
     }
 
+    generatedLink = true
     const sent = await sendSignupConfirmationViaResend(email, actionLink)
     if (sent) {
-      return true
+      return { ok: true }
     }
   }
 
-  return false
+  return { ok: false, reason: generatedLink ? "delivery" : "link_generation" }
 }
