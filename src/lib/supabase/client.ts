@@ -3,6 +3,27 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 
 let browserClient: SupabaseClient | null = null
 
+const PLACEHOLDER_SUPABASE_URL = "https://placeholder.supabase.co"
+const PLACEHOLDER_SUPABASE_ANON_KEY = "public-anon-key"
+
+function resolveSupabaseBrowserConfig(): { supabaseUrl: string; supabaseAnonKey: string } {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim()
+
+  if (supabaseUrl && supabaseAnonKey) {
+    return { supabaseUrl, supabaseAnonKey }
+  }
+
+  if (typeof window === "undefined") {
+    return {
+      supabaseUrl: PLACEHOLDER_SUPABASE_URL,
+      supabaseAnonKey: PLACEHOLDER_SUPABASE_ANON_KEY,
+    }
+  }
+
+  throw new Error("Supabase環境変数が不足しています")
+}
+
 /**
  * ブラウザ用 Supabase クライアント。
  * `@supabase/ssr` の `createBrowserClient` により、セッションが Cookie にも保持され、
@@ -14,12 +35,7 @@ export function getSupabaseBrowserClient(): SupabaseClient {
     return browserClient
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error("Supabase環境変数が不足しています")
-  }
+  const { supabaseUrl, supabaseAnonKey } = resolveSupabaseBrowserConfig()
 
   browserClient = createBrowserClient(supabaseUrl, supabaseAnonKey, {
     isSingleton: true,
