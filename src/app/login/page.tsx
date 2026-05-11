@@ -102,14 +102,31 @@ export default function LoginPage() {
     isAwaitingSignupVerification && isLikelyEmail(normalizedResendEmail) && !resendEmailChangedFromRegistered
 
   useEffect(() => {
-    if (searchParams.get("error") === "auth_callback") {
-      setSignupVerificationEmail(null)
-      setMode("login")
-      setNotice({
-        variant: "error",
-        message: "メール認証に失敗しました。リンクの有効期限が切れている可能性があります。再度登録するか、ログインをお試しください。",
-      })
+    if (searchParams.get("error") !== "auth_callback") {
+      return
     }
+
+    setSignupVerificationEmail(null)
+    setMode("login")
+
+    const reason = searchParams.get("reason")
+    let message =
+      "メール認証に失敗しました。確認メールの再送、または再度登録をお試しください。"
+    if (reason === "missing") {
+      message =
+        "メール内の認証リンクが不完全です。メール全文からリンクを開き直すか、確認メールを再送してください。"
+    } else if (reason === "session_context") {
+      message =
+        "登録したのと同じブラウザで認証リンクを開いてください。別端末やアプリ内ブラウザの場合は、確認メールの再送をお試しください。"
+    } else if (reason === "exchange_failed" || reason === "otp_failed") {
+      message =
+        "認証リンクの有効期限切れ、または既に使用済みの可能性があります。確認メールを再送してください。"
+    }
+
+    setNotice({
+      variant: "error",
+      message,
+    })
   }, [searchParams])
 
   const resetSignupFormFields = () => {
