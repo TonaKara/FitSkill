@@ -5,6 +5,8 @@
  * - public/apple-touch-icon.png（180×180、検索・ホーム画面用）
  * - public/og-logo.png（小アイコン用・赤角丸タイル＋白マーク＝ブランドロゴ）
  * - public/og-home.png（トップ OG のみ・1200×630・ヘッダー左上と同じ赤タイル＋マーク＋「Grit」「Vib」）
+ * - public/favicon.svg, public/favicon.ico（検索・タブ用・赤角丸タイル＋白マーク）
+ * - public/icon-512.png（manifest 用）
  * - app/favicon.ico, app/icon.png（タブ用）
  * - sns-icon-1080.png, favicon-32.png, favicon.ico, apple-touch-icon-180.png, header-1200x300.png
  */
@@ -130,6 +132,12 @@ async function main() {
 </svg>`
   })()
 
+  const faviconSvg = `<?xml version="1.0" encoding="UTF-8"?>
+${faviconBaseSvg.replace(
+  /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"/,
+  '<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="GritVib"',
+)}`
+
   await writePng(snsSvg, path.join(OUT_DIR, "sns-icon-1080.png"), 144)
   const applePngPath = path.join(OUT_DIR, "apple-touch-icon-180.png")
   await sharp(Buffer.from(appleSvg, "utf8"), { density: 180 })
@@ -137,6 +145,10 @@ async function main() {
     .png()
     .toFile(applePngPath)
   await fs.mkdir(PUBLIC_DIR, { recursive: true })
+  await sharp(Buffer.from(snsSvg, "utf8"), { density: 144 })
+    .resize(512, 512)
+    .png()
+    .toFile(path.join(PUBLIC_DIR, "icon-512.png"))
   await fs.copyFile(applePngPath, path.join(PUBLIC_DIR, "apple-touch-icon.png"))
   await writePng(ogLogoSvg, path.join(PUBLIC_DIR, "og-logo.png"), 144)
 
@@ -212,9 +224,13 @@ ${markInner}
   const icoBuf = await toIco([favicon16, favicon32])
   await fs.writeFile(path.join(OUT_DIR, "favicon.ico"), icoBuf)
   await fs.writeFile(path.join(APP_DIR, "favicon.ico"), icoBuf)
+  await fs.writeFile(path.join(PUBLIC_DIR, "favicon.ico"), icoBuf)
   await fs.writeFile(path.join(APP_DIR, "icon.png"), favicon32)
+  await fs.writeFile(path.join(PUBLIC_DIR, "favicon.svg"), faviconSvg)
 
-  console.log(`Wrote brand assets to ${OUT_DIR}, synced public/apple-touch-icon.png and app favicon/icon`)
+  console.log(
+    `Wrote brand assets to ${OUT_DIR}, synced public favicon/apple-touch/og assets and app favicon/icon`,
+  )
 }
 
 main().catch((err) => {

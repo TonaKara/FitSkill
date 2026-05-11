@@ -68,11 +68,12 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     description: LAYOUT_DESCRIPTION,
   },
-  // Shared icon metadata.
+  // Shared icon metadata（ヘッダー左上と同じ赤角丸タイル＋白マーク。`npm run generate:brand-assets` で生成）
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
       { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },

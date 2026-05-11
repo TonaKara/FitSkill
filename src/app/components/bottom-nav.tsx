@@ -4,6 +4,7 @@ import { Home, Heart, PlusCircle, MessageCircle, User } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import { buildProfilePath } from "@/lib/profile-path"
 import { useMemo, useState } from "react"
 import { useMobileHeaderMenu } from "@/components/mobile-header-menu-context"
 
@@ -12,7 +13,7 @@ const navItems = [
   { id: "favorites", label: "お気に入り", icon: Heart },
   { id: "create", label: "出品", icon: PlusCircle },
   { id: "messages", label: "メッセージ", icon: MessageCircle },
-  { id: "profile", label: "マイページ", icon: User },
+  { id: "profile", label: "プロフィール", icon: User },
 ]
 
 export function BottomNav() {
@@ -112,14 +113,16 @@ export function BottomNav() {
     setActiveItem("profile")
     setIsProfileChecking(true)
     const { data } = await supabase.auth.getUser()
-    setIsProfileChecking(false)
-
-    if (data.user) {
-      router.push("/mypage")
+    const user = data.user
+    if (!user) {
+      setIsProfileChecking(false)
+      router.push("/login")
       return
     }
 
-    router.push("/login")
+    const { data: profile } = await supabase.from("profiles").select("custom_id").eq("id", user.id).maybeSingle()
+    setIsProfileChecking(false)
+    router.push(buildProfilePath(user.id, (profile as { custom_id?: string | null } | null)?.custom_id ?? null))
   }
 
   if (pathname === "/chat" || pathname.startsWith("/chat/")) {

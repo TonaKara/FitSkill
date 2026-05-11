@@ -28,14 +28,18 @@ export default function AdminDashboardPage() {
           { column: "dispute_status", value: "open" },
         ]}
         limit={500}
+        sortBy="disputed_at"
+        sortAscending
         headerLabels={DISPUTE_HEADER_LABELS}
         disputeAdminDetail
       />
       <AdminTableCard
-        title="問い合わせ一覧（最新）"
+        title="問い合わせ一覧"
         tableName="contact_submissions"
         columns={["name", "email", "category", "subject", "status", "created_at"]}
         filters={[{ column: "status", value: "pending" }]}
+        sortBy="created_at"
+        sortAscending
         headerLabels={ADMIN_TABLE_HEADER_LABELS}
       />
       <AdminTableCard
@@ -43,6 +47,8 @@ export default function AdminDashboardPage() {
         tableName="user_reports"
         columns={["reporter_id", "reported_user_id", "reason", "status", "created_at", "action"]}
         filters={[{ column: "status", value: "pending" }]}
+        sortBy="created_at"
+        sortAscending
         headerLabels={ADMIN_TABLE_HEADER_LABELS}
       />
       <AdminTableCard
@@ -50,6 +56,8 @@ export default function AdminDashboardPage() {
         tableName="product_reports"
         columns={["reporter_id", "product_id", "reason", "status", "created_at", "action"]}
         filters={[{ column: "status", value: "pending" }]}
+        sortBy="created_at"
+        sortAscending
         headerLabels={ADMIN_TABLE_HEADER_LABELS}
       />
     </div>

@@ -1,6 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="140 154 720 720" role="img" aria-label="GritVib">
-  <g
-    fill="#ef4444"
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="GritVib" width="64" height="64" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#c62828"/>
+  <svg x="5" y="5" width="54" height="54" viewBox="140 154 720 720" preserveAspectRatio="xMidYMid meet">
+    <g
+    fill="#ffffff"
     transform="translate(0 24) translate(500 513.875) scale(1.07) translate(-500 -513.875)"
   >
     <polygon points="766.38 256.39 705.86 359.43 738.47 359.43 798.73 256.39 766.38 256.39" />
@@ -10,4 +13,5 @@
       d="M441.73,465.15h147.91l-89.61,156.33-165.91-284.28h174.13l-12.91,22.24h89.02l61.24-103.04c.2,0-444.33,0-444.33,0l305.41,514.96,221.48-388.37h-334.37l47.93,82.17Z"
     />
   </g>
+  </svg>
 </svg>
