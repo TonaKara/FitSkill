@@ -9,7 +9,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { NotificationToast } from "@/components/ui/notification-toast"
-import { buildSignupConfirmationRedirectUrl } from "@/lib/auth-email-flow"
+import {
+  buildSignupConfirmationRedirectUrl,
+  clearSignupPendingVerificationEmail,
+  persistSignupPendingVerificationEmail,
+  readSignupPendingVerificationEmail,
+} from "@/lib/auth-email-flow"
 import { getIsAdminFromProfile } from "@/lib/admin"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { toErrorNotice, toSuccessNotice, type AppNotice } from "@/lib/notifications"
@@ -66,6 +71,7 @@ export default function LoginPage() {
   const [signupVerificationEmail, setSignupVerificationEmail] = useState<string | null>(null)
   const [verificationPanelNotice, setVerificationPanelNotice] = useState<AppNotice | null>(null)
   const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState(false)
+  const [isSignupVerificationRecovery, setIsSignupVerificationRecovery] = useState(false)
 
   const isSignup = mode === "signup"
   const isReset = mode === "reset"
@@ -106,12 +112,9 @@ export default function LoginPage() {
       return
     }
 
-    setSignupVerificationEmail(null)
-    setMode("login")
-
     const reason = searchParams.get("reason")
     let message =
-      "メール認証に失敗しました。確認メールの再送、または再度登録をお試しください。"
+      "メール認証に失敗しました。登録したメールアドレスを確認し、確認メールを再送してください。"
     if (reason === "missing") {
       message =
         "メール内の認証リンクが不完全です。メール全文からリンクを開き直すか、確認メールを再送してください。"
@@ -123,7 +126,13 @@ export default function LoginPage() {
         "認証リンクの有効期限切れ、または既に使用済みの可能性があります。確認メールを再送してください。"
     }
 
-    setNotice({
+    const pendingEmail = readSignupPendingVerificationEmail()
+    setEmail(pendingEmail ?? "")
+    setSignupVerificationEmail(pendingEmail ?? "")
+    setIsSignupVerificationRecovery(true)
+    setMode("login")
+    setNotice(null)
+    setVerificationPanelNotice({
       variant: "error",
       message,
     })
@@ -141,6 +150,8 @@ export default function LoginPage() {
   const returnToLoginFromSignupVerification = () => {
     setSignupVerificationEmail(null)
     setVerificationPanelNotice(null)
+    setIsSignupVerificationRecovery(false)
+    clearSignupPendingVerificationEmail()
     setMode("login")
     setNotice(null)
     resetSignupFormFields()
@@ -151,6 +162,8 @@ export default function LoginPage() {
     const nextEmail = email.trim()
     setSignupVerificationEmail(null)
     setVerificationPanelNotice(null)
+    setIsSignupVerificationRecovery(false)
+    clearSignupPendingVerificationEmail()
     setMode("signup")
     setNotice(null)
     setEmail(nextEmail)
@@ -351,6 +364,8 @@ export default function LoginPage() {
         setNotice(null)
         setVerificationPanelNotice(null)
         setSignupVerificationEmail(normalizedEmail)
+        persistSignupPendingVerificationEmail(normalizedEmail)
+        setIsSignupVerificationRecovery(false)
         resetSignupFormFields()
         return
       }
@@ -400,7 +415,9 @@ export default function LoginPage() {
             <CardTitle className="text-2xl font-bold tracking-wide text-white">{title}</CardTitle>
             <CardDescription className="mt-1 text-zinc-400">
               {isAwaitingSignupVerification
-                ? "確認メールのリンクを開いて認証を完了してください。認証後にプロフィール設定へ進みます。"
+                ? isSignupVerificationRecovery
+                  ? "認証リンクを開けませんでした。登録したメールアドレスを入力し、確認メールを再送できます。"
+                  : "確認メールのリンクを開いて認証を完了してください。認証後にプロフィール設定へ進みます。"
                 : isSignup
                   ? "メールアドレスでアカウントを作成します。確認メールのリンクを開いたあと、プロフィール設定に進みます。"
                   : isReset
@@ -465,9 +482,13 @@ export default function LoginPage() {
           {isAwaitingSignupVerification ? (
             <div className="space-y-5">
               <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-4 text-sm leading-relaxed text-zinc-100">
-                <p className="font-semibold text-emerald-200">確認メールを送信しました。</p>
+                <p className="font-semibold text-emerald-200">
+                  {isSignupVerificationRecovery ? "メール認証を完了できませんでした" : "確認メールを送信しました。"}
+                </p>
                 <p className="mt-3 text-zinc-300">
-                  認証用メールを送信しました。メール内のリンクを開いて認証を完了してください。認証後にプロフィール設定へ進みます。
+                  {isSignupVerificationRecovery
+                    ? "登録したメールアドレスを入力し、確認メールを再送してください。届いた最新のリンクを開いて認証を完了すると、プロフィール設定へ進みます。"
+                    : "認証用メールを送信しました。メール内のリンクを開いて認証を完了してください。認証後にプロフィール設定へ進みます。"}
                 </p>
               </div>
 

@@ -26,3 +26,31 @@ export const SIGNUP_CONFIRMATION_NEXT_PATH = "/profile-setup"
 export function buildSignupConfirmationRedirectUrl(): string {
   return buildAuthCallbackRedirectUrl(SIGNUP_CONFIRMATION_NEXT_PATH)
 }
+
+export const SIGNUP_PENDING_VERIFICATION_EMAIL_KEY = "gritvib.signup.pending_verification_email"
+
+export function persistSignupPendingVerificationEmail(email: string): void {
+  if (typeof window === "undefined") {
+    return
+  }
+  const normalized = email.trim().toLowerCase()
+  if (!normalized) {
+    return
+  }
+  window.sessionStorage.setItem(SIGNUP_PENDING_VERIFICATION_EMAIL_KEY, normalized)
+}
+
+export function readSignupPendingVerificationEmail(): string | null {
+  if (typeof window === "undefined") {
+    return null
+  }
+  const value = window.sessionStorage.getItem(SIGNUP_PENDING_VERIFICATION_EMAIL_KEY)?.trim().toLowerCase()
+  return value || null
+}
+
+export function clearSignupPendingVerificationEmail(): void {
+  if (typeof window === "undefined") {
+    return
+  }
+  window.sessionStorage.removeItem(SIGNUP_PENDING_VERIFICATION_EMAIL_KEY)
+}

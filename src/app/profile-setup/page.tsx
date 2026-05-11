@@ -34,6 +34,7 @@ import {
   isValidCustomIdFormat,
   normalizeCustomId,
 } from "@/lib/profile-path"
+import { clearSignupPendingVerificationEmail } from "@/lib/auth-email-flow"
 import { getSiteUrl } from "@/lib/site-seo"
 
 function revokeBlobUrl(url: string) {
@@ -100,6 +101,7 @@ export default function ProfileSetupPage() {
         router.replace("/login")
         return
       }
+      clearSignupPendingVerificationEmail()
       setUserId(data.user.id)
       setIsAdmin(await getIsAdminFromProfile(supabase, data.user.id))
       setAuthLoading(false)
