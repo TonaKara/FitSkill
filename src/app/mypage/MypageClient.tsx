@@ -874,6 +874,19 @@ export default function MypageClient() {
     }
   }, [userId, section, stripeReturnParam, isStripeRegistered, stripeConnectAccountId, stripeConnectChargesEnabled])
 
+  const resolveStripeAccessToken = useCallback(async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      return null
+    }
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    return session?.access_token?.trim() || null
+  }, [supabase])
+
   useEffect(() => {
     if (!userId || section !== "payout" || stripeReturnParam !== "return") {
       return
@@ -883,7 +896,20 @@ export default function MypageClient() {
     const finalizeStripeStatus = async () => {
       let finalizedSuccessfully = false
       try {
-        const result = await checkAndFinalizeStripeStatus()
+        const accessToken = await resolveStripeAccessToken()
+        if (!accessToken) {
+          if (!cancelled) {
+            setNotice({
+              variant: "error",
+              message: formatStripePayoutOperationErrorMessage(
+                "not_authenticated",
+                "Stripe連携状態の確認に失敗しました。時間を置いて再度お試しください。",
+              ),
+            })
+          }
+          return
+        }
+        const result = await checkAndFinalizeStripeStatus(accessToken)
         if (!result.ok) {
           if (!cancelled) {
             setNotice({
@@ -926,7 +952,7 @@ export default function MypageClient() {
     return () => {
       cancelled = true
     }
-  }, [userId, section, stripeReturnParam, router, loadProfile])
+  }, [userId, section, stripeReturnParam, router, loadProfile, resolveStripeAccessToken])
 
   useEffect(() => {
     if (updatedParam !== "1") {
@@ -942,7 +968,19 @@ export default function MypageClient() {
   const handleStripeLinkOpen = useCallback(async () => {
     setPayoutLinkBusy(true)
     try {
-      const result = await getStripeOnboardingUrl(true)
+      const accessToken = await resolveStripeAccessToken()
+      if (!accessToken) {
+        setPayoutLinkBusy(false)
+        setNotice({
+          variant: "error",
+          message: formatStripePayoutOperationErrorMessage(
+            "not_authenticated",
+            "Stripe の画面を開けませんでした。時間を置いて再度お試しください。",
+          ),
+        })
+        return
+      }
+      const result = await getStripeOnboardingUrl(true, accessToken)
       if (!result.ok) {
         setPayoutLinkBusy(false)
         setNotice({
@@ -968,7 +1006,7 @@ export default function MypageClient() {
         ),
       })
     }
-  }, [])
+  }, [resolveStripeAccessToken])
 
   /** 登録済み: 講師登録確認モーダルを出さずダッシュボードへ */
   const handleStripeDashboardOpen = useCallback(async () => {
@@ -977,7 +1015,19 @@ export default function MypageClient() {
     }
     setPayoutLinkBusy(true)
     try {
-      const result = await getStripeExpressDashboardUrl()
+      const accessToken = await resolveStripeAccessToken()
+      if (!accessToken) {
+        setPayoutLinkBusy(false)
+        setNotice({
+          variant: "error",
+          message: formatStripePayoutOperationErrorMessage(
+            "not_authenticated",
+            "Stripe ダッシュボードを開けませんでした。時間を置いて再度お試しください。",
+          ),
+        })
+        return
+      }
+      const result = await getStripeExpressDashboardUrl(accessToken)
       if (!result.ok) {
         setPayoutLinkBusy(false)
         setNotice({
@@ -1001,7 +1051,7 @@ export default function MypageClient() {
         ),
       })
     }
-  }, [payoutLinkBusy, profileLoading])
+  }, [payoutLinkBusy, profileLoading, resolveStripeAccessToken])
 
   const handleOpenStripeOnboardingConfirm = useCallback(() => {
     if (payoutLinkBusy || profileLoading) {

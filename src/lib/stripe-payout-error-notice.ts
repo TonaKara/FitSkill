@@ -1,3 +1,6 @@
+export const STRIPE_PAYOUT_SESSION_REQUIRED_MESSAGE =
+  "ログイン状態を確認できませんでした。ページを再読み込みしてから、もう一度お試しください。"
+
 function resolveStripePayoutOperationErrorDetail(detail: string): string | null {
   const normalized = detail.toLowerCase()
   if (
@@ -14,8 +17,15 @@ function resolveStripePayoutOperationErrorDetail(detail: string): string | null 
     return "Stripe 連携情報の保存に失敗しました。時間を置いて再度お試しください。"
   }
 
-  if (normalized === "unauthorized" || normalized.includes("not_authenticated")) {
-    return "ログイン状態を確認できませんでした。ページを再読み込みしてから、もう一度お試しください。"
+  if (
+    detail === STRIPE_PAYOUT_SESSION_REQUIRED_MESSAGE ||
+    normalized.includes("not_authenticated")
+  ) {
+    return STRIPE_PAYOUT_SESSION_REQUIRED_MESSAGE
+  }
+
+  if (normalized === "unauthorized") {
+    return "Stripe 連携情報の保存に失敗しました。時間を置いて再度お試しください。"
   }
 
   if (normalized.includes("supabase admin environment variables are missing")) {
