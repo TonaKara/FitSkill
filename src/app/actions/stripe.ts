@@ -1,6 +1,7 @@
 "use server"
 
 import { createServerClient } from "@supabase/ssr"
+import type { SupabaseClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import Stripe from "stripe"
 import { ensureStripeConnectAccountOwnershipMetadata } from "@/lib/stripe-account-ownership"
@@ -27,12 +28,15 @@ function getStripeClient() {
 
 const FASTEST_WEEKLY_PAYOUT_DAYS = ["monday", "tuesday", "wednesday", "thursday"] as const
 
-function isRecoverableAutomaticPayoutScheduleError(error: unknown): boolean {
-  if (!(error instanceof Stripe.errors.StripeInvalidRequestError)) {
-    return false
+function readErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message
   }
+  return String(error)
+}
 
-  const message = error.message
+function isRecoverableAutomaticPayoutScheduleError(error: unknown): boolean {
+  const message = readErrorMessage(error)
   return (
     /payout interval "daily" is not available/i.test(message) ||
     /All weekdays is a daily schedule/i.test(message) ||
@@ -40,18 +44,37 @@ function isRecoverableAutomaticPayoutScheduleError(error: unknown): boolean {
   )
 }
 
+function buildAutomaticPayoutSchedules(
+  country: string | null | undefined,
+): Stripe.AccountUpdateParams.Settings.Payouts.Schedule[] {
+  const schedules: Stripe.AccountUpdateParams.Settings.Payouts.Schedule[] = [
+    { interval: "weekly", weekly_payout_days: [...FASTEST_WEEKLY_PAYOUT_DAYS] },
+    { interval: "weekly", weekly_anchor: "monday" },
+  ]
+
+  if (country?.toUpperCase() !== "JP") {
+    schedules.unshift({ interval: "daily" })
+  }
+
+  return schedules
+}
+
 /** Connect 口座を自動振込にし、利用可能な最短スケジュールへそろえる（JP は週次・最大4日） */
 async function setConnectedAccountAutomaticPayoutSchedule(
   stripe: Stripe,
   accountId: string,
 ): Promise<void> {
-  const schedules: Stripe.AccountUpdateParams.Settings.Payouts.Schedule[] = [
-    { interval: "daily" },
-    { interval: "weekly", weekly_payout_days: [...FASTEST_WEEKLY_PAYOUT_DAYS] },
-    { interval: "weekly", weekly_anchor: "monday" },
-  ]
+  let country: string | null | undefined
+  try {
+    const account = await stripe.accounts.retrieve(accountId)
+    country = account.country
+  } catch {
+    country = STRIPE_ONBOARDING_DEFAULTS.country
+  }
 
+  const schedules = buildAutomaticPayoutSchedules(country)
   let lastError: unknown = null
+
   for (const schedule of schedules) {
     try {
       await stripe.accounts.update(accountId, {
@@ -71,6 +94,54 @@ async function setConnectedAccountAutomaticPayoutSchedule(
   }
 
   throw lastError instanceof Error ? lastError : new Error("Stripe payout schedule update failed")
+}
+
+async function trySetConnectedAccountAutomaticPayoutSchedule(
+  stripe: Stripe,
+  accountId: string,
+): Promise<void> {
+  try {
+    await setConnectedAccountAutomaticPayoutSchedule(stripe, accountId)
+  } catch (error) {
+    console.error("[stripe] automatic payout schedule update failed", {
+      accountId,
+      message: readErrorMessage(error),
+    })
+  }
+}
+
+async function clearStoredConnectAccountId(supabase: SupabaseClient, userId: string): Promise<void> {
+  const { error } = await supabase
+    .from("profiles")
+    .update({ stripe_connect_account_id: null })
+    .eq("id", userId)
+  if (error) {
+    throw new Error(error.message)
+  }
+}
+
+async function createConnectAccountForUser(
+  stripe: Stripe,
+  userId: string,
+  publicSiteUrl: string,
+): Promise<string> {
+  const account = await stripe.accounts.create({
+    type: "express",
+    country: STRIPE_ONBOARDING_DEFAULTS.country,
+    business_type: STRIPE_ONBOARDING_DEFAULTS.businessType,
+    business_profile: {
+      mcc: STRIPE_ONBOARDING_DEFAULTS.mcc,
+      url: publicSiteUrl,
+      product_description: STRIPE_ONBOARDING_DEFAULTS.productDescription,
+    },
+    individual: {
+      address: {
+        country: STRIPE_ONBOARDING_DEFAULTS.country,
+      },
+    },
+    metadata: { user_id: userId },
+  })
+  return account.id
 }
 
 async function getAuthedSupabase() {
@@ -120,26 +191,27 @@ export async function getStripeOnboardingUrl(consented: boolean) {
   }
 
   let accountId = profile?.stripe_connect_account_id?.trim() || ""
-  if (!accountId) {
-    const account = await stripe.accounts.create({
-      type: "express",
-      country: STRIPE_ONBOARDING_DEFAULTS.country,
-      business_type: STRIPE_ONBOARDING_DEFAULTS.businessType,
-      business_profile: {
-        mcc: STRIPE_ONBOARDING_DEFAULTS.mcc,
-        url: publicSiteUrl,
-        product_description: STRIPE_ONBOARDING_DEFAULTS.productDescription,
-      },
-      individual: {
-        address: {
-          country: STRIPE_ONBOARDING_DEFAULTS.country,
-        },
-      },
-      metadata: { user_id: user.id },
-    })
-    accountId = account.id
+  if (accountId) {
+    try {
+      await ensureStripeConnectAccountOwnershipMetadata({
+        stripe,
+        accountId,
+        expectedUserId: user.id,
+      })
+      await stripe.accounts.retrieve(accountId)
+    } catch (error) {
+      console.error("[stripe] stored connect account is invalid; creating a new account", {
+        accountId,
+        userId: user.id,
+        message: readErrorMessage(error),
+      })
+      await clearStoredConnectAccountId(supabase, user.id)
+      accountId = ""
+    }
+  }
 
-    await setConnectedAccountAutomaticPayoutSchedule(stripe, accountId)
+  if (!accountId) {
+    accountId = await createConnectAccountForUser(stripe, user.id, publicSiteUrl)
 
     const { error: updateError } = await supabase
       .from("profiles")
@@ -152,25 +224,28 @@ export async function getStripeOnboardingUrl(consented: boolean) {
 
   // オンボーディングに進む前に、自動振込スケジュールを利用可能な最短へそろえる。
   // 既存口座にも毎回適用して設定ドリフトを防ぐ。
-  await ensureStripeConnectAccountOwnershipMetadata({
-    stripe,
-    accountId,
-    expectedUserId: user.id,
-  })
-  await stripe.accounts.update(accountId, {
-    business_type: STRIPE_ONBOARDING_DEFAULTS.businessType,
-    business_profile: {
-      mcc: STRIPE_ONBOARDING_DEFAULTS.mcc,
-      url: publicSiteUrl,
-      product_description: STRIPE_ONBOARDING_DEFAULTS.productDescription,
-    },
-    individual: {
-      address: {
-        country: STRIPE_ONBOARDING_DEFAULTS.country,
+  try {
+    await stripe.accounts.update(accountId, {
+      business_type: STRIPE_ONBOARDING_DEFAULTS.businessType,
+      business_profile: {
+        mcc: STRIPE_ONBOARDING_DEFAULTS.mcc,
+        url: publicSiteUrl,
+        product_description: STRIPE_ONBOARDING_DEFAULTS.productDescription,
       },
-    },
-  })
-  await setConnectedAccountAutomaticPayoutSchedule(stripe, accountId)
+      individual: {
+        address: {
+          country: STRIPE_ONBOARDING_DEFAULTS.country,
+        },
+      },
+    })
+  } catch (error) {
+    console.error("[stripe] connect business profile update failed", {
+      accountId,
+      userId: user.id,
+      message: readErrorMessage(error),
+    })
+  }
+  await trySetConnectedAccountAutomaticPayoutSchedule(stripe, accountId)
 
   const accountLink = await stripe.accountLinks.create({
     account: accountId,
@@ -231,11 +306,20 @@ export async function checkAndFinalizeStripeStatus() {
     return { finalized: false }
   }
 
-  await ensureStripeConnectAccountOwnershipMetadata({
-    stripe,
-    accountId,
-    expectedUserId: user.id,
-  })
+  try {
+    await ensureStripeConnectAccountOwnershipMetadata({
+      stripe,
+      accountId,
+      expectedUserId: user.id,
+    })
+  } catch (error) {
+    console.error("[stripe] finalize skipped due to connect account validation failure", {
+      accountId,
+      userId: user.id,
+      message: readErrorMessage(error),
+    })
+    return { finalized: false }
+  }
 
   /** オンボーディング直後は Stripe API 上で charges_enabled の反映が数秒遅れることがある */
   const CHARGES_POLL_ATTEMPTS = 5
@@ -263,7 +347,7 @@ export async function checkAndFinalizeStripeStatus() {
     return { finalized: false }
   }
 
-  await setConnectedAccountAutomaticPayoutSchedule(stripe, accountId)
+  await trySetConnectedAccountAutomaticPayoutSchedule(stripe, accountId)
 
   const { error: updateError } = await supabase
     .from("profiles")
