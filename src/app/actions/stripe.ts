@@ -11,6 +11,18 @@ type StripeProfileRow = {
   stripe_connect_account_id: string | null
 }
 
+export type StripeOnboardingUrlResult =
+  | { ok: true; url: string }
+  | { ok: false; error: string }
+
+export type StripeExpressDashboardUrlResult =
+  | { ok: true; url: string }
+  | { ok: false; error: string }
+
+export type StripeFinalizeStatusResult =
+  | { ok: true; finalized: boolean }
+  | { ok: false; finalized: false; error: string }
+
 const STRIPE_ONBOARDING_DEFAULTS = {
   country: "JP" as const,
   businessType: "individual" as const,
@@ -171,195 +183,216 @@ async function getAuthedSupabase() {
   return { supabase, user }
 }
 
-export async function getStripeOnboardingUrl(consented: boolean) {
+export async function getStripeOnboardingUrl(consented: boolean): Promise<StripeOnboardingUrlResult> {
   if (consented !== true) {
-    throw new Error("オンボーディング内容への同意が必要です。")
+    return { ok: false, error: "オンボーディング内容への同意が必要です。" }
   }
 
-  const { supabase, user } = await getAuthedSupabase()
-  const stripe = getStripeClient()
-  const baseUrl = getAppBaseUrl()
-  const publicSiteUrl = getSiteUrl()
+  try {
+    const { supabase, user } = await getAuthedSupabase()
+    const stripe = getStripeClient()
+    const baseUrl = getAppBaseUrl()
+    const publicSiteUrl = getSiteUrl()
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("stripe_connect_account_id")
-    .eq("id", user.id)
-    .single<StripeProfileRow>()
-  if (profileError) {
-    throw new Error(profileError.message)
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("stripe_connect_account_id")
+      .eq("id", user.id)
+      .single<StripeProfileRow>()
+    if (profileError) {
+      return { ok: false, error: profileError.message }
+    }
+
+    let accountId = profile?.stripe_connect_account_id?.trim() || ""
+    if (accountId) {
+      try {
+        await ensureStripeConnectAccountOwnershipMetadata({
+          stripe,
+          accountId,
+          expectedUserId: user.id,
+        })
+        await stripe.accounts.retrieve(accountId)
+      } catch (error) {
+        console.error("[stripe] stored connect account is invalid; creating a new account", {
+          accountId,
+          userId: user.id,
+          message: readErrorMessage(error),
+        })
+        await clearStoredConnectAccountId(supabase, user.id)
+        accountId = ""
+      }
+    }
+
+    if (!accountId) {
+      accountId = await createConnectAccountForUser(stripe, user.id, publicSiteUrl)
+
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ stripe_connect_account_id: accountId })
+        .eq("id", user.id)
+      if (updateError) {
+        return { ok: false, error: updateError.message }
+      }
+    }
+
+    // オンボーディングに進む前に、自動振込スケジュールを利用可能な最短へそろえる。
+    // 既存口座にも毎回適用して設定ドリフトを防ぐ。
+    try {
+      await stripe.accounts.update(accountId, {
+        business_type: STRIPE_ONBOARDING_DEFAULTS.businessType,
+        business_profile: {
+          mcc: STRIPE_ONBOARDING_DEFAULTS.mcc,
+          url: publicSiteUrl,
+          product_description: STRIPE_ONBOARDING_DEFAULTS.productDescription,
+        },
+        individual: {
+          address: {
+            country: STRIPE_ONBOARDING_DEFAULTS.country,
+          },
+        },
+      })
+    } catch (error) {
+      console.error("[stripe] connect business profile update failed", {
+        accountId,
+        userId: user.id,
+        message: readErrorMessage(error),
+      })
+    }
+    await trySetConnectedAccountAutomaticPayoutSchedule(stripe, accountId)
+
+    const accountLink = await stripe.accountLinks.create({
+      account: accountId,
+      type: "account_onboarding",
+      return_url: `${baseUrl}/mypage?tab=payout&mode=instructor&stripe=return`,
+      refresh_url: `${baseUrl}/mypage?tab=payout&mode=instructor&stripe=return`,
+    })
+
+    return { ok: true, url: accountLink.url }
+  } catch (error) {
+    console.error("[stripe] onboarding url issue failed", {
+      message: readErrorMessage(error),
+    })
+    return { ok: false, error: readErrorMessage(error) || "Stripe onboarding failed" }
   }
+}
 
-  let accountId = profile?.stripe_connect_account_id?.trim() || ""
-  if (accountId) {
+/**
+ * オンボーディング済みの講師が Stripe Express ダッシュボードを開くとき用（確認モーダル不要）。
+ */
+export async function getStripeExpressDashboardUrl(): Promise<StripeExpressDashboardUrlResult> {
+  try {
+    const { supabase, user } = await getAuthedSupabase()
+    const stripe = getStripeClient()
+
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("stripe_connect_account_id")
+      .eq("id", user.id)
+      .single<StripeProfileRow>()
+    if (profileError) {
+      return { ok: false, error: profileError.message }
+    }
+
+    const accountId = profile?.stripe_connect_account_id?.trim() || ""
+    if (!accountId) {
+      return { ok: false, error: "Stripe Connect の口座が見つかりません。" }
+    }
+
+    await ensureStripeConnectAccountOwnershipMetadata({
+      stripe,
+      accountId,
+      expectedUserId: user.id,
+    })
+
+    const loginLink = await stripe.accounts.createLoginLink(accountId)
+    return { ok: true, url: loginLink.url }
+  } catch (error) {
+    console.error("[stripe] express dashboard url issue failed", {
+      message: readErrorMessage(error),
+    })
+    return { ok: false, error: readErrorMessage(error) || "Stripe dashboard failed" }
+  }
+}
+
+export async function checkAndFinalizeStripeStatus(): Promise<StripeFinalizeStatusResult> {
+  try {
+    const { supabase, user } = await getAuthedSupabase()
+    const stripe = getStripeClient()
+
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("stripe_connect_account_id")
+      .eq("id", user.id)
+      .single<StripeProfileRow>()
+    if (profileError) {
+      return { ok: false, finalized: false, error: profileError.message }
+    }
+
+    const accountId = profile?.stripe_connect_account_id?.trim() || ""
+    if (!accountId) {
+      return { ok: true, finalized: false }
+    }
+
     try {
       await ensureStripeConnectAccountOwnershipMetadata({
         stripe,
         accountId,
         expectedUserId: user.id,
       })
-      await stripe.accounts.retrieve(accountId)
     } catch (error) {
-      console.error("[stripe] stored connect account is invalid; creating a new account", {
+      console.error("[stripe] finalize skipped due to connect account validation failure", {
         accountId,
         userId: user.id,
         message: readErrorMessage(error),
       })
-      await clearStoredConnectAccountId(supabase, user.id)
-      accountId = ""
+      return { ok: true, finalized: false }
     }
-  }
 
-  if (!accountId) {
-    accountId = await createConnectAccountForUser(stripe, user.id, publicSiteUrl)
+    /** オンボーディング直後は Stripe API 上で charges_enabled の反映が数秒遅れることがある */
+    const CHARGES_POLL_ATTEMPTS = 5
+    const CHARGES_POLL_INTERVAL_MS = 1200
+
+    let account: Stripe.Account | null = null
+    for (let attempt = 0; attempt < CHARGES_POLL_ATTEMPTS; attempt++) {
+      account = await stripe.accounts.retrieve(accountId)
+      if (account.charges_enabled && account.details_submitted) {
+        break
+      }
+      if (attempt < CHARGES_POLL_ATTEMPTS - 1) {
+        await new Promise((resolve) => setTimeout(resolve, CHARGES_POLL_INTERVAL_MS))
+      }
+    }
+
+    if (!account?.charges_enabled || !account.details_submitted) {
+      await supabase
+        .from("profiles")
+        .update({
+          stripe_connect_charges_enabled: account?.charges_enabled ?? false,
+          stripe_connect_details_submitted: account?.details_submitted ?? false,
+        })
+        .eq("id", user.id)
+      return { ok: true, finalized: false }
+    }
+
+    await trySetConnectedAccountAutomaticPayoutSchedule(stripe, accountId)
 
     const { error: updateError } = await supabase
       .from("profiles")
-      .update({ stripe_connect_account_id: accountId })
-      .eq("id", user.id)
-    if (updateError) {
-      throw new Error(updateError.message)
-    }
-  }
-
-  // オンボーディングに進む前に、自動振込スケジュールを利用可能な最短へそろえる。
-  // 既存口座にも毎回適用して設定ドリフトを防ぐ。
-  try {
-    await stripe.accounts.update(accountId, {
-      business_type: STRIPE_ONBOARDING_DEFAULTS.businessType,
-      business_profile: {
-        mcc: STRIPE_ONBOARDING_DEFAULTS.mcc,
-        url: publicSiteUrl,
-        product_description: STRIPE_ONBOARDING_DEFAULTS.productDescription,
-      },
-      individual: {
-        address: {
-          country: STRIPE_ONBOARDING_DEFAULTS.country,
-        },
-      },
-    })
-  } catch (error) {
-    console.error("[stripe] connect business profile update failed", {
-      accountId,
-      userId: user.id,
-      message: readErrorMessage(error),
-    })
-  }
-  await trySetConnectedAccountAutomaticPayoutSchedule(stripe, accountId)
-
-  const accountLink = await stripe.accountLinks.create({
-    account: accountId,
-    type: "account_onboarding",
-    return_url: `${baseUrl}/mypage?tab=payout&mode=instructor&stripe=return`,
-    refresh_url: `${baseUrl}/mypage?tab=payout&mode=instructor&stripe=return`,
-  })
-
-  return accountLink.url
-}
-
-/**
- * オンボーディング済みの講師が Stripe Express ダッシュボードを開くとき用（確認モーダル不要）。
- */
-export async function getStripeExpressDashboardUrl() {
-  const { supabase, user } = await getAuthedSupabase()
-  const stripe = getStripeClient()
-
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("stripe_connect_account_id")
-    .eq("id", user.id)
-    .single<StripeProfileRow>()
-  if (profileError) {
-    throw new Error(profileError.message)
-  }
-
-  const accountId = profile?.stripe_connect_account_id?.trim() || ""
-  if (!accountId) {
-    throw new Error("Stripe Connect の口座が見つかりません。")
-  }
-
-  await ensureStripeConnectAccountOwnershipMetadata({
-    stripe,
-    accountId,
-    expectedUserId: user.id,
-  })
-
-  const loginLink = await stripe.accounts.createLoginLink(accountId)
-  return loginLink.url
-}
-
-export async function checkAndFinalizeStripeStatus() {
-  const { supabase, user } = await getAuthedSupabase()
-  const stripe = getStripeClient()
-
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("stripe_connect_account_id")
-    .eq("id", user.id)
-    .single<StripeProfileRow>()
-  if (profileError) {
-    throw new Error(profileError.message)
-  }
-
-  const accountId = profile?.stripe_connect_account_id?.trim() || ""
-  if (!accountId) {
-    return { finalized: false }
-  }
-
-  try {
-    await ensureStripeConnectAccountOwnershipMetadata({
-      stripe,
-      accountId,
-      expectedUserId: user.id,
-    })
-  } catch (error) {
-    console.error("[stripe] finalize skipped due to connect account validation failure", {
-      accountId,
-      userId: user.id,
-      message: readErrorMessage(error),
-    })
-    return { finalized: false }
-  }
-
-  /** オンボーディング直後は Stripe API 上で charges_enabled の反映が数秒遅れることがある */
-  const CHARGES_POLL_ATTEMPTS = 5
-  const CHARGES_POLL_INTERVAL_MS = 1200
-
-  let account: Stripe.Account | null = null
-  for (let attempt = 0; attempt < CHARGES_POLL_ATTEMPTS; attempt++) {
-    account = await stripe.accounts.retrieve(accountId)
-    if (account.charges_enabled && account.details_submitted) {
-      break
-    }
-    if (attempt < CHARGES_POLL_ATTEMPTS - 1) {
-      await new Promise((resolve) => setTimeout(resolve, CHARGES_POLL_INTERVAL_MS))
-    }
-  }
-
-  if (!account?.charges_enabled || !account.details_submitted) {
-    await supabase
-      .from("profiles")
       .update({
-        stripe_connect_charges_enabled: account?.charges_enabled ?? false,
-        stripe_connect_details_submitted: account?.details_submitted ?? false,
+        is_stripe_registered: true,
+        stripe_connect_charges_enabled: true,
+        stripe_connect_details_submitted: true,
       })
       .eq("id", user.id)
-    return { finalized: false }
-  }
+    if (updateError) {
+      return { ok: false, finalized: false, error: updateError.message }
+    }
 
-  await trySetConnectedAccountAutomaticPayoutSchedule(stripe, accountId)
-
-  const { error: updateError } = await supabase
-    .from("profiles")
-    .update({
-      is_stripe_registered: true,
-      stripe_connect_charges_enabled: true,
-      stripe_connect_details_submitted: true,
+    return { ok: true, finalized: true }
+  } catch (error) {
+    console.error("[stripe] finalize status failed", {
+      message: readErrorMessage(error),
     })
-    .eq("id", user.id)
-  if (updateError) {
-    throw new Error(updateError.message)
+    return { ok: false, finalized: false, error: readErrorMessage(error) || "Stripe finalize failed" }
   }
-
-  return { finalized: true }
 }

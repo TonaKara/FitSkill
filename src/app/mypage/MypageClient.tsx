@@ -50,6 +50,7 @@ import {
   type ProfileRatingComment,
   type ProfileRatingDistribution,
 } from "@/lib/profile-ratings"
+import { formatStripePayoutOperationErrorMessage } from "@/lib/stripe-payout-error-notice"
 import { createGeneralNotification } from "@/lib/transaction-notifications"
 import { autoCompleteTransactions } from "@/lib/transactions"
 import {
@@ -881,18 +882,33 @@ export default function MypageClient() {
     let cancelled = false
     const finalizeStripeStatus = async () => {
       let finalizedSuccessfully = false
-      let finalizeThrew = false
       try {
         const result = await checkAndFinalizeStripeStatus()
+        if (!result.ok) {
+          if (!cancelled) {
+            setNotice({
+              variant: "error",
+              message: formatStripePayoutOperationErrorMessage(
+                result.error,
+                "Stripe連携状態の確認に失敗しました。時間を置いて再度お試しください。",
+              ),
+            })
+          }
+          return
+        }
         finalizedSuccessfully = result.finalized
-      } catch {
-        finalizeThrew = true
+      } catch (error) {
         if (!cancelled) {
+          const raw = error instanceof Error ? error.message : String(error)
           setNotice({
             variant: "error",
-            message: "Stripe連携状態の確認に失敗しました。時間を置いて再度お試しください。",
+            message: formatStripePayoutOperationErrorMessage(
+              raw,
+              "Stripe連携状態の確認に失敗しました。時間を置いて再度お試しください。",
+            ),
           })
         }
+        return
       } finally {
         await loadProfile()
       }
@@ -900,12 +916,10 @@ export default function MypageClient() {
       if (cancelled) {
         return
       }
-      if (!finalizeThrew) {
-        if (finalizedSuccessfully) {
-          setNotice({ variant: "success", message: "Stripe連携が完了しました。" })
-        }
-        router.replace("/mypage?tab=payout&mode=instructor")
+      if (finalizedSuccessfully) {
+        setNotice({ variant: "success", message: "Stripe連携が完了しました。" })
       }
+      router.replace("/mypage?tab=payout&mode=instructor")
     }
 
     void finalizeStripeStatus()
@@ -928,21 +942,33 @@ export default function MypageClient() {
   const handleStripeLinkOpen = useCallback(async () => {
     setPayoutLinkBusy(true)
     try {
-      const url = await getStripeOnboardingUrl(true)
+      const result = await getStripeOnboardingUrl(true)
+      if (!result.ok) {
+        setPayoutLinkBusy(false)
+        setNotice({
+          variant: "error",
+          message: formatStripePayoutOperationErrorMessage(
+            result.error,
+            "Stripe の画面を開けませんでした。時間を置いて再度お試しください。",
+          ),
+        })
+        return
+      }
       setShowStripeOnboardingConfirm(false)
-      window.location.assign(url)
+      window.location.assign(result.url)
       /* 遷移開始後はページがunloadされるため busy はクリアしない（エラー時のみクリア） */
     } catch (err) {
       setPayoutLinkBusy(false)
       const raw = err instanceof Error ? err.message : String(err)
       setNotice({
         variant: "error",
-        message: isAdmin
-          ? raw || "Stripe の画面を開けませんでした。"
-          : "Stripe の画面を開けませんでした。時間を置いて再度お試しください。",
+        message: formatStripePayoutOperationErrorMessage(
+          raw,
+          "Stripe の画面を開けませんでした。時間を置いて再度お試しください。",
+        ),
       })
     }
-  }, [isAdmin])
+  }, [])
 
   /** 登録済み: 講師登録確認モーダルを出さずダッシュボードへ */
   const handleStripeDashboardOpen = useCallback(async () => {
@@ -951,19 +977,31 @@ export default function MypageClient() {
     }
     setPayoutLinkBusy(true)
     try {
-      const url = await getStripeExpressDashboardUrl()
-      window.location.assign(url)
+      const result = await getStripeExpressDashboardUrl()
+      if (!result.ok) {
+        setPayoutLinkBusy(false)
+        setNotice({
+          variant: "error",
+          message: formatStripePayoutOperationErrorMessage(
+            result.error,
+            "Stripe ダッシュボードを開けませんでした。時間を置いて再度お試しください。",
+          ),
+        })
+        return
+      }
+      window.location.assign(result.url)
     } catch (err) {
       setPayoutLinkBusy(false)
       const raw = err instanceof Error ? err.message : String(err)
       setNotice({
         variant: "error",
-        message: isAdmin
-          ? raw || "Stripe ダッシュボードを開けませんでした。"
-          : "Stripe ダッシュボードを開けませんでした。時間を置いて再度お試しください。",
+        message: formatStripePayoutOperationErrorMessage(
+          raw,
+          "Stripe ダッシュボードを開けませんでした。時間を置いて再度お試しください。",
+        ),
       })
     }
-  }, [isAdmin, payoutLinkBusy, profileLoading])
+  }, [payoutLinkBusy, profileLoading])
 
   const handleOpenStripeOnboardingConfirm = useCallback(() => {
     if (payoutLinkBusy || profileLoading) {
