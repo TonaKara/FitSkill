@@ -339,11 +339,11 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
             href="/"
             className="shrink-0 flex items-center gap-2 rounded-lg outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#c62828] sm:h-10 sm:w-10">
-              <BrandMarkSvg className="block h-8 w-8 shrink-0 text-white sm:h-9 sm:w-9" />
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#e64a19] sm:h-10 sm:w-10">
+              <BrandMarkSvg className="block h-8 w-8 shrink-0 sm:h-9 sm:w-9" />
             </div>
             <span className="text-base font-bold tracking-tight sm:text-lg md:text-xl">
-              <span className="text-[#c62828]">Grit</span>
+              <span className="text-[#e64a19]">Grit</span>
               <span className="text-zinc-950 dark:text-white">Vib</span>
             </span>
           </Link>

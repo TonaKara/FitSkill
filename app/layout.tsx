@@ -68,7 +68,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     description: LAYOUT_DESCRIPTION,
   },
-  // Shared icon metadata（ヘッダー左上と同じ赤角丸タイル＋白マーク。`npm run generate:brand-assets` で生成）
+  // Shared icon metadata（ヘッダー左上と同じオレンジ角丸タイル＋白マーク＋黒3本線。`npm run generate:brand-assets` で生成）
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },

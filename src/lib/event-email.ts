@@ -59,7 +59,7 @@ function renderHtml(params: {
   const ctaHtml =
     params.ctaLabel && params.ctaUrl
       ? `<p style="margin:18px 0 0;">
-  <a href="${escapeHtml(params.ctaUrl)}" style="display:inline-block;background:#c62828;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;border-radius:10px;padding:12px 22px;">
+  <a href="${escapeHtml(params.ctaUrl)}" style="display:inline-block;background:#e64a19;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;border-radius:10px;padding:12px 22px;">
     ${escapeHtml(params.ctaLabel)}
   </a>
 </p>`

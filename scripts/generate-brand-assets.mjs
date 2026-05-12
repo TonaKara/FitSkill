@@ -3,9 +3,9 @@
  *
  * 出力: output/（作業用）＋ 以下へ同期
  * - public/apple-touch-icon.png（180×180、検索・ホーム画面用）
- * - public/og-logo.png（小アイコン用・赤角丸タイル＋白マーク＝ブランドロゴ）
- * - public/og-home.png（トップ OG のみ・1200×630・ヘッダー左上と同じ赤タイル＋マーク＋「Grit」「Vib」）
- * - public/favicon.svg, public/favicon.ico（検索・タブ用・赤角丸タイル＋白マーク）
+ * - public/og-logo.png（小アイコン用・オレンジ角丸タイル＋白マーク＋黒3本線＝ブランドロゴ）
+ * - public/og-home.png（トップ OG のみ・1200×630・ヘッダー左上と同じオレンジタイル＋マーク＋「Grit」「Vib」）
+ * - public/favicon.svg, public/favicon.ico（検索・タブ用・オレンジ角丸タイル＋白マーク＋黒3本線）
  * - public/icon-512.png（manifest 用）
  * - app/favicon.ico, app/icon.png（タブ用）
  * - sns-icon-1080.png, favicon-32.png, favicon.ico, apple-touch-icon-180.png, header-1200x300.png
@@ -27,7 +27,7 @@ const PUBLIC_DIR = path.join(ROOT, "public")
 const APP_DIR = path.join(ROOT, "app")
 
 /** app/globals.css --brand-red / --primary */
-const BRAND_RED = "#c62828"
+const BRAND_RED = "#e64a19"
 const WHITE = "#ffffff"
 const BLACK = "#000000"
 /** app/globals ダーク背景に近い色（ヘッダー周りと揃える） */
@@ -38,10 +38,9 @@ function svgInnerContent(full) {
   return m ? m[1].trim() : full.trim()
 }
 
-async function loadMarkInnerWhite() {
+async function loadMarkInner() {
   const raw = await fs.readFile(path.join(ASSETS_DIR, "logo-mark.svg"), "utf8")
-  const white = raw.replace(/fill="currentColor"/g, 'fill="#ffffff"')
-  return svgInnerContent(white)
+  return svgInnerContent(raw)
 }
 
 function headerBannerSvg(markInner) {
@@ -76,7 +75,7 @@ async function writePng(svgString, outPath, density = 300) {
 }
 
 async function main() {
-  const markInner = await loadMarkInnerWhite()
+  const markInner = await loadMarkInner()
 
   await fs.mkdir(OUT_DIR, { recursive: true })
 
@@ -154,7 +153,7 @@ ${faviconBaseSvg.replace(
 
   /**
    * トップ OGP：header.tsx と同じタイル・マーク・角丸・文字サイズ比率でスケール（md 以上基準）。
-   * キャンバス端には余白を確保。マークは viewBox 内で左寄りのため赤タイル右側が空いて見える→ワードマークを
+   * キャンバス端には余白を確保。マークは viewBox 内で左寄りのためオレンジタイル右側が空いて見える→ワードマークを
    * タイルにオプティカルに寄せる（必要なら textPullRef で調整）。
    */
   const ogHomeSvg = (() => {

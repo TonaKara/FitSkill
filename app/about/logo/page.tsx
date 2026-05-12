@@ -20,11 +20,11 @@ export default function LogoAboutPage() {
         <div className="p-1 md:p-2">
           <div className="flex h-52 w-full items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/60 md:h-72">
             <div className="inline-flex max-w-full items-center gap-4 px-2 md:gap-8">
-              <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl bg-[#c62828] md:h-40 md:w-40">
-                <BrandMarkSvg className="h-20 w-20 text-white md:h-32 md:w-32" />
+              <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl bg-[#e64a19] md:h-40 md:w-40">
+                <BrandMarkSvg className="h-20 w-20 md:h-32 md:w-32" />
               </div>
               <span className="text-4xl font-bold tracking-tight leading-none md:text-7xl">
-                <span className="text-[#c62828]">Grit</span>
+                <span className="text-[#e64a19]">Grit</span>
                 <span className="text-white">Vib</span>
               </span>
             </div>

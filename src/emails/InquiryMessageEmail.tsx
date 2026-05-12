@@ -19,7 +19,7 @@ type InquiryMessageEmailProps = {
   chatUrl: string
 }
 
-const brandRed = "#c62828"
+const brandRed = "#e64a19"
 
 export function InquiryMessageEmail({
   recipientName,

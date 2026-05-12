@@ -917,7 +917,7 @@ export default function SkillDetailPage() {
           </Link>
         </Button>
 
-        <div className="overflow-hidden rounded-2xl border border-red-500/30 bg-zinc-950 shadow-[0_0_60px_rgba(198,40,40,0.15)]">
+        <div className="overflow-hidden rounded-2xl border border-red-500/30 bg-zinc-950 shadow-[0_0_60px_rgba(230,74,25,0.15)]">
           <div className="relative aspect-[16/10] w-full bg-zinc-900">
             <Image
               src={thumbSrc}

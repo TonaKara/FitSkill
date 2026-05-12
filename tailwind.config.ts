@@ -6,7 +6,7 @@ import type { Config } from "tailwindcss"
  * セマンティック名を var(--color-*) で明示します（globals と二重定義にならないよう値は書かない）。
  *
  * ブランド（理想画像寄せ）:
- * - Primary / Ring / Sidebar primary: 落ち着いた赤 #C62828
+ * - Primary / Ring / Sidebar primary: ブランドオレンジ #e64a19
  * - ダーク背景: ほぼ #000、サーフェス: 約 #1A1A1A
  */
 const config: Config = {
@@ -26,17 +26,17 @@ const config: Config = {
       },
       colors: {
         red: {
-          50: "#fbe9e9",
-          100: "#f6d4d4",
-          200: "#edaaaa",
-          300: "#e47f7f",
-          400: "#db5555",
-          500: "#d23a3a",
-          600: "#c62828",
-          700: "#a32121",
-          800: "#7f1919",
-          900: "#5c1212",
-          950: "#330909",
+          50: "#fbe9e7",
+          100: "#ffccbc",
+          200: "#ffab91",
+          300: "#ff8a65",
+          400: "#ff7043",
+          500: "#ff5722",
+          600: "#e64a19",
+          700: "#d84315",
+          800: "#bf360c",
+          900: "#a3320a",
+          950: "#5c1a06",
         },
         background: "var(--color-background)",
         foreground: "var(--color-foreground)",

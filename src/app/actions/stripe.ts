@@ -1,6 +1,6 @@
 "use server"
 
-import { createClient } from "@supabase/supabase-js"
+import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 import Stripe from "stripe"
 import { ensureStripeConnectAccountOwnershipMetadata } from "@/lib/stripe-account-ownership"
 import { getAppBaseUrl, getSiteUrl } from "@/lib/site-seo"
@@ -45,12 +45,70 @@ function getSupabaseAdminClient() {
   return createClient(supabaseUrl, serviceRoleKey)
 }
 
+function isMissingStripeProfileRpc(error: { message?: string; code?: string }): boolean {
+  const code = error.code?.toUpperCase() ?? ""
+  const message = error.message?.toLowerCase() ?? ""
+  return (
+    code === "PGRST202" ||
+    code === "42883" ||
+    message.includes("could not find the function") ||
+    message.includes("function public.set_profile_stripe_connect")
+  )
+}
+
 async function updateStripeProfileFieldsForUser(
+  supabase: SupabaseClient,
   userId: string,
   fields: StripeProfileWriteRow,
 ): Promise<void> {
+  const adminFields: StripeProfileWriteRow = {}
+
+  if (fields.stripe_connect_account_id !== undefined) {
+    const { error } = await supabase.rpc("set_profile_stripe_connect_account_id", {
+      p_account_id: fields.stripe_connect_account_id ?? "",
+    })
+    if (error) {
+      if (isMissingStripeProfileRpc(error)) {
+        adminFields.stripe_connect_account_id = fields.stripe_connect_account_id
+      } else {
+        throw new Error(error.message)
+      }
+    }
+  }
+
+  if (
+    fields.stripe_connect_charges_enabled !== undefined ||
+    fields.stripe_connect_details_submitted !== undefined ||
+    fields.is_stripe_registered !== undefined
+  ) {
+    const { error } = await supabase.rpc("set_profile_stripe_connect_status", {
+      p_charges_enabled: fields.stripe_connect_charges_enabled ?? false,
+      p_details_submitted: fields.stripe_connect_details_submitted ?? false,
+      p_is_stripe_registered: fields.is_stripe_registered ?? null,
+    })
+    if (error) {
+      if (isMissingStripeProfileRpc(error)) {
+        if (fields.stripe_connect_charges_enabled !== undefined) {
+          adminFields.stripe_connect_charges_enabled = fields.stripe_connect_charges_enabled
+        }
+        if (fields.stripe_connect_details_submitted !== undefined) {
+          adminFields.stripe_connect_details_submitted = fields.stripe_connect_details_submitted
+        }
+        if (fields.is_stripe_registered !== undefined) {
+          adminFields.is_stripe_registered = fields.is_stripe_registered
+        }
+      } else {
+        throw new Error(error.message)
+      }
+    }
+  }
+
+  if (Object.keys(adminFields).length === 0) {
+    return
+  }
+
   const admin = getSupabaseAdminClient()
-  const { error } = await admin.from("profiles").update(fields).eq("id", userId)
+  const { error } = await admin.from("profiles").update(adminFields).eq("id", userId)
   if (error) {
     throw new Error(error.message)
   }
@@ -148,8 +206,11 @@ async function trySetConnectedAccountAutomaticPayoutSchedule(
   }
 }
 
-async function clearStoredConnectAccountId(userId: string): Promise<void> {
-  await updateStripeProfileFieldsForUser(userId, { stripe_connect_account_id: null })
+async function clearStoredConnectAccountId(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<void> {
+  await updateStripeProfileFieldsForUser(supabase, userId, { stripe_connect_account_id: null })
 }
 
 async function createConnectAccountForUser(
@@ -218,7 +279,7 @@ export async function getStripeOnboardingUrl(
           userId: user.id,
           message: readErrorMessage(error),
         })
-        await clearStoredConnectAccountId(user.id)
+        await clearStoredConnectAccountId(supabase, user.id)
         accountId = ""
       }
     }
@@ -226,7 +287,7 @@ export async function getStripeOnboardingUrl(
     if (!accountId) {
       accountId = await createConnectAccountForUser(stripe, user.id, publicSiteUrl)
 
-      await updateStripeProfileFieldsForUser(user.id, { stripe_connect_account_id: accountId })
+      await updateStripeProfileFieldsForUser(supabase, user.id, { stripe_connect_account_id: accountId })
     }
 
     // オンボーディングに進む前に、自動振込スケジュールを利用可能な最短へそろえる。
@@ -370,7 +431,7 @@ export async function checkAndFinalizeStripeStatus(
     }
 
     if (!account?.charges_enabled || !account.details_submitted) {
-      await updateStripeProfileFieldsForUser(user.id, {
+      await updateStripeProfileFieldsForUser(supabase, user.id, {
         stripe_connect_charges_enabled: account?.charges_enabled ?? false,
         stripe_connect_details_submitted: account?.details_submitted ?? false,
       })
@@ -380,7 +441,7 @@ export async function checkAndFinalizeStripeStatus(
     await trySetConnectedAccountAutomaticPayoutSchedule(stripe, accountId)
 
     try {
-      await updateStripeProfileFieldsForUser(user.id, {
+      await updateStripeProfileFieldsForUser(supabase, user.id, {
         is_stripe_registered: true,
         stripe_connect_charges_enabled: true,
         stripe_connect_details_submitted: true,

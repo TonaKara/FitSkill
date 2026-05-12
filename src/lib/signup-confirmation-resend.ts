@@ -48,7 +48,7 @@ function renderSignupConfirmationEmail(actionLink: string): string {
       <h1 style="margin:0 0 16px;color:#fff;font-size:21px;font-weight:800;">メールアドレスの確認</h1>
       <p style="margin:0 0 12px;color:#e4e4e7;font-size:14px;line-height:1.7;">GritVib へのご登録ありがとうございます。下のボタンからメールアドレスを確認してください。</p>
       <p style="margin:18px 0 0;">
-        <a href="${safeLink}" style="display:inline-block;background:#c62828;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;border-radius:10px;padding:12px 22px;">
+        <a href="${safeLink}" style="display:inline-block;background:#e64a19;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;border-radius:10px;padding:12px 22px;">
           メールアドレスを確認する
         </a>
       </p>

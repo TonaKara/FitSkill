@@ -3,10 +3,10 @@
 import { useEffect } from "react"
 
 const ACCENT_COLOR_STORAGE_KEY = "accent_color_value"
-const DEFAULT_ACCENT_COLOR = "#c62828"
+const DEFAULT_ACCENT_COLOR = "#e64a19"
 
 export const ACCENT_COLOR_OPTIONS = [
-  { id: "red", label: "Red（デフォルト）", value: "#c62828" },
+  { id: "orange", label: "Orange（デフォルト）", value: "#e64a19" },
   /** ボタン塗りと前景のコントラスト改善（旧 #d69e00） */
   { id: "yellow", label: "Yellow", value: "#b45309" },
   { id: "blue", label: "Blue", value: "#2563eb" },
@@ -16,6 +16,7 @@ export const ACCENT_COLOR_OPTIONS = [
 
 /** localStorage に残った旧 Hex を現行パレットへ寄せる */
 const LEGACY_ACCENT_HEX: Record<string, string> = {
+  "#c62828": "#e64a19",
   "#d69e00": "#b45309",
   "#2f855a": "#276749",
 }

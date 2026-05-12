@@ -53,15 +53,15 @@
 
 /*
   GritVib / v0 モック寄せ:
-  - Primary: 鮮やかな赤（#E11D48 / rose-600 相当, hsl 約 346 77% 50%）
-  - ダーク時も primary を「赤のまま」にする（neutral テーマの白黒反転は使わない）
+  - Primary: ブランドオレンジ #e64a19
+  - ダーク時も primary をオレンジのままにする（neutral テーマの白黒反転は使わない）
 */
 :root {
   --radius: 0.625rem;
-  /* ブランド赤（ライト時も同じトーンで統一） */
-  --accent-color: #c62828;
+  /* ブランドオレンジ（ライト時も同じトーンで統一） */
+  --accent-color: #e64a19;
   --brand-red: var(--accent-color);
-  --brand-red-deep: #a32121;
+  --brand-red-deep: #bf360c;
 
   /* ライト: 眩しさを抑えたオフホイト（ページ背景）。カード類は #fff でわずかな段差を付ける */
   --background: #fafafa;
@@ -108,7 +108,7 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.12 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  /* ★ ここが最重要: ダークでも primary は赤のまま（以前の白っぽい primary を廃止） */
+  /* ★ ここが最重要: ダークでも primary はオレンジのまま（以前の白っぽい primary を廃止） */
   --primary: var(--brand-red);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.16 0 0);
