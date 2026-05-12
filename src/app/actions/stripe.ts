@@ -1,7 +1,7 @@
 "use server"
 
 import { createServerClient } from "@supabase/ssr"
-import type { SupabaseClient } from "@supabase/supabase-js"
+import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import Stripe from "stripe"
 import { ensureStripeConnectAccountOwnershipMetadata } from "@/lib/stripe-account-ownership"
@@ -28,6 +28,33 @@ const STRIPE_ONBOARDING_DEFAULTS = {
   businessType: "individual" as const,
   mcc: "8299", // 教育 > その他
   productDescription: "フィットネスの知識や技術を共有します。",
+}
+
+type StripeProfileWriteRow = {
+  stripe_connect_account_id?: string | null
+  stripe_connect_charges_enabled?: boolean
+  stripe_connect_details_submitted?: boolean
+  is_stripe_registered?: boolean
+}
+
+function getSupabaseAdminClient() {
+  const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("Supabase admin environment variables are missing")
+  }
+  return createClient(supabaseUrl, serviceRoleKey)
+}
+
+async function updateStripeProfileFieldsForUser(
+  userId: string,
+  fields: StripeProfileWriteRow,
+): Promise<void> {
+  const admin = getSupabaseAdminClient()
+  const { error } = await admin.from("profiles").update(fields).eq("id", userId)
+  if (error) {
+    throw new Error(error.message)
+  }
 }
 
 function getStripeClient() {
@@ -122,14 +149,8 @@ async function trySetConnectedAccountAutomaticPayoutSchedule(
   }
 }
 
-async function clearStoredConnectAccountId(supabase: SupabaseClient, userId: string): Promise<void> {
-  const { error } = await supabase
-    .from("profiles")
-    .update({ stripe_connect_account_id: null })
-    .eq("id", userId)
-  if (error) {
-    throw new Error(error.message)
-  }
+async function clearStoredConnectAccountId(userId: string): Promise<void> {
+  await updateStripeProfileFieldsForUser(userId, { stripe_connect_account_id: null })
 }
 
 async function createConnectAccountForUser(
@@ -218,7 +239,7 @@ export async function getStripeOnboardingUrl(consented: boolean): Promise<Stripe
           userId: user.id,
           message: readErrorMessage(error),
         })
-        await clearStoredConnectAccountId(supabase, user.id)
+        await clearStoredConnectAccountId(user.id)
         accountId = ""
       }
     }
@@ -226,13 +247,7 @@ export async function getStripeOnboardingUrl(consented: boolean): Promise<Stripe
     if (!accountId) {
       accountId = await createConnectAccountForUser(stripe, user.id, publicSiteUrl)
 
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({ stripe_connect_account_id: accountId })
-        .eq("id", user.id)
-      if (updateError) {
-        return { ok: false, error: updateError.message }
-      }
+      await updateStripeProfileFieldsForUser(user.id, { stripe_connect_account_id: accountId })
     }
 
     // オンボーディングに進む前に、自動振込スケジュールを利用可能な最短へそろえる。
@@ -364,28 +379,23 @@ export async function checkAndFinalizeStripeStatus(): Promise<StripeFinalizeStat
     }
 
     if (!account?.charges_enabled || !account.details_submitted) {
-      await supabase
-        .from("profiles")
-        .update({
-          stripe_connect_charges_enabled: account?.charges_enabled ?? false,
-          stripe_connect_details_submitted: account?.details_submitted ?? false,
-        })
-        .eq("id", user.id)
+      await updateStripeProfileFieldsForUser(user.id, {
+        stripe_connect_charges_enabled: account?.charges_enabled ?? false,
+        stripe_connect_details_submitted: account?.details_submitted ?? false,
+      })
       return { ok: true, finalized: false }
     }
 
     await trySetConnectedAccountAutomaticPayoutSchedule(stripe, accountId)
 
-    const { error: updateError } = await supabase
-      .from("profiles")
-      .update({
+    try {
+      await updateStripeProfileFieldsForUser(user.id, {
         is_stripe_registered: true,
         stripe_connect_charges_enabled: true,
         stripe_connect_details_submitted: true,
       })
-      .eq("id", user.id)
-    if (updateError) {
-      return { ok: false, finalized: false, error: updateError.message }
+    } catch (error) {
+      return { ok: false, finalized: false, error: readErrorMessage(error) }
     }
 
     return { ok: true, finalized: true }
