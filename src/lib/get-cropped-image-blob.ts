@@ -1,23 +1,39 @@
-import type { PixelCrop } from "react-image-crop"
-
 /**
- * 画面上の img 要素と PixelCrop（表示座標系）から切り抜き画像の Blob を生成する。
+ * 画面上の img と切り抜き枠（DOM 要素）の重なりから Blob を生成する。
+ * transform 付きの表示でも getBoundingClientRect 基準で自然解像度へ写す。
  */
-export function getCroppedImageBlob(
+export function getCroppedImageBlobFromVisibleArea(
   image: HTMLImageElement,
-  pixelCrop: PixelCrop,
+  cropArea: HTMLElement,
   mimeType: string = "image/jpeg",
   quality = 0.92,
 ): Promise<Blob> {
-  const scaleX = image.naturalWidth / image.width
-  const scaleY = image.naturalHeight / image.height
+  const cropRect = cropArea.getBoundingClientRect()
+  const imageRect = image.getBoundingClientRect()
 
-  const width = Math.max(1, Math.round(pixelCrop.width * scaleX))
-  const height = Math.max(1, Math.round(pixelCrop.height * scaleY))
+  const overlapLeft = Math.max(cropRect.left, imageRect.left)
+  const overlapTop = Math.max(cropRect.top, imageRect.top)
+  const overlapRight = Math.min(cropRect.right, imageRect.right)
+  const overlapBottom = Math.min(cropRect.bottom, imageRect.bottom)
+
+  const overlapWidth = overlapRight - overlapLeft
+  const overlapHeight = overlapBottom - overlapTop
+
+  if (overlapWidth < 2 || overlapHeight < 2) {
+    return Promise.reject(new Error("切り抜き範囲が画像と重なっていません。"))
+  }
+
+  const scaleX = image.naturalWidth / imageRect.width
+  const scaleY = image.naturalHeight / imageRect.height
+
+  const sourceX = (overlapLeft - imageRect.left) * scaleX
+  const sourceY = (overlapTop - imageRect.top) * scaleY
+  const sourceWidth = overlapWidth * scaleX
+  const sourceHeight = overlapHeight * scaleY
 
   const canvas = document.createElement("canvas")
-  canvas.width = width
-  canvas.height = height
+  canvas.width = Math.max(1, Math.round(sourceWidth))
+  canvas.height = Math.max(1, Math.round(sourceHeight))
 
   const ctx = canvas.getContext("2d")
   if (!ctx) {
@@ -26,14 +42,14 @@ export function getCroppedImageBlob(
 
   ctx.drawImage(
     image,
-    Math.round(pixelCrop.x * scaleX),
-    Math.round(pixelCrop.y * scaleY),
-    width,
-    height,
+    sourceX,
+    sourceY,
+    sourceWidth,
+    sourceHeight,
     0,
     0,
-    width,
-    height,
+    canvas.width,
+    canvas.height,
   )
 
   return new Promise((resolve, reject) => {

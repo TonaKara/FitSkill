@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import ProfileSetupPage from "@/profile-setup/page"
+import { tryNotifyNewUserRegistrationDiscordFromSession } from "@/lib/new-user-registration-discord"
 
 export const metadata: Metadata = {
   title: "プロフィール設定",
@@ -10,6 +11,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-export default function Page() {
+export default async function Page() {
+  await tryNotifyNewUserRegistrationDiscordFromSession()
   return <ProfileSetupPage />
 }

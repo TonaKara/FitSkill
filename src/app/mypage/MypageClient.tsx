@@ -2056,7 +2056,7 @@ export default function MypageClient() {
         isAdmin={isAdmin}
         aspectRatio={1}
         heading="プロフィールアイコン"
-        subheading="枠をドラッグして表示される範囲を調整できます（正方形でトリミングされます）。"
+        subheading="枠内が保存される範囲です。ドラッグで位置を、ホイールやピンチで拡大・縮小できます（正方形でトリミングされます）。"
       />
       {notice && <NotificationToast notice={notice} onClose={() => setNotice(null)} />}
       <Header />

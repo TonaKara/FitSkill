@@ -1,31 +1,58 @@
-/* react-image-crop を黒×赤のダーク UI に合わせる */
-.thumbnail-crop-modal .ReactCrop {
-  --rc-border-color: rgba(248, 113, 113, 0.95);
-  --rc-drag-handle-bg-colour: rgba(220, 38, 38, 0.85);
-  --rc-focus-color: #f87171;
-}
-
-.thumbnail-crop-modal .ReactCrop__crop-selection:focus {
-  outline-color: #ef4444;
-}
-
-/* ラッパーを画像より広くしない（座標ずれ防止）。ステージで中央寄せ */
-.thumbnail-crop-modal .thumbnail-crop-react {
-  display: inline-block;
-  max-width: 100%;
-  vertical-align: top;
-}
-
-/* hidden だと枠線・ハンドルが画像端で欠けて見えることがある */
-.thumbnail-crop-modal .thumbnail-crop-react .ReactCrop__child-wrapper {
-  overflow: visible;
-}
-
-/* 端でのハンドルタップ余白（切り抜き座標は img 基準のためズレない） */
 .thumbnail-crop-modal .thumbnail-crop-media-shell {
+  display: flex;
+  justify-content: center;
   padding: 10px 8px 14px;
 }
 
+.thumbnail-crop-modal .thumbnail-crop-viewport {
+  isolation: isolate;
+}
+
+.thumbnail-crop-modal .thumbnail-crop-pinch {
+  touch-action: none;
+}
+
 .thumbnail-crop-modal .thumbnail-crop-source {
-  vertical-align: middle;
+  transform-origin: 0 0;
+  vertical-align: top;
+}
+
+.thumbnail-crop-modal .thumbnail-crop-frame {
+  border: 2px solid rgba(248, 113, 113, 0.95);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(248, 113, 113, 0.35);
+}
+
+.thumbnail-crop-modal .thumbnail-crop-grid {
+  background-image:
+    linear-gradient(
+      to right,
+      transparent calc(33.333% - 0.5px),
+      rgba(255, 255, 255, 0.34) calc(33.333% - 0.5px),
+      rgba(255, 255, 255, 0.34) calc(33.333% + 0.5px),
+      transparent calc(33.333% + 0.5px)
+    ),
+    linear-gradient(
+      to right,
+      transparent calc(66.666% - 0.5px),
+      rgba(255, 255, 255, 0.34) calc(66.666% - 0.5px),
+      rgba(255, 255, 255, 0.34) calc(66.666% + 0.5px),
+      transparent calc(66.666% + 0.5px)
+    ),
+    linear-gradient(
+      to bottom,
+      transparent calc(33.333% - 0.5px),
+      rgba(255, 255, 255, 0.34) calc(33.333% - 0.5px),
+      rgba(255, 255, 255, 0.34) calc(33.333% + 0.5px),
+      transparent calc(33.333% + 0.5px)
+    ),
+    linear-gradient(
+      to bottom,
+      transparent calc(66.666% - 0.5px),
+      rgba(255, 255, 255, 0.34) calc(66.666% - 0.5px),
+      rgba(255, 255, 255, 0.34) calc(66.666% + 0.5px),
+      transparent calc(66.666% + 0.5px)
+    );
+  opacity: 0.85;
 }

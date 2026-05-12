@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr"
 import { type EmailOtpType } from "@supabase/supabase-js"
 import { NextResponse, type NextRequest } from "next/server"
 import { sanitizeAuthNextPath } from "@/lib/auth-email-flow"
+import { tryNotifyNewUserRegistrationDiscordForAuthUser } from "@/lib/new-user-registration-discord"
 import { getAppBaseUrl } from "@/lib/site-seo"
 
 type AuthCallbackFailureReason = "missing" | "session_context" | "exchange_failed" | "otp_failed"
@@ -58,6 +59,12 @@ export async function GET(request: NextRequest) {
       token_hash: tokenHash,
     })
     if (!error) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (user) {
+        await tryNotifyNewUserRegistrationDiscordForAuthUser(user)
+      }
       return response
     }
     return NextResponse.redirect(buildLoginRedirectUrl(origin, "otp_failed"))
@@ -75,6 +82,13 @@ export async function GET(request: NextRequest) {
       ? "session_context"
       : "exchange_failed"
     return NextResponse.redirect(buildLoginRedirectUrl(origin, reason))
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (user) {
+    await tryNotifyNewUserRegistrationDiscordForAuthUser(user)
   }
 
   return response

@@ -3,42 +3,42 @@
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
+  type CSSProperties,
   type SyntheticEvent,
 } from "react"
-import ReactCrop, { defaultCrop, type PixelCrop } from "react-image-crop"
-import "react-image-crop/dist/ReactCrop.css"
+import PinchZoom, { make3dTransformValue, type UpdateAction } from "react-quick-pinch-zoom"
 import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { getCroppedImageBlob } from "@/lib/get-cropped-image-blob"
+import { getCroppedImageBlobFromVisibleArea } from "@/lib/get-cropped-image-blob"
 import { SKILL_THUMBNAIL_ASPECT_RATIO } from "@/lib/skill-thumbnail"
 import "./thumbnail-crop-modal.css"
 
-/** 画像内に収まる最大の中央寄せクロップ（一覧カードと同じ 16:10） */
-function maxCenteredAspectPixelCrop(
-  mediaWidth: number,
-  mediaHeight: number,
-  aspect: number,
-): PixelCrop {
-  const imageAspect = mediaWidth / mediaHeight
-  let cropWidth: number
-  let cropHeight: number
-  if (imageAspect >= aspect) {
-    cropHeight = mediaHeight
-    cropWidth = cropHeight * aspect
-  } else {
-    cropWidth = mediaWidth
-    cropHeight = cropWidth / aspect
+const VIEWPORT_MAX_WIDTH_PX = 560
+const VIEWPORT_MAX_HEIGHT_CSS = "min(62svh, 520px)"
+const MIN_ZOOM = 1
+const MAX_ZOOM_CAP = 6
+const MIN_ZOOM_HEADROOM = 2.5
+
+function computeMaxZoom(
+  naturalWidth: number,
+  naturalHeight: number,
+  containerWidth: number,
+  containerHeight: number,
+): number {
+  if (naturalWidth < 1 || naturalHeight < 1 || containerWidth < 1 || containerHeight < 1) {
+    return MAX_ZOOM_CAP
   }
-  return {
-    unit: "px",
-    x: (mediaWidth - cropWidth) / 2,
-    y: (mediaHeight - cropHeight) / 2,
-    width: cropWidth,
-    height: cropHeight,
-  }
+
+  const fitScale = Math.min(containerWidth / naturalWidth, containerHeight / naturalHeight)
+  const fitWidth = naturalWidth * fitScale
+  const fitHeight = naturalHeight * fitScale
+
+  return Math.min(
+    MAX_ZOOM_CAP,
+    Math.max(MIN_ZOOM_HEADROOM, Math.max(naturalWidth / fitWidth, naturalHeight / fitHeight)),
+  )
 }
 
 type ThumbnailCropModalProps = {
@@ -64,53 +64,88 @@ export function ThumbnailCropModal({
   isAdmin = false,
   aspectRatio = SKILL_THUMBNAIL_ASPECT_RATIO,
   heading = "サムネイルの切り抜き",
-  subheading = "枠をドラッグして位置と大きさを調整できます（一覧や詳細には枠内のみ表示されます）。",
+  subheading = "枠内が保存される範囲です。ドラッグで位置を、ホイールやピンチで拡大・縮小できます。",
 }: ThumbnailCropModalProps) {
+  const viewportRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
-  const [crop, setCrop] = useState<PixelCrop>(defaultCrop)
+  const [mediaReady, setMediaReady] = useState(false)
+  const [maxZoom, setMaxZoom] = useState(MAX_ZOOM_CAP)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const applyCropFromDisplayedImage = useCallback(
-    (img: HTMLImageElement) => {
-      const w = Math.round(img.offsetWidth)
-      const h = Math.round(img.offsetHeight)
-      if (w < 4 || h < 4) return
-      setCrop(maxCenteredAspectPixelCrop(w, h, aspectRatio))
-    },
-    [aspectRatio],
-  )
+  const viewportStyle = {
+    "--thumbnail-crop-aspect": String(aspectRatio),
+    aspectRatio,
+    width: `min(100%, ${VIEWPORT_MAX_WIDTH_PX}px)`,
+    maxHeight: VIEWPORT_MAX_HEIGHT_CSS,
+  } as CSSProperties
 
-  const onImageLoad = useCallback(
-    (event: SyntheticEvent<HTMLImageElement>) => {
-      const img = event.currentTarget
-      applyCropFromDisplayedImage(img)
-      requestAnimationFrame(() => {
-        applyCropFromDisplayedImage(img)
-        requestAnimationFrame(() => applyCropFromDisplayedImage(img))
-      })
-    },
-    [applyCropFromDisplayedImage],
-  )
-
-  useLayoutEffect(() => {
-    if (!open || !imageSrc) return
-    const img = imgRef.current
-    if (!img) return
-    if (!img.complete || img.naturalWidth === 0) {
-      setCrop(defaultCrop)
+  const syncZoomLimits = useCallback(() => {
+    const viewport = viewportRef.current
+    const image = imgRef.current
+    if (!viewport || !image || image.naturalWidth < 1 || image.naturalHeight < 1) {
       return
     }
-    applyCropFromDisplayedImage(img)
-    requestAnimationFrame(() => applyCropFromDisplayedImage(img))
-  }, [open, imageSrc, applyCropFromDisplayedImage, aspectRatio])
+
+    const { width, height } = viewport.getBoundingClientRect()
+    if (width < 4 || height < 4) {
+      return
+    }
+
+    setMaxZoom(computeMaxZoom(image.naturalWidth, image.naturalHeight, width, height))
+  }, [])
+
+  const handlePinchZoomUpdate = useCallback(({ x, y, scale }: UpdateAction) => {
+    const image = imgRef.current
+    if (!image) {
+      return
+    }
+    image.style.transform = make3dTransformValue({ x, y, scale })
+  }, [])
+
+  const handleImageLoad = useCallback(
+    (event: SyntheticEvent<HTMLImageElement>) => {
+      const image = event.currentTarget
+      image.style.transform = ""
+      setMediaReady(image.naturalWidth > 0 && image.naturalHeight > 0)
+      requestAnimationFrame(() => {
+        syncZoomLimits()
+        requestAnimationFrame(syncZoomLimits)
+      })
+    },
+    [syncZoomLimits],
+  )
 
   useEffect(() => {
-    if (open && imageSrc) {
-      setError(null)
-      setBusy(false)
+    if (!open || !imageSrc) {
+      return
     }
-  }, [open, imageSrc])
+
+    setError(null)
+    setBusy(false)
+    setMediaReady(false)
+    setMaxZoom(MAX_ZOOM_CAP)
+  }, [open, imageSrc, aspectRatio])
+
+  useEffect(() => {
+    if (!open || !imageSrc) {
+      return
+    }
+
+    const viewport = viewportRef.current
+    if (!viewport) {
+      return
+    }
+
+    const observer = new ResizeObserver(() => {
+      syncZoomLimits()
+    })
+    observer.observe(viewport)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [open, imageSrc, aspectRatio, mediaReady, syncZoomLimits])
 
   useEffect(() => {
     if (open) {
@@ -125,15 +160,16 @@ export function ThumbnailCropModal({
 
   const handleConfirm = async () => {
     const image = imgRef.current
-    if (!image || !crop || crop.width < 4 || crop.height < 4) {
-      setError("切り抜き範囲を調整してください。")
+    const viewport = viewportRef.current
+    if (!image || !viewport || !mediaReady) {
+      setError("画像の読み込みが完了していません。")
       return
     }
 
     setError(null)
     setBusy(true)
     try {
-      const blob = await getCroppedImageBlob(image, crop, "image/jpeg", 0.92)
+      const blob = await getCroppedImageBlobFromVisibleArea(image, viewport, "image/jpeg", 0.92)
       await onConfirm(blob)
       onClose()
     } catch (e) {
@@ -180,25 +216,35 @@ export function ThumbnailCropModal({
         </div>
 
         <div className="thumbnail-crop-stage flex min-h-0 flex-1 flex-col items-center justify-center overflow-x-hidden overflow-y-auto overscroll-contain bg-zinc-900/45 px-2 pb-6 pt-8 sm:min-h-[min(42vh,400px)] sm:px-4 md:px-6">
-          <div className="thumbnail-crop-media-shell relative mx-auto mt-1 w-fit max-w-full min-w-0">
-            <ReactCrop
-              crop={crop}
-              onChange={(next) => setCrop(next)}
-              aspect={aspectRatio}
-              minWidth={aspectRatio >= 1 ? 56 : 56}
-              minHeight={aspectRatio >= 1 ? Math.round(56 / aspectRatio) : 35}
-              className="thumbnail-crop-react max-w-full"
-              ruleOfThirds
+          <div className="thumbnail-crop-media-shell relative mx-auto mt-1 w-full max-w-full min-w-0">
+            <div
+              ref={viewportRef}
+              className="thumbnail-crop-viewport relative mx-auto overflow-hidden bg-black/60 shadow-[0_0_0_9999px_rgba(0,0,0,0.55)]"
+              style={viewportStyle}
             >
-              <img
-                key={imageSrc}
-                ref={imgRef}
-                src={imageSrc}
-                alt="切り抜き対象"
-                onLoad={onImageLoad}
-                className="thumbnail-crop-source block h-auto max-h-[calc(100svh-300px)] w-auto max-w-full object-contain sm:max-h-[min(72vh,860px)]"
-              />
-            </ReactCrop>
+              <PinchZoom
+                key={`${imageSrc}:${aspectRatio}`}
+                minZoom={MIN_ZOOM}
+                maxZoom={maxZoom}
+                wheelScaleFactor={1200}
+                draggableUnZoomed
+                containerProps={{ className: "thumbnail-crop-pinch absolute inset-0" }}
+                onUpdate={handlePinchZoomUpdate}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element -- ローカル blob URL の切り抜きプレビュー */}
+                <img
+                  ref={imgRef}
+                  src={imageSrc}
+                  alt="切り抜き対象"
+                  draggable={false}
+                  onLoad={handleImageLoad}
+                  className="thumbnail-crop-source block max-w-none select-none"
+                />
+              </PinchZoom>
+              <div className="thumbnail-crop-frame pointer-events-none absolute inset-0" aria-hidden="true">
+                <div className="thumbnail-crop-grid absolute inset-0" />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -217,7 +263,7 @@ export function ThumbnailCropModal({
           <Button
             type="button"
             onClick={() => void handleConfirm()}
-            disabled={busy}
+            disabled={busy || !mediaReady}
             className="bg-red-600 font-semibold text-white hover:bg-red-500 disabled:opacity-50"
           >
             {busy ? "処理中..." : "この範囲で決定"}
