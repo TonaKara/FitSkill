@@ -3,7 +3,7 @@
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import Stripe from "stripe"
-import { assertStripeConnectAccountOwnership } from "@/lib/stripe-account-ownership"
+import { assertStripeConnectAccountOwnership, ensureStripeConnectAccountOwnershipMetadata } from "@/lib/stripe-account-ownership"
 import { getAppBaseUrl, getSiteUrl } from "@/lib/site-seo"
 
 type StripeProfileRow = {
@@ -120,7 +120,7 @@ export async function getStripeOnboardingUrl(consented: boolean) {
 
   // オンボーディングに進む前に、振込スケジュールを日次にそろえる。
   // 既存口座にも毎回適用して設定ドリフトを防ぐ。
-  await assertStripeConnectAccountOwnership({
+  await ensureStripeConnectAccountOwnershipMetadata({
     stripe,
     accountId,
     expectedUserId: user.id,
@@ -171,7 +171,7 @@ export async function getStripeExpressDashboardUrl() {
     throw new Error("Stripe Connect の口座が見つかりません。")
   }
 
-  await assertStripeConnectAccountOwnership({
+  await ensureStripeConnectAccountOwnershipMetadata({
     stripe,
     accountId,
     expectedUserId: user.id,
@@ -199,7 +199,7 @@ export async function checkAndFinalizeStripeStatus() {
     return { finalized: false }
   }
 
-  await assertStripeConnectAccountOwnership({
+  await ensureStripeConnectAccountOwnershipMetadata({
     stripe,
     accountId,
     expectedUserId: user.id,

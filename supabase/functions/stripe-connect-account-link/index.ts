@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
           card_payments: { requested: true },
           transfers: { requested: true },
         },
-        metadata: { supabase_user_id: user.id },
+        metadata: { user_id: user.id },
       })
       accountId = account.id
       const { error: upErr } = await supabaseAdmin
