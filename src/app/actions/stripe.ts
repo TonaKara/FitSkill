@@ -3,7 +3,7 @@
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import Stripe from "stripe"
-import { assertStripeConnectAccountOwnership, ensureStripeConnectAccountOwnershipMetadata } from "@/lib/stripe-account-ownership"
+import { ensureStripeConnectAccountOwnershipMetadata } from "@/lib/stripe-account-ownership"
 import { getAppBaseUrl, getSiteUrl } from "@/lib/site-seo"
 
 type StripeProfileRow = {
@@ -25,20 +25,52 @@ function getStripeClient() {
   return new Stripe(secretKey)
 }
 
-/** Connect 口座の銀行への振込スケジュールを日次自動に統一（新規・既存ともドリフト防止で再適用） */
-async function setConnectedAccountPayoutScheduleDaily(
+const FASTEST_WEEKLY_PAYOUT_DAYS = ["monday", "tuesday", "wednesday", "thursday"] as const
+
+function isRecoverableAutomaticPayoutScheduleError(error: unknown): boolean {
+  if (!(error instanceof Stripe.errors.StripeInvalidRequestError)) {
+    return false
+  }
+
+  const message = error.message
+  return (
+    /payout interval "daily" is not available/i.test(message) ||
+    /All weekdays is a daily schedule/i.test(message) ||
+    /Must provide weekly_anchor or weekly_payout_days/i.test(message)
+  )
+}
+
+/** Connect 口座を自動振込にし、利用可能な最短スケジュールへそろえる（JP は週次・最大4日） */
+async function setConnectedAccountAutomaticPayoutSchedule(
   stripe: Stripe,
   accountId: string,
 ): Promise<void> {
-  await stripe.accounts.update(accountId, {
-    settings: {
-      payouts: {
-        schedule: {
-          interval: "daily",
+  const schedules: Stripe.AccountUpdateParams.Settings.Payouts.Schedule[] = [
+    { interval: "daily" },
+    { interval: "weekly", weekly_payout_days: [...FASTEST_WEEKLY_PAYOUT_DAYS] },
+    { interval: "weekly", weekly_anchor: "monday" },
+  ]
+
+  let lastError: unknown = null
+  for (const schedule of schedules) {
+    try {
+      await stripe.accounts.update(accountId, {
+        settings: {
+          payouts: {
+            schedule,
+          },
         },
-      },
-    },
-  })
+      })
+      return
+    } catch (error) {
+      lastError = error
+      if (!isRecoverableAutomaticPayoutScheduleError(error)) {
+        throw error
+      }
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("Stripe payout schedule update failed")
 }
 
 async function getAuthedSupabase() {
@@ -107,7 +139,7 @@ export async function getStripeOnboardingUrl(consented: boolean) {
     })
     accountId = account.id
 
-    await setConnectedAccountPayoutScheduleDaily(stripe, accountId)
+    await setConnectedAccountAutomaticPayoutSchedule(stripe, accountId)
 
     const { error: updateError } = await supabase
       .from("profiles")
@@ -118,7 +150,7 @@ export async function getStripeOnboardingUrl(consented: boolean) {
     }
   }
 
-  // オンボーディングに進む前に、振込スケジュールを日次にそろえる。
+  // オンボーディングに進む前に、自動振込スケジュールを利用可能な最短へそろえる。
   // 既存口座にも毎回適用して設定ドリフトを防ぐ。
   await ensureStripeConnectAccountOwnershipMetadata({
     stripe,
@@ -138,7 +170,7 @@ export async function getStripeOnboardingUrl(consented: boolean) {
       },
     },
   })
-  await setConnectedAccountPayoutScheduleDaily(stripe, accountId)
+  await setConnectedAccountAutomaticPayoutSchedule(stripe, accountId)
 
   const accountLink = await stripe.accountLinks.create({
     account: accountId,
@@ -231,7 +263,7 @@ export async function checkAndFinalizeStripeStatus() {
     return { finalized: false }
   }
 
-  await setConnectedAccountPayoutScheduleDaily(stripe, accountId)
+  await setConnectedAccountAutomaticPayoutSchedule(stripe, accountId)
 
   const { error: updateError } = await supabase
     .from("profiles")
