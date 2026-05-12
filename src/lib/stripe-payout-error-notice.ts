@@ -14,6 +14,14 @@ function resolveStripePayoutOperationErrorDetail(detail: string): string | null 
     return "Stripe 連携情報の保存に失敗しました。時間を置いて再度お試しください。"
   }
 
+  if (normalized === "unauthorized" || normalized.includes("not_authenticated")) {
+    return "ログイン状態を確認できませんでした。ページを再読み込みしてから、もう一度お試しください。"
+  }
+
+  if (normalized.includes("supabase admin environment variables are missing")) {
+    return "Stripe 連携情報の保存設定が不足しています。時間を置いて再度お試しください。"
+  }
+
   return null
 }
 
