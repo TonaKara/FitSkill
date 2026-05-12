@@ -544,7 +544,7 @@ export default function LoginPage() {
                   className="border-zinc-700 bg-zinc-900 text-zinc-50 placeholder:text-zinc-500 focus-visible:ring-red-500"
                 />
                 <p className="text-xs leading-relaxed text-zinc-400">
-                  再送前に宛先をご確認ください。登録時と違うアドレスに直す場合は、下の「このメールアドレスで登録し直す」をお使いください。
+                  再送前に宛先をご確認ください。
                 </p>
                 {email.trim().length > 0 && !isLikelyEmail(normalizedResendEmail) ? (
                   <p className="text-xs text-red-400">メールアドレスの形式が正しくありません。</p>

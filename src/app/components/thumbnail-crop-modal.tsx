@@ -5,6 +5,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type ChangeEvent,
   type CSSProperties,
   type SyntheticEvent,
 } from "react"
@@ -20,6 +21,19 @@ const VIEWPORT_MAX_HEIGHT_CSS = "min(62svh, 520px)"
 const MIN_ZOOM = 1
 const MAX_ZOOM_CAP = 6
 const MIN_ZOOM_HEADROOM = 2.5
+const ZOOM_SLIDER_STEP = 0.01
+
+function applyBaseImageLayout(image: HTMLImageElement, viewport: DOMRect) {
+  const naturalWidth = image.naturalWidth
+  const naturalHeight = image.naturalHeight
+  if (naturalWidth < 1 || naturalHeight < 1 || viewport.width < 4 || viewport.height < 4) {
+    return
+  }
+
+  const fitScale = Math.min(viewport.width / naturalWidth, viewport.height / naturalHeight)
+  image.style.width = `${naturalWidth * fitScale}px`
+  image.style.height = `${naturalHeight * fitScale}px`
+}
 
 function computeMaxZoom(
   naturalWidth: number,
@@ -68,8 +82,12 @@ export function ThumbnailCropModal({
 }: ThumbnailCropModalProps) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
+  const pinchZoomRef = useRef<PinchZoom>(null)
+  const pinchTransformRef = useRef({ x: 0, y: 0, zoomFactor: MIN_ZOOM })
+  const initialPinchScaleRef = useRef<number | null>(null)
   const [mediaReady, setMediaReady] = useState(false)
   const [maxZoom, setMaxZoom] = useState(MAX_ZOOM_CAP)
+  const [zoomFactor, setZoomFactor] = useState(MIN_ZOOM)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -101,14 +119,51 @@ export function ThumbnailCropModal({
       return
     }
     image.style.transform = make3dTransformValue({ x, y, scale })
-  }, [])
+
+    if (initialPinchScaleRef.current === null && scale > 0) {
+      initialPinchScaleRef.current = scale
+    }
+
+    const baselineScale = initialPinchScaleRef.current ?? scale
+    const nextZoomFactor = baselineScale > 0 ? scale / baselineScale : MIN_ZOOM
+    const clampedZoomFactor = Math.min(maxZoom, Math.max(MIN_ZOOM, nextZoomFactor))
+    pinchTransformRef.current = { x, y, zoomFactor: clampedZoomFactor }
+    setZoomFactor(clampedZoomFactor)
+  }, [maxZoom])
+
+  const handleZoomSliderChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const nextZoomFactor = Number(event.target.value)
+    if (!Number.isFinite(nextZoomFactor)) {
+      return
+    }
+
+    const clampedZoomFactor = Math.min(maxZoom, Math.max(MIN_ZOOM, nextZoomFactor))
+    setZoomFactor(clampedZoomFactor)
+    pinchTransformRef.current.zoomFactor = clampedZoomFactor
+    pinchZoomRef.current?.scaleTo({
+      x: pinchTransformRef.current.x,
+      y: pinchTransformRef.current.y,
+      scale: clampedZoomFactor,
+      animated: false,
+    })
+  }, [maxZoom])
 
   const handleImageLoad = useCallback(
     (event: SyntheticEvent<HTMLImageElement>) => {
       const image = event.currentTarget
+      const viewport = viewportRef.current
       image.style.transform = ""
+      if (viewport) {
+        applyBaseImageLayout(image, viewport.getBoundingClientRect())
+      }
+      initialPinchScaleRef.current = null
+      pinchTransformRef.current = { x: 0, y: 0, zoomFactor: MIN_ZOOM }
+      setZoomFactor(MIN_ZOOM)
       setMediaReady(image.naturalWidth > 0 && image.naturalHeight > 0)
       requestAnimationFrame(() => {
+        if (viewport) {
+          applyBaseImageLayout(image, viewport.getBoundingClientRect())
+        }
         syncZoomLimits()
         requestAnimationFrame(syncZoomLimits)
       })
@@ -125,7 +180,14 @@ export function ThumbnailCropModal({
     setBusy(false)
     setMediaReady(false)
     setMaxZoom(MAX_ZOOM_CAP)
+    setZoomFactor(MIN_ZOOM)
+    initialPinchScaleRef.current = null
+    pinchTransformRef.current = { x: 0, y: 0, zoomFactor: MIN_ZOOM }
   }, [open, imageSrc, aspectRatio])
+
+  useEffect(() => {
+    setZoomFactor((current) => Math.min(maxZoom, Math.max(MIN_ZOOM, current)))
+  }, [maxZoom])
 
   useEffect(() => {
     if (!open || !imageSrc) {
@@ -137,12 +199,19 @@ export function ThumbnailCropModal({
       return
     }
 
+    const preventWheelScroll = (event: WheelEvent) => {
+      event.preventDefault()
+    }
+
+    viewport.addEventListener("wheel", preventWheelScroll, { passive: false })
+
     const observer = new ResizeObserver(() => {
       syncZoomLimits()
     })
     observer.observe(viewport)
 
     return () => {
+      viewport.removeEventListener("wheel", preventWheelScroll)
       observer.disconnect()
     }
   }, [open, imageSrc, aspectRatio, mediaReady, syncZoomLimits])
@@ -223,11 +292,13 @@ export function ThumbnailCropModal({
               style={viewportStyle}
             >
               <PinchZoom
+                ref={pinchZoomRef}
                 key={`${imageSrc}:${aspectRatio}`}
                 minZoom={MIN_ZOOM}
                 maxZoom={maxZoom}
-                wheelScaleFactor={1200}
+                wheelScaleFactor={900}
                 draggableUnZoomed
+                shouldInterceptWheel={() => false}
                 containerProps={{ className: "thumbnail-crop-pinch absolute inset-0" }}
                 onUpdate={handlePinchZoomUpdate}
               >
@@ -244,6 +315,25 @@ export function ThumbnailCropModal({
               <div className="thumbnail-crop-frame pointer-events-none absolute inset-0" aria-hidden="true">
                 <div className="thumbnail-crop-grid absolute inset-0" />
               </div>
+            </div>
+            <div className="mt-3 flex items-center gap-3 px-1 text-zinc-300">
+              <label htmlFor="thumbnail-crop-zoom" className="shrink-0 text-xs text-zinc-400">
+                拡大
+              </label>
+              <input
+                id="thumbnail-crop-zoom"
+                type="range"
+                min={MIN_ZOOM}
+                max={maxZoom}
+                step={ZOOM_SLIDER_STEP}
+                value={zoomFactor}
+                disabled={!mediaReady}
+                onChange={handleZoomSliderChange}
+                className="thumbnail-crop-zoom-slider min-w-0 flex-1"
+              />
+              <span className="w-12 shrink-0 text-right text-xs tabular-nums text-zinc-400">
+                {Math.round(zoomFactor * 100)}%
+              </span>
             </div>
           </div>
         </div>
