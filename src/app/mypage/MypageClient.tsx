@@ -3242,20 +3242,22 @@ export default function MypageClient() {
                   ) : connectBalanceError ? (
                     <p className="mt-3 text-sm text-red-400">{connectBalanceError}</p>
                   ) : (
-                    <div className="mt-3 grid gap-2 text-sm text-zinc-300">
-                      <p>
-                        売上金（合計残高）: {(connectBalance?.total ?? 0).toLocaleString("ja-JP")}
-                        円
-                      </p>
-                      <p>
-                        保留金額（Pending）: {(connectBalance?.pending ?? 0).toLocaleString("ja-JP")}
-                        円
-                      </p>
-                      <p>
-                        振込可能残高（Available）: {(connectBalance?.available ?? 0).toLocaleString("ja-JP")}
-                        円
-                      </p>
-                      <p className="mt-2 text-xs leading-relaxed text-zinc-500">
+                    <div className="mt-3 text-sm text-zinc-300">
+                      <div className="flex flex-col gap-6">
+                        <p>
+                          売上金（合計残高）: {(connectBalance?.total ?? 0).toLocaleString("ja-JP")}
+                          円
+                        </p>
+                        <p>
+                          保留金額 : {(connectBalance?.pending ?? 0).toLocaleString("ja-JP")}
+                          円
+                        </p>
+                        <p>
+                          振込可能残高 : {(connectBalance?.available ?? 0).toLocaleString("ja-JP")}
+                          円
+                        </p>
+                      </div>
+                      <p className="mt-4 text-xs leading-relaxed text-zinc-500">
                         売上金は、Stripeの決済処理およびセキュリティ審査を経て、数日後に振込可能残高に反映されます。
                       </p>
                     </div>
