@@ -47,6 +47,17 @@ export function isDuplicatePaymentRpcError(error: { code?: string; message?: str
   return isRpcError(error, "duplicate_payment", "SKD01")
 }
 
+/** Stripe Checkout metadata の checkout_reservation_id（UUID）を検証して RPC に渡す */
+export function parseCheckoutReservationUuidFromMetadata(value: string | null | undefined): string | null {
+  const s = String(value ?? "").trim()
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s)
+  ) {
+    return null
+  }
+  return s
+}
+
 /** claim の二重実行などで Postgres の一意制約に当たった場合、PI があれば既存取引を読み直して成功扱いにできる */
 export function isDuplicateKeyClaimRecoverableError(error: { code?: string; message?: string }): boolean {
   const code = String(error.code ?? "").trim()
@@ -297,6 +308,8 @@ export async function claimSkillApplicationAfterPayment(
     stripePaymentIntentId: string | null
     targetTransactionId: string | null
     stripeCheckoutSessionId?: string | null
+    /** reserve_skill_checkout_slot の id（Checkout metadata）。セッション ID だけでは予約行に届かない場合のフォールバック */
+    checkoutReservationId?: string | null
   },
 ): Promise<ClaimSkillApplicationAfterPaymentResult> {
   const parsedSkillId = Number(params.skillId)
@@ -311,6 +324,7 @@ export async function claimSkillApplicationAfterPayment(
     p_stripe_payment_intent_id: params.stripePaymentIntentId,
     p_target_transaction_id: params.targetTransactionId,
     p_stripe_checkout_session_id: params.stripeCheckoutSessionId ?? null,
+    p_checkout_reservation_id: params.checkoutReservationId ?? null,
   })
 
   if (error) {

@@ -7,11 +7,13 @@ import Stripe from "stripe"
 import {
   attachSkillCheckoutReservationSession,
   claimSkillApplicationAfterPayment,
+  parseCheckoutReservationUuidFromMetadata,
   refundPaidCheckoutSession,
   releaseSkillCheckoutReservation,
   releaseSkillCheckoutReservationBestEffort,
   reserveSkillCheckoutSlot,
   resolveStripePaymentIntentIdForCheckoutSession,
+  type ClaimSkillApplicationAfterPaymentResult,
 } from "@/lib/checkout-fulfillment"
 import { canBuyerPurchaseSkill } from "@/lib/consultation"
 import { ensureSellerPurchaseNotification, notifyBuyerCheckoutRefunded } from "@/lib/purchase-notification"
@@ -330,14 +332,38 @@ export async function finalizeCheckoutSessionAfterSuccess(
 
     const paymentIntentId = await resolveStripePaymentIntentIdForCheckoutSession(stripe, session)
     const transactionIdMeta = session.metadata?.transaction_id?.trim() || null
-    const claimResult = await claimSkillApplicationAfterPayment(supabaseAdmin, {
-      skillId,
-      buyerId,
-      sellerId,
-      stripePaymentIntentId: paymentIntentId,
-      targetTransactionId: transactionIdMeta,
-      stripeCheckoutSessionId: normalizedSessionId,
-    })
+    const checkoutReservationId = parseCheckoutReservationUuidFromMetadata(
+      session.metadata?.checkout_reservation_id,
+    )
+
+    let claimResult: ClaimSkillApplicationAfterPaymentResult | null = null
+    let lastClaimThrow: unknown = null
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        claimResult = await claimSkillApplicationAfterPayment(supabaseAdmin, {
+          skillId,
+          buyerId,
+          sellerId,
+          stripePaymentIntentId: paymentIntentId,
+          targetTransactionId: transactionIdMeta,
+          stripeCheckoutSessionId: normalizedSessionId,
+          checkoutReservationId,
+        })
+        lastClaimThrow = null
+        break
+      } catch (e) {
+        lastClaimThrow = e
+        if (attempt < 2) {
+          await new Promise((r) => setTimeout(r, 400 * (attempt + 1)))
+        }
+      }
+    }
+    if (lastClaimThrow) {
+      throw lastClaimThrow
+    }
+    if (!claimResult) {
+      throw new Error("claim_skill_application_after_payment returned no result")
+    }
 
     if (!claimResult.ok) {
       try {

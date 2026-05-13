@@ -319,7 +319,7 @@ export default function SkillDetailPage() {
 
   /** Checkout 成功時: finalize を最優先。tryRelease の useEffect は checkout=success のとき動かない（下記）。 */
   useEffect(() => {
-    if (!skillId || !userId || loading) {
+    if (!skillId || !userId) {
       return
     }
     const paidByPaymentIntent = paymentRedirectStatus === "succeeded" && Boolean(paymentIntentParam)
@@ -353,7 +353,7 @@ export default function SkillDetailPage() {
           if (
             !finalizeState.stopped &&
             finalizeState.sessionId === checkoutSessionId &&
-            finalizeState.attempts < 5
+            finalizeState.attempts < 15
           ) {
             finalizeState.attempts += 1
             const finalized = await finalizeCheckoutSessionAfterSuccess(checkoutSessionId)
@@ -385,7 +385,7 @@ export default function SkillDetailPage() {
             }
             const isMissingColumn = finalized.error.includes("stripe_payment_intent_id")
             const isCapacityError = isCheckoutCapacityFinalizeError(finalized.error)
-            if (isMissingColumn || isCapacityError || finalizeState.attempts >= 5) {
+            if (isMissingColumn || isCapacityError || finalizeState.attempts >= 15) {
               finalizeState.stopped = true
               if (isMissingColumn) {
                 setPurchaseError("決済情報の反映に失敗しました。時間をおいて再度お試しください。")
@@ -394,7 +394,9 @@ export default function SkillDetailPage() {
               }
               clearPendingSkillCheckout()
               const n = await countActiveSlotsForSkillPurchaseDisplay(supabase, skillId, userId)
-              setEnrolledCount(Number(n))
+              if (n !== null) {
+                setEnrolledCount(Number(n))
+              }
             }
             console.warn("[skills:checkout-finalize] pending", {
               checkoutSessionId,
@@ -420,7 +422,9 @@ export default function SkillDetailPage() {
       if (!cancelled) {
         setPurchaseError("決済後の取引反映に時間がかかっています。マイページからチャットを開いてください。")
         const n = await countActiveSlotsForSkillPurchaseDisplay(supabase, skillId, userId)
-        setEnrolledCount(Number(n))
+        if (n !== null) {
+          setEnrolledCount(Number(n))
+        }
         clearPendingSkillCheckout()
         router.replace(`/skills/${skillId}`)
       }
@@ -431,7 +435,6 @@ export default function SkillDetailPage() {
   }, [
     skillId,
     userId,
-    loading,
     checkoutReturnKey,
     checkoutAutoRedirectStorageKey,
     router,
@@ -483,7 +486,9 @@ export default function SkillDetailPage() {
       }
     }
 
-    setEnrolledCount(Number(activePurchaseCount))
+    if (activePurchaseCount !== null && activePurchaseCount !== undefined) {
+      setEnrolledCount(Number(activePurchaseCount))
+    }
     setConsultationSettings(consultationSettingResult.settings)
     setConsultationSettingsLoadError(Boolean(consultationSettingResult.error))
     if (uid && consultationSettingResult.settings?.is_enabled) {
@@ -688,7 +693,9 @@ export default function SkillDetailPage() {
     }
     const tick = async () => {
       const n = await countActiveSlotsForSkillPurchaseDisplay(supabase, skillId, userId)
-      setEnrolledCount(Number(n))
+      if (n !== null) {
+        setEnrolledCount(Number(n))
+      }
       if (userId) {
         const rows = await fetchActiveTransaction()
         if (rows !== undefined) {

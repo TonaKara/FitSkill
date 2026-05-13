@@ -51,24 +51,25 @@ export async function countActiveSlotsForSkillPurchaseDisplay(
   supabase: SupabaseClient,
   skillId: string,
   viewerUserId: string | null | undefined,
-): Promise<number> {
+): Promise<number | null> {
   const parsedSkillId = Number(skillId)
   if (!Number.isFinite(parsedSkillId)) {
-    return 0
+    return null
   }
   if (!viewerUserId?.trim()) {
-    return countActiveTransactionsForSkill(supabase, skillId)
+    const n = await countActiveTransactionsForSkill(supabase, skillId)
+    return n
   }
 
   const { data, error } = await supabase.rpc("count_skill_slots_for_viewer_purchase", {
     p_skill_id: Math.trunc(parsedSkillId),
   })
   if (error || data === null || data === undefined) {
-    return countActiveTransactionsForSkill(supabase, skillId)
+    return null
   }
 
   const n = Number(data)
-  return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0
+  return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : null
 }
 
 export async function findOngoingPurchaseTransactionForSkill(

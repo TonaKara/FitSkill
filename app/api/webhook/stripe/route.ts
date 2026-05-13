@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js"
 import Stripe from "stripe"
 import {
   claimSkillApplicationAfterPayment,
+  parseCheckoutReservationUuidFromMetadata,
   refundPaidCheckoutSession,
   releaseSkillCheckoutReservation,
   resolveStripePaymentIntentIdForCheckoutSession,
@@ -145,17 +146,21 @@ async function createTransactionFromCheckoutSession(session: Stripe.Checkout.Ses
     throw new Error("Invalid checkout session metadata: buyer and seller are same")
   }
 
-  const paymentIntentId = await resolveStripePaymentIntentIdForCheckoutSession(stripe, session)
-  const transactionIdMeta = session.metadata?.transaction_id?.trim() || null
+    const paymentIntentId = await resolveStripePaymentIntentIdForCheckoutSession(stripe, session)
+    const transactionIdMeta = session.metadata?.transaction_id?.trim() || null
+    const checkoutReservationId = parseCheckoutReservationUuidFromMetadata(
+      session.metadata?.checkout_reservation_id,
+    )
 
-  const claimResult = await claimSkillApplicationAfterPayment(supabase, {
-    skillId,
-    buyerId,
-    sellerId,
-    stripePaymentIntentId: paymentIntentId,
-    targetTransactionId: transactionIdMeta,
-    stripeCheckoutSessionId: session.id,
-  })
+    const claimResult = await claimSkillApplicationAfterPayment(supabase, {
+      skillId,
+      buyerId,
+      sellerId,
+      stripePaymentIntentId: paymentIntentId,
+      targetTransactionId: transactionIdMeta,
+      stripeCheckoutSessionId: session.id,
+      checkoutReservationId,
+    })
 
   if (!claimResult.ok) {
     // skill_full / duplicate_payment など: 決済は取り込まず自動返金（事後検証）
