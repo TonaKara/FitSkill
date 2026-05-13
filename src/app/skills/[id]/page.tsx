@@ -774,7 +774,7 @@ export default function SkillDetailPage() {
     return (
       <div className="flex min-h-[100svh] items-center justify-center bg-black text-zinc-200 md:min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-red-500" aria-hidden />
-        <span className="ml-2 text-sm">{checkoutCancelSyncing ? "在庫を更新しています..." : "読み込み中..."}</span>
+        <span className="ml-2 text-sm">{checkoutCancelSyncing ? "申し込み人数を確認しています" : "読み込み中..."}</span>
       </div>
     )
   }
