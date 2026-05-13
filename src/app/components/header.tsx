@@ -16,6 +16,13 @@ import { getLogoutSuccessHref } from "@/components/logout-success-toast"
 import { UserMenu } from "@/components/user-menu"
 import { useMobileHeaderMenu } from "@/components/mobile-header-menu-context"
 import { cn } from "@/lib/utils"
+import {
+  MYPAGE_MODE_STORAGE_KEY,
+  MYPAGE_MODE_PREFERENCE_CHANGE_EVENT,
+  readMypageModePreference,
+  writeMypageModePreference,
+  type MypageModePreference,
+} from "@/lib/mypage-mode-preference"
 
 type HeaderProps = {
   searchKeyword?: string
@@ -27,8 +34,7 @@ type ProfileSummary = {
   avatarUrl: string
 }
 
-type MobileMypageMode = "student" | "instructor"
-const MOBILE_MYPAGE_MODE_STORAGE_KEY = "mobile_mypage_mode_preference"
+type MobileMypageMode = MypageModePreference
 
 type MobileMenuLink = { label: string; href: string }
 
@@ -125,18 +131,25 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
     if (typeof window === "undefined") {
       return
     }
-    const savedMode = window.localStorage.getItem(MOBILE_MYPAGE_MODE_STORAGE_KEY)
-    if (savedMode === "student" || savedMode === "instructor") {
-      setMobileMypageMode(savedMode)
+    setMobileMypageMode(readMypageModePreference())
+    const syncFromEvent = (event: Event) => {
+      const detail = (event as CustomEvent<MobileMypageMode>).detail
+      if (detail === "student" || detail === "instructor") {
+        setMobileMypageMode(detail)
+      }
+    }
+    window.addEventListener(MYPAGE_MODE_PREFERENCE_CHANGE_EVENT, syncFromEvent)
+    const onStorage = (ev: StorageEvent) => {
+      if (ev.key === MYPAGE_MODE_STORAGE_KEY && (ev.newValue === "student" || ev.newValue === "instructor")) {
+        setMobileMypageMode(ev.newValue)
+      }
+    }
+    window.addEventListener("storage", onStorage)
+    return () => {
+      window.removeEventListener(MYPAGE_MODE_PREFERENCE_CHANGE_EVENT, syncFromEvent)
+      window.removeEventListener("storage", onStorage)
     }
   }, [])
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return
-    }
-    window.localStorage.setItem(MOBILE_MYPAGE_MODE_STORAGE_KEY, mobileMypageMode)
-  }, [mobileMypageMode])
 
   useEffect(() => {
     let mounted = true
@@ -480,7 +493,10 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
                     <div className="mb-1 flex w-full rounded-lg border border-zinc-800 bg-zinc-900/80 p-1">
                       <button
                         type="button"
-                        onClick={() => setMobileMypageMode("student")}
+                        onClick={() => {
+                          writeMypageModePreference("student")
+                          setMobileMypageMode("student")
+                        }}
                         className={`flex-1 rounded-md px-3 py-2 text-xs font-semibold transition-colors ${
                           mobileMypageMode === "student"
                             ? "bg-red-600 text-white shadow-sm shadow-black/30"
@@ -491,7 +507,10 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setMobileMypageMode("instructor")}
+                        onClick={() => {
+                          writeMypageModePreference("instructor")
+                          setMobileMypageMode("instructor")
+                        }}
                         className={`flex-1 rounded-md px-3 py-2 text-xs font-semibold transition-colors ${
                           mobileMypageMode === "instructor"
                             ? "bg-red-600 text-white shadow-sm shadow-black/30"

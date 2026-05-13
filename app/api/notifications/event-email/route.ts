@@ -78,7 +78,7 @@ export async function POST(req: Request) {
         intro: "あなたのスキルに新しい事前オファーが届きました。",
         lines: ["マイページの受講リクエストから内容を確認し、承認または拒否を選択してください。"],
         ctaLabel: "受講リクエストを確認",
-        ctaUrl: `${appUrl}/mypage?section=requests`,
+        ctaUrl: `${appUrl}/mypage?tab=requests&mode=instructor`,
       })
       return Response.json({ ok: true })
     }
@@ -106,7 +106,7 @@ export async function POST(req: Request) {
             ? "事前オファーが承認されました。購入手続きに進めます。"
             : "事前オファーが拒否されました。必要があれば内容を見直して再申請してください。",
         ctaLabel: "マイページを開く",
-        ctaUrl: `${appUrl}/mypage?section=requests`,
+        ctaUrl: `${appUrl}/mypage?tab=requests&mode=student`,
       })
       return Response.json({ ok: true })
     }

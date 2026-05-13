@@ -1,19 +1,25 @@
 "use client"
 
 import { Suspense, useEffect, useMemo, useRef, useState, startTransition } from "react"
-import { Home, Heart, PlusCircle, MessageCircle, User } from "lucide-react"
+import { Home, Heart, PlusCircle, BookOpen, ClipboardList, User } from "lucide-react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { useMobileHeaderMenu } from "@/components/mobile-header-menu-context"
+import {
+  MYPAGE_MODE_PREFERENCE_CHANGE_EVENT,
+  MYPAGE_MODE_STORAGE_KEY,
+  readMypageModePreference,
+  type MypageModePreference,
+} from "@/lib/mypage-mode-preference"
 
 const navItems = [
   { id: "home", label: "ホーム", icon: Home },
   { id: "favorites", label: "お気に入り", icon: Heart },
   { id: "create", label: "出品", icon: PlusCircle },
-  { id: "messages", label: "メッセージ", icon: MessageCircle },
+  { id: "progress", label: "受講中", icon: BookOpen },
   { id: "profile", label: "プロフィール", icon: User },
-]
+] as const
 
 /** 現在の URL に対応するボトムナビの選択状態（クリックだけのローカル state に依存しない） */
 function resolveBottomNavActiveId(pathname: string, searchParams: URLSearchParams): string | null {
@@ -29,7 +35,7 @@ function resolveBottomNavActiveId(pathname: string, searchParams: URLSearchParam
       return "favorites"
     }
     if (tab === "learning" || tab === "teaching") {
-      return "messages"
+      return "progress"
     }
     if (tab === "profile" || tab === "reviews" || tab === "account") {
       return "profile"
@@ -69,8 +75,33 @@ function BottomNavInner() {
 
   const [isCreateChecking, setIsCreateChecking] = useState(false)
   const [isFavoritesChecking, setIsFavoritesChecking] = useState(false)
-  const [isMessagesChecking, setIsMessagesChecking] = useState(false)
+  const [isProgressNavChecking, setIsProgressNavChecking] = useState(false)
   const [isProfileChecking, setIsProfileChecking] = useState(false)
+  const [mypageMode, setMypageMode] = useState<MypageModePreference>("student")
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+    setMypageMode(readMypageModePreference())
+    const syncFromEvent = (event: Event) => {
+      const detail = (event as CustomEvent<MypageModePreference>).detail
+      if (detail === "student" || detail === "instructor") {
+        setMypageMode(detail)
+      }
+    }
+    window.addEventListener(MYPAGE_MODE_PREFERENCE_CHANGE_EVENT, syncFromEvent)
+    const onStorage = (ev: StorageEvent) => {
+      if (ev.key === MYPAGE_MODE_STORAGE_KEY && (ev.newValue === "student" || ev.newValue === "instructor")) {
+        setMypageMode(ev.newValue)
+      }
+    }
+    window.addEventListener("storage", onStorage)
+    return () => {
+      window.removeEventListener(MYPAGE_MODE_PREFERENCE_CHANGE_EVENT, syncFromEvent)
+      window.removeEventListener("storage", onStorage)
+    }
+  }, [])
 
   const navActiveId = useMemo(
     () => resolveBottomNavActiveId(pathname, searchParams),
@@ -81,8 +112,8 @@ function BottomNavInner() {
     router.prefetch("/")
     router.prefetch("/mypage?tab=favorites")
     router.prefetch("/mypage?tab=profile")
-    router.prefetch("/mypage?tab=learning")
-    router.prefetch("/mypage?tab=teaching")
+    router.prefetch("/mypage?tab=learning&mode=student")
+    router.prefetch("/mypage?tab=teaching&mode=instructor")
     router.prefetch("/create-skill")
     router.prefetch("/login")
   }, [router])
@@ -133,53 +164,37 @@ function BottomNavInner() {
     pushNav(router, "/login")
   }
 
-  const handleMessagesClick = async () => {
-    if (isMessagesChecking) {
+  const handleProgressNavClick = async () => {
+    if (isProgressNavChecking) {
       return
     }
     const intent = beginIntent()
-    setIsMessagesChecking(true)
+    setIsProgressNavChecking(true)
     const { data } = await supabase.auth.getSession()
     const user = data.session?.user
 
     if (!user) {
       if (isStale(intent)) {
-        setIsMessagesChecking(false)
+        setIsProgressNavChecking(false)
         return
       }
-      setIsMessagesChecking(false)
+      setIsProgressNavChecking(false)
       pushNav(router, "/login")
       return
     }
 
-    const targetStatuses = ["active", "approval_pending", "disputed"]
-    const { data: rows } = await supabase
-      .from("transactions")
-      .select("buyer_id, seller_id")
-      .in("status", targetStatuses)
-      .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
-      .limit(40)
-
     if (isStale(intent)) {
-      setIsMessagesChecking(false)
+      setIsProgressNavChecking(false)
       return
     }
-    setIsMessagesChecking(false)
+    setIsProgressNavChecking(false)
 
-    const list = rows ?? []
-    const asBuyer = list.some((r) => r.buyer_id === user.id)
-    const asSeller = list.some((r) => r.seller_id === user.id)
-
-    if (asBuyer) {
-      pushNav(router, "/mypage?tab=learning")
+    const mode = readMypageModePreference()
+    if (mode === "instructor") {
+      pushNav(router, "/mypage?tab=teaching&mode=instructor")
       return
     }
-    if (asSeller) {
-      pushNav(router, "/mypage?tab=teaching")
-      return
-    }
-
-    pushNav(router, "/mypage?tab=learning")
+    pushNav(router, "/mypage?tab=learning&mode=student")
   }
 
   const handleProfileClick = async () => {
@@ -269,7 +284,9 @@ function BottomNavInner() {
           </button>
         ) : null}
         {rightItems.map((item) => {
-          const Icon = item.icon
+          const isProgress = item.id === "progress"
+          const Icon = isProgress ? (mypageMode === "instructor" ? ClipboardList : BookOpen) : item.icon
+          const label = isProgress ? (mypageMode === "instructor" ? "対応中" : "受講中") : item.label
           const isActive = navActiveId === item.id
 
           return (
@@ -277,8 +294,8 @@ function BottomNavInner() {
               key={item.id}
               type="button"
               onClick={() => {
-                if (item.id === "messages") {
-                  void handleMessagesClick()
+                if (item.id === "progress") {
+                  void handleProgressNavClick()
                   return
                 }
                 if (item.id === "profile") {
@@ -287,7 +304,7 @@ function BottomNavInner() {
                 }
               }}
               disabled={
-                (item.id === "messages" && isMessagesChecking) || (item.id === "profile" && isProfileChecking)
+                (item.id === "progress" && isProgressNavChecking) || (item.id === "profile" && isProfileChecking)
               }
               className="flex flex-col items-center gap-1 transition-colors"
             >
@@ -303,7 +320,7 @@ function BottomNavInner() {
                   isActive ? "text-primary-readable" : "text-muted-foreground",
                 )}
               >
-                {item.label}
+                {label}
               </span>
             </button>
           )

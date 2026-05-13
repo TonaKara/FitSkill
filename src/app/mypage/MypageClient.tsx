@@ -63,6 +63,7 @@ import {
 } from "@/actions/stripe"
 import { getLogoutSuccessHref } from "@/components/logout-success-toast"
 import { MypageInquirySection } from "./MypageInquirySection"
+import { parseStoredMypageModePreference, writeMypageModePreference } from "@/lib/mypage-mode-preference"
 
 type MypageSection =
   | "profile"
@@ -79,7 +80,6 @@ type MypageSection =
 
 type MypageMode = "student" | "instructor"
 type MenuItem = { id: MypageSection; label: string }
-const MYPAGE_MODE_STORAGE_KEY = "mypage_mode_preference"
 
 const STUDENT_PRIMARY_MENU: MenuItem[] = [
   { id: "favorites", label: "お気に入り" },
@@ -347,13 +347,7 @@ export default function MypageClient() {
   const sectionParam = searchParams.get("tab")
   const modeParam = searchParams.get("mode")
   const modeFromParam = modeParam === "student" || modeParam === "instructor" ? modeParam : null
-  const [storedMode] = useState<MypageMode | null>(() => {
-    if (typeof window === "undefined") {
-      return null
-    }
-    const savedMode = window.localStorage.getItem(MYPAGE_MODE_STORAGE_KEY)
-    return savedMode === "student" || savedMode === "instructor" ? savedMode : null
-  })
+  const [storedMode] = useState<MypageMode | null>(() => parseStoredMypageModePreference())
   const section: MypageSection = isMypageSection(sectionParam)
     ? sectionParam
     : defaultMypageHomeSection(modeFromParam ?? storedMode ?? "student")
@@ -467,9 +461,7 @@ export default function MypageClient() {
       const nextSection = allowedSections.has(section) ? section : modeMenu[0].id
 
       params.set("mode", nextMode)
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(MYPAGE_MODE_STORAGE_KEY, nextMode)
-      }
+      writeMypageModePreference(nextMode)
       params.set("tab", nextSection)
       const query = params.toString()
       router.replace(query ? `${pathname}?${query}` : pathname)
@@ -508,10 +500,7 @@ export default function MypageClient() {
   }, [savedCustomId, userId])
 
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return
-    }
-    window.localStorage.setItem(MYPAGE_MODE_STORAGE_KEY, currentMode)
+    writeMypageModePreference(currentMode)
   }, [currentMode])
 
   useEffect(() => {

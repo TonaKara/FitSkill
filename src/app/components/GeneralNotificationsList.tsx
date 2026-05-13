@@ -103,10 +103,10 @@ export function GeneralNotificationsList({ userId, adminOrigin, onRead }: Genera
       return "/inquiry/list"
     }
     if (n.type === "consultation_request") {
-      return "/mypage?tab=requests"
+      return "/mypage?tab=requests&mode=instructor"
     }
     if (n.type === "consultation_rejected") {
-      return "/mypage?tab=requests"
+      return "/mypage?tab=requests&mode=student"
     }
     if (n.type === "consultation_accepted") {
       const reason = n.reason?.trim() ?? ""
@@ -114,7 +114,7 @@ export function GeneralNotificationsList({ userId, adminOrigin, onRead }: Genera
       if (m?.[1]) {
         return `/skills/${m[1]}`
       }
-      return "/mypage?tab=requests"
+      return "/mypage?tab=requests&mode=student"
     }
     if (n.type === "completion_request" || n.type === "message" || n.type === "completion_approved" || n.type === "dispute") {
       const txId = parseTransactionIdFromNotificationReason(n.reason)
