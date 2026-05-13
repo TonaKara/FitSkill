@@ -245,15 +245,23 @@ export async function getStripeOnboardingUrl(
     return { ok: false, error: "オンボーディング内容への同意が必要です。" }
   }
 
+  const baseUrl = getAppBaseUrl()
+  const publicSiteUrl = getSiteUrl()
+  let accountIdForLog = ""
+
   try {
     const auth = await requireActionUser(accessToken)
     if (!auth.ok) {
+      console.error("[stripe] getStripeOnboardingUrl auth failed", {
+        accountId: accountIdForLog || null,
+        baseUrl,
+        publicSiteUrl,
+        error: auth.error,
+      })
       return { ok: false, error: auth.error }
     }
     const { supabase, user } = auth.session
     const stripe = getStripeClient()
-    const baseUrl = getAppBaseUrl()
-    const publicSiteUrl = getSiteUrl()
 
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
@@ -261,10 +269,20 @@ export async function getStripeOnboardingUrl(
       .eq("id", user.id)
       .single<StripeProfileRow>()
     if (profileError) {
+      console.error("[stripe] getStripeOnboardingUrl profile fetch failed", {
+        accountId: accountIdForLog || null,
+        baseUrl,
+        publicSiteUrl,
+        error: profileError.message,
+        code: profileError.code,
+        details: profileError.details,
+        hint: profileError.hint,
+      })
       return { ok: false, error: profileError.message }
     }
 
     let accountId = profile?.stripe_connect_account_id?.trim() || ""
+    accountIdForLog = accountId
     if (accountId) {
       try {
         await ensureStripeConnectAccountOwnershipMetadata({
@@ -276,18 +294,35 @@ export async function getStripeOnboardingUrl(
       } catch (error) {
         console.error("[stripe] stored connect account is invalid; creating a new account", {
           accountId,
+          accountIdForLog,
+          baseUrl,
+          publicSiteUrl,
           userId: user.id,
           message: readErrorMessage(error),
         })
         await clearStoredConnectAccountId(supabase, user.id)
         accountId = ""
+        accountIdForLog = ""
       }
     }
 
     if (!accountId) {
       accountId = await createConnectAccountForUser(stripe, user.id, publicSiteUrl)
+      accountIdForLog = accountId
 
-      await updateStripeProfileFieldsForUser(supabase, user.id, { stripe_connect_account_id: accountId })
+      try {
+        await updateStripeProfileFieldsForUser(supabase, user.id, { stripe_connect_account_id: accountId })
+      } catch (persistError) {
+        const message = readErrorMessage(persistError)
+        console.error("[stripe] getStripeOnboardingUrl persist stripe_connect_account_id failed", {
+          accountId: accountIdForLog || null,
+          baseUrl,
+          publicSiteUrl,
+          userId: user.id,
+          error: message,
+        })
+        return { ok: false, error: message }
+      }
     }
 
     // オンボーディングに進む前に、自動振込スケジュールを利用可能な最短へそろえる。
@@ -309,6 +344,8 @@ export async function getStripeOnboardingUrl(
     } catch (error) {
       console.error("[stripe] connect business profile update failed", {
         accountId,
+        baseUrl,
+        publicSiteUrl,
         userId: user.id,
         message: readErrorMessage(error),
       })
@@ -324,10 +361,15 @@ export async function getStripeOnboardingUrl(
 
     return { ok: true, url: accountLink.url }
   } catch (error) {
-    console.error("[stripe] onboarding url issue failed", {
-      message: readErrorMessage(error),
+    const message = readErrorMessage(error) || "Stripe onboarding failed"
+    console.error("[stripe] getStripeOnboardingUrl unexpected failure", {
+      accountId: accountIdForLog || null,
+      baseUrl,
+      publicSiteUrl,
+      error: message,
+      stack: error instanceof Error ? error.stack : undefined,
     })
-    return { ok: false, error: readErrorMessage(error) || "Stripe onboarding failed" }
+    return { ok: false, error: message }
   }
 }
 

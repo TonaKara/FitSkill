@@ -55,3 +55,19 @@ export function formatStripePayoutOperationErrorMessage(
   }
   return `${fallback} 詳細: ${trimmed}`
 }
+
+/**
+ * Stripe 講師オンボーディング URL 取得失敗時のユーザー表示用（本番切り分け・一時運用）。
+ * サーバーが `return { ok: false, error }` で返した文言をそのまま見せ、マッピングがある場合は案内を併記する。
+ */
+export function formatStripeOnboardingUrlErrorForUser(detail: string | null | undefined, fallback: string): string {
+  const trimmed = detail?.trim()
+  if (!trimmed) {
+    return fallback
+  }
+  const mapped = resolveStripePayoutOperationErrorDetail(trimmed)
+  if (!mapped || mapped === trimmed) {
+    return trimmed
+  }
+  return `${trimmed}（案内: ${mapped}）`
+}

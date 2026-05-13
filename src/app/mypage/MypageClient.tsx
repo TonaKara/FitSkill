@@ -50,7 +50,10 @@ import {
   type ProfileRatingComment,
   type ProfileRatingDistribution,
 } from "@/lib/profile-ratings"
-import { formatStripePayoutOperationErrorMessage } from "@/lib/stripe-payout-error-notice"
+import {
+  formatStripeOnboardingUrlErrorForUser,
+  formatStripePayoutOperationErrorMessage,
+} from "@/lib/stripe-payout-error-notice"
 import { createGeneralNotification } from "@/lib/transaction-notifications"
 import { autoCompleteTransactions } from "@/lib/transactions"
 import {
@@ -973,7 +976,7 @@ export default function MypageClient() {
         setPayoutLinkBusy(false)
         setNotice({
           variant: "error",
-          message: formatStripePayoutOperationErrorMessage(
+          message: formatStripeOnboardingUrlErrorForUser(
             "not_authenticated",
             "Stripe の画面を開けませんでした。時間を置いて再度お試しください。",
           ),
@@ -985,7 +988,7 @@ export default function MypageClient() {
         setPayoutLinkBusy(false)
         setNotice({
           variant: "error",
-          message: formatStripePayoutOperationErrorMessage(
+          message: formatStripeOnboardingUrlErrorForUser(
             result.error,
             "Stripe の画面を開けませんでした。時間を置いて再度お試しください。",
           ),
@@ -1000,7 +1003,7 @@ export default function MypageClient() {
       const raw = err instanceof Error ? err.message : String(err)
       setNotice({
         variant: "error",
-        message: formatStripePayoutOperationErrorMessage(
+        message: formatStripeOnboardingUrlErrorForUser(
           raw,
           "Stripe の画面を開けませんでした。時間を置いて再度お試しください。",
         ),
