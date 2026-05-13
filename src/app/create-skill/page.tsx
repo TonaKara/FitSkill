@@ -738,6 +738,7 @@ function CreateSkillPageContent() {
         onClose={closeCropModal}
         onConfirm={handleCropConfirm}
         isAdmin={isAdmin}
+        subheading="枠は一覧サムネイルと同じ 16:10 の切り取りサイズです。写真全体が枠に収まる必要はありません。ドラッグ・ピンチ・拡大スライダーで位置とズームを調整してください。"
       />
       {notice && <NotificationToast notice={notice} onClose={() => setNotice(null)} />}
       <div className="mx-auto w-full min-w-0 max-w-3xl px-4 md:px-6">

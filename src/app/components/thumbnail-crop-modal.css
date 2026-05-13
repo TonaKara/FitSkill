@@ -10,6 +10,22 @@
 
 .thumbnail-crop-modal .thumbnail-crop-viewport {
   isolation: isolate;
+  /*
+   * 切り取り枠＝ビューポートを常に (--thumbnail-crop-aspect):1 の厳密な矩形にする。
+   * width だけ + max-height だと「幅優先の高さ」が max を超えたとき比率が崩れるため、
+   * 幅を min(最大幅, 最大高さ×比率) で決め、写真が枠に全部入る必要はない（ズームで調整）。
+   */
+  --crop-frame-max-h: min(72svh, 580px);
+  --crop-frame-max-w: min(100%, 560px);
+  width: min(
+    var(--crop-frame-max-w),
+    calc(var(--crop-frame-max-h) * var(--thumbnail-crop-aspect, 1.6))
+  );
+  max-width: 100%;
+  max-height: var(--crop-frame-max-h);
+  aspect-ratio: var(--thumbnail-crop-aspect, 1.6);
+  height: auto;
+  box-sizing: border-box;
 }
 
 .thumbnail-crop-modal .thumbnail-crop-pinch {
@@ -22,9 +38,10 @@
 }
 
 .thumbnail-crop-modal .thumbnail-crop-frame {
-  border: 2px solid rgba(248, 113, 113, 0.95);
+  /* border は内側の有効画角を削り aspect が歪むため、重ね描画のみ（切り抜き矩形＝ビューポートと同一） */
   box-shadow:
-    inset 0 0 0 1px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 2px rgba(248, 113, 113, 0.95),
+    inset 0 0 0 3px rgba(0, 0, 0, 0.35),
     0 0 0 1px rgba(248, 113, 113, 0.35);
 }
 
