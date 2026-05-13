@@ -283,7 +283,11 @@ export default function SkillDetailPage() {
           setPurchaseError("決済ページを作成できませんでした。")
           return false
         }
-        writePendingSkillCheckout({ skillId: targetSkillId, sessionId: checkoutSessionId })
+        writePendingSkillCheckout({
+          skillId: targetSkillId,
+          sessionId: checkoutSessionId,
+          createdAt: Date.now(),
+        })
         window.location.href = url
         return true
       } catch (e) {
@@ -313,6 +317,7 @@ export default function SkillDetailPage() {
     checkoutSessionId ?? "",
   ].join("|")
 
+  /** Checkout 成功時: finalize を最優先。tryRelease の useEffect は checkout=success のとき動かない（下記）。 */
   useEffect(() => {
     if (!skillId || !userId || loading) {
       return
@@ -331,13 +336,6 @@ export default function SkillDetailPage() {
     }
     let cancelled = false
     void (async () => {
-      if (paidByCheckout && checkoutSessionId) {
-        const normalized = checkoutSessionId.trim()
-        const p = readPendingSkillCheckout()
-        if (p?.sessionId === normalized) {
-          clearPendingSkillCheckout()
-        }
-      }
       if (!paidByCheckout || !checkoutSessionId) {
         checkoutFinalizeStateRef.current = { sessionId: null, attempts: 0, stopped: false }
       } else if (checkoutFinalizeStateRef.current.sessionId !== checkoutSessionId) {
@@ -365,6 +363,7 @@ export default function SkillDetailPage() {
               if (checkoutAutoRedirectStorageKey && typeof window !== "undefined") {
                 window.sessionStorage.setItem(checkoutAutoRedirectStorageKey, "1")
               }
+              clearPendingSkillCheckout()
               router.replace(`/chat/${finalized.transactionId}?from=checkout`)
               return
             }
@@ -378,6 +377,7 @@ export default function SkillDetailPage() {
               if (checkoutAutoRedirectStorageKey && typeof window !== "undefined") {
                 window.sessionStorage.setItem(checkoutAutoRedirectStorageKey, "1")
               }
+              clearPendingSkillCheckout()
               router.replace(`/chat/${String(rescueLatest.id)}?from=checkout`)
               return
             }
@@ -390,6 +390,7 @@ export default function SkillDetailPage() {
               } else if (isCapacityError) {
                 setPurchaseError(finalized.error)
               }
+              clearPendingSkillCheckout()
               const n = await countActiveSlotsForSkillPurchaseDisplay(supabase, skillId, userId)
               setEnrolledCount(Number(n))
             }
@@ -408,6 +409,7 @@ export default function SkillDetailPage() {
           if (checkoutAutoRedirectStorageKey && typeof window !== "undefined") {
             window.sessionStorage.setItem(checkoutAutoRedirectStorageKey, "1")
           }
+          clearPendingSkillCheckout()
           router.replace(`/chat/${tid}?from=checkout`)
           return
         }
@@ -417,6 +419,7 @@ export default function SkillDetailPage() {
         setPurchaseError("決済後の取引反映に時間がかかっています。マイページからチャットを開いてください。")
         const n = await countActiveSlotsForSkillPurchaseDisplay(supabase, skillId, userId)
         setEnrolledCount(Number(n))
+        clearPendingSkillCheckout()
         router.replace(`/skills/${skillId}`)
       }
     })()
@@ -492,12 +495,19 @@ export default function SkillDetailPage() {
 
   /**
    * Stripe から cancel_url 以外で戻った場合でも、未払いなら仮押さえを解放して人数を合わせる。
-   * success URL では決済確定フローに任せるため解放しない。
+   * checkout=success の間は finalize 優先のため解放しない。cancel は専用 effect に任せる。
+   * 作成から 5 分以内は決済処理中の可能性があるため解放しない（cancel 以外）。
    */
   const tryReleasePendingCheckoutIfAbandoned = useCallback(async () => {
     if (!skillId || !userId || typeof window === "undefined") {
       return
     }
+
+    const sp = new URLSearchParams(window.location.search)
+    if (sp.get("checkout") === "success") {
+      return
+    }
+
     const pending = readPendingSkillCheckout()
     if (!pending || pending.skillId !== skillId) {
       return
@@ -507,12 +517,18 @@ export default function SkillDetailPage() {
       clearPendingSkillCheckout()
       return
     }
-    const sp = new URLSearchParams(window.location.search)
+
     const urlCheckout = sp.get("checkout") ?? ""
     const urlSession = sp.get("session_id")?.trim() ?? ""
-    if (urlCheckout === "success" && urlSession === sid) {
+    if (urlCheckout === "cancel" && urlSession === sid) {
       return
     }
+
+    const PENDING_RELEASE_GRACE_MS = 5 * 60 * 1000
+    if (typeof pending.createdAt === "number" && Date.now() - pending.createdAt < PENDING_RELEASE_GRACE_MS) {
+      return
+    }
+
     const result = await releaseCheckoutReservationAfterCancel(sid)
     if (result.ok) {
       clearPendingSkillCheckout()
@@ -524,19 +540,29 @@ export default function SkillDetailPage() {
     if (!skillId || !userId || loading) {
       return
     }
+    if (checkoutStatus === "success") {
+      return
+    }
     void tryReleasePendingCheckoutIfAbandoned()
-  }, [skillId, userId, loading, tryReleasePendingCheckoutIfAbandoned])
+  }, [skillId, userId, loading, checkoutStatus, tryReleasePendingCheckoutIfAbandoned])
 
   useEffect(() => {
     if (!skillId || !userId) {
       return
     }
     const onVisible = () => {
-      if (document.visibilityState === "visible") {
-        void tryReleasePendingCheckoutIfAbandoned()
+      if (document.visibilityState !== "visible") {
+        return
       }
+      if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("checkout") === "success") {
+        return
+      }
+      void tryReleasePendingCheckoutIfAbandoned()
     }
     const onPageShow = () => {
+      if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("checkout") === "success") {
+        return
+      }
       void tryReleasePendingCheckoutIfAbandoned()
     }
     document.addEventListener("visibilitychange", onVisible)

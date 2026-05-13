@@ -5,6 +5,8 @@ const STORAGE_KEY = "fitskill_pending_skill_checkout_v1"
 export type PendingSkillCheckout = {
   skillId: string
   sessionId: string
+  /** writePendingSkillCheckout 時の `Date.now()`。猶予時間内は abandon 解放をスキップする */
+  createdAt?: number
 }
 
 export function readPendingSkillCheckout(): PendingSkillCheckout | null {
@@ -22,7 +24,9 @@ export function readPendingSkillCheckout(): PendingSkillCheckout | null {
     if (!skillId || !sessionId) {
       return null
     }
-    return { skillId, sessionId }
+    const createdAt =
+      typeof parsed.createdAt === "number" && Number.isFinite(parsed.createdAt) ? parsed.createdAt : undefined
+    return createdAt !== undefined ? { skillId, sessionId, createdAt } : { skillId, sessionId }
   } catch {
     return null
   }
