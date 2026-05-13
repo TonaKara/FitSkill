@@ -12,6 +12,7 @@
   isolation: isolate;
   /*
    * 切り取り枠＝ビューポートを常に (--thumbnail-crop-aspect):1 の厳密な矩形にする。
+   * 比率は TS 側で固定（skill=16/10, avatar=1）。react-quick-pinch-zoom は等方ズームのみ。
    * width だけ + max-height だと「幅優先の高さ」が max を超えたとき比率が崩れるため、
    * 幅を min(最大幅, 最大高さ×比率) で決め、写真が枠に全部入る必要はない（ズームで調整）。
    */

@@ -22,6 +22,7 @@ const MAX_ZOOM_CAP = 6
 const MIN_ZOOM_HEADROOM = 2.5
 const ZOOM_SLIDER_STEP = 0.01
 
+/** 初期表示は枠内に全体が収まる contain（切り出しは getCroppedImageBlobFromVisibleArea が枠左上＋固定比率で行う） */
 function applyBaseImageLayout(image: HTMLImageElement, viewport: DOMRect) {
   const naturalWidth = image.naturalWidth
   const naturalHeight = image.naturalHeight
@@ -61,8 +62,11 @@ type ThumbnailCropModalProps = {
   onConfirm: (blob: Blob) => void | Promise<void>
   /** false のときは技術的な例外メッセージを出さない */
   isAdmin?: boolean
-  /** 省略時はスキルサムネイルと同じ 16:10（プロフィールアイコンは 1 など） */
-  aspectRatio?: number
+  /**
+   * skill … クロップ枠を 16:10 に固定（呼び出し側で比率を変更不可。出力の横長を統一）
+   * avatar … 1:1 固定（プロフィールアイコン用）
+   */
+  cropShape?: "skill" | "avatar"
   /** 指定時、canvas をこのピクセル寸法に正規化（枠のアスペクトと一致させること） */
   outputPixelSize?: { width: number; height: number }
   heading?: string
@@ -77,13 +81,16 @@ export function ThumbnailCropModal({
   onClose,
   onConfirm,
   isAdmin = false,
-  aspectRatio = SKILL_THUMBNAIL_ASPECT_RATIO,
+  cropShape = "skill",
   outputPixelSize,
   heading = "サムネイルの切り抜き",
   subheading = "枠内が保存される範囲です。ドラッグで位置を、ホイールやピンチで拡大・縮小できます。",
 }: ThumbnailCropModalProps) {
+  /** ユーザーが変更できない固定比率（react-quick-pinch-zoom は等方ズームのみで、枠比率はここで決まる） */
+  const fixedAspectRatio = cropShape === "avatar" ? 1 : SKILL_THUMBNAIL_ASPECT_RATIO
+
   const viewportRef = useRef<HTMLDivElement>(null)
-  /** ビューポート＝ aspectRatio の矩形そのものを書き出す（周囲を一定 px 削ると比率が歪み一覧の 16:10 とずれる） */
+  /** ビューポート＝ fixedAspectRatio の矩形そのものを書き出す */
   const imgRef = useRef<HTMLImageElement>(null)
   const pinchZoomRef = useRef<PinchZoom>(null)
   const pinchTransformRef = useRef({ x: 0, y: 0, zoomFactor: MIN_ZOOM })
@@ -95,7 +102,7 @@ export function ThumbnailCropModal({
   const [error, setError] = useState<string | null>(null)
 
   const viewportStyle = {
-    "--thumbnail-crop-aspect": String(aspectRatio),
+    "--thumbnail-crop-aspect": String(fixedAspectRatio),
   } as CSSProperties
 
   const syncZoomLimits = useCallback(() => {
@@ -183,7 +190,7 @@ export function ThumbnailCropModal({
     setZoomFactor(MIN_ZOOM)
     initialPinchScaleRef.current = null
     pinchTransformRef.current = { x: 0, y: 0, zoomFactor: MIN_ZOOM }
-  }, [open, imageSrc, aspectRatio])
+  }, [open, imageSrc, cropShape])
 
   useEffect(() => {
     setZoomFactor((current) => Math.min(maxZoom, Math.max(MIN_ZOOM, current)))
@@ -214,7 +221,7 @@ export function ThumbnailCropModal({
       viewport.removeEventListener("wheel", preventWheelScroll)
       observer.disconnect()
     }
-  }, [open, imageSrc, aspectRatio, mediaReady, syncZoomLimits])
+  }, [open, imageSrc, cropShape, mediaReady, syncZoomLimits])
 
   useEffect(() => {
     if (open) {
@@ -292,12 +299,13 @@ export function ThumbnailCropModal({
           <div className="thumbnail-crop-media-shell relative mx-auto mt-1 flex w-full min-w-0 max-w-full flex-col items-center gap-3 sm:flex-row sm:items-start sm:gap-4">
             <div
               ref={viewportRef}
+              data-crop-shape={cropShape}
               className="thumbnail-crop-viewport relative mx-auto overflow-hidden bg-black/60 shadow-[0_0_0_9999px_rgba(0,0,0,0.55)]"
               style={viewportStyle}
             >
               <PinchZoom
                 ref={pinchZoomRef}
-                key={`${imageSrc}:${aspectRatio}`}
+                key={`${imageSrc}:${cropShape}`}
                 minZoom={MIN_ZOOM}
                 maxZoom={maxZoom}
                 wheelScaleFactor={900}

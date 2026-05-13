@@ -5,8 +5,11 @@ import { cn } from "@/lib/utils"
 type SkillThumbnailSurfaceProps = {
   imageUrl: string
   className?: string
-  /** 一覧カード・出品プレビューは cover（16:10 枠と一致）。contain は特例用 */
-  fit?: "cover" | "contain"
+  /**
+   * cover … 一覧カード等。contain … 特例。
+   * fill … 背景を 100%×100% で伸ばす（クロップ済み 16:10 を枠にピッタリ合わせるプレビュー用）
+   */
+  fit?: "cover" | "contain" | "fill"
   /** 一覧カードのホバー拡大 */
   enableHoverZoom?: boolean
 }
@@ -20,7 +23,14 @@ export function SkillThumbnailSurface({
   fit = "cover",
   enableHoverZoom,
 }: SkillThumbnailSurfaceProps) {
-  const fitClasses = fit === "contain" ? "bg-contain bg-center bg-no-repeat" : "bg-cover bg-center"
+  const fitClasses =
+    fit === "contain"
+      ? "bg-contain bg-center bg-no-repeat"
+      : fit === "fill"
+        ? "bg-center bg-no-repeat"
+        : "bg-cover bg-center"
+
+  const fillStyle = fit === "fill" ? ({ backgroundSize: "100% 100%" } as const) : undefined
 
   return (
     <div
@@ -30,7 +40,7 @@ export function SkillThumbnailSurface({
         enableHoverZoom && "transition-transform duration-500 group-hover:scale-110",
         className,
       )}
-      style={{ backgroundImage: `url(${imageUrl})` }}
+      style={{ backgroundImage: `url(${imageUrl})`, ...fillStyle }}
     />
   )
 }

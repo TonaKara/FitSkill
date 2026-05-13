@@ -11,7 +11,7 @@ export const SKILL_THUMBNAIL_ASPECT_RATIO = 16 / 10
 export const SKILL_THUMBNAIL_EXPORT_WIDTH = 1600
 export const SKILL_THUMBNAIL_EXPORT_HEIGHT = 1000
 
-/** コンテナに `aspect-ratio` を付けるとき共通化（Tailwind の aspect-[16/10] と同値） */
+/** コンテナに `aspect-ratio` を付けるとき共通化（16:10） */
 export const skillThumbnailContainerAspectStyle = (): { aspectRatio: number } => ({
   aspectRatio: SKILL_THUMBNAIL_ASPECT_RATIO,
 })

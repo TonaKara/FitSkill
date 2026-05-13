@@ -12,7 +12,6 @@ import { NotificationToast } from "@/components/ui/notification-toast"
 import { getIsAdminFromProfile } from "@/lib/admin"
 import { toErrorNotice, type AppNotice } from "@/lib/notifications"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
-import { SkillThumbnailSurface } from "@/components/skill-thumbnail-surface"
 import { ThumbnailCropModal } from "@/components/thumbnail-crop-modal"
 import { TradeFinalConfirmStep } from "@/components/TradeFinalConfirmStep"
 import {
@@ -743,8 +742,9 @@ function CreateSkillPageContent() {
         onClose={closeCropModal}
         onConfirm={handleCropConfirm}
         isAdmin={isAdmin}
+        cropShape="skill"
         outputPixelSize={{ width: SKILL_THUMBNAIL_EXPORT_WIDTH, height: SKILL_THUMBNAIL_EXPORT_HEIGHT }}
-        subheading="枠は一覧サムネイルと同じ 16:10 の切り取りサイズです。写真全体が枠に収まる必要はありません。ドラッグ・ピンチ・拡大スライダーで位置とズームを調整してください。"
+        subheading="枠は一覧サムネイルと同じ 16:10 の切り取りサイズです。ドラッグ・ピンチ・拡大スライダーで位置とズームを調整してください。"
       />
       {notice && <NotificationToast notice={notice} onClose={() => setNotice(null)} />}
       <div className="mx-auto w-full min-w-0 max-w-3xl px-4 md:px-6">
@@ -801,7 +801,13 @@ function CreateSkillPageContent() {
                       className="relative mx-auto w-full max-w-md overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 sm:max-w-none"
                       style={skillThumbnailContainerAspectStyle()}
                     >
-                      <SkillThumbnailSurface imageUrl={thumbnailPreview} />
+                      {/* object-cover + 16:10 枠は一覧・詳細ヒーローと同じ。クロップ出力とピクセル対応 */}
+                      {/* eslint-disable-next-line @next/next/no-img-element -- blob / data URL プレビュー */}
+                      <img
+                        src={thumbnailPreview}
+                        alt=""
+                        className="absolute inset-0 h-full w-full object-cover"
+                      />
                       <button
                         type="button"
                         onClick={clearThumbnailSelection}

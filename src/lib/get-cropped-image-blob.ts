@@ -2,30 +2,64 @@ export type GetCroppedImageBlobOptions = {
   mimeType?: string
   quality?: number
   /**
-   * 指定時はこのピクセル寸法の canvas に描画する（アスペクトはクロップ枠と一致させること）。
-   * 未指定時はソース上の切り抜きを整数ピクセルに丸めつつ、枠と同じ縦横比を維持する。
+   * 指定時: 描画先は必ず (0,0)〜(width,height) の canvas 全面。
+   * ソース矩形 (sw,sh) の縦横比は width/height に一致させる。
    */
   outputSize?: { width: number; height: number }
 }
 
-function clampSourceRect(
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  naturalWidth: number,
-  naturalHeight: number,
-): { sx: number; sy: number; sw: number; sh: number } {
-  const sx = Math.max(0, Math.min(x, naturalWidth - 1))
-  const sy = Math.max(0, Math.min(y, naturalHeight - 1))
-  const sw = Math.max(1, Math.min(w, naturalWidth - sx))
-  const sh = Math.max(1, Math.min(h, naturalHeight - sy))
-  return { sx, sy, sw, sh }
+/**
+ * 画面上の点 (screenX, screenY) を、img のビットマップ座標へ変換する。
+ * layoutW/visualW で transform 後の表示とレイアウト寸法を対応させる。
+ */
+function screenPointToSource(
+  image: HTMLImageElement,
+  imageRect: DOMRectReadOnly,
+  screenX: number,
+  screenY: number,
+): { sx: number; sy: number } {
+  const nw = image.naturalWidth
+  const nh = image.naturalHeight
+  const layoutW = image.clientWidth || image.offsetWidth
+  const layoutH = image.clientHeight || image.offsetHeight
+  const visualW = imageRect.width
+  const visualH = imageRect.height
+
+  if (layoutW < 1 || layoutH < 1 || visualW < 1e-6 || visualH < 1e-6) {
+    throw new Error("画像のレイアウトまたは表示サイズが無効です。")
+  }
+
+  const dx = screenX - imageRect.left
+  const dy = screenY - imageRect.top
+  const layoutDx = (dx / visualW) * layoutW
+  const layoutDy = (dy / visualH) * layoutH
+
+  return {
+    sx: layoutDx * (nw / layoutW),
+    sy: layoutDy * (nh / layoutH),
+  }
 }
 
 /**
- * 画面上の img と切り抜き枠（DOM 要素）の重なりから Blob を生成する。
- * transform 付きの表示でも getBoundingClientRect 基準で自然解像度へ写す。
+ * 赤枠（cropArea）の画面上の幅に対応するソース幅（ビットマップ px）。
+ */
+function frameWidthToSourceWidth(
+  image: HTMLImageElement,
+  imageRect: DOMRectReadOnly,
+  frameWidthPx: number,
+): number {
+  const nw = image.naturalWidth
+  const layoutW = image.clientWidth || image.offsetWidth
+  const visualW = imageRect.width
+  if (layoutW < 1 || visualW < 1e-6) {
+    throw new Error("画像のレイアウトまたは表示サイズが無効です。")
+  }
+  return (frameWidthPx / visualW) * layoutW * (nw / layoutW)
+}
+
+/**
+ * 赤枠の左上をソース起点とし、幅を枠の幅から算出、高さは output の縦横比で決める。
+ * はみ出しは canvas の drawImage がクリップ。先にベタ塗りして JPEG では黒で埋める。
  */
 export function getCroppedImageBlobFromVisibleArea(
   image: HTMLImageElement,
@@ -37,57 +71,33 @@ export function getCroppedImageBlobFromVisibleArea(
   const cropRect = cropArea.getBoundingClientRect()
   const imageRect = image.getBoundingClientRect()
 
-  const overlapLeft = Math.max(cropRect.left, imageRect.left)
-  const overlapTop = Math.max(cropRect.top, imageRect.top)
-  const overlapRight = Math.min(cropRect.right, imageRect.right)
-  const overlapBottom = Math.min(cropRect.bottom, imageRect.bottom)
-
-  const overlapWidth = overlapRight - overlapLeft
-  const overlapHeight = overlapBottom - overlapTop
-
-  if (overlapWidth < 2 || overlapHeight < 2) {
-    return Promise.reject(new Error("切り抜き範囲が画像と重なっていません。"))
+  if (cropRect.width < 2 || cropRect.height < 2) {
+    return Promise.reject(new Error("切り抜き枠のサイズが無効です。"))
   }
 
-  const scaleX = image.naturalWidth / imageRect.width
-  const scaleY = image.naturalHeight / imageRect.height
-  // PinchZoom は等方スケール。サブピクセルや DPR で scaleX/scaleY が僅差にずれる場合は平均で一本化
-  const scale =
-    Math.abs(scaleX - scaleY) <= Math.max(scaleX, scaleY) * 0.002 ? (scaleX + scaleY) / 2 : Math.sqrt(scaleX * scaleY)
+  const { sx, sy } = screenPointToSource(image, imageRect, cropRect.left, cropRect.top)
 
-  const sourceX = (overlapLeft - imageRect.left) * scale
-  const sourceY = (overlapTop - imageRect.top) * scale
-  const sourceWidth = overlapWidth * scale
-  const sourceHeight = overlapHeight * scale
-
-  const { sx, sy, sw, sh } = clampSourceRect(
-    sourceX,
-    sourceY,
-    sourceWidth,
-    sourceHeight,
-    image.naturalWidth,
-    image.naturalHeight,
-  )
+  const sw = frameWidthToSourceWidth(image, imageRect, cropRect.width)
+  const destAspect =
+    outputSize != null
+      ? outputSize.width / outputSize.height
+      : cropRect.width / Math.max(cropRect.height, 1e-6)
+  const sh = sw / destAspect
 
   const canvas = document.createElement("canvas")
 
   if (outputSize) {
-    canvas.width = outputSize.width
-    canvas.height = outputSize.height
-  } else {
-    const frameAspect = overlapWidth / overlapHeight
-    let outW = Math.max(1, Math.round(sw))
-    let outH = Math.max(1, Math.round(sh))
-    const outAspect = outW / outH
-    if (Math.abs(outAspect - frameAspect) > 1e-5) {
-      if (outAspect > frameAspect) {
-        outW = Math.max(1, Math.round(outH * frameAspect))
-      } else {
-        outH = Math.max(1, Math.round(outW / frameAspect))
-      }
+    const { width: outW, height: outH } = outputSize
+    if (outW < 1 || outH < 1) {
+      return Promise.reject(new Error("outputSize の寸法が無効です。"))
     }
     canvas.width = outW
     canvas.height = outH
+  } else {
+    const w = Math.max(1, Math.round(sw))
+    const h = Math.max(1, Math.round(sh))
+    canvas.width = w
+    canvas.height = h
   }
 
   const ctx = canvas.getContext("2d")
@@ -95,7 +105,12 @@ export function getCroppedImageBlobFromVisibleArea(
     return Promise.reject(new Error("Canvas 2D コンテキストを取得できませんでした。"))
   }
 
-  ctx.drawImage(image, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height)
+  ctx.fillStyle = "#000000"
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+  const destW = canvas.width
+  const destH = canvas.height
+  ctx.drawImage(image, sx, sy, sw, sh, 0, 0, destW, destH)
 
   return new Promise((resolve, reject) => {
     canvas.toBlob(

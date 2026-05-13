@@ -469,7 +469,7 @@ export default function ProfileSetupPage() {
         onClose={closeCropModal}
         onConfirm={handleCropConfirm}
         isAdmin={isAdmin}
-        aspectRatio={1}
+        cropShape="avatar"
         outputPixelSize={{ width: PROFILE_AVATAR_CROP_EXPORT_PX, height: PROFILE_AVATAR_CROP_EXPORT_PX }}
         heading="プロフィールアイコン"
         subheading="枠内が保存される範囲です。ドラッグで位置を、ホイールやピンチで拡大・縮小できます（正方形でトリミングされます）。"
