@@ -731,7 +731,7 @@ function CreateSkillPageContent() {
   const submitLabel = editSkillId ? "更新する" : "出品する"
 
   return (
-    <div className="min-h-screen bg-black pb-14 pt-8 text-zinc-50">
+    <div className="min-h-screen w-full overflow-x-hidden bg-black pb-14 pt-8 text-zinc-50">
       <ThumbnailCropModal
         open={cropModalOpen}
         imageSrc={cropSourceUrl}
@@ -740,27 +740,25 @@ function CreateSkillPageContent() {
         isAdmin={isAdmin}
       />
       {notice && <NotificationToast notice={notice} onClose={() => setNotice(null)} />}
-      <div className="mx-auto w-full max-w-3xl px-4 md:px-6">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-black tracking-wide text-white">{pageTitle}</h1>
-          </div>
+      <div className="mx-auto w-full min-w-0 max-w-3xl px-4 md:px-6">
+        <div className="mb-6 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <h1 className="min-w-0 break-words text-2xl font-black tracking-wide text-white sm:text-3xl">{pageTitle}</h1>
           <Button
             asChild
             variant="outline"
-            className="border-zinc-700 bg-zinc-900 text-zinc-200 hover:border-red-500 hover:bg-zinc-800"
+            className="shrink-0 self-start border-zinc-700 bg-zinc-900 text-zinc-200 hover:border-red-500 hover:bg-zinc-800 sm:self-auto"
           >
             <Link href={editSkillId ? "/mypage" : "/"}>戻る</Link>
           </Button>
         </div>
 
-        <Card className="border-red-500/35 bg-zinc-950 shadow-[0_0_60px_rgba(230,74,25,0.18)]">
+        <Card className="min-w-0 border-red-500/35 bg-zinc-950 shadow-[0_0_48px_rgba(230,74,25,0.14)] max-sm:shadow-[0_0_24px_rgba(230,74,25,0.12)]">
           <CardHeader>
             <CardTitle className="text-white">{formTitle}</CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <section className="space-y-3 rounded-xl border border-zinc-800/80 bg-zinc-900/25 p-4">
+            <form onSubmit={handleSubmit} className="min-w-0 space-y-5">
+              <section className="min-w-0 space-y-3 rounded-xl border border-zinc-800/80 bg-zinc-900/25 p-4">
                 <div className="space-y-2">
                   <label htmlFor="thumbnail" className="text-sm font-semibold text-zinc-200">
                     サムネイル画像
@@ -807,7 +805,7 @@ function CreateSkillPageContent() {
                 </div>
               </section>
 
-              <section className="space-y-4 rounded-xl border border-zinc-800/80 bg-zinc-900/25 p-4">
+              <section className="min-w-0 space-y-4 rounded-xl border border-zinc-800/80 bg-zinc-900/25 p-4">
                 <h2 className="text-sm font-semibold text-zinc-100">基本情報</h2>
                 <div className="space-y-2">
                   <label htmlFor="title" className="text-sm font-semibold text-zinc-200">
@@ -850,16 +848,16 @@ function CreateSkillPageContent() {
                     placeholder="自己紹介、指導方針（ZoomやYouTubeを使った指導スタイルなど）、指導の流れ、準備していただくもの（運動できる服装、飲み物など）などを自由に記載してください。"
                     className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm leading-relaxed text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-500"
                   />
-                  <p className="inline-flex items-start gap-1.5 text-xs text-zinc-400">
+                  <p className="flex min-w-0 items-start gap-1.5 text-xs text-zinc-400">
                     <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-400" aria-hidden />
                     外部サービス（Zoom等）を利用する場合は、トラブル防止のため必ず説明欄に記載してください。
                   </p>
                 </div>
               </section>
 
-              <section className="space-y-4 rounded-xl border border-zinc-800/80 bg-zinc-900/25 p-4">
+              <section className="min-w-0 space-y-4 rounded-xl border border-zinc-800/80 bg-zinc-900/25 p-4">
                 <h2 className="text-sm font-semibold text-zinc-100">提供方法</h2>
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid min-w-0 gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <label htmlFor="category" className="text-sm font-semibold text-zinc-200">
                       カテゴリー（50音順）
@@ -930,9 +928,9 @@ function CreateSkillPageContent() {
                 )}
               </section>
 
-              <section className="space-y-4 rounded-xl border border-zinc-800/80 bg-zinc-900/25 p-4">
+              <section className="min-w-0 space-y-4 rounded-xl border border-zinc-800/80 bg-zinc-900/25 p-4">
                 <h2 className="text-sm font-semibold text-zinc-100">価格・提供条件</h2>
-                <div className="grid gap-4 md:grid-cols-3">
+                <div className="grid min-w-0 gap-4 md:grid-cols-3">
                   <div className="space-y-2">
                     <label htmlFor="price" className="text-sm font-semibold text-zinc-200">
                       値段（円）
@@ -1002,7 +1000,7 @@ function CreateSkillPageContent() {
                 </div>
               </section>
 
-              <fieldset className="space-y-3 rounded-lg border border-zinc-700 bg-zinc-900/50 p-4">
+              <fieldset className="min-w-0 space-y-3 rounded-lg border border-zinc-700 bg-zinc-900/50 p-4">
                 <legend className="px-1 text-sm font-semibold text-zinc-200">事前オファー設定</legend>
                 <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-zinc-200">
                   <input
@@ -1016,7 +1014,7 @@ function CreateSkillPageContent() {
                 <p className="text-xs text-zinc-500">
                   オンにすると、購入前に回答フォームと講師の承認が必要になります（質問ラベルを設定してください）。
                 </p>
-                <div className="grid gap-3">
+                <div className="grid min-w-0 gap-3">
                   <div className="space-y-1">
                     <label htmlFor="consultation-q1" className="inline-flex items-center text-xs font-semibold text-zinc-400">
                       質問1
@@ -1077,7 +1075,7 @@ function CreateSkillPageContent() {
                 </div>
               </fieldset>
 
-              <fieldset className="space-y-3 rounded-lg border border-zinc-700 bg-zinc-900/50 p-4">
+              <fieldset className="min-w-0 space-y-3 rounded-lg border border-zinc-700 bg-zinc-900/50 p-4">
                 <legend className="px-1 text-sm font-semibold text-zinc-200">事前相談（チャット）設定</legend>
                 <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-zinc-200">
                   <input
@@ -1093,7 +1091,7 @@ function CreateSkillPageContent() {
                 </p>
               </fieldset>
 
-              <fieldset className="space-y-3 rounded-lg border border-zinc-700 bg-zinc-900/50 p-4">
+              <fieldset className="min-w-0 space-y-3 rounded-lg border border-zinc-700 bg-zinc-900/50 p-4">
                 <legend className="px-1 text-sm font-semibold text-zinc-200">公開設定</legend>
                 <div className="flex flex-wrap gap-4">
                   <label
@@ -1167,7 +1165,7 @@ function CreateSkillPageContent() {
         showVisibilitySaveConfirm &&
         createPortal(
           <div
-            className="fixed inset-0 z-[10000] flex min-h-[100dvh] w-full items-center justify-center overflow-y-auto bg-black/60 p-4 sm:p-6"
+            className="fixed inset-0 z-[10000] flex min-h-[100dvh] w-full items-center justify-center overflow-x-hidden overflow-y-auto bg-black/60 p-4 sm:p-6"
             role="presentation"
             onClick={handleVisibilitySaveCancel}
           >
@@ -1224,7 +1222,7 @@ function CreateSkillPageContent() {
         showDeleteConfirm &&
         createPortal(
           <div
-            className="fixed inset-0 z-[10000] flex min-h-[100dvh] w-full items-center justify-center overflow-y-auto bg-black/60 p-4 sm:p-6"
+            className="fixed inset-0 z-[10000] flex min-h-[100dvh] w-full items-center justify-center overflow-x-hidden overflow-y-auto bg-black/60 p-4 sm:p-6"
             role="presentation"
             onClick={handleDeleteCancel}
           >
@@ -1274,7 +1272,7 @@ function CreateSkillPageContent() {
         showFinalConfirm &&
         createPortal(
           <div
-            className="fixed inset-0 z-[10000] flex min-h-[100dvh] w-full items-center justify-center overflow-y-auto bg-black/60 p-4 sm:p-6"
+            className="fixed inset-0 z-[10000] flex min-h-[100dvh] w-full items-center justify-center overflow-x-hidden overflow-y-auto bg-black/60 p-4 sm:p-6"
             role="presentation"
             onClick={() => {
               if (!isSubmitting) {
