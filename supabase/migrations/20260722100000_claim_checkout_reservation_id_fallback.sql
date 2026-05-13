@@ -10,12 +10,12 @@ create or replace function public.claim_skill_application_after_payment(
   p_buyer_id uuid,
   p_seller_id uuid,
   p_stripe_payment_intent_id text default null,
-  p_target_transaction_id uuid default null,
+  p_target_transaction_id bigint default null,
   p_stripe_checkout_session_id text default null,
   p_checkout_reservation_id uuid default null
 )
 returns table (
-  transaction_id uuid,
+  transaction_id bigint,
   status text,
   already_existed boolean
 )
@@ -29,7 +29,7 @@ declare
   v_reservation_count bigint;
   v_existing record;
   v_reservation record;
-  v_tx_id uuid;
+  v_tx_id bigint;
   v_tx_status text;
   v_has_reservation boolean := false;
   v_reservation_pk uuid;
@@ -365,7 +365,7 @@ revoke all on function public.claim_skill_application_after_payment(
   uuid,
   uuid,
   text,
-  uuid,
+  bigint,
   text,
   uuid
 ) from public;
@@ -375,7 +375,7 @@ grant execute on function public.claim_skill_application_after_payment(
   uuid,
   uuid,
   text,
-  uuid,
+  bigint,
   text,
   uuid
 ) to service_role;

@@ -47,8 +47,21 @@ export function isDuplicatePaymentRpcError(error: { code?: string; message?: str
   return isRpcError(error, "duplicate_payment", "SKD01")
 }
 
-/** Stripe Checkout metadata の checkout_reservation_id（UUID）を検証して RPC に渡す */
-export function parseCheckoutReservationUuidFromMetadata(value: string | null | undefined): string | null {
+/** transactions.id が bigint のとき、メタデータの数値文字列のみ RPC に渡す（UUID や空は null） */
+export function parseRpcBigIntIdOrNull(value: string | null | undefined): number | null {
+  const s = String(value ?? "").trim()
+  if (!/^\d{1,19}$/.test(s)) {
+    return null
+  }
+  const n = Number(s)
+  if (!Number.isSafeInteger(n)) {
+    return null
+  }
+  return Math.trunc(n)
+}
+
+/** Supabase RPC の uuid 引数用（skill_checkout_reservations.id 等） */
+export function parseRpcUuidOrNull(value: string | null | undefined): string | null {
   const s = String(value ?? "").trim()
   if (
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s)
@@ -56,6 +69,11 @@ export function parseCheckoutReservationUuidFromMetadata(value: string | null | 
     return null
   }
   return s
+}
+
+/** Stripe Checkout metadata の checkout_reservation_id（UUID）を検証して RPC に渡す */
+export function parseCheckoutReservationUuidFromMetadata(value: string | null | undefined): string | null {
+  return parseRpcUuidOrNull(value)
 }
 
 /** claim の二重実行などで Postgres の一意制約に当たった場合、PI があれば既存取引を読み直して成功扱いにできる */
@@ -306,6 +324,7 @@ export async function claimSkillApplicationAfterPayment(
     buyerId: string
     sellerId: string
     stripePaymentIntentId: string | null
+    /** 取引主キーが bigint の DB 用。Stripe metadata.transaction_id に数値文字列が入る想定 */
     targetTransactionId: string | null
     stripeCheckoutSessionId?: string | null
     /** reserve_skill_checkout_slot の id（Checkout metadata）。セッション ID だけでは予約行に届かない場合のフォールバック */
@@ -322,9 +341,9 @@ export async function claimSkillApplicationAfterPayment(
     p_buyer_id: params.buyerId,
     p_seller_id: params.sellerId,
     p_stripe_payment_intent_id: params.stripePaymentIntentId,
-    p_target_transaction_id: params.targetTransactionId,
+    p_target_transaction_id: parseRpcBigIntIdOrNull(params.targetTransactionId),
     p_stripe_checkout_session_id: params.stripeCheckoutSessionId ?? null,
-    p_checkout_reservation_id: params.checkoutReservationId ?? null,
+    p_checkout_reservation_id: parseRpcUuidOrNull(params.checkoutReservationId),
   })
 
   if (error) {

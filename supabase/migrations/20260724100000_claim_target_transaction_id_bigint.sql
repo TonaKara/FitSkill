@@ -1,5 +1,8 @@
--- Hotfix: RETURNS TABLE の出力変数 status と transactions.status の曖昧さ解消（INSERT/UPDATE の列を明示）。
--- transactions.id / skills.id が bigint の DB 向け: p_target_transaction_id / 戻り transaction_id は bigint。
+-- transactions.id / skills.id が int8 (bigint) の環境向け:
+-- claim_skill_application_after_payment の p_target_transaction_id と戻り transaction_id を bigint に揃える。
+-- 既存の uuid 版シグネチャと共存できないため、旧 7 引数関数を DROP してから再作成する。
+
+drop function if exists public.claim_skill_application_after_payment(bigint, uuid, uuid, text, uuid, text, uuid);
 
 create or replace function public.claim_skill_application_after_payment(
   p_skill_id bigint,
@@ -355,3 +358,23 @@ begin
   end;
 end;
 $$;
+
+revoke all on function public.claim_skill_application_after_payment(
+  bigint,
+  uuid,
+  uuid,
+  text,
+  bigint,
+  text,
+  uuid
+) from public;
+
+grant execute on function public.claim_skill_application_after_payment(
+  bigint,
+  uuid,
+  uuid,
+  text,
+  bigint,
+  text,
+  uuid
+) to service_role;
