@@ -17,6 +17,11 @@ function resolveStripePayoutOperationErrorDetail(detail: string): string | null 
     return "Stripe 連携情報の保存に失敗しました。時間を置いて再度お試しください。"
   }
 
+  // DB の BEFORE UPDATE 等で Unauthorized（P0001）が返るケース（service_role では auth.uid() が NULL）
+  if (normalized === "unauthorized") {
+    return "データベース側の制限で保存できませんでした。Supabase に未適用のマイグレーション（profiles の Stripe 列まわり）がないか確認してください。"
+  }
+
   if (
     detail === STRIPE_PAYOUT_SESSION_REQUIRED_MESSAGE ||
     normalized.includes("not_authenticated")

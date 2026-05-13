@@ -304,6 +304,10 @@ export async function getStripeOnboardingUrl(
           userId: user.id,
           error: message,
           supabaseHost: getSupabaseHostForStripeLog(),
+          hint:
+            message.toLowerCase() === "unauthorized"
+              ? "DB の P0001 + Unauthorized は profiles の Stripe 列ガード用トリガーの可能性が高いです。マイグレーション 20260714120000_drop_profiles_stripe_connect_blocking_triggers を Supabase に適用してください。"
+              : undefined,
         })
         return { ok: false, error: message }
       }
