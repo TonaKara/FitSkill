@@ -957,7 +957,7 @@ function CreateSkillPageContent() {
                           手数料（{Math.round(SELLER_FEE_RATE * 100)}%）: {feePreview.feeYen.toLocaleString("ja-JP")}円
                         </p>
                         <p className="font-medium text-zinc-300">
-                          あなたの受取額: {feePreview.receiveYen.toLocaleString("ja-JP")}円
+                          受け取り予定額: {feePreview.receiveYen.toLocaleString("ja-JP")}円
                         </p>
                       </div>
                     ) : null}
