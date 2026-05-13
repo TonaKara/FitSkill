@@ -1,5 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 import { requireApiUser } from "@/lib/api-auth"
+import { sendUserEventEmail } from "@/lib/event-email"
+import { getAppBaseUrl } from "@/lib/site-seo"
 
 type ModerateSkillBody = {
   skillId?: string | number
@@ -64,7 +66,7 @@ async function releaseActiveCheckoutReservations(
 
 async function archiveSkillForModeration(params: {
   supabaseAdmin: SupabaseClient
-  supabase: SupabaseClient
+  adminUserId: string
   skillId: string | number
   ownerId: string | null
   skillTitle: string
@@ -85,38 +87,86 @@ async function archiveSkillForModeration(params: {
     return { ok: false as const, error: "Skill archive returned no rows" }
   }
 
-  if (params.ownerId) {
-    await notifySkillOwner({
-      supabase: params.supabase,
-      recipientId: params.ownerId,
-      type: "admin_product_deleted",
-      content: `運営対応: 商品「${params.skillTitle}」を削除しました。理由: ${params.reason}`,
-    })
-  }
+  await notifySkillOwnerModeration({
+    supabaseAdmin: params.supabaseAdmin,
+    adminUserId: params.adminUserId,
+    recipientId: params.ownerId,
+    notificationType: "admin_product_deleted",
+    content: `運営対応: 商品「${params.skillTitle}」を削除しました。理由: ${params.reason}`,
+    emailAction: "deleted",
+    skillTitle: params.skillTitle,
+    reason: params.reason,
+  })
 
   return { ok: true as const }
 }
 
-async function notifySkillOwner(params: {
-  supabase: SupabaseClient
-  recipientId: string
-  type: string
+type ModerationEmailAction = "unpublished" | "published" | "deleted"
+
+async function notifySkillOwnerModeration(params: {
+  supabaseAdmin: SupabaseClient
+  adminUserId: string
+  recipientId: string | null
+  notificationType: string
   content: string
+  emailAction: ModerationEmailAction
+  skillTitle: string
+  reason: string
 }) {
-  const { error } = await params.supabase.rpc("create_admin_notification", {
-    p_recipient_id: params.recipientId,
-    p_type: params.type,
-    p_content: params.content,
+  const recipientId = params.recipientId?.trim() || null
+  if (!recipientId || recipientId === params.adminUserId) {
+    return
+  }
+
+  const { error } = await params.supabaseAdmin.from("notifications").insert({
+    recipient_id: recipientId,
+    sender_id: params.adminUserId,
+    type: params.notificationType,
+    title: null,
+    reason: null,
+    content: params.content,
+    is_admin_origin: true,
+    is_read: false,
   })
   if (error) {
-    console.error("[admin/skills/moderate] create_admin_notification failed", {
+    console.error("[admin/skills/moderate] notifications insert failed", {
       message: error.message,
       code: (error as { code?: string }).code ?? null,
       details: (error as { details?: string }).details ?? null,
       hint: (error as { hint?: string }).hint ?? null,
-      recipientId: params.recipientId,
-      type: params.type,
+      recipientId,
+      type: params.notificationType,
     })
+  }
+
+  const appUrl = getAppBaseUrl()
+  const displayTitle = params.skillTitle.trim() || "商品"
+  const subject =
+    params.emailAction === "deleted"
+      ? "【GritVib】商品が削除されました"
+      : params.emailAction === "published"
+        ? "【GritVib】商品が公開されました"
+        : "【GritVib】商品が非公開されました"
+  const actionPhrase =
+    params.emailAction === "deleted"
+      ? "削除"
+      : params.emailAction === "published"
+        ? "公開"
+        : "非公開"
+
+  try {
+    await sendUserEventEmail({
+      topic: "account_notice",
+      userId: recipientId,
+      subject,
+      heading: "商品モデレーション通知",
+      intro: `運営対応により商品「${displayTitle}」が${actionPhrase}されました。`,
+      lines: params.reason ? [`理由: ${params.reason}`] : [],
+      ctaLabel: "マイページを開く",
+      ctaUrl: `${appUrl}/mypage?section=listings`,
+    })
+  } catch (emailError) {
+    console.error("[admin/skills/moderate] sendUserEventEmail failed", emailError)
   }
 }
 
@@ -146,7 +196,7 @@ export async function POST(request: Request) {
     }
 
     const supabaseAdmin = getSupabaseAdminClient()
-    const { user, supabase } = auth.context
+    const { user } = auth.context
     const { data: adminRow, error: adminError } = await supabaseAdmin
       .from("profiles")
       .select("is_admin")
@@ -191,14 +241,16 @@ export async function POST(request: Request) {
         return Response.json({ error: "Skill update returned no rows" }, { status: 404 })
       }
 
-      if (ownerId) {
-        await notifySkillOwner({
-          supabase,
-          recipientId: ownerId,
-          type: "admin_product_visibility",
-          content: `運営対応: あなたの商品「${skillTitle}」を${nextPublished ? "公開" : "非公開"}に変更しました。理由: ${reason}`,
-        })
-      }
+      await notifySkillOwnerModeration({
+        supabaseAdmin,
+        adminUserId: user.id,
+        recipientId: ownerId,
+        notificationType: "admin_product_visibility",
+        content: `運営対応: あなたの商品「${skillTitle}」を${nextPublished ? "公開" : "非公開"}に変更しました。理由: ${reason}`,
+        emailAction: nextPublished ? "published" : "unpublished",
+        skillTitle,
+        reason,
+      })
 
       return Response.json({
         ok: true,
@@ -220,7 +272,7 @@ export async function POST(request: Request) {
     if ((transactionCount ?? 0) > 0) {
       const archived = await archiveSkillForModeration({
         supabaseAdmin,
-        supabase,
+        adminUserId: user.id,
         skillId: skillRow.id,
         ownerId,
         skillTitle,
@@ -246,7 +298,7 @@ export async function POST(request: Request) {
 
       const archived = await archiveSkillForModeration({
         supabaseAdmin,
-        supabase,
+        adminUserId: user.id,
         skillId: skillRow.id,
         ownerId,
         skillTitle,
@@ -264,14 +316,16 @@ export async function POST(request: Request) {
       })
     }
 
-    if (ownerId) {
-      await notifySkillOwner({
-        supabase,
-        recipientId: ownerId,
-        type: "admin_product_deleted",
-        content: `運営対応: 商品「${skillTitle}」を削除しました。理由: ${reason}`,
-      })
-    }
+    await notifySkillOwnerModeration({
+      supabaseAdmin,
+      adminUserId: user.id,
+      recipientId: ownerId,
+      notificationType: "admin_product_deleted",
+      content: `運営対応: 商品「${skillTitle}」を削除しました。理由: ${reason}`,
+      emailAction: "deleted",
+      skillTitle,
+      reason,
+    })
 
     return Response.json({
       ok: true,

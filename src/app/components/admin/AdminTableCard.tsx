@@ -531,20 +531,6 @@ export function AdminTableCard({
         variant: "success",
         message: nextPublished ? "商品を公開しました" : "商品を非公開にしました",
       })
-      if (!nextPublished) {
-        void fetch("/api/notifications/event-email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            event: "skill_moderated",
-            skillId: String(skillRow.id),
-            action: "unpublished",
-            reason,
-          }),
-        }).catch(() => {
-          // メール通知失敗で公開状態変更を失敗扱いにしない
-        })
-      }
       setReloadTick((prev) => prev + 1)
     } finally {
       setActionPendingKey(null)
@@ -582,18 +568,6 @@ export function AdminTableCard({
         message: result.archived
           ? "取引履歴があるため、商品を非公開にしました（取引データは保持されます）"
           : "商品を削除しました",
-      })
-      void fetch("/api/notifications/event-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          event: "skill_moderated",
-          skillId: String(productId),
-          action: "deleted",
-          reason,
-        }),
-      }).catch(() => {
-        // メール通知失敗で削除処理を失敗扱いにしない
       })
       setReloadTick((prev) => prev + 1)
     } finally {
@@ -633,20 +607,6 @@ export function AdminTableCard({
         variant: "success",
         message: nextPublished ? "商品を公開しました" : "商品を非公開にしました",
       })
-      if (!nextPublished) {
-        void fetch("/api/notifications/event-email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            event: "skill_moderated",
-            skillId: String(skillId),
-            action: "unpublished",
-            reason,
-          }),
-        }).catch(() => {
-          // メール通知失敗で公開状態変更を失敗扱いにしない
-        })
-      }
       setReloadTick((prev) => prev + 1)
     } finally {
       setActionPendingKey(null)
@@ -683,18 +643,6 @@ export function AdminTableCard({
         message: result.archived
           ? "取引履歴があるため、商品を非公開にしました（取引データは保持されます）"
           : "商品を削除しました",
-      })
-      void fetch("/api/notifications/event-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          event: "skill_moderated",
-          skillId: String(skillId),
-          action: "deleted",
-          reason,
-        }),
-      }).catch(() => {
-        // メール通知失敗で削除処理を失敗扱いにしない
       })
       setReloadTick((prev) => prev + 1)
     } finally {
