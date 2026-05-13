@@ -1,9 +1,4 @@
--- claim_skill_application_after_payment に Stripe metadata の checkout_reservation_id を渡せるようにする。
--- セッション ID だけでは予約行にヒットしないケース（attach 失敗・列未反映など）でも同一予約をロックし、
--- stripe_checkout_session_id が NULL ならこの RPC 内で補完してから既存ロジックへ進む。
--- 旧シグネチャの関数が残ると RPC が曖昧になるため明示 DROP する。
-
-drop function if exists public.claim_skill_application_after_payment(bigint, uuid, uuid, text, uuid, text);
+-- Hotfix: RETURNS TABLE の出力変数 status と transactions.status の曖昧さ解消（INSERT/UPDATE の列を明示）。
 
 create or replace function public.claim_skill_application_after_payment(
   p_skill_id bigint,
@@ -359,23 +354,3 @@ begin
   end;
 end;
 $$;
-
-revoke all on function public.claim_skill_application_after_payment(
-  bigint,
-  uuid,
-  uuid,
-  text,
-  uuid,
-  text,
-  uuid
-) from public;
-
-grant execute on function public.claim_skill_application_after_payment(
-  bigint,
-  uuid,
-  uuid,
-  text,
-  uuid,
-  text,
-  uuid
-) to service_role;
