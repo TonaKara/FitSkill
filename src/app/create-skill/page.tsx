@@ -792,8 +792,8 @@ function CreateSkillPageContent() {
                     </div>
                   </div>
                   {thumbnailPreview ? (
-                    <div className="relative mx-auto aspect-[16/10] w-full max-w-md overflow-hidden rounded-lg border border-zinc-800 sm:max-w-none">
-                      <SkillThumbnailSurface imageUrl={thumbnailPreview} />
+                    <div className="relative mx-auto aspect-[16/10] w-full max-w-md overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 sm:max-w-none">
+                      <SkillThumbnailSurface imageUrl={thumbnailPreview} fit="contain" />
                       <button
                         type="button"
                         onClick={clearThumbnailSelection}
