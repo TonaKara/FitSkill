@@ -20,8 +20,8 @@ export const ONGOING_PURCHASE_STATUSES = [
 ] as const
 
 /**
- * スキルごとの「現在の申し込み人数」。
- * 実際に取引チャットとして進行中の status のみを件数に含める。
+ * スキルごとの「枠の使用数」（進行中取引 + Stripe Checkout に遷移済みの有効な仮押さえ）。
+ * RPC `count_active_transactions_for_skill`（仮押さえは `stripe_checkout_session_id` 付与後のみ加算）。
  */
 export async function countActiveTransactionsForSkill(
   supabase: SupabaseClient,
@@ -37,6 +37,34 @@ export async function countActiveTransactionsForSkill(
   })
   if (error || data === null || data === undefined) {
     return 0
+  }
+
+  const n = Number(data)
+  return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0
+}
+
+/**
+ * スキル詳細の「満枠」表示用。グローバル枠数は `count_active_transactions_for_skill` と同じ定義。
+ * 閲覧者が自分の「Stripe 遷移済み」仮押さえを持つときだけグローバルから 1 を引く（自分の枠で満枠表示にならないようにする）。
+ */
+export async function countActiveSlotsForSkillPurchaseDisplay(
+  supabase: SupabaseClient,
+  skillId: string,
+  viewerUserId: string | null | undefined,
+): Promise<number> {
+  const parsedSkillId = Number(skillId)
+  if (!Number.isFinite(parsedSkillId)) {
+    return 0
+  }
+  if (!viewerUserId?.trim()) {
+    return countActiveTransactionsForSkill(supabase, skillId)
+  }
+
+  const { data, error } = await supabase.rpc("count_skill_slots_for_viewer_purchase", {
+    p_skill_id: Math.trunc(parsedSkillId),
+  })
+  if (error || data === null || data === undefined) {
+    return countActiveTransactionsForSkill(supabase, skillId)
   }
 
   const n = Number(data)

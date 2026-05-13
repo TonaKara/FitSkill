@@ -9,6 +9,7 @@ import {
   claimSkillApplicationAfterPayment,
   refundPaidCheckoutSession,
   releaseSkillCheckoutReservation,
+  releaseSkillCheckoutReservationBestEffort,
   reserveSkillCheckoutSlot,
   resolveStripePaymentIntentIdForCheckoutSession,
 } from "@/lib/checkout-fulfillment"
@@ -142,51 +143,51 @@ export async function createCheckoutSession(skillId: string | number): Promise<C
       buyerId: user.id,
       sellerId: skill.user_id,
     })
-    if (!reservationResult.ok) {
-      return { ok: false, error: reservationResult.errorMessage }
-    }
-    const reservationId = reservationResult.reservationId
+    /** 事前ロックはベストエフォート。枠満杯・購入進行中でも Stripe へ進め、枠確保は Webhook の claim で最終判定する。 */
+    const reservationId = reservationResult.ok ? reservationResult.reservationId : null
 
-    const amount = Math.max(0, Math.round(Number(skill.price)))
-    if (amount < 1) {
-      return { ok: false, error: "Invalid skill price" }
-    }
-    const applicationFeeAmount = computeApplicationFeeAmount(amount)
+    /** Stripe セッション作成・attach まで完了したら true。それ以外は finally で reservationId があれば明示解放。 */
+    let checkoutCommitted = false
 
-    const { data: sellerProfile, error: spErr } = await supabase
-      .from("profiles")
-      .select("stripe_connect_account_id, stripe_connect_charges_enabled")
-      .eq("id", skill.user_id)
-      .maybeSingle()
-    if (spErr) {
-      return { ok: false, error: spErr.message }
-    }
-    const sp = sellerProfile as {
-      stripe_connect_account_id?: string | null
-      stripe_connect_charges_enabled?: boolean | null
-    } | null
-    if (!sp?.stripe_connect_account_id?.trim() || sp.stripe_connect_charges_enabled !== true) {
-      return {
-        ok: false,
-        error:
-          "講師の振込先（Stripe）の登録が完了していないため、オンライン決済できません。しばらくしてから再度お試しください。",
-      }
-    }
-
-    const sellerConnectAccountId = sp.stripe_connect_account_id.trim()
-    await assertStripeConnectAccountOwnership({
-      stripe,
-      accountId: sellerConnectAccountId,
-      expectedUserId: skill.user_id,
-    })
-
-    /**
-     * Checkout 開始時に仮押さえを確保し、決済完了後は RPC で取引を確定する。
-     * 講師口座への振込スケジュールはオンボーディング時に日次へ設定済み（`stripe.ts`）。
-     */
-    let session: Stripe.Checkout.Session
     try {
-      session = await stripe.checkout.sessions.create({
+      const amount = Math.max(0, Math.round(Number(skill.price)))
+      if (amount < 1) {
+        return { ok: false, error: "Invalid skill price" }
+      }
+      const applicationFeeAmount = computeApplicationFeeAmount(amount)
+
+      const { data: sellerProfile, error: spErr } = await supabase
+        .from("profiles")
+        .select("stripe_connect_account_id, stripe_connect_charges_enabled")
+        .eq("id", skill.user_id)
+        .maybeSingle()
+      if (spErr) {
+        return { ok: false, error: spErr.message }
+      }
+      const sp = sellerProfile as {
+        stripe_connect_account_id?: string | null
+        stripe_connect_charges_enabled?: boolean | null
+      } | null
+      if (!sp?.stripe_connect_account_id?.trim() || sp.stripe_connect_charges_enabled !== true) {
+        return {
+          ok: false,
+          error:
+            "講師の振込先（Stripe）の登録が完了していないため、オンライン決済できません。しばらくしてから再度お試しください。",
+        }
+      }
+
+      const sellerConnectAccountId = sp.stripe_connect_account_id.trim()
+      await assertStripeConnectAccountOwnership({
+        stripe,
+        accountId: sellerConnectAccountId,
+        expectedUserId: skill.user_id,
+      })
+
+      /**
+       * 決済完了後の取引確定は Webhook / finalize の claim に委ねる。
+       * 講師口座への振込スケジュールはオンボーディング時に日次へ設定済み（`stripe.ts`）。
+       */
+      const session = await stripe.checkout.sessions.create({
         mode: "payment",
         line_items: [
           {
@@ -201,7 +202,7 @@ export async function createCheckoutSession(skillId: string | number): Promise<C
           },
         ],
         success_url: `${appUrl}/skills/${skill.id}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${appUrl}/skills/${skill.id}?checkout=cancel`,
+        cancel_url: `${appUrl}/skills/${skill.id}?checkout=cancel&session_id={CHECKOUT_SESSION_ID}`,
         payment_intent_data: {
           capture_method: "automatic",
           application_fee_amount: applicationFeeAmount,
@@ -215,7 +216,7 @@ export async function createCheckoutSession(skillId: string | number): Promise<C
             skill_id: skill.id,
             buyer_id: user.id,
             seller_id: skill.user_id,
-            checkout_reservation_id: reservationId,
+            ...(reservationId ? { checkout_reservation_id: reservationId } : {}),
           },
         },
         metadata: {
@@ -224,7 +225,7 @@ export async function createCheckoutSession(skillId: string | number): Promise<C
           buyer_id: user.id,
           seller_id: skill.user_id,
           amount: String(amount),
-          checkout_reservation_id: reservationId,
+          ...(reservationId ? { checkout_reservation_id: reservationId } : {}),
         },
       })
 
@@ -232,19 +233,28 @@ export async function createCheckoutSession(skillId: string | number): Promise<C
         throw new Error("Failed to create checkout session URL")
       }
 
-      await attachSkillCheckoutReservationSession(supabaseAdmin, {
-        reservationId,
-        checkoutSessionId: session.id,
-      })
-    } catch (error) {
-      await releaseSkillCheckoutReservation(supabaseAdmin, { reservationId })
-      throw error
-    }
+      if (reservationId) {
+        await attachSkillCheckoutReservationSession(supabaseAdmin, {
+          reservationId,
+          checkoutSessionId: session.id,
+        })
+      }
 
-    return {
-      ok: true,
-      url: session.url,
-      checkoutSessionId: session.id,
+      checkoutCommitted = true
+
+      return {
+        ok: true,
+        url: session.url,
+        checkoutSessionId: session.id,
+      }
+    } finally {
+      if (!checkoutCommitted && reservationId) {
+        await releaseSkillCheckoutReservationBestEffort(
+          supabaseAdmin,
+          { reservationId },
+          "createCheckoutSession",
+        )
+      }
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "決済セッション作成中に不明なエラーが発生しました。"
@@ -257,20 +267,57 @@ export async function createCheckoutSession(skillId: string | number): Promise<C
   }
 }
 
+/**
+ * Checkout の「戻る」で cancel_url に戻ったとき、未払いセッションの仮押さえを即解放する。
+ * メタデータの buyer_id が現在ユーザーと一致する場合のみ（他者の session_id では解放しない）。
+ */
+export async function releaseCheckoutReservationAfterCancel(
+  checkoutSessionId: string | null | undefined,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const normalized = String(checkoutSessionId ?? "").trim()
+  if (!normalized) {
+    return { ok: false, error: "session_id is required" }
+  }
+  try {
+    const { user } = await getAuthedSupabase()
+    const stripe = getStripeClient()
+    const session = await stripe.checkout.sessions.retrieve(normalized)
+    const buyerId = session.metadata?.buyer_id?.trim()
+    if (!buyerId || buyerId !== user.id) {
+      return { ok: false, error: "この決済セッションを解放する権限がありません。" }
+    }
+    if (session.payment_status === "paid") {
+      return { ok: true }
+    }
+    const supabaseAdmin = getSupabaseAdminClient()
+    await releaseSkillCheckoutReservation(supabaseAdmin, { checkoutSessionId: normalized })
+    return { ok: true }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "仮押さえの解放に失敗しました。"
+    console.error("[releaseCheckoutReservationAfterCancel]", { checkoutSessionId: normalized, message, error })
+    return { ok: false, error: message }
+  }
+}
+
 export async function finalizeCheckoutSessionAfterSuccess(
   checkoutSessionId: string | null | undefined,
 ): Promise<FinalizeCheckoutSessionResult> {
-  try {
-    const normalizedSessionId = String(checkoutSessionId ?? "").trim()
-    if (!normalizedSessionId) {
-      return { ok: false, error: "session_id is required" }
-    }
+  const normalizedSessionId = String(checkoutSessionId ?? "").trim()
+  if (!normalizedSessionId) {
+    return { ok: false, error: "session_id is required" }
+  }
 
+  const supabaseAdmin = getSupabaseAdminClient()
+  /** claim が成功して仮押さえが consumed されたら true。それ以外は finally で仮押さえを解放する（例外・早期 return で枠が残るのを防ぐ） */
+  let claimSucceeded = false
+  let sessionForRelease: Stripe.Checkout.Session | null = null
+
+  try {
     const { user } = await getAuthedSupabase()
     const stripe = getStripeClient()
-    const supabaseAdmin = getSupabaseAdminClient()
 
     const session = await stripe.checkout.sessions.retrieve(normalizedSessionId)
+    sessionForRelease = session
     if (session.payment_status !== "paid") {
       return { ok: false, error: "決済完了の確認が取れませんでした。" }
     }
@@ -314,14 +361,6 @@ export async function finalizeCheckoutSessionAfterSuccess(
           message: refundError instanceof Error ? refundError.message : String(refundError),
         })
       }
-      try {
-        await releaseSkillCheckoutReservation(supabaseAdmin, { checkoutSessionId: normalizedSessionId })
-      } catch (releaseErr) {
-        console.warn("[finalizeCheckoutSessionAfterSuccess] release reservation after failed claim", {
-          checkoutSessionId: normalizedSessionId,
-          message: releaseErr instanceof Error ? releaseErr.message : String(releaseErr),
-        })
-      }
       return {
         ok: false,
         error:
@@ -330,6 +369,8 @@ export async function finalizeCheckoutSessionAfterSuccess(
             : "申し込み枠が満杯のため、決済は自動返金されます。時間をおいて再度お試しください。",
       }
     }
+
+    claimSucceeded = true
 
     await ensureSellerPurchaseNotification({
       supabaseAdmin,
@@ -352,5 +393,18 @@ export async function finalizeCheckoutSessionAfterSuccess(
       error,
     })
     return { ok: false, error: message }
+  } finally {
+    if (!claimSucceeded) {
+      const reservationIdFromMeta =
+        sessionForRelease?.metadata?.checkout_reservation_id?.trim() || null
+      await releaseSkillCheckoutReservationBestEffort(
+        supabaseAdmin,
+        {
+          reservationId: reservationIdFromMeta,
+          checkoutSessionId: normalizedSessionId,
+        },
+        "finalizeCheckoutSessionAfterSuccess",
+      )
+    }
   }
 }

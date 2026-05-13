@@ -76,6 +76,15 @@ const TYPE_SUBJECT: Record<string, string> = {
   consultation_accepted: "事前オファー承認",
   consultation_rejected: "事前オファー見送り",
   [NOTIFICATION_TYPE_ANNOUNCEMENT]: "お知らせ",
+  /** 運営 API `admin/skills/moderate` が insert する種別（title/reason が null のため件名はここから補う） */
+  admin_product_deleted: "運営により出品商品が削除されました",
+  admin_product_visibility: "運営により商品の公開状態が変更されました",
+}
+
+/** アコーディオン1行目【…】用。`reason` が無いモデレーション通知で件名と重複しない短いラベル */
+const TYPE_ADMIN_OPS_BRACKET: Record<string, string> = {
+  admin_product_deleted: "商品の削除",
+  admin_product_visibility: "公開状態の変更",
 }
 
 /**
@@ -117,6 +126,10 @@ export function getAdminOpsListSubject(n: NotificationRow): string {
   if (fromTitle) {
     return truncateSubject(fromTitle, 100)
   }
+  const byType = TYPE_SUBJECT[n?.type ?? ""]
+  if (byType) {
+    return truncateSubject(byType, 100)
+  }
   return "運営からの連絡"
 }
 
@@ -130,6 +143,10 @@ function adminOpsCategoryBracketLabel(n: NotificationRow): string {
   }
   if (n.type === NOTIFICATION_TYPE_ANNOUNCEMENT) {
     return "お知らせ"
+  }
+  const adminBracket = TYPE_ADMIN_OPS_BRACKET[n.type ?? ""]
+  if (adminBracket) {
+    return adminBracket
   }
   return TYPE_SUBJECT[n.type ?? ""] ?? "運営からの連絡"
 }
@@ -159,6 +176,9 @@ export function getAdminOpsAccordionTitle(n: NotificationRow): string {
   }
   const category = adminOpsCategoryBracketLabel(n)
   const headline = getAdminOpsHeadlineSubject(n)
+  if (category.trim() === headline.trim()) {
+    return `【運営】\n${headline}`
+  }
   return `【${category}】\n${headline}`
 }
 

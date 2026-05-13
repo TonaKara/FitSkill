@@ -47,6 +47,55 @@ export function isDuplicatePaymentRpcError(error: { code?: string; message?: str
   return isRpcError(error, "duplicate_payment", "SKD01")
 }
 
+/** claim の二重実行などで Postgres の一意制約に当たった場合、PI があれば既存取引を読み直して成功扱いにできる */
+export function isDuplicateKeyClaimRecoverableError(error: { code?: string; message?: string }): boolean {
+  const code = String(error.code ?? "").trim()
+  if (code === "23505") {
+    return true
+  }
+  const msg = String(error.message ?? "").toLowerCase()
+  return msg.includes("duplicate key") || msg.includes("unique constraint")
+}
+
+async function fetchTransactionRowForDuplicateClaimRecovery(
+  supabaseAdmin: SupabaseClient,
+  params: {
+    skillId: string
+    buyerId: string
+    sellerId: string
+    stripePaymentIntentId: string
+  },
+): Promise<ClaimSkillApplicationAfterPaymentRow | null> {
+  const parsedSkillId = Number(params.skillId)
+  if (!Number.isFinite(parsedSkillId)) {
+    return null
+  }
+  const { data, error } = await supabaseAdmin
+    .from("transactions")
+    .select("id, status")
+    .eq("skill_id", Math.trunc(parsedSkillId))
+    .eq("buyer_id", params.buyerId)
+    .eq("seller_id", params.sellerId)
+    .eq("stripe_payment_intent_id", params.stripePaymentIntentId.trim())
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (error || !data) {
+    return null
+  }
+  const row = data as { id: string | number; status?: string | null }
+  const transactionId = String(row.id ?? "").trim()
+  if (!transactionId) {
+    return null
+  }
+  return {
+    transaction_id: transactionId,
+    status: String(row.status ?? "active"),
+    already_existed: true,
+  }
+}
+
 export function isCheckoutCapacityFinalizeError(message: string): boolean {
   const normalized = String(message ?? "").toLowerCase()
   return (
@@ -215,6 +264,30 @@ export async function releaseSkillCheckoutReservation(
   }
 }
 
+/** 解放 RPC の失敗で上位処理を潰さない（ログのみ）。在庫戻しの取りこぼしを減らす。 */
+export async function releaseSkillCheckoutReservationBestEffort(
+  supabaseAdmin: SupabaseClient,
+  params: {
+    checkoutSessionId?: string | null
+    reservationId?: string | null
+  },
+  logContext: string,
+): Promise<void> {
+  try {
+    await releaseSkillCheckoutReservation(supabaseAdmin, params)
+  } catch (err) {
+    console.error(`[${logContext}] releaseSkillCheckoutReservation failed`, {
+      reservationId: params.reservationId ?? null,
+      checkoutSessionId: params.checkoutSessionId ?? null,
+      message: err instanceof Error ? err.message : String(err),
+    })
+  }
+}
+
+/**
+ * 決済完了後の枠確保・取引作成を RPC で行う。
+ * `skill_full` / `duplicate_payment` で `ok: false` の場合は呼び出し側で `refundPaidCheckoutSession` を実行すること。
+ */
 export async function claimSkillApplicationAfterPayment(
   supabaseAdmin: SupabaseClient,
   params: {
@@ -246,6 +319,18 @@ export async function claimSkillApplicationAfterPayment(
     }
     if (isDuplicatePaymentRpcError(error)) {
       return { ok: false, reason: "duplicate_payment" }
+    }
+    const piTrimmed = params.stripePaymentIntentId?.trim() ?? ""
+    if (piTrimmed.length > 0 && isDuplicateKeyClaimRecoverableError(error)) {
+      const recovered = await fetchTransactionRowForDuplicateClaimRecovery(supabaseAdmin, {
+        skillId: params.skillId,
+        buyerId: params.buyerId,
+        sellerId: params.sellerId,
+        stripePaymentIntentId: piTrimmed,
+      })
+      if (recovered) {
+        return { ok: true, row: recovered }
+      }
     }
     throw new Error(error.message)
   }

@@ -1,0 +1,43 @@
+/** 決済ページへ遷移する直前に保存し、戻り方に関係なく未払いなら解放 RPC を呼べるようにする */
+
+const STORAGE_KEY = "fitskill_pending_skill_checkout_v1"
+
+export type PendingSkillCheckout = {
+  skillId: string
+  sessionId: string
+}
+
+export function readPendingSkillCheckout(): PendingSkillCheckout | null {
+  if (typeof window === "undefined") {
+    return null
+  }
+  try {
+    const raw = window.sessionStorage.getItem(STORAGE_KEY)
+    if (!raw?.trim()) {
+      return null
+    }
+    const parsed = JSON.parse(raw) as Partial<PendingSkillCheckout>
+    const skillId = String(parsed.skillId ?? "").trim()
+    const sessionId = String(parsed.sessionId ?? "").trim()
+    if (!skillId || !sessionId) {
+      return null
+    }
+    return { skillId, sessionId }
+  } catch {
+    return null
+  }
+}
+
+export function writePendingSkillCheckout(payload: PendingSkillCheckout): void {
+  if (typeof window === "undefined") {
+    return
+  }
+  window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
+}
+
+export function clearPendingSkillCheckout(): void {
+  if (typeof window === "undefined") {
+    return
+  }
+  window.sessionStorage.removeItem(STORAGE_KEY)
+}

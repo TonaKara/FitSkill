@@ -1,5 +1,11 @@
 -- 運用: 「取引チャットが無い・進行取引が無いのに満枠」の調査と仮押さえ解放
 --
+-- 【テスト環境で取引が立たないとき】本番と違い、Stripe Webhook が届かないことが多いです。
+-- - ローカル: `stripe listen --forward-to <ホスト>/api/webhook/stripe` を起動し、ダッシュボードの Webhook シークレットと .env の STRIPE_WEBHOOK_SECRET を一致させる。
+-- - ステージング: Stripe の Webhook エンドポイント URL がそのデプロイ先を指しているか、イベント `checkout.session.completed`（非同期決済なら `checkout.session.async_payment_succeeded`）が有効か確認。
+-- - Supabase: マイグレーション `20260715120000_claim_payment_honor_checkout_reservation_after_ttl.sql` が当該 DB に適用済みか確認。
+-- Webhook が無いと claim はブラウザの `finalizeCheckoutSessionAfterSuccess` に依存する。どちらも失敗すると仮押さえだけ残り満枠に見える。
+--
 -- 満枠人数は RPC count_active_transactions_for_skill が
 --   進行中取引件数 + 「未消費・未解放・期限内」の skill_checkout_reservations 件数
 -- で算出します。claim 失敗後に仮押さえが残ると満枠が解けないことがありました（アプリ側で返金時に解放するよう修正済み）。

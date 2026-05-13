@@ -27,10 +27,15 @@ import { resolveSkillThumbnailUrl, skillThumbnailContainerAspectStyle } from "@/
 import { getIsAdminFromProfile } from "@/lib/admin"
 import { formatErrorMessageOnly } from "@/lib/notifications"
 import type { AppNotice } from "@/lib/notifications"
-import { createCheckoutSession, finalizeCheckoutSessionAfterSuccess } from "@/actions/checkout"
+import { createCheckoutSession, finalizeCheckoutSessionAfterSuccess, releaseCheckoutReservationAfterCancel } from "@/actions/checkout"
 import { isCheckoutCapacityFinalizeError } from "@/lib/checkout-fulfillment"
+import {
+  clearPendingSkillCheckout,
+  readPendingSkillCheckout,
+  writePendingSkillCheckout,
+} from "@/lib/skill-pending-checkout"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
-import { countActiveTransactionsForSkill } from "@/lib/transactions"
+import { countActiveSlotsForSkillPurchaseDisplay } from "@/lib/transactions"
 import { createGeneralNotification } from "@/lib/transaction-notifications"
 import {
   fetchConsultationSettings,
@@ -41,6 +46,20 @@ import {
   type ConsultationSettingsRow,
 } from "@/lib/consultation"
 import { cn } from "@/lib/utils"
+
+/** `createCheckoutSession` の日本語エラーを `formatErrorMessageOnly` の汎用文に置き換えない */
+function displayCheckoutStartError(raw: string, isAdmin: boolean): string {
+  const trimmed = raw.trim()
+  if (!trimmed) {
+    return "決済の準備に失敗しました。"
+  }
+  if (/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/.test(trimmed)) {
+    return trimmed
+  }
+  return formatErrorMessageOnly({ message: trimmed }, isAdmin, {
+    unknownErrorMessage: "決済の準備に失敗しました。",
+  })
+}
 
 type ProfileEmbed = {
   display_name: string | null
@@ -143,6 +162,8 @@ export default function SkillDetailPage() {
   const skillId = typeof params.id === "string" ? params.id : Array.isArray(params.id) ? params.id[0] : ""
 
   const [loading, setLoading] = useState(true)
+  /** Checkout キャンセル直後: 仮押さえ解放〜在庫再取得までフルスクリーンの読み込みを維持する */
+  const [checkoutCancelSyncing, setCheckoutCancelSyncing] = useState(false)
   const [skill, setSkill] = useState<SkillDetailRow | null>(null)
   const [enrolledCount, setEnrolledCount] = useState(0)
   const [userId, setUserId] = useState<string | null>(null)
@@ -250,31 +271,24 @@ export default function SkillDetailPage() {
       try {
         const result = await createCheckoutSession(targetSkillId)
         if (!result.ok) {
-          setPurchaseError(
-            formatErrorMessageOnly({ message: result.error }, isAdmin, {
-              unknownErrorMessage: "決済の準備に失敗しました。",
-            }),
-          )
+          setPurchaseError(displayCheckoutStartError(result.error, isAdmin))
           console.error("[skills:startStripePaymentForTransaction] createCheckoutSession failed", {
             skillId: targetSkillId,
             error: result.error,
           })
           return false
         }
-        const { url } = result
+        const { url, checkoutSessionId } = result
         if (!url) {
           setPurchaseError("決済ページを作成できませんでした。")
           return false
         }
+        writePendingSkillCheckout({ skillId: targetSkillId, sessionId: checkoutSessionId })
         window.location.href = url
         return true
       } catch (e) {
         const msg = e instanceof Error ? e.message : "決済の準備に失敗しました。"
-        setPurchaseError(
-          formatErrorMessageOnly({ message: msg }, isAdmin, {
-            unknownErrorMessage: "決済の準備に失敗しました。",
-          }),
-        )
+        setPurchaseError(displayCheckoutStartError(msg, isAdmin))
         console.error("[skills:startStripePaymentForTransaction] createCheckoutSession error", {
           skillId: targetSkillId,
           message: msg,
@@ -317,6 +331,13 @@ export default function SkillDetailPage() {
     }
     let cancelled = false
     void (async () => {
+      if (paidByCheckout && checkoutSessionId) {
+        const normalized = checkoutSessionId.trim()
+        const p = readPendingSkillCheckout()
+        if (p?.sessionId === normalized) {
+          clearPendingSkillCheckout()
+        }
+      }
       if (!paidByCheckout || !checkoutSessionId) {
         checkoutFinalizeStateRef.current = { sessionId: null, attempts: 0, stopped: false }
       } else if (checkoutFinalizeStateRef.current.sessionId !== checkoutSessionId) {
@@ -341,36 +362,47 @@ export default function SkillDetailPage() {
             }
             if (finalized.ok) {
               finalizeState.stopped = true
-              if (CHAT_TRANSITION_STATUSES.includes(finalized.status as (typeof CHAT_TRANSITION_STATUSES)[number])) {
-                if (checkoutAutoRedirectStorageKey && typeof window !== "undefined") {
-                  window.sessionStorage.setItem(checkoutAutoRedirectStorageKey, "1")
-                }
-                router.replace(`/chat/${finalized.transactionId}?from=checkout`)
-                return
+              if (checkoutAutoRedirectStorageKey && typeof window !== "undefined") {
+                window.sessionStorage.setItem(checkoutAutoRedirectStorageKey, "1")
               }
-            } else {
-              const isMissingColumn = finalized.error.includes("stripe_payment_intent_id")
-              const isCapacityError = isCheckoutCapacityFinalizeError(finalized.error)
-              if (isMissingColumn || isCapacityError || finalizeState.attempts >= 5) {
-                finalizeState.stopped = true
-                if (isMissingColumn) {
-                  setPurchaseError("決済情報の反映に失敗しました。時間をおいて再度お試しください。")
-                } else if (isCapacityError) {
-                  setPurchaseError(finalized.error)
-                }
-              }
-              console.warn("[skills:checkout-finalize] pending", {
-                checkoutSessionId,
-                message: finalized.error,
-                attempt: finalizeState.attempts,
-                stopped: finalizeState.stopped,
-              })
+              router.replace(`/chat/${finalized.transactionId}?from=checkout`)
+              return
             }
+            const rescueRows = await fetchActiveTransaction()
+            const rescueLatest = rescueRows?.[0]
+            if (
+              rescueLatest &&
+              canOpenChatFromSkillPage(rescueLatest, { currentUserId: userId })
+            ) {
+              finalizeState.stopped = true
+              if (checkoutAutoRedirectStorageKey && typeof window !== "undefined") {
+                window.sessionStorage.setItem(checkoutAutoRedirectStorageKey, "1")
+              }
+              router.replace(`/chat/${String(rescueLatest.id)}?from=checkout`)
+              return
+            }
+            const isMissingColumn = finalized.error.includes("stripe_payment_intent_id")
+            const isCapacityError = isCheckoutCapacityFinalizeError(finalized.error)
+            if (isMissingColumn || isCapacityError || finalizeState.attempts >= 5) {
+              finalizeState.stopped = true
+              if (isMissingColumn) {
+                setPurchaseError("決済情報の反映に失敗しました。時間をおいて再度お試しください。")
+              } else if (isCapacityError) {
+                setPurchaseError(finalized.error)
+              }
+              const n = await countActiveSlotsForSkillPurchaseDisplay(supabase, skillId, userId)
+              setEnrolledCount(Number(n))
+            }
+            console.warn("[skills:checkout-finalize] pending", {
+              checkoutSessionId,
+              message: finalized.error,
+              attempt: finalizeState.attempts,
+              stopped: finalizeState.stopped,
+            })
           }
         }
         const rows = await fetchActiveTransaction()
         const latest = rows?.[0]
-        const st = latest?.status
         if (latest && canOpenChatFromSkillPage(latest, { currentUserId: userId })) {
           const tid = String(latest.id)
           if (checkoutAutoRedirectStorageKey && typeof window !== "undefined") {
@@ -383,6 +415,8 @@ export default function SkillDetailPage() {
       }
       if (!cancelled) {
         setPurchaseError("決済後の取引反映に時間がかかっています。マイページからチャットを開いてください。")
+        const n = await countActiveSlotsForSkillPurchaseDisplay(supabase, skillId, userId)
+        setEnrolledCount(Number(n))
         router.replace(`/skills/${skillId}`)
       }
     })()
@@ -399,14 +433,16 @@ export default function SkillDetailPage() {
     fetchActiveTransaction,
   ])
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (options?: { skipLoadingSpinner?: boolean }) => {
     if (!skillId) {
       setSkill(null)
       setLoading(false)
       return
     }
 
-    setLoading(true)
+    if (!options?.skipLoadingSpinner) {
+      setLoading(true)
+    }
 
     const { data: userData } = await supabase.auth.getUser()
     const uid = userData.user?.id ?? null
@@ -419,7 +455,7 @@ export default function SkillDetailPage() {
         )
         .eq("id", skillId)
         .maybeSingle(),
-      countActiveTransactionsForSkill(supabase, skillId),
+      countActiveSlotsForSkillPurchaseDisplay(supabase, skillId, uid),
       fetchConsultationSettingsWithStatus(supabase, skillId),
     ])
 
@@ -453,6 +489,124 @@ export default function SkillDetailPage() {
     }
     setLoading(false)
   }, [skillId, supabase])
+
+  /**
+   * Stripe から cancel_url 以外で戻った場合でも、未払いなら仮押さえを解放して人数を合わせる。
+   * success URL では決済確定フローに任せるため解放しない。
+   */
+  const tryReleasePendingCheckoutIfAbandoned = useCallback(async () => {
+    if (!skillId || !userId || typeof window === "undefined") {
+      return
+    }
+    const pending = readPendingSkillCheckout()
+    if (!pending || pending.skillId !== skillId) {
+      return
+    }
+    const sid = pending.sessionId
+    if (!sid.startsWith("cs_")) {
+      clearPendingSkillCheckout()
+      return
+    }
+    const sp = new URLSearchParams(window.location.search)
+    const urlCheckout = sp.get("checkout") ?? ""
+    const urlSession = sp.get("session_id")?.trim() ?? ""
+    if (urlCheckout === "success" && urlSession === sid) {
+      return
+    }
+    const result = await releaseCheckoutReservationAfterCancel(sid)
+    if (result.ok) {
+      clearPendingSkillCheckout()
+      await load({ skipLoadingSpinner: true })
+    }
+  }, [skillId, userId, load])
+
+  useEffect(() => {
+    if (!skillId || !userId || loading) {
+      return
+    }
+    void tryReleasePendingCheckoutIfAbandoned()
+  }, [skillId, userId, loading, tryReleasePendingCheckoutIfAbandoned])
+
+  useEffect(() => {
+    if (!skillId || !userId) {
+      return
+    }
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        void tryReleasePendingCheckoutIfAbandoned()
+      }
+    }
+    const onPageShow = () => {
+      void tryReleasePendingCheckoutIfAbandoned()
+    }
+    document.addEventListener("visibilitychange", onVisible)
+    window.addEventListener("pageshow", onPageShow)
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible)
+      window.removeEventListener("pageshow", onPageShow)
+    }
+  }, [skillId, userId, tryReleasePendingCheckoutIfAbandoned])
+
+  /** Checkout のキャンセル URL: 解放 → refreshSession → load で在庫・スキル再取得 → URL 掃除（同期中は checkoutCancelSyncing で読み込み UI） */
+  useEffect(() => {
+    if (!skillId) {
+      return
+    }
+    if (checkoutStatus !== "cancel") {
+      return
+    }
+    const sid = checkoutSessionId?.trim() ?? ""
+    if (!sid) {
+      router.replace(`/skills/${skillId}`)
+      return
+    }
+    if (!sid.startsWith("cs_")) {
+      router.replace(`/skills/${skillId}`)
+      return
+    }
+    if (!userId) {
+      router.replace(`/skills/${skillId}`)
+      return
+    }
+    const storageKey = `skills_checkout_cancel_released:${sid}`
+    if (typeof window !== "undefined" && window.sessionStorage.getItem(storageKey) === "1") {
+      router.replace(`/skills/${skillId}`)
+      return
+    }
+    let cancelled = false
+    setCheckoutCancelSyncing(true)
+    void (async () => {
+      try {
+        const result = await releaseCheckoutReservationAfterCancel(sid)
+        if (cancelled) {
+          return
+        }
+        const { error: refreshError } = await supabase.auth.refreshSession()
+        if (refreshError) {
+          console.warn("[skills:checkout-cancel] refreshSession", refreshError.message)
+        }
+        await load({ skipLoadingSpinner: true })
+        if (cancelled) {
+          return
+        }
+        if (!result.ok) {
+          setPurchaseError(result.error)
+        } else if (typeof window !== "undefined") {
+          const p = readPendingSkillCheckout()
+          if (p?.sessionId === sid) {
+            clearPendingSkillCheckout()
+          }
+          window.sessionStorage.setItem(storageKey, "1")
+        }
+        router.replace(`/skills/${skillId}`)
+      } finally {
+        setCheckoutCancelSyncing(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [skillId, userId, checkoutStatus, checkoutSessionId, router, load, supabase])
 
   useEffect(() => {
     // 非同期ロード完了時のみ state が更新されるため、この呼び出しを許可する
@@ -501,11 +655,11 @@ export default function SkillDetailPage() {
 
   /** 参加人数と active 取引を短い間隔で再取得 */
   useEffect(() => {
-    if (!skillId || loading || !skill) {
+    if (!skillId || loading || checkoutCancelSyncing || !skill) {
       return
     }
     const tick = async () => {
-      const n = await countActiveTransactionsForSkill(supabase, skillId)
+      const n = await countActiveSlotsForSkillPurchaseDisplay(supabase, skillId, userId)
       setEnrolledCount(Number(n))
       if (userId) {
         const rows = await fetchActiveTransaction()
@@ -530,7 +684,7 @@ export default function SkillDetailPage() {
     }
     const id = window.setInterval(() => void tick(), 6000)
     return () => window.clearInterval(id)
-  }, [skillId, supabase, loading, skill, userId, fetchActiveTransaction])
+  }, [skillId, supabase, loading, checkoutCancelSyncing, skill, userId, fetchActiveTransaction])
 
   useEffect(() => {
     if (!skillId || !userId) {
@@ -588,11 +742,11 @@ export default function SkillDetailPage() {
     }
   }, [consultationSettings?.is_enabled, skillId, supabase, userId])
 
-  if (loading) {
+  if (loading || checkoutCancelSyncing) {
     return (
       <div className="flex min-h-[100svh] items-center justify-center bg-black text-zinc-200 md:min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-red-500" aria-hidden />
-        <span className="ml-2 text-sm">読み込み中...</span>
+        <span className="ml-2 text-sm">{checkoutCancelSyncing ? "在庫を更新しています..." : "読み込み中..."}</span>
       </div>
     )
   }
@@ -718,17 +872,20 @@ export default function SkillDetailPage() {
 
       const ok = await startStripePaymentForTransaction(String(skill.id))
       if (!ok) {
-        setPurchaseError("決済の開始に失敗しました。もう一度お試しください。")
+        // 失敗理由は startStripePaymentForTransaction 内で setPurchaseError 済み（ここで上書きしない）
         return
       }
       setPurchaseConfirmOpen(false)
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "決済の開始に失敗しました。"
-      setPurchaseError(
-        formatErrorMessageOnly({ message: msg }, isAdmin, {
-          unknownErrorMessage: "決済の開始に失敗しました。",
-        }),
-      )
+      const msg = e instanceof Error ? e.message : String(e)
+      console.error("[skills:executePurchaseAfterConfirm] unexpected", { skillId, msg, e })
+      if (/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/.test(msg)) {
+        setPurchaseError(msg)
+      } else if (isAdmin) {
+        setPurchaseError(`決済の開始に失敗しました。（${msg}）`)
+      } else {
+        setPurchaseError("決済の開始に失敗しました。ページを再読み込みしてからお試しください。")
+      }
     } finally {
       setPurchasePending(false)
       setPurchaseProgressLabel("読み込み中...")
