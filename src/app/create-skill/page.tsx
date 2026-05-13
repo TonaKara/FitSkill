@@ -792,7 +792,7 @@ function CreateSkillPageContent() {
                     </div>
                   </div>
                   {thumbnailPreview ? (
-                    <div className="relative mx-auto aspect-[4/3] w-full max-w-md overflow-hidden rounded-lg border border-zinc-800 sm:max-w-none sm:aspect-[16/10]">
+                    <div className="relative mx-auto aspect-[16/10] w-full max-w-md overflow-hidden rounded-lg border border-zinc-800 sm:max-w-none">
                       {thumbnailPreview.startsWith("blob:") ? (
                         <Image
                           src={thumbnailPreview}
