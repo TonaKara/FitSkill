@@ -104,9 +104,9 @@ export default function HomePageClient({ heroStats }: HomePageClientProps) {
   return (
     <div className="min-h-[100svh] bg-background pb-20 md:min-h-screen md:pb-0">
       <LogoutSuccessToast />
-      <Header searchKeyword={searchKeyword} onSearchKeywordChange={setSearchKeyword} />
+      <Header fixed searchKeyword={searchKeyword} onSearchKeywordChange={setSearchKeyword} />
 
-      <main className="mx-auto max-w-7xl px-4 py-6">
+      <main className="mx-auto max-w-7xl px-4 pb-6 pt-[calc(4rem+1rem)]">
         <div className="mb-6">
           <HeroBanner onBrowseSkillsClick={handleBrowseSkillsClick} heroStats={heroStats} />
         </div>

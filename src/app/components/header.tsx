@@ -27,6 +27,7 @@ import {
 type HeaderProps = {
   searchKeyword?: string
   onSearchKeywordChange?: (value: string) => void
+  fixed?: boolean
 }
 
 type ProfileSummary = {
@@ -110,7 +111,7 @@ const MOBILE_INSTRUCTOR_MENU_GROUPS: MobileMenuGroup[] = [
   },
 ]
 
-export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {}) {
+export function Header({ searchKeyword, onSearchKeywordChange, fixed = false }: HeaderProps = {}) {
   const router = useRouter()
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
   const { isMobileMenuOpen: isMenuOpen, setMobileMenuOpen: setIsMenuOpen } = useMobileHeaderMenu()
@@ -341,7 +342,9 @@ export function Header({ searchKeyword, onSearchKeywordChange }: HeaderProps = {
   return (
     <header
       className={cn(
-        "sticky top-0 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 transform-gpu will-change-transform md:transform-none md:will-change-auto",
+        fixed
+          ? "fixed inset-x-0 top-0 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 transform-gpu will-change-transform md:transform-none md:will-change-auto"
+          : "sticky top-0 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 transform-gpu will-change-transform md:transform-none md:will-change-auto",
         /* ボトムナビ（z-50）より手前に出し、メニュー最下段が隠れないようにする */
         isMenuOpen ? "z-[70]" : "z-50",
       )}
