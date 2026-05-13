@@ -96,7 +96,7 @@ const PRIORITIZED_TRANSACTION_STATUSES = ["awaiting_payment", ...CHAT_TRANSITION
 
 function canOpenChatFromSkillPage(
   tx: ActiveTransactionRow | null | undefined,
-  options?: { currentUserId?: string | null },
+  _options?: { currentUserId?: string | null },
 ): boolean {
   if (!tx || !tx.status) {
     return false
@@ -104,15 +104,9 @@ function canOpenChatFromSkillPage(
   if (!CHAT_TRANSITION_STATUSES.includes(tx.status as (typeof CHAT_TRANSITION_STATUSES)[number])) {
     return false
   }
-  // 支払い保護（最優先）:
-  // 有料取引は Stripe 反映値（payment_intent_id）が付くまで購入者のチャット遷移を禁止する。
-  // クライアント環境変数の有無には依存させず、決済完了シグナルのみを信頼する。
-  const currentUserId = options?.currentUserId?.trim() ?? ""
-  const isBuyerView = currentUserId.length > 0 && tx.buyer_id === currentUserId
-  const isPaidTransaction = Number(tx.price ?? 0) > 0
-  if (isBuyerView && isPaidTransaction) {
-    return Boolean((tx.stripe_payment_intent_id ?? "").trim())
-  }
+  // CHAT_TRANSITION_STATUSES に awaiting_payment は含めない。進行中ステータスへは決済確定後の claim で遷移する。
+  // 購入者チャットを stripe_payment_intent_id 必須にすると、コンビニ等の非同期決済や Webhook の PI 未反映で
+  // 「支払い済みなのにチャット不可」になるため、ステータス判定のみとする。
   return true
 }
 
@@ -628,8 +622,8 @@ export default function SkillDetailPage() {
     profile.review_count > 0
   const maxCap = Math.max(0, Math.floor(Number(skill.max_capacity)))
   const enrolled = Math.max(0, Math.floor(Number(enrolledCount)))
-  /** 申し込み人数が対応可能人数以上なら満枠（0 名と 0 名が同じ場合も含む） */
-  const isFull = enrolled >= maxCap
+  /** 申し込み人数が対応可能人数以上なら満枠。max_capacity が 0 のとき enrolled>=0 で常に満枠になるのを防ぐ */
+  const isFull = maxCap > 0 && enrolled >= maxCap
   const thumbSrc = resolveSkillThumbnailUrl(skill.thumbnail_url)
   const isOwnSkill = Boolean(userId && skill.user_id === userId)
   const latestTransaction = transactionRows[0] ?? null

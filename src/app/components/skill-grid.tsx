@@ -248,7 +248,7 @@ function matchesFilters(item: SkillFilterInput, filters: HomeSkillFilters): bool
     return false
   }
 
-  const isFull = item.ongoingApplications >= item.maxCapacity
+  const isFull = item.maxCapacity > 0 && item.ongoingApplications >= item.maxCapacity
   if (filters.availability === "available" && isFull) {
     return false
   }

@@ -7,9 +7,10 @@ import Stripe from "stripe"
 import {
   attachSkillCheckoutReservationSession,
   claimSkillApplicationAfterPayment,
-  refundStripePaymentIntent,
+  refundPaidCheckoutSession,
   releaseSkillCheckoutReservation,
   reserveSkillCheckoutSlot,
+  resolveStripePaymentIntentIdForCheckoutSession,
 } from "@/lib/checkout-fulfillment"
 import { canBuyerPurchaseSkill } from "@/lib/consultation"
 import { ensureSellerPurchaseNotification, notifyBuyerCheckoutRefunded } from "@/lib/purchase-notification"
@@ -284,7 +285,7 @@ export async function finalizeCheckoutSessionAfterSuccess(
       return { ok: false, error: "この決済を確定する権限がありません。" }
     }
 
-    const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : null
+    const paymentIntentId = await resolveStripePaymentIntentIdForCheckoutSession(stripe, session)
     const transactionIdMeta = session.metadata?.transaction_id?.trim() || null
     const claimResult = await claimSkillApplicationAfterPayment(supabaseAdmin, {
       skillId,
@@ -296,8 +297,8 @@ export async function finalizeCheckoutSessionAfterSuccess(
     })
 
     if (!claimResult.ok) {
-      if (paymentIntentId) {
-        const refundResult = await refundStripePaymentIntent(stripe, paymentIntentId)
+      try {
+        const refundResult = await refundPaidCheckoutSession(stripe, session)
         if (refundResult.created) {
           await notifyBuyerCheckoutRefunded({
             supabaseAdmin,
@@ -306,6 +307,20 @@ export async function finalizeCheckoutSessionAfterSuccess(
             reason: claimResult.reason,
           })
         }
+      } catch (refundError) {
+        console.error("[finalizeCheckoutSessionAfterSuccess] refund after failed claim", {
+          checkoutSessionId: normalizedSessionId,
+          reason: claimResult.reason,
+          message: refundError instanceof Error ? refundError.message : String(refundError),
+        })
+      }
+      try {
+        await releaseSkillCheckoutReservation(supabaseAdmin, { checkoutSessionId: normalizedSessionId })
+      } catch (releaseErr) {
+        console.warn("[finalizeCheckoutSessionAfterSuccess] release reservation after failed claim", {
+          checkoutSessionId: normalizedSessionId,
+          message: releaseErr instanceof Error ? releaseErr.message : String(releaseErr),
+        })
       }
       return {
         ok: false,

@@ -1,0 +1,26 @@
+-- 運用: 「取引チャットが無い・進行取引が無いのに満枠」の調査と仮押さえ解放
+--
+-- 満枠人数は RPC count_active_transactions_for_skill が
+--   進行中取引件数 + 「未消費・未解放・期限内」の skill_checkout_reservations 件数
+-- で算出します。claim 失敗後に仮押さえが残ると満枠が解けないことがありました（アプリ側で返金時に解放するよう修正済み）。
+--
+-- 1) スキル別に仮押さえを確認（skill_id を置き換え）
+-- select id, skill_id, buyer_id, stripe_checkout_session_id, reserved_at, expires_at, consumed_at, released_at
+-- from public.skill_checkout_reservations
+-- where skill_id = 12345
+--   and consumed_at is null
+--   and released_at is null
+-- order by reserved_at desc;
+--
+-- 2) Stripe で該当 Checkout が expired / 返金済みなら、セッション ID で解放（SQL エディタ・service_role 接続想定）
+-- select public.release_skill_checkout_reservation('cs_xxxxxxxx'::text, null::uuid);
+--
+-- 3) reservation の UUID が分かる場合
+-- select public.release_skill_checkout_reservation(null::text, 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'::uuid);
+--
+-- 4) 期限切れ行の整理（満枠カウントには通常含まれないが、released_at を埋めて一覧をきれいにする）
+-- update public.skill_checkout_reservations r
+--    set released_at = coalesce(r.released_at, now())
+--  where r.consumed_at is null
+--    and r.released_at is null
+--    and r.expires_at <= now();

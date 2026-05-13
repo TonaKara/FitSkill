@@ -85,11 +85,51 @@ export async function refundStripePaymentIntent(
   return { created: true }
 }
 
+/** Checkout Session の payment_intent（ID 文字列または expand 済み）から PaymentIntent ID を取り出す */
+export function extractStripePaymentIntentIdFromCheckoutSession(session: {
+  payment_intent?: string | Stripe.PaymentIntent | null
+}): string | null {
+  const pi = session.payment_intent
+  if (typeof pi === "string") {
+    const id = pi.trim()
+    return id.length > 0 ? id : null
+  }
+  if (pi && typeof pi === "object" && "id" in pi) {
+    const id = String((pi as { id?: unknown }).id ?? "").trim()
+    return id.length > 0 ? id : null
+  }
+  return null
+}
+
+/**
+ * 支払い済みセッションで PI ID が欠ける場合（API 応答差・非同期決済等）に retrieve で補完する。
+ */
+export async function resolveStripePaymentIntentIdForCheckoutSession(
+  stripe: Stripe,
+  session: Stripe.Checkout.Session,
+): Promise<string | null> {
+  const direct = extractStripePaymentIntentIdFromCheckoutSession(session)
+  if (direct) {
+    return direct
+  }
+  if (session.payment_status !== "paid") {
+    return null
+  }
+  try {
+    const full = await stripe.checkout.sessions.retrieve(session.id, {
+      expand: ["payment_intent"],
+    })
+    return extractStripePaymentIntentIdFromCheckoutSession(full)
+  } catch {
+    return null
+  }
+}
+
 export async function refundPaidCheckoutSession(
   stripe: Stripe,
   session: Stripe.Checkout.Session,
 ): Promise<CheckoutRefundResult> {
-  const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : null
+  const paymentIntentId = await resolveStripePaymentIntentIdForCheckoutSession(stripe, session)
   if (!paymentIntentId) {
     throw new Error("Cannot refund checkout session without payment_intent")
   }

@@ -4,6 +4,7 @@ import {
   claimSkillApplicationAfterPayment,
   refundPaidCheckoutSession,
   releaseSkillCheckoutReservation,
+  resolveStripePaymentIntentIdForCheckoutSession,
 } from "@/lib/checkout-fulfillment"
 import { ensureSellerPurchaseNotification, notifyBuyerCheckoutRefunded } from "@/lib/purchase-notification"
 
@@ -142,7 +143,7 @@ async function createTransactionFromCheckoutSession(session: Stripe.Checkout.Ses
   }
 
   const supabase = getSupabaseAdminClient()
-  const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : null
+  const paymentIntentId = await resolveStripePaymentIntentIdForCheckoutSession(stripe, session)
   const transactionIdMeta = session.metadata?.transaction_id?.trim() || null
 
   const claimResult = await claimSkillApplicationAfterPayment(supabase, {
@@ -162,6 +163,14 @@ async function createTransactionFromCheckoutSession(session: Stripe.Checkout.Ses
         buyerId,
         skillId,
         reason: claimResult.reason,
+      })
+    }
+    try {
+      await releaseSkillCheckoutReservation(supabase, { checkoutSessionId: session.id })
+    } catch (releaseErr) {
+      console.warn("[stripe webhook] release reservation after failed claim", {
+        checkoutSessionId: session.id,
+        message: releaseErr instanceof Error ? releaseErr.message : String(releaseErr),
       })
     }
     console.warn("[stripe webhook] checkout claim rejected; refunded checkout session", {
@@ -214,6 +223,11 @@ export async function POST(req: Request) {
 
     switch (event.type) {
       case "checkout.session.completed": {
+        const session = event.data.object as Stripe.Checkout.Session
+        await createTransactionFromCheckoutSession(session, stripe)
+        break
+      }
+      case "checkout.session.async_payment_succeeded": {
         const session = event.data.object as Stripe.Checkout.Session
         await createTransactionFromCheckoutSession(session, stripe)
         break
