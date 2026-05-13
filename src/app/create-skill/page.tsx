@@ -15,7 +15,12 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { SkillThumbnailSurface } from "@/components/skill-thumbnail-surface"
 import { ThumbnailCropModal } from "@/components/thumbnail-crop-modal"
 import { TradeFinalConfirmStep } from "@/components/TradeFinalConfirmStep"
-import { DEFAULT_SKILL_THUMBNAIL_PATH } from "@/lib/skill-thumbnail"
+import {
+  DEFAULT_SKILL_THUMBNAIL_PATH,
+  SKILL_THUMBNAIL_EXPORT_HEIGHT,
+  SKILL_THUMBNAIL_EXPORT_WIDTH,
+  skillThumbnailContainerAspectStyle,
+} from "@/lib/skill-thumbnail"
 import { SKILL_CATEGORY_OPTIONS as CATEGORY_OPTIONS } from "@/lib/skill-categories"
 import { PREFECTURE_OPTIONS } from "@/lib/prefectures"
 import { fetchConsultationSettings, toConsultationSkillId } from "@/lib/consultation"
@@ -738,6 +743,7 @@ function CreateSkillPageContent() {
         onClose={closeCropModal}
         onConfirm={handleCropConfirm}
         isAdmin={isAdmin}
+        outputPixelSize={{ width: SKILL_THUMBNAIL_EXPORT_WIDTH, height: SKILL_THUMBNAIL_EXPORT_HEIGHT }}
         subheading="枠は一覧サムネイルと同じ 16:10 の切り取りサイズです。写真全体が枠に収まる必要はありません。ドラッグ・ピンチ・拡大スライダーで位置とズームを調整してください。"
       />
       {notice && <NotificationToast notice={notice} onClose={() => setNotice(null)} />}
@@ -791,7 +797,10 @@ function CreateSkillPageContent() {
                     </div>
                   </div>
                   {thumbnailPreview ? (
-                    <div className="relative mx-auto aspect-[16/10] w-full max-w-md overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 sm:max-w-none">
+                    <div
+                      className="relative mx-auto w-full max-w-md overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 sm:max-w-none"
+                      style={skillThumbnailContainerAspectStyle()}
+                    >
                       <SkillThumbnailSurface imageUrl={thumbnailPreview} />
                       <button
                         type="button"

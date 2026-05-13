@@ -40,8 +40,8 @@ import {
 import { normalizeProfileCategory } from "@/lib/profile-fields"
 import { buildProfilePath, isReservedCustomId, isValidCustomIdFormat, normalizeCustomId } from "@/lib/profile-path"
 import { SKILL_CATEGORY_OPTIONS } from "@/lib/skill-categories"
-import { resolveSkillThumbnailUrl } from "@/lib/skill-thumbnail"
-import { resolveProfileAvatarUrl } from "@/lib/profile-avatar"
+import { resolveSkillThumbnailUrl, skillThumbnailContainerAspectStyle } from "@/lib/skill-thumbnail"
+import { PROFILE_AVATAR_CROP_EXPORT_PX, resolveProfileAvatarUrl } from "@/lib/profile-avatar"
 import { getIsAdminFromProfile } from "@/lib/admin"
 import { getBanStatusFromProfile } from "@/lib/ban"
 import { toErrorNotice, type AppNotice } from "@/lib/notifications"
@@ -2155,6 +2155,7 @@ export default function MypageClient() {
         onConfirm={handleAvatarCropConfirm}
         isAdmin={isAdmin}
         aspectRatio={1}
+        outputPixelSize={{ width: PROFILE_AVATAR_CROP_EXPORT_PX, height: PROFILE_AVATAR_CROP_EXPORT_PX }}
         heading="プロフィールアイコン"
         subheading="枠内が保存される範囲です。ドラッグで位置を、ホイールやピンチで拡大・縮小できます（正方形でトリミングされます）。"
       />
@@ -3055,8 +3056,11 @@ export default function MypageClient() {
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                           <div className="flex min-w-0 flex-1 items-center gap-3">
                             <div
-                              className="aspect-[16/10] w-28 shrink-0 overflow-hidden rounded-xl border border-zinc-700 bg-zinc-800 bg-cover bg-center"
-                              style={{ backgroundImage: `url(${item.skillImageUrl || item.peerAvatarUrl})` }}
+                              className="w-28 shrink-0 overflow-hidden rounded-xl border border-zinc-700 bg-zinc-800 bg-cover bg-center"
+                              style={{
+                                ...skillThumbnailContainerAspectStyle(),
+                                backgroundImage: `url(${item.skillImageUrl || item.peerAvatarUrl})`,
+                              }}
                               role="img"
                               aria-hidden
                             />
@@ -3118,8 +3122,11 @@ export default function MypageClient() {
                           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                             <div className="flex min-w-0 flex-1 items-center gap-3">
                               <div
-                                className="aspect-[16/10] w-28 shrink-0 overflow-hidden rounded-xl border border-zinc-700 bg-zinc-800 bg-cover bg-center"
-                                style={{ backgroundImage: `url(${item.skillImageUrl || item.peerAvatarUrl})` }}
+                                className="w-28 shrink-0 overflow-hidden rounded-xl border border-zinc-700 bg-zinc-800 bg-cover bg-center"
+                                style={{
+                                  ...skillThumbnailContainerAspectStyle(),
+                                  backgroundImage: `url(${item.skillImageUrl || item.peerAvatarUrl})`,
+                                }}
                                 role="img"
                                 aria-hidden
                               />

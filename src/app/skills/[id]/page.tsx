@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button"
 import { NotificationToast } from "@/components/ui/notification-toast"
 import { resolveProfileAvatarUrl } from "@/lib/profile-avatar"
 import { buildProfilePath } from "@/lib/profile-path"
-import { resolveSkillThumbnailUrl } from "@/lib/skill-thumbnail"
+import { resolveSkillThumbnailUrl, skillThumbnailContainerAspectStyle } from "@/lib/skill-thumbnail"
 import { getIsAdminFromProfile } from "@/lib/admin"
 import { formatErrorMessageOnly } from "@/lib/notifications"
 import type { AppNotice } from "@/lib/notifications"
@@ -918,7 +918,7 @@ export default function SkillDetailPage() {
         </Button>
 
         <div className="overflow-hidden rounded-2xl border border-red-500/30 bg-zinc-950 shadow-[0_0_60px_rgba(230,74,25,0.15)]">
-          <div className="relative aspect-[16/10] w-full bg-zinc-900">
+          <div className="relative w-full bg-zinc-900" style={skillThumbnailContainerAspectStyle()}>
             <Image
               src={thumbSrc}
               alt=""

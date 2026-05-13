@@ -63,6 +63,8 @@ type ThumbnailCropModalProps = {
   isAdmin?: boolean
   /** 省略時はスキルサムネイルと同じ 16:10（プロフィールアイコンは 1 など） */
   aspectRatio?: number
+  /** 指定時、canvas をこのピクセル寸法に正規化（枠のアスペクトと一致させること） */
+  outputPixelSize?: { width: number; height: number }
   heading?: string
   subheading?: string
 }
@@ -76,6 +78,7 @@ export function ThumbnailCropModal({
   onConfirm,
   isAdmin = false,
   aspectRatio = SKILL_THUMBNAIL_ASPECT_RATIO,
+  outputPixelSize,
   heading = "サムネイルの切り抜き",
   subheading = "枠内が保存される範囲です。ドラッグで位置を、ホイールやピンチで拡大・縮小できます。",
 }: ThumbnailCropModalProps) {
@@ -235,7 +238,11 @@ export function ThumbnailCropModal({
     setError(null)
     setBusy(true)
     try {
-      const blob = await getCroppedImageBlobFromVisibleArea(image, viewport, "image/jpeg", 0.92)
+      const blob = await getCroppedImageBlobFromVisibleArea(image, viewport, {
+        mimeType: "image/jpeg",
+        quality: 0.92,
+        outputSize: outputPixelSize,
+      })
       await onConfirm(blob)
       onClose()
     } catch (e) {

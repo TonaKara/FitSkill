@@ -25,7 +25,7 @@ import {
   removeAvatarObjectAtPublicUrl,
 } from "@/lib/avatar-storage"
 import { normalizeProfileCategory } from "@/lib/profile-fields"
-import { resolveProfileAvatarUrl } from "@/lib/profile-avatar"
+import { PROFILE_AVATAR_CROP_EXPORT_PX, resolveProfileAvatarUrl } from "@/lib/profile-avatar"
 import { SKILL_CATEGORY_OPTIONS } from "@/lib/skill-categories"
 import { getIsAdminFromProfile } from "@/lib/admin"
 import { toErrorNotice, type AppNotice } from "@/lib/notifications"
@@ -470,6 +470,7 @@ export default function ProfileSetupPage() {
         onConfirm={handleCropConfirm}
         isAdmin={isAdmin}
         aspectRatio={1}
+        outputPixelSize={{ width: PROFILE_AVATAR_CROP_EXPORT_PX, height: PROFILE_AVATAR_CROP_EXPORT_PX }}
         heading="プロフィールアイコン"
         subheading="枠内が保存される範囲です。ドラッグで位置を、ホイールやピンチで拡大・縮小できます（正方形でトリミングされます）。"
       />

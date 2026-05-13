@@ -1,3 +1,6 @@
+/** プロフィールアイコンクロップ後の正方形 JPEG 一辺（px）。表示は object-cover で任意枠に合わせる */
+export const PROFILE_AVATAR_CROP_EXPORT_PX = 512
+
 /** profiles.avatar_url が空のときのプレースホルダー（ダーク×赤寄り） */
 export function resolveProfileAvatarUrl(avatarUrl: string | null | undefined, displayName: string): string {
   const trimmed = avatarUrl?.trim() ?? ""

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { SkillCardFavorite } from "@/components/skill-card-favorite"
 import { SkillThumbnailSurface } from "@/components/skill-thumbnail-surface"
 import { saveHomeListScrollPosition } from "@/lib/home-list-scroll"
+import { skillThumbnailContainerAspectStyle } from "@/lib/skill-thumbnail"
 
 interface SkillCardProps {
   /** DB のスキル UUID のときのみ指定。お気に入り・件数のリアルタイム更新を有効にする */
@@ -65,7 +66,7 @@ export function SkillCard({ skill, favoriteSkillId, initialFavoriteCount }: Skil
       data-clickable={canOpenDetail}
     >
       {/* Image */}
-      <div className="relative aspect-[16/10] overflow-hidden">
+      <div className="relative overflow-hidden" style={skillThumbnailContainerAspectStyle()}>
         <SkillThumbnailSurface imageUrl={skill.image} enableHoverZoom />
         <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent" />
         
