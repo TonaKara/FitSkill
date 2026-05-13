@@ -24,10 +24,6 @@ function resolveStripePayoutOperationErrorDetail(detail: string): string | null 
     return STRIPE_PAYOUT_SESSION_REQUIRED_MESSAGE
   }
 
-  if (normalized === "unauthorized") {
-    return "Stripe 連携情報の保存に失敗しました。時間を置いて再度お試しください。"
-  }
-
   if (normalized.includes("supabase admin environment variables are missing")) {
     return "Stripe 連携情報の保存設定が不足しています。時間を置いて再度お試しください。"
   }

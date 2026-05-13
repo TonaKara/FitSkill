@@ -45,71 +45,54 @@ function getSupabaseAdminClient() {
   return createClient(supabaseUrl, serviceRoleKey)
 }
 
-function isMissingStripeProfileRpc(error: { message?: string; code?: string }): boolean {
-  const code = error.code?.toUpperCase() ?? ""
-  const message = error.message?.toLowerCase() ?? ""
-  return (
-    code === "PGRST202" ||
-    code === "42883" ||
-    message.includes("could not find the function") ||
-    message.includes("function public.set_profile_stripe_connect")
-  )
+/** ログ用。シークレットは含めない */
+function getSupabaseHostForStripeLog(): string {
+  const raw = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
+  try {
+    return new URL(raw).host
+  } catch {
+    return "(unparseable supabase url)"
+  }
 }
 
+/**
+ * requireActionUser で検証済みの userId のみ。Stripe 連携列の更新はユーザー JWT 経由の RPC だと
+ * Server Action 環境で 401（Unauthorized）になることがあるため、常に service role で 1 行だけ更新する。
+ */
 async function updateStripeProfileFieldsForUser(
-  supabase: SupabaseClient,
+  _supabase: SupabaseClient,
   userId: string,
   fields: StripeProfileWriteRow,
 ): Promise<void> {
-  const adminFields: StripeProfileWriteRow = {}
-
+  const payload: StripeProfileWriteRow = {}
   if (fields.stripe_connect_account_id !== undefined) {
-    const { error } = await supabase.rpc("set_profile_stripe_connect_account_id", {
-      p_account_id: fields.stripe_connect_account_id ?? "",
-    })
-    if (error) {
-      if (isMissingStripeProfileRpc(error)) {
-        adminFields.stripe_connect_account_id = fields.stripe_connect_account_id
-      } else {
-        throw new Error(error.message)
-      }
-    }
+    payload.stripe_connect_account_id = fields.stripe_connect_account_id
   }
-
-  if (
-    fields.stripe_connect_charges_enabled !== undefined ||
-    fields.stripe_connect_details_submitted !== undefined ||
-    fields.is_stripe_registered !== undefined
-  ) {
-    const { error } = await supabase.rpc("set_profile_stripe_connect_status", {
-      p_charges_enabled: fields.stripe_connect_charges_enabled ?? false,
-      p_details_submitted: fields.stripe_connect_details_submitted ?? false,
-      p_is_stripe_registered: fields.is_stripe_registered ?? null,
-    })
-    if (error) {
-      if (isMissingStripeProfileRpc(error)) {
-        if (fields.stripe_connect_charges_enabled !== undefined) {
-          adminFields.stripe_connect_charges_enabled = fields.stripe_connect_charges_enabled
-        }
-        if (fields.stripe_connect_details_submitted !== undefined) {
-          adminFields.stripe_connect_details_submitted = fields.stripe_connect_details_submitted
-        }
-        if (fields.is_stripe_registered !== undefined) {
-          adminFields.is_stripe_registered = fields.is_stripe_registered
-        }
-      } else {
-        throw new Error(error.message)
-      }
-    }
+  if (fields.stripe_connect_charges_enabled !== undefined) {
+    payload.stripe_connect_charges_enabled = fields.stripe_connect_charges_enabled
   }
-
-  if (Object.keys(adminFields).length === 0) {
+  if (fields.stripe_connect_details_submitted !== undefined) {
+    payload.stripe_connect_details_submitted = fields.stripe_connect_details_submitted
+  }
+  if (fields.is_stripe_registered !== undefined) {
+    payload.is_stripe_registered = fields.is_stripe_registered
+  }
+  if (Object.keys(payload).length === 0) {
     return
   }
 
   const admin = getSupabaseAdminClient()
-  const { error } = await admin.from("profiles").update(adminFields).eq("id", userId)
+  const { error } = await admin.from("profiles").update(payload).eq("id", userId)
   if (error) {
+    console.error("[stripe] admin profiles.update (verified user) failed", {
+      userId,
+      keys: Object.keys(payload),
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+      supabaseHost: getSupabaseHostForStripeLog(),
+    })
     throw new Error(error.message)
   }
 }
@@ -320,6 +303,7 @@ export async function getStripeOnboardingUrl(
           publicSiteUrl,
           userId: user.id,
           error: message,
+          supabaseHost: getSupabaseHostForStripeLog(),
         })
         return { ok: false, error: message }
       }

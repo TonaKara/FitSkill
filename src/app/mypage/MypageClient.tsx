@@ -986,6 +986,10 @@ export default function MypageClient() {
       const result = await getStripeOnboardingUrl(true, accessToken)
       if (!result.ok) {
         setPayoutLinkBusy(false)
+        console.error("[stripe][browser] getStripeOnboardingUrl failed", {
+          error: result.error,
+          note: "Server Action の console.error はブラウザではなくホスト（Vercel の Function Logs / ローカルはターミナル）に出力されます。",
+        })
         setNotice({
           variant: "error",
           message: formatStripeOnboardingUrlErrorForUser(
@@ -1001,6 +1005,11 @@ export default function MypageClient() {
     } catch (err) {
       setPayoutLinkBusy(false)
       const raw = err instanceof Error ? err.message : String(err)
+      console.error("[stripe][browser] getStripeOnboardingUrl threw", {
+        message: raw,
+        err,
+        note: "Server Action の console.error はホストのサーバーログに出力されます。",
+      })
       setNotice({
         variant: "error",
         message: formatStripeOnboardingUrlErrorForUser(
