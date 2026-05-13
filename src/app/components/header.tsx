@@ -66,9 +66,10 @@ const MOBILE_STUDENT_MENU_GROUPS: MobileMenuGroup[] = [
     items: [{ label: "取引履歴", href: "/mypage?mode=student&tab=transactions" }],
   },
   {
-    heading: "プロフィール・アカウント",
-    description: "公開プロフィール・アカウント設定など",
+    heading: "評価・プロフィール",
+    description: "評価・公開プロフィール・アカウント設定など",
     items: [
+      { label: "評価", href: "/mypage?mode=student&tab=reviews" },
       { label: "プロフィール設定", href: "/mypage?mode=student&tab=profile" },
       { label: "アカウント設定", href: "/mypage?mode=student&tab=account" },
     ],

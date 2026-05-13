@@ -4,7 +4,6 @@ import { ConsoleGuard } from "@/components/ConsoleGuard";
 import { AccessibilityModeSync } from "@/components/AccessibilityModeSync";
 import { BottomNav } from "@/components/bottom-nav";
 import { ConditionalFooter } from "@/components/layout/ConditionalFooter";
-import { MobilePullToRefreshMain } from "@/components/mobile-pull-to-refresh-main";
 import { MobileHeaderMenuProvider } from "@/components/mobile-header-menu-context";
 import { MaintenanceGuard } from "@/components/MaintenanceGuard";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -104,12 +103,10 @@ export default function RootLayout({
             <ConsoleGuard />
             <div className="flex h-[100svh] min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:h-auto md:min-h-full md:overflow-visible">
               <MaintenanceGuard>
-                <MobilePullToRefreshMain>
-                  <div className="flex min-h-full min-w-0 flex-col">
-                    <div className="min-w-0 flex-1">{children}</div>
-                    <ConditionalFooter />
-                  </div>
-                </MobilePullToRefreshMain>
+                <div className="flex min-h-full min-w-0 flex-col">
+                  <div className="min-w-0 flex-1">{children}</div>
+                  <ConditionalFooter />
+                </div>
               </MaintenanceGuard>
               <BottomNav />
             </div>
