@@ -1,7 +1,11 @@
 .thumbnail-crop-modal .thumbnail-crop-media-shell {
-  display: flex;
-  justify-content: center;
-  padding: 10px 8px 14px;
+  padding: 8px 6px 10px;
+}
+
+@media (min-width: 640px) {
+  .thumbnail-crop-modal .thumbnail-crop-media-shell {
+    padding: 10px 8px 14px;
+  }
 }
 
 .thumbnail-crop-modal .thumbnail-crop-viewport {

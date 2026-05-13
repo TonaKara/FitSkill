@@ -17,7 +17,8 @@ import { SKILL_THUMBNAIL_ASPECT_RATIO } from "@/lib/skill-thumbnail"
 import "./thumbnail-crop-modal.css"
 
 const VIEWPORT_MAX_WIDTH_PX = 560
-const VIEWPORT_MAX_HEIGHT_CSS = "min(62svh, 520px)"
+/** スマホでは切り抜き枠をできるだけ大きく（拡大バーは下に回す） */
+const VIEWPORT_MAX_HEIGHT_CSS = "min(72svh, 580px)"
 const MIN_ZOOM = 1
 const MAX_ZOOM_CAP = 6
 const MIN_ZOOM_HEADROOM = 2.5
@@ -81,6 +82,8 @@ export function ThumbnailCropModal({
   subheading = "枠内が保存される範囲です。ドラッグで位置を、ホイールやピンチで拡大・縮小できます。",
 }: ThumbnailCropModalProps) {
   const viewportRef = useRef<HTMLDivElement>(null)
+  /** 赤枠（border-2）の内側と一致させ、一覧の 16:10 表示と同じ見え方で切り抜く */
+  const cropTargetRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
   const pinchZoomRef = useRef<PinchZoom>(null)
   const pinchTransformRef = useRef({ x: 0, y: 0, zoomFactor: MIN_ZOOM })
@@ -238,7 +241,8 @@ export function ThumbnailCropModal({
     setError(null)
     setBusy(true)
     try {
-      const blob = await getCroppedImageBlobFromVisibleArea(image, viewport, "image/jpeg", 0.92)
+      const cropEl = cropTargetRef.current ?? viewport
+      const blob = await getCroppedImageBlobFromVisibleArea(image, cropEl, "image/jpeg", 0.92)
       await onConfirm(blob)
       onClose()
     } catch (e) {
@@ -284,8 +288,8 @@ export function ThumbnailCropModal({
           </Button>
         </div>
 
-        <div className="thumbnail-crop-stage flex min-h-0 flex-1 flex-col items-center justify-center overflow-x-hidden overflow-y-auto overscroll-contain bg-zinc-900/45 px-2 pb-6 pt-8 sm:min-h-[min(42vh,400px)] sm:px-4 md:px-6">
-          <div className="thumbnail-crop-media-shell relative mx-auto mt-1 w-full max-w-full min-w-0">
+        <div className="thumbnail-crop-stage flex min-h-0 flex-1 flex-col items-center justify-center overflow-x-hidden overflow-y-auto overscroll-contain bg-zinc-900/45 px-2 pb-4 pt-4 max-sm:pb-3 max-sm:pt-3 sm:min-h-[min(42vh,400px)] sm:px-4 sm:pb-6 sm:pt-8 md:px-6">
+          <div className="thumbnail-crop-media-shell relative mx-auto mt-1 flex w-full min-w-0 max-w-full flex-col items-center gap-3 sm:flex-row sm:items-start sm:gap-4">
             <div
               ref={viewportRef}
               className="thumbnail-crop-viewport relative mx-auto overflow-hidden bg-black/60 shadow-[0_0_0_9999px_rgba(0,0,0,0.55)]"
@@ -312,11 +316,16 @@ export function ThumbnailCropModal({
                   className="thumbnail-crop-source block max-w-none select-none"
                 />
               </PinchZoom>
+              <div
+                ref={cropTargetRef}
+                className="pointer-events-none absolute inset-[2px]"
+                aria-hidden="true"
+              />
               <div className="thumbnail-crop-frame pointer-events-none absolute inset-0" aria-hidden="true">
                 <div className="thumbnail-crop-grid absolute inset-0" />
               </div>
             </div>
-            <div className="mt-3 flex items-center gap-3 px-1 text-zinc-300">
+            <div className="flex w-full max-w-[min(100%,560px)] flex-row items-center gap-3 px-1 text-zinc-300 max-sm:mt-0.5 sm:mt-3 sm:w-auto sm:min-w-[12rem] md:min-w-[14rem]">
               <label htmlFor="thumbnail-crop-zoom" className="shrink-0 text-xs text-zinc-400">
                 拡大
               </label>

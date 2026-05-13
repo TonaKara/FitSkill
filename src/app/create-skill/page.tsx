@@ -3,7 +3,6 @@
 import { ChangeEvent, FormEvent, Suspense, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import Link from "next/link"
-import Image from "next/image"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Info, Loader2, MapPin, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -13,6 +12,7 @@ import { NotificationToast } from "@/components/ui/notification-toast"
 import { getIsAdminFromProfile } from "@/lib/admin"
 import { toErrorNotice, type AppNotice } from "@/lib/notifications"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import { SkillThumbnailSurface } from "@/components/skill-thumbnail-surface"
 import { ThumbnailCropModal } from "@/components/thumbnail-crop-modal"
 import { TradeFinalConfirmStep } from "@/components/TradeFinalConfirmStep"
 import { DEFAULT_SKILL_THUMBNAIL_PATH } from "@/lib/skill-thumbnail"
@@ -793,23 +793,7 @@ function CreateSkillPageContent() {
                   </div>
                   {thumbnailPreview ? (
                     <div className="relative mx-auto aspect-[16/10] w-full max-w-md overflow-hidden rounded-lg border border-zinc-800 sm:max-w-none">
-                      {thumbnailPreview.startsWith("blob:") ? (
-                        <Image
-                          src={thumbnailPreview}
-                          alt="サムネイルプレビュー"
-                          fill
-                          unoptimized
-                          className="object-cover"
-                          sizes="(max-width: 768px) 100vw, 48rem"
-                        />
-                      ) : (
-                        // eslint-disable-next-line @next/next/no-img-element -- 編集時は Supabase の https URL を表示するため
-                        <img
-                          src={thumbnailPreview}
-                          alt="サムネイルプレビュー"
-                          className="absolute inset-0 h-full w-full object-cover"
-                        />
-                      )}
+                      <SkillThumbnailSurface imageUrl={thumbnailPreview} />
                       <button
                         type="button"
                         onClick={clearThumbnailSelection}
