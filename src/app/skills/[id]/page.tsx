@@ -342,6 +342,8 @@ export default function SkillDetailPage() {
         checkoutFinalizeStateRef.current = { sessionId: checkoutSessionId, attempts: 0, stopped: false }
       }
 
+      await new Promise((r) => setTimeout(r, 800))
+
       for (let i = 0; i < 40; i += 1) {
         if (cancelled) {
           return
@@ -413,7 +415,7 @@ export default function SkillDetailPage() {
           router.replace(`/chat/${tid}?from=checkout`)
           return
         }
-        await new Promise((r) => setTimeout(r, 300))
+        await new Promise((r) => setTimeout(r, 2000))
       }
       if (!cancelled) {
         setPurchaseError("決済後の取引反映に時間がかかっています。マイページからチャットを開いてください。")

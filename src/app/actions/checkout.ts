@@ -308,25 +308,15 @@ export async function finalizeCheckoutSessionAfterSuccess(
   }
 
   const supabaseAdmin = getSupabaseAdminClient()
-  /** claim が成功して仮押さえが consumed されたら true。 */
-  let claimSucceeded = false
-  let sessionForRelease: Stripe.Checkout.Session | null = null
-  /**
-   * Stripe で payment_status === "paid" を確認したあとだけ true。
-   * 未払いのまま早期 return した場合に finally で仮押さえを解放すると、リダイレクト直後の再試行で claim が壊れるため禁止する。
-   */
-  let sessionPaidConfirmedForRelease = false
 
   try {
     const { user } = await getAuthedSupabase()
     const stripe = getStripeClient()
 
     const session = await stripe.checkout.sessions.retrieve(normalizedSessionId)
-    sessionForRelease = session
     if (session.payment_status !== "paid") {
       return { ok: false, error: "決済完了の確認が取れませんでした。" }
     }
-    sessionPaidConfirmedForRelease = true
 
     const skillId = session.metadata?.skill_id?.trim()
     const buyerId = session.metadata?.buyer_id?.trim()
@@ -376,8 +366,6 @@ export async function finalizeCheckoutSessionAfterSuccess(
       }
     }
 
-    claimSucceeded = true
-
     await ensureSellerPurchaseNotification({
       supabaseAdmin,
       transactionId: claimResult.row.transaction_id,
@@ -399,18 +387,5 @@ export async function finalizeCheckoutSessionAfterSuccess(
       error,
     })
     return { ok: false, error: message }
-  } finally {
-    if (!claimSucceeded && sessionPaidConfirmedForRelease) {
-      const reservationIdFromMeta =
-        sessionForRelease?.metadata?.checkout_reservation_id?.trim() || null
-      await releaseSkillCheckoutReservationBestEffort(
-        supabaseAdmin,
-        {
-          reservationId: reservationIdFromMeta,
-          checkoutSessionId: normalizedSessionId,
-        },
-        "finalizeCheckoutSessionAfterSuccess",
-      )
-    }
   }
 }

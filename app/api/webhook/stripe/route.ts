@@ -134,84 +134,67 @@ async function createTransactionFromCheckoutSession(session: Stripe.Checkout.Ses
   }
 
   const supabase = getSupabaseAdminClient()
-  /** claim 成功後に true。未達なら finally で仮押さえ解放（メタデータ不正・例外で枠が残るのを防ぐ） */
-  let claimSucceeded = false
 
-  try {
-    const skillId = session.metadata?.skill_id?.trim()
-    const buyerId = session.metadata?.buyer_id?.trim()
-    const sellerId = session.metadata?.seller_id?.trim()
-    if (!skillId || !buyerId || !sellerId) {
-      throw new Error("checkout.session.completed metadata is missing required ids")
-    }
-    if (buyerId === sellerId) {
-      throw new Error("Invalid checkout session metadata: buyer and seller are same")
-    }
+  const skillId = session.metadata?.skill_id?.trim()
+  const buyerId = session.metadata?.buyer_id?.trim()
+  const sellerId = session.metadata?.seller_id?.trim()
+  if (!skillId || !buyerId || !sellerId) {
+    throw new Error("checkout.session.completed metadata is missing required ids")
+  }
+  if (buyerId === sellerId) {
+    throw new Error("Invalid checkout session metadata: buyer and seller are same")
+  }
 
-    const paymentIntentId = await resolveStripePaymentIntentIdForCheckoutSession(stripe, session)
-    const transactionIdMeta = session.metadata?.transaction_id?.trim() || null
+  const paymentIntentId = await resolveStripePaymentIntentIdForCheckoutSession(stripe, session)
+  const transactionIdMeta = session.metadata?.transaction_id?.trim() || null
 
-    const claimResult = await claimSkillApplicationAfterPayment(supabase, {
-      skillId,
-      buyerId,
-      sellerId,
-      stripePaymentIntentId: paymentIntentId,
-      targetTransactionId: transactionIdMeta,
-      stripeCheckoutSessionId: session.id,
-    })
+  const claimResult = await claimSkillApplicationAfterPayment(supabase, {
+    skillId,
+    buyerId,
+    sellerId,
+    stripePaymentIntentId: paymentIntentId,
+    targetTransactionId: transactionIdMeta,
+    stripeCheckoutSessionId: session.id,
+  })
 
-    if (!claimResult.ok) {
-      // skill_full / duplicate_payment など: 決済は取り込まず自動返金（事後検証）
-      try {
-        const refundResult = await refundPaidCheckoutSession(stripe, session)
-        if (refundResult.created) {
-          await notifyBuyerCheckoutRefunded({
-            supabaseAdmin: supabase,
-            buyerId,
-            skillId,
-            reason: claimResult.reason,
-          })
-        }
-      } catch (refundError) {
-        console.error("[stripe webhook] refund after failed claim", {
-          checkoutSessionId: session.id,
+  if (!claimResult.ok) {
+    // skill_full / duplicate_payment など: 決済は取り込まず自動返金（事後検証）
+    try {
+      const refundResult = await refundPaidCheckoutSession(stripe, session)
+      if (refundResult.created) {
+        await notifyBuyerCheckoutRefunded({
+          supabaseAdmin: supabase,
+          buyerId,
+          skillId,
           reason: claimResult.reason,
-          message: refundError instanceof Error ? refundError.message : String(refundError),
         })
       }
-      console.warn("[stripe webhook] checkout claim rejected; refunded checkout session", {
-        skillId,
-        buyerId,
-        paymentIntentId,
+    } catch (refundError) {
+      console.error("[stripe webhook] refund after failed claim", {
         checkoutSessionId: session.id,
         reason: claimResult.reason,
+        message: refundError instanceof Error ? refundError.message : String(refundError),
       })
-      return
     }
-
-    claimSucceeded = true
-
-    const transactionId = claimResult.row.transaction_id
-
-    await ensureSellerPurchaseNotification({
-      supabaseAdmin: supabase,
-      transactionId,
-      sellerId,
-      buyerId,
+    console.warn("[stripe webhook] checkout claim rejected; refunded checkout session", {
       skillId,
+      buyerId,
+      paymentIntentId,
+      checkoutSessionId: session.id,
+      reason: claimResult.reason,
     })
-  } finally {
-    if (!claimSucceeded) {
-      try {
-        await releaseSkillCheckoutReservation(supabase, { checkoutSessionId: session.id })
-      } catch (releaseErr) {
-        console.warn("[stripe webhook] finally release reservation after incomplete claim", {
-          checkoutSessionId: session.id,
-          message: releaseErr instanceof Error ? releaseErr.message : String(releaseErr),
-        })
-      }
-    }
+    return
   }
+
+  const transactionId = claimResult.row.transaction_id
+
+  await ensureSellerPurchaseNotification({
+    supabaseAdmin: supabase,
+    transactionId,
+    sellerId,
+    buyerId,
+    skillId,
+  })
 }
 
 export async function POST(req: Request) {
