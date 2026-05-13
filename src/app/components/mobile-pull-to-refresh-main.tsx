@@ -129,7 +129,10 @@ export function MobilePullToRefreshMain({ children }: Props) {
   const releaseHint = pullVisual >= PULL_TRIGGER_PX
 
   return (
-    <main ref={mainRef} className="relative flex-1 overflow-y-auto overscroll-contain">
+    <main
+      ref={mainRef}
+      className="relative min-w-0 flex-1 max-md:touch-pan-y overflow-x-hidden overflow-y-auto overscroll-y-contain [overscroll-behavior-x:none]"
+    >
       {showHint ? (
         <div
           className="pointer-events-none absolute inset-x-0 top-2 z-30 flex justify-center"
@@ -150,7 +153,7 @@ export function MobilePullToRefreshMain({ children }: Props) {
         </div>
       ) : null}
       <div
-        className="flex min-h-full flex-col"
+        className="flex min-h-full min-w-0 flex-col overflow-x-hidden"
         style={
           mobileLayout && pullVisual > 0
             ? { transform: `translateY(${pullVisual}px)`, transition: "none" }

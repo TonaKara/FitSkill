@@ -752,7 +752,7 @@ function CreateSkillPageContent() {
           </Button>
         </div>
 
-        <Card className="min-w-0 border-red-500/35 bg-zinc-950 shadow-[0_0_48px_rgba(230,74,25,0.14)] max-sm:shadow-[0_0_24px_rgba(230,74,25,0.12)]">
+        <Card className="min-w-0 overflow-x-clip border-red-500/35 bg-zinc-950 shadow-[0_0_48px_rgba(230,74,25,0.14)] max-sm:shadow-[0_0_24px_rgba(230,74,25,0.12)]">
           <CardHeader>
             <CardTitle className="text-white">{formTitle}</CardTitle>
           </CardHeader>

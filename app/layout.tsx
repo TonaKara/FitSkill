@@ -102,11 +102,11 @@ export default function RootLayout({
           <MobileHeaderMenuProvider>
             <AccessibilityModeSync />
             <ConsoleGuard />
-            <div className="flex h-[100svh] min-h-0 flex-1 flex-col overflow-hidden md:h-auto md:min-h-full md:overflow-visible">
+            <div className="flex h-[100svh] min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:h-auto md:min-h-full md:overflow-visible">
               <MaintenanceGuard>
                 <MobilePullToRefreshMain>
-                  <div className="flex min-h-full flex-col">
-                    <div className="flex-1">{children}</div>
+                  <div className="flex min-h-full min-w-0 flex-col">
+                    <div className="min-w-0 flex-1">{children}</div>
                     <ConditionalFooter />
                   </div>
                 </MobilePullToRefreshMain>
