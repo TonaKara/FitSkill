@@ -5,14 +5,14 @@ import { cn } from "@/lib/utils"
 type SkillThumbnailSurfaceProps = {
   imageUrl: string
   className?: string
-  /** 一覧カードは cover。出品プレビュー等は contain で切り欠きを防ぐ */
+  /** 一覧カード・出品プレビューは cover（16:10 枠と一致）。contain は特例用 */
   fit?: "cover" | "contain"
   /** 一覧カードのホバー拡大 */
   enableHoverZoom?: boolean
 }
 
 /**
- * スキルサムネイル用の背景画像レイヤー（一覧は bg-cover、プレビューは bg-contain 等）。
+ * スキルサムネイル用の背景画像レイヤー（既定は bg-cover・bg-center。一覧・詳細ヒーローと揃える）。
  */
 export function SkillThumbnailSurface({
   imageUrl,
