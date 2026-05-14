@@ -175,6 +175,11 @@ export default function ContactPage() {
 
     setIsSubmitting(true)
     try {
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser()
+      const submitterProfileId = authUser?.id ?? null
+
       let uploadedAttachmentPath: string | null = null
       if (attachment) {
         const safeFileName = crypto.randomUUID().replace(/-/g, "")
@@ -218,6 +223,7 @@ export default function ContactPage() {
             email,
             category,
             subject,
+            submitter_profile_id: submitterProfileId,
           }),
           keepalive: true,
         })

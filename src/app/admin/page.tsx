@@ -36,7 +36,7 @@ export default function AdminDashboardPage() {
       <AdminTableCard
         title="問い合わせ一覧"
         tableName="contact_submissions"
-        columns={["name", "email", "category", "subject", "status", "created_at"]}
+        columns={["name", "email", "submitter_profile_id", "category", "subject", "status", "created_at"]}
         filters={[{ column: "status", value: "pending" }]}
         sortBy="created_at"
         sortAscending

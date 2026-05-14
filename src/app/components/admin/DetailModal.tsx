@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
 import { Loader2, X } from "lucide-react"
 import { DisputeEvidenceImage } from "@/components/DisputeEvidenceImage"
@@ -120,28 +121,56 @@ export function DetailModal({
     }
   }
 
-  const renderContactDetail = () => (
-    <div className="space-y-3 text-sm">
-      <p><span className="text-zinc-400">名前:</span> {String(item.name ?? "—")}</p>
-      <p><span className="text-zinc-400">メール:</span> {String(item.email ?? "—")}</p>
-      <p><span className="text-zinc-400">件名:</span> {String(item.subject ?? "—")}</p>
-      <p><span className="text-zinc-400">取引ID:</span> {String(item.transaction_id ?? "—")}</p>
-      <p><span className="text-zinc-400">内容:</span> {String(item.content ?? "—")}</p>
-      <div>
-        <p className="mb-1 text-zinc-400">添付画像:</p>
-        {attachmentUrl ? (
-          <div className="h-56 w-full overflow-hidden rounded-lg border border-zinc-700 bg-zinc-100 p-2">
-            {/* eslint-disable-next-line @next/next/no-img-element -- 管理画面の添付画像表示 */}
-            <img src={attachmentUrl} alt="添付画像" className="h-full w-full object-contain" />
-          </div>
-        ) : attachmentSecurityBlocked ? (
-          <p className="text-amber-300">セキュリティ上の理由により画像を表示できません</p>
-        ) : (
-          <p className="text-zinc-500">画像はありません</p>
-        )}
+  const renderContactDetail = () => {
+    const profileIdRaw = item.submitter_profile_id
+    const profileId =
+      typeof profileIdRaw === "string" && profileIdRaw.trim().length > 0 ? profileIdRaw.trim() : null
+    return (
+      <div className="space-y-3 text-sm">
+        <p>
+          <span className="text-zinc-400">名前:</span> {String(item.name ?? "—")}
+        </p>
+        <p>
+          <span className="text-zinc-400">メール:</span> {String(item.email ?? "—")}
+        </p>
+        <p>
+          <span className="text-zinc-400">カテゴリ:</span> {String(item.category ?? "—")}
+        </p>
+        <p>
+          <span className="text-zinc-400">件名:</span> {String(item.subject ?? "—")}
+        </p>
+        <p>
+          <span className="text-zinc-400">取引ID:</span> {String(item.transaction_id ?? "—")}
+        </p>
+        <p>
+          <span className="text-zinc-400">送信者プロフィール:</span>{" "}
+          {profileId ? (
+            <Link href={`/profile/${encodeURIComponent(profileId)}`} className="text-red-400 underline hover:text-red-300">
+              {profileId}
+            </Link>
+          ) : (
+            <span className="text-zinc-500">未ログインの送信</span>
+          )}
+        </p>
+        <p>
+          <span className="text-zinc-400">内容:</span> {String(item.content ?? "—")}
+        </p>
+        <div>
+          <p className="mb-1 text-zinc-400">添付画像:</p>
+          {attachmentUrl ? (
+            <div className="h-56 w-full overflow-hidden rounded-lg border border-zinc-700 bg-zinc-100 p-2">
+              {/* eslint-disable-next-line @next/next/no-img-element -- 管理画面の添付画像表示 */}
+              <img src={attachmentUrl} alt="添付画像" className="h-full w-full object-contain" />
+            </div>
+          ) : attachmentSecurityBlocked ? (
+            <p className="text-amber-300">セキュリティ上の理由により画像を表示できません</p>
+          ) : (
+            <p className="text-zinc-500">画像はありません</p>
+          )}
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   const renderTransactionDisputeDetail = () => {
     const detail =

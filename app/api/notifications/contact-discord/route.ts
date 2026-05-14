@@ -6,6 +6,8 @@ type Payload = {
   email?: string
   category?: string
   subject?: string
+  /** ログイン中の送信時のみ。未ログインは空または省略。 */
+  submitter_profile_id?: string | null
 }
 
 /** 運用では `DISCORD_WEBHOOK_INQUIRY`。旧名 `DISCORD_WEBHOOK_CONTACT` は互換用 */
@@ -38,8 +40,16 @@ export async function POST(req: Request) {
     const email = String(body.email ?? "").trim() || "未入力"
     const category = String(body.category ?? "").trim() || "未入力"
     const subject = String(body.subject ?? "").trim() || "（件名なし）"
+    const submitterProfileId = String(body.submitter_profile_id ?? "").trim()
     const baseUrl = getSiteUrl().replace(/\/$/, "")
     const adminContactsUrl = `${baseUrl}/admin/contacts`
+    const senderLines =
+      submitterProfileId.length > 0
+        ? [
+            `- 送信者 profiles.id: ${submitterProfileId}`,
+            `- 公開プロフィール: ${baseUrl}/profile/${encodeURIComponent(submitterProfileId)}`,
+          ]
+        : ["- 送信者 profiles.id: （未ログインの送信）"]
 
     await sendDiscordNotification(
       webhookUrl,
@@ -50,6 +60,7 @@ export async function POST(req: Request) {
         `- メール: ${email}`,
         `- カテゴリ: ${category}`,
         `- 件名: ${subject}`,
+        ...senderLines,
         `- 管理画面: ${adminContactsUrl}`,
       ].join("\n"),
     )
