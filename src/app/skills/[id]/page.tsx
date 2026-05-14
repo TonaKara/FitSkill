@@ -837,6 +837,9 @@ export default function SkillDetailPage() {
     consultationAnswer?.status !== "pending"
   const shouldShowConsultationAction =
     !isOwnSkill && !consultationSettingsLoadError && consultationEnabled && !consultationAccepted
+  const showBothSellerActions = showAskSeller && showPreOfferPrimary
+  const showPreOfferFormExpanded =
+    Boolean(userId && consultationFormOpen && consultationAnswer?.status !== "pending")
   const shouldShowPurchaseButton =
     !isOwnSkill &&
     !transactionStatusLoading &&
@@ -1230,7 +1233,10 @@ export default function SkillDetailPage() {
             <div
               className={cn(
                 "mb-3 grid gap-3",
-                showAskSeller && showPreOfferPrimary ? "sm:grid-cols-2" : "",
+                showBothSellerActions &&
+                  showPreOfferFormExpanded &&
+                  "grid-cols-1 [grid-template-areas:'preoffer''form''ask'] sm:grid-cols-2 sm:[grid-template-areas:'preoffer_ask'_'form_form']",
+                showBothSellerActions && !showPreOfferFormExpanded && "sm:grid-cols-2 sm:items-start",
               )}
             >
               {showPreOfferPrimary ? (
@@ -1243,7 +1249,10 @@ export default function SkillDetailPage() {
                     }
                     setConsultationFormOpen((prev) => !prev)
                   }}
-                  className="h-11 w-full rounded-md bg-red-600 text-base font-bold text-white hover:bg-red-500"
+                  className={cn(
+                    "h-11 w-full rounded-md bg-red-600 text-base font-bold text-white hover:bg-red-500",
+                    showBothSellerActions && showPreOfferFormExpanded && "[grid-area:preoffer]",
+                  )}
                 >
                   <ClipboardList className="mr-2 h-5 w-5 shrink-0" aria-hidden />
                   {!userId
@@ -1253,11 +1262,75 @@ export default function SkillDetailPage() {
                       : "事前オファーを送る"}
                 </Button>
               ) : null}
+              {showPreOfferFormExpanded ? (
+                <div
+                  className={cn(
+                    "space-y-3 rounded-md border border-zinc-700 bg-black/30 p-3 sm:p-4",
+                    showBothSellerActions && "[grid-area:form]",
+                  )}
+                >
+                  {showConsultationQ1 ? (
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-zinc-400">{consultationLabel.q1}</label>
+                      <textarea
+                        rows={3}
+                        value={consultationForm.a1}
+                        onChange={(event) => setConsultationForm((prev) => ({ ...prev, a1: event.target.value }))}
+                        className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+                      />
+                    </div>
+                  ) : null}
+                  {showConsultationQ2 ? (
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-zinc-400">{consultationLabel.q2}</label>
+                      <textarea
+                        rows={3}
+                        value={consultationForm.a2}
+                        onChange={(event) => setConsultationForm((prev) => ({ ...prev, a2: event.target.value }))}
+                        className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+                      />
+                    </div>
+                  ) : null}
+                  {showConsultationQ3 ? (
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-zinc-400">{consultationLabel.q3}</label>
+                      <textarea
+                        rows={3}
+                        value={consultationForm.a3}
+                        onChange={(event) => setConsultationForm((prev) => ({ ...prev, a3: event.target.value }))}
+                        className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+                      />
+                    </div>
+                  ) : null}
+                  {showConsultationFree ? (
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-zinc-400">{consultationLabel.free}</label>
+                      <textarea
+                        rows={4}
+                        value={consultationForm.free}
+                        onChange={(event) => setConsultationForm((prev) => ({ ...prev, free: event.target.value }))}
+                        className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+                      />
+                    </div>
+                  ) : null}
+                  <Button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => void handleConsultationSubmit()}
+                    className="h-10 w-full rounded-md bg-red-600 text-sm font-bold text-white hover:bg-red-500 sm:h-11 sm:text-base"
+                  >
+                    {isSubmitting ? "送信中..." : "リクエストを送信"}
+                  </Button>
+                </div>
+              ) : null}
               {showAskSeller ? (
                 <Button
                   asChild
                   variant="outline"
-                  className="h-11 w-full rounded-md border-zinc-600 bg-zinc-900 text-base font-bold text-zinc-100 hover:border-red-500 hover:bg-zinc-800"
+                  className={cn(
+                    "h-11 w-full rounded-md border-zinc-600 bg-zinc-900 text-base font-bold text-zinc-100 hover:border-red-500 hover:bg-zinc-800",
+                    showBothSellerActions && showPreOfferFormExpanded && "[grid-area:ask]",
+                  )}
                 >
                   <Link
                     href={
@@ -1340,62 +1413,6 @@ export default function SkillDetailPage() {
               ) : null}
               {consultationAnswer?.status === "rejected" ? (
                 <p className="text-sm text-amber-300">リクエストは拒否されました。</p>
-              ) : null}
-              {userId && consultationFormOpen && consultationAnswer?.status !== "pending" ? (
-                <div className="space-y-3 rounded-md border border-zinc-700 bg-black/30 p-3">
-                  {showConsultationQ1 ? (
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-zinc-400">{consultationLabel.q1}</label>
-                      <textarea
-                        rows={3}
-                        value={consultationForm.a1}
-                        onChange={(event) => setConsultationForm((prev) => ({ ...prev, a1: event.target.value }))}
-                        className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
-                      />
-                    </div>
-                  ) : null}
-                  {showConsultationQ2 ? (
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-zinc-400">{consultationLabel.q2}</label>
-                      <textarea
-                        rows={3}
-                        value={consultationForm.a2}
-                        onChange={(event) => setConsultationForm((prev) => ({ ...prev, a2: event.target.value }))}
-                        className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
-                      />
-                    </div>
-                  ) : null}
-                  {showConsultationQ3 ? (
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-zinc-400">{consultationLabel.q3}</label>
-                      <textarea
-                        rows={3}
-                        value={consultationForm.a3}
-                        onChange={(event) => setConsultationForm((prev) => ({ ...prev, a3: event.target.value }))}
-                        className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
-                      />
-                    </div>
-                  ) : null}
-                  {showConsultationFree ? (
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-zinc-400">{consultationLabel.free}</label>
-                      <textarea
-                        rows={4}
-                        value={consultationForm.free}
-                        onChange={(event) => setConsultationForm((prev) => ({ ...prev, free: event.target.value }))}
-                        className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
-                      />
-                    </div>
-                  ) : null}
-                  <Button
-                    type="button"
-                    disabled={isSubmitting}
-                    onClick={() => void handleConsultationSubmit()}
-                    className="h-10 w-full rounded-md bg-red-600 text-sm font-bold text-white hover:bg-red-500"
-                  >
-                    {isSubmitting ? "送信中..." : "リクエストを送信"}
-                  </Button>
-                </div>
               ) : null}
               <button
                 type="button"
