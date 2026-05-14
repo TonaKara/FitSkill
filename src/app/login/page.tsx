@@ -1,6 +1,6 @@
 "use client"
 
-import { FormEvent, useEffect, useMemo, useState } from "react"
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Eye, EyeOff, Loader2, ShieldAlert } from "lucide-react"
@@ -82,6 +82,7 @@ export default function LoginPage() {
   const [isSignupVerificationRecovery, setIsSignupVerificationRecovery] = useState(false)
   const [hasSignupVerificationResent, setHasSignupVerificationResent] = useState(false)
   const [hidePostEmailLoginHelp, setHidePostEmailLoginHelp] = useState(false)
+  const peekToastShownRef = useRef(false)
 
   const isSignup = mode === "signup"
   const isReset = mode === "reset"
@@ -139,6 +140,7 @@ export default function LoginPage() {
     setVerificationPanelNotice(null)
     setMode("login")
     markSessionPostEmailConfirmLogin()
+    peekToastShownRef.current = true
     setNotice(toSuccessNotice("登録したメールアドレスとパスワードでログインすると、プロフィール設定に進めます。"))
     setHasSignupVerificationResent(hasSignupVerificationBeenResent())
     router.replace("/login", { scroll: false })
@@ -155,11 +157,56 @@ export default function LoginPage() {
     setIsSignupVerificationRecovery(true)
     setMode("login")
     markSessionPostEmailConfirmLogin()
+    peekToastShownRef.current = true
     setVerificationPanelNotice(null)
     setNotice(toSuccessNotice("登録したメールアドレスとパスワードでログインすると、プロフィール設定に進めます。"))
     setHasSignupVerificationResent(hasSignupVerificationBeenResent())
     router.replace("/login", { scroll: false })
   }, [searchParams, router])
+
+  useEffect(() => {
+    if (mode !== "login" || isReset || isAwaitingSignupVerification) {
+      return
+    }
+    if (!isLikelyEmail(normalizedEmail)) {
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const response = await fetch("/api/auth/peek-sign-in-state", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: normalizedEmail }),
+          })
+          const json = (await response.json()) as {
+            found?: boolean
+            pendingFirstPasswordLogin?: boolean
+          }
+          if (json.pendingFirstPasswordLogin) {
+            markSessionPostEmailConfirmLogin()
+            if (!peekToastShownRef.current) {
+              peekToastShownRef.current = true
+              setNotice(
+                toSuccessNotice(
+                  "登録したメールアドレスとパスワードでログインすると、プロフィール設定に進めます。",
+                ),
+              )
+            }
+            return
+          }
+          if (json.found && json.pendingFirstPasswordLogin === false) {
+            clearSessionPostEmailConfirmLogin()
+          }
+        } catch {
+          /* オフライン等ではセッション印を維持 */
+        }
+      })()
+    }, 450)
+
+    return () => window.clearTimeout(timer)
+  }, [normalizedEmail, mode, isReset, isAwaitingSignupVerification])
 
   useEffect(() => {
     if (!isAwaitingSignupVerification) {
@@ -180,6 +227,7 @@ export default function LoginPage() {
   const returnToLoginFromSignupVerification = () => {
     if (isSignupVerificationRecovery) {
       markSessionPostEmailConfirmLogin()
+      peekToastShownRef.current = true
     }
     setSignupVerificationEmail(null)
     setVerificationPanelNotice(null)
