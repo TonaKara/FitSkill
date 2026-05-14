@@ -83,6 +83,7 @@ export default function LoginPage() {
   const [hasSignupVerificationResent, setHasSignupVerificationResent] = useState(false)
   const [hidePostEmailLoginHelp, setHidePostEmailLoginHelp] = useState(false)
   const peekToastShownRef = useRef(false)
+  const authCallbackBridgeSentRef = useRef(false)
 
   const isSignup = mode === "signup"
   const isReset = mode === "reset"
@@ -128,6 +129,29 @@ export default function LoginPage() {
     isLikelyEmail(normalizedResendEmail) &&
     !resendEmailChangedFromRegistered
 
+  /**
+   * Supabase の Site URL が `/login` 等になっていると、確認リンクが `/login?code=...` や
+   * `/login?token_hash=...&type=signup` に着地し `/auth/callback` を通らない。
+   * その場合はクエリを保ったまま `/auth/callback` へ送る（`next` 欠落の signup/email は補完）。
+   */
+  useEffect(() => {
+    if (authCallbackBridgeSentRef.current) {
+      return
+    }
+    const code = searchParams.get("code")?.trim()
+    const tokenHash = searchParams.get("token_hash")?.trim()
+    const type = searchParams.get("type")?.trim()
+    if (!code && !(tokenHash && type)) {
+      return
+    }
+    authCallbackBridgeSentRef.current = true
+    const params = new URLSearchParams(searchParams.toString())
+    if (!params.get("next") && (type === "signup" || type === "email")) {
+      params.set("next", "/profile-setup")
+    }
+    router.replace(`/auth/callback?${params.toString()}`)
+  }, [router, searchParams])
+
   useEffect(() => {
     if (searchParams.get("signup_verified") !== "1") {
       return
@@ -143,7 +167,7 @@ export default function LoginPage() {
     peekToastShownRef.current = true
     setNotice(toSuccessNotice("登録したメールアドレスとパスワードでログインすると、プロフィール設定に進めます。"))
     setHasSignupVerificationResent(hasSignupVerificationBeenResent())
-    router.replace("/login", { scroll: false })
+    router.replace("/login?signup_verified=1", { scroll: false })
   }, [searchParams, router])
 
   useEffect(() => {
@@ -161,7 +185,7 @@ export default function LoginPage() {
     setVerificationPanelNotice(null)
     setNotice(toSuccessNotice("登録したメールアドレスとパスワードでログインすると、プロフィール設定に進めます。"))
     setHasSignupVerificationResent(hasSignupVerificationBeenResent())
-    router.replace("/login", { scroll: false })
+    router.replace("/login?signup_verified=1", { scroll: false })
   }, [searchParams, router])
 
   useEffect(() => {
@@ -195,9 +219,6 @@ export default function LoginPage() {
               )
             }
             return
-          }
-          if (json.found && json.pendingFirstPasswordLogin === false) {
-            clearSessionPostEmailConfirmLogin()
           }
         } catch {
           /* オフライン等ではセッション印を維持 */
