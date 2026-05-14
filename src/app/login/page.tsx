@@ -11,9 +11,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { NotificationToast } from "@/components/ui/notification-toast"
 import {
   buildSignupConfirmationRedirectUrl,
+  clearSessionPostEmailConfirmLogin,
   clearSignupPendingVerificationEmail,
   clearSignupVerificationResent,
   hasSignupVerificationBeenResent,
+  isPostEmailConfirmLoginHelpDone,
+  isSessionPostEmailConfirmLogin,
+  markPostEmailConfirmLoginHelpDone,
+  markSessionPostEmailConfirmLogin,
   markSignupVerificationResent,
   persistSignupPendingVerificationEmail,
   readSignupPendingVerificationEmail,
@@ -76,6 +81,7 @@ export default function LoginPage() {
   const [isResendingVerificationEmail, setIsResendingVerificationEmail] = useState(false)
   const [isSignupVerificationRecovery, setIsSignupVerificationRecovery] = useState(false)
   const [hasSignupVerificationResent, setHasSignupVerificationResent] = useState(false)
+  const [hidePostEmailLoginHelp, setHidePostEmailLoginHelp] = useState(false)
 
   const isSignup = mode === "signup"
   const isReset = mode === "reset"
@@ -108,13 +114,18 @@ export default function LoginPage() {
     isAwaitingSignupVerification &&
     registeredSignupEmail.length > 0 &&
     normalizedResendEmail !== registeredSignupEmail
+  const canShowPostEmailLoginHelp =
+    !isSignup &&
+    !isReset &&
+    !isAwaitingSignupVerification &&
+    isSessionPostEmailConfirmLogin() &&
+    !isPostEmailConfirmLoginHelpDone() &&
+    !hidePostEmailLoginHelp
   const canResendSignupVerification =
     isAwaitingSignupVerification &&
     !hasSignupVerificationResent &&
     isLikelyEmail(normalizedResendEmail) &&
     !resendEmailChangedFromRegistered
-
-  useEffect(() => {
     if (searchParams.get("signup_verified") !== "1") {
       return
     }
@@ -125,6 +136,7 @@ export default function LoginPage() {
     setIsSignupVerificationRecovery(false)
     setVerificationPanelNotice(null)
     setMode("login")
+    markSessionPostEmailConfirmLogin()
     setNotice(toSuccessNotice("登録したメールアドレスとパスワードでログインすると、プロフィール設定に進めます。"))
     setHasSignupVerificationResent(hasSignupVerificationBeenResent())
     router.replace("/login", { scroll: false })
@@ -140,6 +152,7 @@ export default function LoginPage() {
     setSignupVerificationEmail(pendingEmail ?? "")
     setIsSignupVerificationRecovery(true)
     setMode("login")
+    markSessionPostEmailConfirmLogin()
     setVerificationPanelNotice(null)
     setNotice(toSuccessNotice("登録したメールアドレスとパスワードでログインすると、プロフィール設定に進めます。"))
     setHasSignupVerificationResent(hasSignupVerificationBeenResent())
@@ -163,6 +176,9 @@ export default function LoginPage() {
   }
 
   const returnToLoginFromSignupVerification = () => {
+    if (isSignupVerificationRecovery) {
+      markSessionPostEmailConfirmLogin()
+    }
     setSignupVerificationEmail(null)
     setVerificationPanelNotice(null)
     setIsSignupVerificationRecovery(false)
@@ -355,8 +371,13 @@ export default function LoginPage() {
           throw error
         }
 
+        const redirectToProfileSetup = isSessionPostEmailConfirmLogin()
+        if (redirectToProfileSetup) {
+          clearSessionPostEmailConfirmLogin()
+        }
+
         setNotice(toSuccessNotice("ログインに成功しました。"))
-        router.push("/")
+        router.push(redirectToProfileSetup ? "/profile-setup" : "/")
         router.refresh()
         return
       }
@@ -573,7 +594,7 @@ export default function LoginPage() {
 
               {isSignupVerificationRecovery ? (
                 <div className="rounded-lg border border-zinc-800 bg-zinc-900/70 px-4 py-4 text-sm text-zinc-300">
-                  <p className="font-semibold text-zinc-100">ログインできない場合</p>
+                  <p className="font-semibold text-zinc-100">ログインができない場合</p>
                   <p className="mt-2 leading-relaxed text-zinc-400">
                     確認メールのリンクを開いているのにログインできないときは、次を順にお試しください。
                   </p>
@@ -843,17 +864,46 @@ export default function LoginPage() {
             )}
 
             {!isSignup && !isReset && (
-              <button
-                type="button"
-                onClick={() => {
-                  setMode("reset")
-                  setNotice(null)
-                  setPassword("")
-                }}
-                className="w-full text-right text-sm text-zinc-400 underline-offset-4 transition-colors hover:text-red-300 hover:underline"
-              >
-                パスワードを忘れた場合
-              </button>
+              <div className="space-y-3">
+                {canShowPostEmailLoginHelp ? (
+                  <div className="rounded-lg border border-zinc-700 bg-zinc-900/80 px-3 py-3 text-xs leading-relaxed text-zinc-300">
+                    <p className="font-semibold text-zinc-100">ログインができない場合</p>
+                    <ul className="mt-2 list-disc space-y-1.5 pl-4">
+                      <li>メールアドレスとパスワードの入力ミスがないかご確認ください。</li>
+                      <li>確認メール直後の場合は、迷惑メールフォルダや宛先の打ち間違いもご確認ください。</li>
+                      <li>パスワードを忘れた場合は、下の「パスワードを忘れた場合」から再設定できます。</li>
+                      <li>
+                        それでも解決しない場合は{" "}
+                        <Link href="/contact" className="text-red-400 underline hover:text-red-300">
+                          お問い合わせ
+                        </Link>
+                        からご連絡ください。
+                      </li>
+                    </ul>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        markPostEmailConfirmLoginHelpDone()
+                        setHidePostEmailLoginHelp(true)
+                      }}
+                      className="mt-3 w-full text-left text-xs text-zinc-500 underline-offset-4 transition-colors hover:text-zinc-300 hover:underline"
+                    >
+                      この案内を表示しない
+                    </button>
+                  </div>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("reset")
+                    setNotice(null)
+                    setPassword("")
+                  }}
+                  className="w-full text-right text-sm text-zinc-400 underline-offset-4 transition-colors hover:text-red-300 hover:underline"
+                >
+                  パスワードを忘れた場合
+                </button>
+              </div>
             )}
 
             {isReset && (

@@ -34,7 +34,11 @@ import {
   isValidCustomIdFormat,
   normalizeCustomId,
 } from "@/lib/profile-path"
-import { clearSignupPendingVerificationEmail, clearSignupVerificationResent } from "@/lib/auth-email-flow"
+import {
+  clearSignupPendingVerificationEmail,
+  clearSignupVerificationResent,
+  markPostEmailConfirmLoginHelpDone,
+} from "@/lib/auth-email-flow"
 import { getSiteUrl } from "@/lib/site-seo"
 
 function revokeBlobUrl(url: string) {
@@ -429,10 +433,12 @@ export default function ProfileSetupPage() {
         })
         await loadProfile()
         router.refresh()
+        markPostEmailConfirmLoginHelpDone()
         return
       }
 
       setNotice({ variant: "success", message: "プロフィールを保存しました。" })
+      markPostEmailConfirmLoginHelpDone()
       window.setTimeout(() => {
         router.push("/")
         router.refresh()

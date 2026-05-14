@@ -86,3 +86,44 @@ export function clearSignupVerificationResent(): void {
   }
   window.sessionStorage.removeItem(SIGNUP_VERIFICATION_RESENT_KEY)
 }
+
+/** メール確認後にログイン画面から入った初回ログインで `/profile-setup` へ誘導するためのセッション印 */
+const POST_EMAIL_CONFIRM_LOGIN_SESSION_KEY = "gritvib.post_email_confirm_login.v1"
+
+/** ログイン画面の「ログインができない場合」案内を二度と出さない（初回のみ用） */
+const POST_EMAIL_CONFIRM_LOGIN_HELP_DONE_KEY = "gritvib.post_email_confirm_login_help_done.v1"
+
+export function markSessionPostEmailConfirmLogin(): void {
+  if (typeof window === "undefined") {
+    return
+  }
+  window.sessionStorage.setItem(POST_EMAIL_CONFIRM_LOGIN_SESSION_KEY, "1")
+}
+
+export function isSessionPostEmailConfirmLogin(): boolean {
+  if (typeof window === "undefined") {
+    return false
+  }
+  return window.sessionStorage.getItem(POST_EMAIL_CONFIRM_LOGIN_SESSION_KEY) === "1"
+}
+
+export function clearSessionPostEmailConfirmLogin(): void {
+  if (typeof window === "undefined") {
+    return
+  }
+  window.sessionStorage.removeItem(POST_EMAIL_CONFIRM_LOGIN_SESSION_KEY)
+}
+
+export function isPostEmailConfirmLoginHelpDone(): boolean {
+  if (typeof window === "undefined") {
+    return false
+  }
+  return window.localStorage.getItem(POST_EMAIL_CONFIRM_LOGIN_HELP_DONE_KEY) === "1"
+}
+
+export function markPostEmailConfirmLoginHelpDone(): void {
+  if (typeof window === "undefined") {
+    return
+  }
+  window.localStorage.setItem(POST_EMAIL_CONFIRM_LOGIN_HELP_DONE_KEY, "1")
+}
