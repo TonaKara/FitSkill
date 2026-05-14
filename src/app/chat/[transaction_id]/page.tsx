@@ -1216,22 +1216,6 @@ export default function ChatTransactionPage() {
           }
         }
       }
-      if (transaction) {
-        void createTransactionNotification(supabase, {
-          recipient_id: String(transaction.seller_id),
-          type: NOTIFICATION_TYPE.completion_approved,
-          content: "取引が買主により承認され、完了しました。",
-          reason: `transaction_id:${String(transactionId)}`,
-        }).then(({ error: nErr }) => {
-          if (nErr) {
-            console.error("[tx-complete] createTransactionNotification (approved)", {
-              message: nErr.message,
-              code: nErr.code,
-              details: nErr.details,
-            })
-          }
-        })
-      }
       setApproveAgreementOpen(false)
       await loadTransactionAndPeer()
     } catch (error) {

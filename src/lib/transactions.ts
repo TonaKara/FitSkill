@@ -312,6 +312,15 @@ export async function autoCompleteTransactions(
       } catch {
         // メール通知失敗で自動完了処理を失敗扱いにしない
       }
+      try {
+        await fetch("/api/notifications/transaction-completed-inapp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ transactionId: txId }),
+        })
+      } catch {
+        // アプリ内通知失敗で自動完了処理を失敗扱いにしない
+      }
     }
   }
 

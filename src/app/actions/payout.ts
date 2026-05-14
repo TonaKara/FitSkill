@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { sendUserEventEmail } from "@/lib/event-email"
 import { getAppBaseUrl } from "@/lib/site-seo"
+import { insertTransactionCompletedInAppNotifications } from "@/lib/transaction-completed-inapp"
 
 type AdminProfileRow = {
   is_admin: boolean | null
@@ -54,9 +55,15 @@ async function getAuthedSupabase() {
   return { supabase, user }
 }
 
+export type CompleteTransactionWithPayoutOptions = {
+  /** 通常完了時のアプリ内通知文言。未指定時は購入者が承認した扱い。 */
+  standardCompletionNotice?: "buyer_approved" | "timeout"
+}
+
 export async function completeTransactionWithPayout(
   transactionId: string,
   mode: CompleteTransactionWithPayoutMode = "standard",
+  options?: CompleteTransactionWithPayoutOptions,
 ) {
   if (!transactionId?.trim()) {
     throw new Error("transactionId is required")
@@ -92,6 +99,9 @@ export async function completeTransactionWithPayout(
   if (tx.status === "completed") {
     return { success: true as const, transactionId: tx.id, alreadyCompleted: true as const }
   }
+
+  const noticeKind: "buyer_approved" | "timeout" =
+    options?.standardCompletionNotice === "timeout" ? "timeout" : "buyer_approved"
 
   if (mode === "standard" && tx.buyer_id !== user.id) {
     throw new Error("この取引を完了できるのは購入者のみです。")
@@ -144,6 +154,13 @@ export async function completeTransactionWithPayout(
     }
     if (!updated?.length) {
       throw new Error("Transaction was not in approval_pending status.")
+    }
+  }
+
+  if (mode === "standard") {
+    const { error: inAppErr } = await insertTransactionCompletedInAppNotifications(supabaseAdmin, tx, noticeKind)
+    if (inAppErr) {
+      console.error("[completeTransactionWithPayout] in-app notify failed", inAppErr)
     }
   }
 
@@ -224,7 +241,7 @@ export async function autoCompleteMyPendingTransactionsWithPayout() {
     if (!txId) {
       continue
     }
-    await completeTransactionWithPayout(txId, "standard")
+    await completeTransactionWithPayout(txId, "standard", { standardCompletionNotice: "timeout" })
     completedCount += 1
   }
 

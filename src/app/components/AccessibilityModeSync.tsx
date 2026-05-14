@@ -6,18 +6,20 @@ const ACCENT_COLOR_STORAGE_KEY = "accent_color_value"
 const DEFAULT_ACCENT_COLOR = "#e64a19"
 
 export const ACCENT_COLOR_OPTIONS = [
-  { id: "orange", label: "Orange（デフォルト）", value: "#e64a19" },
-  /** ボタン塗りと前景のコントラスト改善（旧 #d69e00） */
-  { id: "yellow", label: "Yellow", value: "#b45309" },
-  { id: "blue", label: "Blue", value: "#2563eb" },
+  { id: "orange", label: "オレンジ（デフォルト）", value: "#e64a19" },
+  /** 黄系として認識しやすい色（旧茶寄り amber #b45309 は #eab308 へ寄せる） */
+  { id: "yellow", label: "黄", value: "#eab308" },
+  { id: "blue", label: "青", value: "#2563eb" },
   /** primary-foreground との AA 確保（旧 #2f855a） */
-  { id: "green", label: "Green", value: "#276749" },
+  { id: "green", label: "緑", value: "#276749" },
 ] as const
 
 /** localStorage に残った旧 Hex を現行パレットへ寄せる */
 const LEGACY_ACCENT_HEX: Record<string, string> = {
   "#c62828": "#e64a19",
-  "#d69e00": "#b45309",
+  "#d69e00": "#eab308",
+  /** 旧 Yellow プリセット（茶寄り amber）→ 黄寄りに更新 */
+  "#b45309": "#eab308",
   "#2f855a": "#276749",
 }
 
