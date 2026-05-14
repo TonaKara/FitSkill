@@ -125,11 +125,7 @@ export default function LoginPage() {
     setIsSignupVerificationRecovery(false)
     setVerificationPanelNotice(null)
     setMode("login")
-    setNotice(
-      toSuccessNotice(
-        "メールアドレスの確認はすでに完了しています。登録時とは別のブラウザや端末から続ける場合でも、登録したメールアドレスとパスワードでログインすればプロフィール設定に進めます。",
-      ),
-    )
+    setNotice(toSuccessNotice("登録したメールアドレスとパスワードでログインすると、プロフィール設定に進めます。"))
     setHasSignupVerificationResent(hasSignupVerificationBeenResent())
     router.replace("/login", { scroll: false })
   }, [searchParams, router])
@@ -144,14 +140,11 @@ export default function LoginPage() {
     setSignupVerificationEmail(pendingEmail ?? "")
     setIsSignupVerificationRecovery(true)
     setMode("login")
-    setNotice(null)
-    setVerificationPanelNotice({
-      variant: "success",
-      message:
-        "確認メールのリンクを開けている場合、メールアドレスの確認はほとんどの場合すでに完了しています。まずは登録したメールアドレスとパスワードでログインしてください。ログイン後にプロフィール設定へ進めます。\n\nログインできないときだけ、下から確認メールの再送や宛先の確認をお試しください。",
-    })
+    setVerificationPanelNotice(null)
+    setNotice(toSuccessNotice("登録したメールアドレスとパスワードでログインすると、プロフィール設定に進めます。"))
     setHasSignupVerificationResent(hasSignupVerificationBeenResent())
-  }, [searchParams])
+    router.replace("/login", { scroll: false })
+  }, [searchParams, router])
 
   useEffect(() => {
     if (!isAwaitingSignupVerification) {
@@ -459,7 +452,7 @@ export default function LoginPage() {
             <CardDescription className="mt-1 text-zinc-400">
               {isAwaitingSignupVerification
                 ? isSignupVerificationRecovery
-                  ? "リンクを開いたあとは、まずログインからお試しください。必要なときだけ確認メールの再送をご利用ください。"
+                  ? "ログインするとプロフィール設定に進めます。うまくいかないときの案内は下記をご覧ください。"
                   : "確認メールのリンクを開いて認証を完了してください。認証後にプロフィール設定へ進みます。"
                 : isSignup
                   ? "メールアドレスでアカウントを作成します。確認メールのリンクを開いたあと、プロフィール設定に進みます。"
@@ -532,7 +525,7 @@ export default function LoginPage() {
                 </p>
                 <p className="mt-3 text-zinc-300">
                   {isSignupVerificationRecovery
-                    ? "まずは登録したメールアドレスとパスワードでログインしてください。ログインできない場合のみ、宛先を確認のうえ確認メールの再送をお試しください。"
+                    ? "登録したメールアドレスとパスワードでログインすると、プロフィール設定に進めます。"
                     : "認証用メールを送信しました。メール内のリンクを開いて認証を完了してください。認証後にプロフィール設定へ進みます。"}
                 </p>
               </div>
@@ -568,7 +561,7 @@ export default function LoginPage() {
               {verificationPanelNotice ? (
                 <div
                   className={cn(
-                    "rounded-lg border px-4 py-3 text-sm leading-relaxed",
+                    "rounded-lg border px-4 py-3 text-sm leading-relaxed whitespace-pre-line",
                     verificationPanelNotice.variant === "error"
                       ? "border-red-500/40 bg-red-500/10 text-red-100"
                       : "border-emerald-500/30 bg-emerald-500/10 text-emerald-100",
@@ -578,23 +571,47 @@ export default function LoginPage() {
                 </div>
               ) : null}
 
-              <div className="rounded-lg border border-zinc-800 bg-zinc-900/70 px-4 py-4 text-sm text-zinc-300">
-                <p className="font-semibold text-zinc-100">メールが届かない場合</p>
-                <ul className="mt-3 list-disc space-y-2 pl-5">
-                  <li>迷惑メールフォルダやプロモーションタブをご確認ください。</li>
-                  {hasSignupVerificationResent ? (
-                    <>
-                      <li>確認メールの再送は1回までです。届かない場合はお問い合わせください。</li>
-                      <li>メールアドレスを間違えた場合は、「このメールアドレスで登録し直す」をお試しください。</li>
-                    </>
-                  ) : (
-                    <>
-                      <li>数分待ってから、宛先を確認して「確認メールを再送する」をお試しください（1回まで）。</li>
-                      <li>メールアドレスを間違えた場合は、入力欄を直して「このメールアドレスで登録し直す」をお試しください。</li>
-                    </>
-                  )}
-                </ul>
-              </div>
+              {isSignupVerificationRecovery ? (
+                <div className="rounded-lg border border-zinc-800 bg-zinc-900/70 px-4 py-4 text-sm text-zinc-300">
+                  <p className="font-semibold text-zinc-100">ログインできない場合</p>
+                  <p className="mt-2 leading-relaxed text-zinc-400">
+                    確認メールのリンクを開いているのにログインできないときは、次を順にお試しください。
+                  </p>
+                  <ul className="mt-3 list-disc space-y-2 pl-5">
+                    <li>メールアドレスとパスワードの入力ミスがないかご確認ください。</li>
+                    <li>迷惑メールフォルダやプロモーションタブをご確認ください。</li>
+                    {hasSignupVerificationResent ? (
+                      <>
+                        <li>確認メールの再送は1回までです。届かない場合はお問い合わせください。</li>
+                        <li>メールアドレスを間違えて登録した場合は、「このメールアドレスで登録し直す」をお試しください。</li>
+                      </>
+                    ) : (
+                      <>
+                        <li>数分待ってから、宛先を確認のうえ「確認メールを再送する」をお試しください（1回まで）。</li>
+                        <li>メールアドレスを間違えて登録した場合は、入力欄を直して「このメールアドレスで登録し直す」をお試しください。</li>
+                      </>
+                    )}
+                  </ul>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-zinc-800 bg-zinc-900/70 px-4 py-4 text-sm text-zinc-300">
+                  <p className="font-semibold text-zinc-100">メールが届かない場合</p>
+                  <ul className="mt-3 list-disc space-y-2 pl-5">
+                    <li>迷惑メールフォルダやプロモーションタブをご確認ください。</li>
+                    {hasSignupVerificationResent ? (
+                      <>
+                        <li>確認メールの再送は1回までです。届かない場合はお問い合わせください。</li>
+                        <li>メールアドレスを間違えた場合は、「このメールアドレスで登録し直す」をお試しください。</li>
+                      </>
+                    ) : (
+                      <>
+                        <li>数分待ってから、宛先を確認して「確認メールを再送する」をお試しください（1回まで）。</li>
+                        <li>メールアドレスを間違えた場合は、入力欄を直して「このメールアドレスで登録し直す」をお試しください。</li>
+                      </>
+                    )}
+                  </ul>
+                </div>
+              )}
 
               {hasSignupVerificationResent ? (
                 <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-4 text-sm leading-relaxed text-amber-100">
