@@ -6,7 +6,6 @@ import type { EmailOtpType } from "@supabase/supabase-js"
 import { Loader2 } from "lucide-react"
 import {
   buildSignupVerifiedLoginUrl,
-  isLikelySignupEmailAlreadyVerifiedOnServer,
   isSignupEmailConfirmationNextPath,
   sanitizeAuthNextPath,
 } from "@/lib/auth-email-flow"
@@ -60,14 +59,21 @@ export default function AuthCallbackPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   useEffect(() => {
+    const url = new URL(window.location.href)
+    const nextPath = sanitizeAuthNextPath(url.searchParams.get("next"))
+    /** 新規登録のメール確認リンクのみ。セッション化に失敗しても Supabase 側で確認済みのことが多いので常にログイン誘導へ統一する */
+    const signupConfirmationFlow = isSignupEmailConfirmationNextPath(nextPath)
+
+    const redirectLoginOrVerified = (reason: FailureReason) => {
+      router.replace(signupConfirmationFlow ? buildSignupVerifiedLoginUrl() : buildLoginRedirectUrl(reason))
+    }
+
     const run = async () => {
       const supabase = getSupabaseBrowserClient()
-      const url = new URL(window.location.href)
-      const nextPath = sanitizeAuthNextPath(url.searchParams.get("next"))
 
       const oauthError = url.searchParams.get("error")?.trim()
       if (oauthError) {
-        router.replace(buildLoginRedirectUrl("exchange_failed"))
+        redirectLoginOrVerified("exchange_failed")
         return
       }
 
@@ -100,14 +106,7 @@ export default function AuthCallbackPage() {
           await establishSessionAndRedirect()
           return
         }
-        if (
-          isSignupEmailConfirmationNextPath(nextPath) &&
-          isLikelySignupEmailAlreadyVerifiedOnServer(error.message)
-        ) {
-          router.replace(buildSignupVerifiedLoginUrl())
-          return
-        }
-        router.replace(buildLoginRedirectUrl(resolveFailureReasonFromMessage(error.message)))
+        redirectLoginOrVerified(resolveFailureReasonFromMessage(error.message))
         return
       }
 
@@ -126,15 +125,7 @@ export default function AuthCallbackPage() {
           await establishSessionAndRedirect()
           return
         }
-        if (
-          isSignupEmailConfirmationNextPath(nextPath) &&
-          error.message &&
-          isLikelySignupEmailAlreadyVerifiedOnServer(error.message)
-        ) {
-          router.replace(buildSignupVerifiedLoginUrl())
-          return
-        }
-        router.replace(buildLoginRedirectUrl("otp_failed"))
+        redirectLoginOrVerified("otp_failed")
         return
       }
 
@@ -144,23 +135,15 @@ export default function AuthCallbackPage() {
         return
       }
 
-      router.replace(buildLoginRedirectUrl("missing"))
+      redirectLoginOrVerified("missing")
     }
 
     void run().catch((e: unknown) => {
       console.error("[auth/callback]", e)
-      setErrorMessage("認証処理中にエラーが発生しました。")
-      try {
-        const url = new URL(window.location.href)
-        const nextPath = sanitizeAuthNextPath(url.searchParams.get("next"))
-        if (isSignupEmailConfirmationNextPath(nextPath)) {
-          router.replace(buildSignupVerifiedLoginUrl())
-          return
-        }
-      } catch {
-        /* fall through */
+      if (!signupConfirmationFlow) {
+        setErrorMessage("認証処理中にエラーが発生しました。")
       }
-      router.replace(buildLoginRedirectUrl("exchange_failed"))
+      redirectLoginOrVerified("exchange_failed")
     })
   }, [router])
 

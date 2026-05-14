@@ -82,7 +82,7 @@ export default function LoginPage() {
   const isAwaitingSignupVerification = signupVerificationEmail !== null
   const title = useMemo(() => {
     if (isAwaitingSignupVerification) {
-      return "メール認証の確認"
+      return isSignupVerificationRecovery ? "ログインへ進む" : "メール確認の案内"
     }
     if (isSignup) {
       return "新規登録"
@@ -127,7 +127,7 @@ export default function LoginPage() {
     setMode("login")
     setNotice(
       toSuccessNotice(
-        "メールアドレスの確認は完了しています。登録したメールアドレスとパスワードでログインすると、プロフィール設定に進めます。",
+        "メールアドレスの確認はすでに完了しています。登録時とは別のブラウザや端末から続ける場合でも、登録したメールアドレスとパスワードでログインすればプロフィール設定に進めます。",
       ),
     )
     setHasSignupVerificationResent(hasSignupVerificationBeenResent())
@@ -139,20 +139,6 @@ export default function LoginPage() {
       return
     }
 
-    const reason = searchParams.get("reason")
-    let message =
-      "メール認証に失敗しました。登録したメールアドレスを確認し、確認メールを再送してください。"
-    if (reason === "missing") {
-      message =
-        "メール内の認証リンクが不完全です。メール全文からリンクを開き直すか、確認メールを再送してください。"
-    } else if (reason === "session_context") {
-      message =
-        "登録したのと同じブラウザで認証リンクを開いてください。別端末やアプリ内ブラウザの場合は、確認メールの再送をお試しください。"
-    } else if (reason === "exchange_failed" || reason === "otp_failed") {
-      message =
-        "認証リンクの有効期限切れ、または既に使用済みの可能性があります。確認メールを再送してください。"
-    }
-
     const pendingEmail = readSignupPendingVerificationEmail()
     setEmail(pendingEmail ?? "")
     setSignupVerificationEmail(pendingEmail ?? "")
@@ -160,8 +146,9 @@ export default function LoginPage() {
     setMode("login")
     setNotice(null)
     setVerificationPanelNotice({
-      variant: "error",
-      message,
+      variant: "success",
+      message:
+        "確認メールのリンクを開けている場合、メールアドレスの確認はほとんどの場合すでに完了しています。まずは登録したメールアドレスとパスワードでログインしてください。ログイン後にプロフィール設定へ進めます。\n\nログインできないときだけ、下から確認メールの再送や宛先の確認をお試しください。",
     })
     setHasSignupVerificationResent(hasSignupVerificationBeenResent())
   }, [searchParams])
@@ -472,7 +459,7 @@ export default function LoginPage() {
             <CardDescription className="mt-1 text-zinc-400">
               {isAwaitingSignupVerification
                 ? isSignupVerificationRecovery
-                  ? "認証リンクを開けませんでした。登録したメールアドレスを入力し、確認メールを再送できます。"
+                  ? "リンクを開いたあとは、まずログインからお試しください。必要なときだけ確認メールの再送をご利用ください。"
                   : "確認メールのリンクを開いて認証を完了してください。認証後にプロフィール設定へ進みます。"
                 : isSignup
                   ? "メールアドレスでアカウントを作成します。確認メールのリンクを開いたあと、プロフィール設定に進みます。"
@@ -539,11 +526,13 @@ export default function LoginPage() {
             <div className="space-y-5">
               <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-4 text-sm leading-relaxed text-zinc-100">
                 <p className="font-semibold text-emerald-200">
-                  {isSignupVerificationRecovery ? "メール認証を完了できませんでした" : "確認メールを送信しました。"}
+                  {isSignupVerificationRecovery
+                    ? "メールの確認は、リンクを開いたら完了していることがほとんどです"
+                    : "確認メールを送信しました。"}
                 </p>
                 <p className="mt-3 text-zinc-300">
                   {isSignupVerificationRecovery
-                    ? "登録したメールアドレスを入力し、確認メールを再送してください。届いた最新のリンクを開いて認証を完了すると、プロフィール設定へ進みます。"
+                    ? "まずは登録したメールアドレスとパスワードでログインしてください。ログインできない場合のみ、宛先を確認のうえ確認メールの再送をお試しください。"
                     : "認証用メールを送信しました。メール内のリンクを開いて認証を完了してください。認証後にプロフィール設定へ進みます。"}
                 </p>
               </div>

@@ -28,33 +28,6 @@ export function isSignupEmailConfirmationNextPath(nextPath: string): boolean {
   return sanitizeAuthNextPath(nextPath) === sanitizeAuthNextPath(SIGNUP_CONFIRMATION_NEXT_PATH)
 }
 
-/**
- * 別ブラウザで PKCE の code verifier が無い・確認リンクの再開など、
- * Supabase 側ではメール確認済みだがこのブラウザではセッション化できないときのエラー文言。
- */
-export function isLikelySignupEmailAlreadyVerifiedOnServer(errorMessage: string): boolean {
-  const m = String(errorMessage ?? "").toLowerCase()
-  if (!m.trim()) {
-    return false
-  }
-  return (
-    m.includes("code verifier") ||
-    m.includes("pkce") ||
-    m.includes("both auth code and code verifier") ||
-    m.includes("flow_state") ||
-    m.includes("invalid_grant") ||
-    m.includes("invalid request") ||
-    m.includes("session missing") ||
-    m.includes("auth session missing") ||
-    m.includes("email link is invalid") ||
-    m.includes("expired or is invalid") ||
-    m.includes("already been") ||
-    m.includes("already used") ||
-    m.includes("one-time password") ||
-    m.includes("otp expired")
-  )
-}
-
 export function buildSignupVerifiedLoginUrl(): string {
   return "/login?signup_verified=1"
 }

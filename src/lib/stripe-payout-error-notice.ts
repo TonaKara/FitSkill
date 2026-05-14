@@ -7,7 +7,7 @@ function resolveStripePayoutOperationErrorDetail(detail: string): string | null 
     normalized.includes("complete your platform profile") ||
     normalized.includes("connect/accounts/overview")
   ) {
-    return "GritVib 側の Stripe Connect プラットフォーム設定（担当者アンケート）が未完了です。Stripe ダッシュボードの Connect 設定を開き、アンケートを完了してから再度お試しください。"
+    return "振込先の登録を続行するための準備が整っていません。時間を置いて再度お試しください。解決しない場合はお問い合わせください。"
   }
 
   if (
@@ -19,7 +19,7 @@ function resolveStripePayoutOperationErrorDetail(detail: string): string | null 
 
   // DB の BEFORE UPDATE 等で Unauthorized（P0001）が返るケース（service_role では auth.uid() が NULL）
   if (normalized === "unauthorized") {
-    return "データベース側の制限で保存できませんでした。Supabase に未適用のマイグレーション（profiles の Stripe 列まわり）がないか確認してください。"
+    return "振込先の情報を保存できませんでした。時間を置いて再度お試しください。解決しない場合はお問い合わせください。"
   }
 
   if (
@@ -36,7 +36,7 @@ function resolveStripePayoutOperationErrorDetail(detail: string): string | null 
   return null
 }
 
-/** Stripe 売上・振込まわりの暫定デバッグ表示（原因切り分け用） */
+/** Stripe 売上・振込まわりのユーザー向けエラー文言 */
 export function formatStripePayoutOperationErrorMessage(
   detail: string | null | undefined,
   fallback: string,
@@ -54,12 +54,11 @@ export function formatStripePayoutOperationErrorMessage(
   if (trimmed === fallback) {
     return trimmed
   }
-  return `${fallback} 詳細: ${trimmed}`
+  return fallback
 }
 
 /**
- * Stripe 講師オンボーディング URL 取得失敗時のユーザー表示用（本番切り分け・一時運用）。
- * サーバーが `return { ok: false, error }` で返した文言をそのまま見せ、マッピングがある場合は案内を併記する。
+ * Stripe 講師オンボーディング URL 取得失敗時のユーザー表示用。
  */
 export function formatStripeOnboardingUrlErrorForUser(detail: string | null | undefined, fallback: string): string {
   const trimmed = detail?.trim()
@@ -67,8 +66,8 @@ export function formatStripeOnboardingUrlErrorForUser(detail: string | null | un
     return fallback
   }
   const mapped = resolveStripePayoutOperationErrorDetail(trimmed)
-  if (!mapped || mapped === trimmed) {
-    return trimmed
+  if (mapped) {
+    return mapped
   }
-  return `${trimmed}（案内: ${mapped}）`
+  return fallback
 }

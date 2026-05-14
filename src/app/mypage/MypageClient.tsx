@@ -1944,7 +1944,7 @@ export default function MypageClient() {
           "名前の変更は30日に1回のみ可能です。表示名以外の内容を保存しました。",
           avatarSkippedDueToMissingBucket
             ? isAdmin
-              ? " アイコン画像は Storage の「avatars」バケットが未作成のため保存できませんでした。"
+              ? " アイコン画像はサービス上の準備が整うまで保存できませんでした。"
               : " アイコン画像は保存できませんでした。"
             : "",
         ].join(""),
@@ -1990,7 +1990,7 @@ export default function MypageClient() {
       variant: "success",
       message: avatarSkippedDueToMissingBucket
         ? isAdmin
-          ? "プロフィールを保存しました。アイコン画像は Storage の「avatars」バケットが未設定のためアップロードできませんでした。ダッシュボードでバケットとポリシーを確認してください。"
+          ? "プロフィールを保存しました。アイコン画像はサービス上の準備が整うまで保存できませんでした。"
           : "プロフィールを保存しました。アイコン画像は保存できませんでした。しばらくしてから再度お試しください。"
         : "プロフィールを保存しました。",
     })
@@ -3419,7 +3419,7 @@ export default function MypageClient() {
                 </div>
 
                 <div className="mt-8 border-t border-zinc-800 pt-8">
-                  <h2 className="text-sm font-semibold text-zinc-200">セッション</h2>
+                  <h2 className="text-sm font-semibold text-zinc-200">ログイン状態</h2>
                   <p className="mt-2 text-sm leading-relaxed text-zinc-400">
                     ログアウトすると、このブラウザでのログイン状態が解除されます。
                   </p>

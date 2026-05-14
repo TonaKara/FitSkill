@@ -424,7 +424,7 @@ export default function ProfileSetupPage() {
         setNotice({
           variant: "success",
           message: isAdmin
-            ? "プロフィールの内容は保存しました。アイコン画像は Storage の「avatars」バケットが未設定のためアップロードできませんでした。ダッシュボードでバケットとポリシーを確認してください。"
+            ? "プロフィールの内容は保存しました。アイコン画像はサービス上の準備が整うまでアップロードできませんでした。"
             : "プロフィールを保存しました。アイコン画像は保存できませんでした。しばらくしてから再度お試しください。",
         })
         await loadProfile()

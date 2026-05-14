@@ -85,7 +85,7 @@ export function AdminAnnouncementsList() {
             details: (error as { details?: string }).details ?? null,
             hint: (error as { hint?: string }).hint ?? null,
           })
-          setNotice({ variant: "error", message: "お知らせの削除に失敗しました（notifications テーブルを確認してください）。" })
+          setNotice({ variant: "error", message: "お知らせの削除に失敗しました。時間を置いて再度お試しください。" })
           return
         }
 

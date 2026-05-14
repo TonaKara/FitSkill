@@ -1220,7 +1220,7 @@ export default function ChatTransactionPage() {
       await loadTransactionAndPeer()
     } catch (error) {
       if (error instanceof Error && error.message === "AUTH_REQUIRED") {
-        setNotice({ variant: "error", message: "ログインセッションが切れました。再度ログインしてください。" })
+        setNotice({ variant: "error", message: "ログインの有効期限が切れました。再度ログインしてください。" })
         router.push("/login")
         return
       }

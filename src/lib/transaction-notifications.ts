@@ -79,26 +79,19 @@ export function userFacingAnnouncementRpcMessage(error: NotificationError): stri
     return "管理権限がありません。この操作を行う権限がありません。"
   }
   if (s === 404) {
-    return "お知らせ配信の呼び先が見つかりません。RPC がデプロイされているか、API 設定を確認してください。"
+    return "お知らせを送信できませんでした。時間を置いて再度お試しください。解決しない場合はお問い合わせください。"
   }
   const msg = error.message ?? ""
   if (/admin_required/i.test(msg) || msg.includes("admin_required")) {
     return "管理権限がありません。この操作を行う権限がありません。"
   }
   if (/not_authenticated/i.test(msg) || msg.includes("not_authenticated")) {
-    return "ログインが必要です。セッションを確認してください。"
+    return "ログインが必要です。再度ログインしてからお試しください。"
   }
   if (/row-level security|violates row-level security/i.test(msg)) {
-    return "お知らせ配信がデータベースの権限設定により拒否されました。send_admin_notification のマイグレーション適用を確認してください。"
+    return "お知らせを送信できませんでした。時間を置いて再度お試しください。解決しない場合はお問い合わせください。"
   }
-  const maybeSchemaIssue =
-    msg.includes("send_admin_notification") ||
-    msg.includes("schema cache") ||
-    msg.includes("Could not find the function")
-  if (maybeSchemaIssue) {
-    return `お知らせ配信に失敗しました: ${msg}（Supabase の API スキーマをリロード済みか確認してください）`
-  }
-  return `お知らせ配信に失敗しました: ${msg}`
+  return "お知らせを送信できませんでした。時間を置いて再度お試しください。解決しない場合はお問い合わせください。"
 }
 
 function serializeRpcError(error: {

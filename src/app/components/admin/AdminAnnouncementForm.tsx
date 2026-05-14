@@ -70,7 +70,7 @@ export function AdminAnnouncementForm() {
     event.preventDefault()
     const ok = await verifyAdmin()
     if (!ok) {
-      setNotice({ variant: "error", message: "管理者権限が必要です（profiles.is_admin=true を確認してください）。" })
+      setNotice({ variant: "error", message: "この操作には管理者としてのログインが必要です。" })
       return
     }
     const trimmedTitle = title.trim()

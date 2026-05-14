@@ -57,11 +57,11 @@ function consumeAttempt(store: Map<string, RateLimitEntry>, key: string, limit: 
 const GENERIC_MESSAGE = "確認メールを再送しました。受信ボックスをご確認ください。"
 const FAILURE_MESSAGE = "確認メールの再送に失敗しました。時間を置いて再度お試しください。"
 const CONFIG_FAILURE_MESSAGE =
-  "確認メールの再送設定が不足しています。RESEND_API_KEY、RESEND_FROM_EMAIL、SUPABASE_SERVICE_ROLE_KEY を確認してください。"
+  "現在、確認メールを再送できません。しばらくしてから再度お試しください。解決しない場合はお問い合わせください。"
 const DELIVERY_FAILURE_MESSAGE =
-  "確認メールの送信に失敗しました。Resend の差出人ドメインと送信枠を確認してください。"
+  "確認メールを送信できませんでした。受信トレイと迷惑メールフォルダをご確認のうえ、時間を置いて再度お試しください。"
 const LINK_FAILURE_MESSAGE =
-  "確認メール用リンクの作成に失敗しました。Supabase の Redirect URLs を確認してください。"
+  "確認用リンクの作成に失敗しました。時間を置いて再度お試しください。解決しない場合はお問い合わせください。"
 
 function resolveFailureMessage(reason: SignupConfirmationResendFailureReason): string {
   if (reason === "missing_config") {
