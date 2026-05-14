@@ -115,6 +115,26 @@ export default function LoginPage() {
     !resendEmailChangedFromRegistered
 
   useEffect(() => {
+    if (searchParams.get("signup_verified") !== "1") {
+      return
+    }
+
+    const pending = readSignupPendingVerificationEmail()
+    setEmail(pending ?? "")
+    setSignupVerificationEmail(null)
+    setIsSignupVerificationRecovery(false)
+    setVerificationPanelNotice(null)
+    setMode("login")
+    setNotice(
+      toSuccessNotice(
+        "メールアドレスの確認は完了しています。登録したメールアドレスとパスワードでログインすると、プロフィール設定に進めます。",
+      ),
+    )
+    setHasSignupVerificationResent(hasSignupVerificationBeenResent())
+    router.replace("/login", { scroll: false })
+  }, [searchParams, router])
+
+  useEffect(() => {
     if (searchParams.get("error") !== "auth_callback") {
       return
     }
