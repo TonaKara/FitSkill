@@ -27,8 +27,8 @@ import { computeSellerFeePreview, SELLER_FEE_RATE } from "@/lib/seller-fee-previ
 
 type LessonFormat = "onsite" | "online"
 
-/** 出品価格の下限（円）。本番での小額決済テスト用に一時的に 50。テスト終了後は 500 などに戻すこと。 */
-const MIN_PRICE_YEN = 50
+/** 出品価格の下限（円） */
+const MIN_PRICE_YEN = 500
 
 function getPriceHintMessage(priceInput: string): string {
   const trimmed = priceInput.trim()
