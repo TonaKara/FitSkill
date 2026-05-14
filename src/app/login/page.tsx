@@ -126,6 +126,8 @@ export default function LoginPage() {
     !hasSignupVerificationResent &&
     isLikelyEmail(normalizedResendEmail) &&
     !resendEmailChangedFromRegistered
+
+  useEffect(() => {
     if (searchParams.get("signup_verified") !== "1") {
       return
     }
