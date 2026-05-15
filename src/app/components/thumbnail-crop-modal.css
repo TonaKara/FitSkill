@@ -46,6 +46,23 @@
     0 0 0 1px rgba(248, 113, 113, 0.35);
 }
 
+/*
+ * プロフィールアイコン: 赤枠は円形（rounded-full と同じ）。写真は正方形ビューポート全体に表示し、
+ * 円の外側だけ box-shadow で薄暗くする（枠外も位置合わせのため見える）。
+ */
+.thumbnail-crop-modal .thumbnail-crop-viewport[data-crop-shape="avatar"] .thumbnail-crop-frame {
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0 0 2px rgba(248, 113, 113, 0.95),
+    inset 0 0 0 3px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(248, 113, 113, 0.35),
+    0 0 0 9999px rgba(0, 0, 0, 0.55);
+}
+
+.thumbnail-crop-modal .thumbnail-crop-viewport[data-crop-shape="avatar"] .thumbnail-crop-grid {
+  display: none;
+}
+
 .thumbnail-crop-modal .thumbnail-crop-grid {
   background-image:
     linear-gradient(
