@@ -941,7 +941,6 @@ export default function LoginPage() {
                     <p className="font-semibold text-zinc-100">ログインができない場合</p>
                     <ul className="mt-2 list-disc space-y-1.5 pl-4">
                       <li>メールアドレスとパスワードの入力ミスがないかご確認ください。</li>
-                      <li>確認メール直後の場合は、迷惑メールフォルダや宛先の打ち間違いもご確認ください。</li>
                       <li>パスワードを忘れた場合は、下の「パスワードを忘れた場合」から再設定できます。</li>
                       <li>
                         それでも解決しない場合は{" "}
