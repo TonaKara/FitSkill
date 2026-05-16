@@ -1,3 +1,4 @@
+import { resolveProfileAvatarUrl } from "@/lib/profile-avatar"
 import { resolveSkillThumbnailUrl } from "@/lib/skill-thumbnail"
 
 export type SkillRowForCard = {
@@ -12,6 +13,7 @@ export type SkillRowForCard = {
 
 type ProfileEmbed = {
   display_name: string | null
+  avatar_url?: string | null
   rating_avg: number | null
   review_count: number | null
 }
@@ -25,11 +27,6 @@ function normalizeProfile(profiles: SkillFromDbWithProfile["profiles"]): Profile
     return null
   }
   return Array.isArray(profiles) ? (profiles[0] ?? null) : profiles
-}
-
-function instructorAvatarUrl(displayName: string): string {
-  const name = displayName.trim() || "?"
-  return `https://ui-avatars.com/api/?size=128&background=f3f4f6&color=171717&name=${encodeURIComponent(name)}`
 }
 
 /** SkillCard 用オブジェクト（講師情報を明示指定） */
@@ -65,7 +62,7 @@ export function mapSkillRowToCardSkillFromJoin(row: SkillFromDbWithProfile) {
   const instructor = profile?.display_name?.trim() || "講師"
   return mapSkillRowToCardSkillWithInstructor(row, {
     name: instructor,
-    imageUrl: instructorAvatarUrl(instructor),
+    imageUrl: resolveProfileAvatarUrl(profile?.avatar_url ?? null, instructor),
   }, {
     ratingAvg: profile?.rating_avg ?? null,
     reviewCount: profile?.review_count ?? null,

@@ -671,7 +671,7 @@ export default function ProfileSetupPage() {
               role="dialog"
               aria-modal="true"
               aria-labelledby="profile-setup-custom-id-confirm-title"
-              className="my-auto w-full max-w-md shrink-0 rounded-xl border border-zinc-700 bg-zinc-950 p-6 shadow-2xl"
+              className="my-auto w-full min-w-0 max-w-md shrink-0 overflow-hidden rounded-xl border border-zinc-700 bg-zinc-950 p-6 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <h2
@@ -683,8 +683,10 @@ export default function ProfileSetupPage() {
               <p className="mt-3 text-sm leading-relaxed text-zinc-300">
                 このIDで設定すると、プロフィールURLは以下になります。
               </p>
-              <div className="mt-3 rounded-lg border border-red-500/35 bg-zinc-900 px-3 py-2 font-mono text-sm text-red-200 break-all">
-                {siteBaseUrl}/profile/{pendingCustomIdForConfirm}
+              <div className="mt-3 min-w-0 w-full overflow-hidden rounded-lg border border-red-500/35 bg-zinc-900 px-3 py-2">
+                <p className="font-mono text-xs leading-relaxed break-all text-red-200 [overflow-wrap:anywhere] sm:text-sm">
+                  {siteBaseUrl}/profile/{pendingCustomIdForConfirm}
+                </p>
               </div>
               <p className="mt-3 text-sm leading-relaxed text-zinc-300">
                 カスタムIDは一度設定すると変更できません。この内容で保存しますか？

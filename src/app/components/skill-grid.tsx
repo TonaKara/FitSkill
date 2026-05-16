@@ -50,7 +50,7 @@ export const DEFAULT_HOME_SKILL_FILTERS: HomeSkillFilters = {
 const DEMO_SKILLS = [
   {
     id: 1,
-    title: "初心者から始める本格筋トレ｜3ヶ月で理想のボディを手に入れる",
+    title: "初心者向けの筋トレメニューを提案",
     instructor: "田中 健太",
     instructorImage: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face",
     category: "筋トレ",
@@ -67,7 +67,7 @@ const DEMO_SKILLS = [
   },
   {
     id: 2,
-    title: "朝ヨガで心と体をリフレッシュ｜柔軟性アップ＆ストレス解消",
+    title: "朝ヨガオンラインレッスン",
     instructor: "鈴木 美咲",
     instructorImage: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face",
     category: "ヨガ",
@@ -84,7 +84,7 @@ const DEMO_SKILLS = [
   },
   {
     id: 3,
-    title: "ボクシングフィットネス｜脂肪燃焼＆ストレス発散",
+    title: "ボクシングフィットネス｜オンライン講座",
     instructor: "山田 翔太",
     instructorImage: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face",
     category: "格闘技",
@@ -101,7 +101,7 @@ const DEMO_SKILLS = [
   },
   {
     id: 4,
-    title: "HIITで効率的に脂肪燃焼｜1日20分の高強度トレーニング",
+    title: "ダイエッターのための運動メニューを考えます",
     instructor: "佐藤 理恵",
     instructorImage: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face",
     category: "ダイエット",
@@ -117,7 +117,7 @@ const DEMO_SKILLS = [
   },
   {
     id: 5,
-    title: "マラソン完走を目指す！初心者ランニング講座",
+    title: "初心者のためのランニング講座",
     instructor: "高橋 誠",
     instructorImage: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=face",
     category: "ランニング",
@@ -150,7 +150,7 @@ const DEMO_SKILLS = [
   },
   {
     id: 7,
-    title: "自宅でできる本格ダンスフィットネス｜K-POP編",
+    title: "K-POP完コピクラス",
     instructor: "李 ユナ",
     instructorImage: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=face",
     category: "ダンス",
@@ -167,7 +167,7 @@ const DEMO_SKILLS = [
   },
   {
     id: 8,
-    title: "上級者向け筋肥大プログラム｜科学的アプローチ",
+    title: "上級者向け筋トレメニュー作成",
     instructor: "木村 大輔",
     instructorImage: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100&h=100&fit=crop&crop=face",
     category: "筋トレ",
@@ -185,6 +185,7 @@ const DEMO_SKILLS = [
 
 type ProfileEmbed = {
   display_name: string | null
+  avatar_url?: string | null
   rating_avg: number | null
   review_count: number | null
   is_banned?: boolean | null
@@ -413,7 +414,7 @@ export function SkillGrid({ filters, sortBy, searchKeyword }: SkillGridProps) {
       const primaryQuery = await supabase
         .from("skills")
         .select(
-          "id, title, description, target_audience, category, price, duration_minutes, format, location_prefecture, max_capacity, created_at, thumbnail_url, user_id, profiles ( display_name, rating_avg, review_count, is_banned ), consultation_settings ( is_enabled )",
+          "id, title, description, target_audience, category, price, duration_minutes, format, location_prefecture, max_capacity, created_at, thumbnail_url, user_id, profiles ( display_name, avatar_url, rating_avg, review_count, is_banned ), consultation_settings ( is_enabled )",
         )
         .eq("is_published", true)
         .order("created_at", { ascending: false })
@@ -424,7 +425,7 @@ export function SkillGrid({ filters, sortBy, searchKeyword }: SkillGridProps) {
         const fallbackQuery = await supabase
           .from("skills")
           .select(
-            "id, title, description, target_audience, category, price, duration_minutes, format, location_prefecture, max_capacity, created_at, thumbnail_url, user_id, profiles ( display_name, rating_avg, review_count ), consultation_settings ( is_enabled )",
+            "id, title, description, target_audience, category, price, duration_minutes, format, location_prefecture, max_capacity, created_at, thumbnail_url, user_id, profiles ( display_name, avatar_url, rating_avg, review_count ), consultation_settings ( is_enabled )",
           )
           .eq("is_published", true)
           .order("created_at", { ascending: false })
@@ -450,7 +451,7 @@ export function SkillGrid({ filters, sortBy, searchKeyword }: SkillGridProps) {
           if (userIds.length > 0) {
             const profilePrimary = await supabase
               .from("profiles")
-              .select("id, display_name, rating_avg, review_count, is_banned")
+              .select("id, display_name, avatar_url, rating_avg, review_count, is_banned")
               .in("id", userIds)
             let profileRows = (profilePrimary.data ?? []) as Array<
               ProfileEmbed & {
@@ -460,7 +461,7 @@ export function SkillGrid({ filters, sortBy, searchKeyword }: SkillGridProps) {
             if (profilePrimary.error && isMissingBannedColumnError(profilePrimary.error.message)) {
               const profileFallback = await supabase
                 .from("profiles")
-                .select("id, display_name, rating_avg, review_count")
+                .select("id, display_name, avatar_url, rating_avg, review_count")
                 .in("id", userIds)
               profileRows = (profileFallback.data ?? []) as Array<
                 Omit<ProfileEmbed, "is_banned"> & {
@@ -475,6 +476,7 @@ export function SkillGrid({ filters, sortBy, searchKeyword }: SkillGridProps) {
               }
               acc[id] = {
                 display_name: row.display_name ?? null,
+                avatar_url: row.avatar_url ?? null,
                 rating_avg: row.rating_avg ?? null,
                 review_count: row.review_count ?? null,
                 is_banned: row.is_banned ?? null,
