@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react"
 import { AdminTableCard } from "@/components/admin/AdminTableCard"
+import { adminUi } from "@/lib/admin-ui"
+import { cn } from "@/lib/utils"
 
 const DISPUTE_HEADER_LABELS: Partial<Record<string, string>> = {
   id: "取引ID",
@@ -35,9 +37,9 @@ export default function AdminDisputesPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-black tracking-wide text-white">異議申し立て</h1>
+      <h1 className="text-3xl font-black tracking-wide text-foreground">異議申し立て</h1>
       <div className="space-y-3">
-        <label className="block text-sm font-medium text-zinc-300" htmlFor="admin-dispute-status-filter">
+        <label className={adminUi.label} htmlFor="admin-dispute-status-filter">
           処理状況で絞り込み
         </label>
         <select
@@ -46,7 +48,7 @@ export default function AdminDisputesPage() {
           onChange={(event) =>
             setDisputeStatusFilter(event.target.value as (typeof DISPUTE_STATUS_OPTIONS)[number]["value"])
           }
-          className="h-10 w-full max-w-xs rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-500"
+          className={cn("w-full max-w-xs", adminUi.select)}
         >
           {DISPUTE_STATUS_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>

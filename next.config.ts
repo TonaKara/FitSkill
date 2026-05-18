@@ -18,6 +18,9 @@ const nextConfig: NextConfig = {
       },
     ]
   },
+  async redirects() {
+    return [{ source: "/profile/:path*", destination: "/store/:path*", permanent: true }]
+  },
   async rewrites() {
     return [
       /** 誤って /api/og/skills/:id（複数形）を開いた場合も同一ハンドラへ */

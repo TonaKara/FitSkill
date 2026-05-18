@@ -5,8 +5,8 @@ import Link from "next/link"
 import { ExternalLink, Loader2, Undo2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { getIsAdminFromProfile } from "@/lib/admin"
+import { adminUi } from "@/lib/admin-ui"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
-
 type TransactionRow = {
   id: string
   created_at: string | null
@@ -250,7 +250,7 @@ export default function AdminTransactionsPage() {
 
   if (checkingAdmin) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black text-zinc-200">
+      <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
         <Loader2 className="mr-2 h-5 w-5 animate-spin text-red-500" />
         管理者権限を確認中...
       </div>
@@ -259,18 +259,18 @@ export default function AdminTransactionsPage() {
 
   if (accessDenied) {
     return (
-      <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-6">
-        <p className="text-sm text-amber-300">管理者のみアクセスできます。</p>
+      <div className="rounded-xl border border-border bg-card p-6">
+        <p className="text-sm text-amber-700 dark:text-amber-300">管理者のみアクセスできます。</p>
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-black tracking-wide text-white">取引一覧</h1>
+      <h1 className="text-3xl font-black tracking-wide text-foreground">取引一覧</h1>
 
       <div className="space-y-3">
-        <label className="block text-sm font-medium text-zinc-300" htmlFor="admin-transaction-search">
+        <label className={adminUi.label} htmlFor="admin-transaction-search">
           検索（取引ID・購入者ID・出品者ID）
         </label>
         <Input
@@ -279,34 +279,34 @@ export default function AdminTransactionsPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="取引ID または ユーザーID（購入者/出品者）"
-          className="max-w-xl border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500"
+          className={adminUi.filterInput}
         />
       </div>
 
-      <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+      <div className="rounded-xl border border-border bg-card p-4">
         {loading ? (
-          <div className="flex items-center text-sm text-zinc-400">
+          <div className="flex items-center text-sm text-muted-foreground">
             <Loader2 className="mr-2 h-4 w-4 animate-spin text-red-500" />
             読み込み中...
           </div>
         ) : errorMessage ? (
           <p className="text-sm text-red-400">{errorMessage}</p>
         ) : totalCount === 0 ? (
-          <p className="text-sm text-zinc-500">条件に一致する取引はありません</p>
+          <p className="text-sm text-muted-foreground">条件に一致する取引はありません</p>
         ) : (
           <div className="space-y-4">
             <div className="overflow-x-auto">
               <table className="min-w-full border-collapse text-left text-sm">
                 <thead>
-                  <tr className="border-b border-zinc-800">
-                    <th className="px-3 py-2 font-semibold text-zinc-300">取引ID</th>
-                    <th className="px-3 py-2 font-semibold text-zinc-300">日時</th>
-                    <th className="px-3 py-2 font-semibold text-zinc-300">スキル名</th>
-                    <th className="px-3 py-2 font-semibold text-zinc-300">金額</th>
-                    <th className="px-3 py-2 font-semibold text-zinc-300">購入者名</th>
-                    <th className="px-3 py-2 font-semibold text-zinc-300">出品者名</th>
-                    <th className="px-3 py-2 font-semibold text-zinc-300">ステータス</th>
-                    <th className="px-3 py-2 font-semibold text-zinc-300">Stripe</th>
+                  <tr className="border-b border-border">
+                    <th className="px-3 py-2 font-semibold text-muted-foreground">取引ID</th>
+                    <th className="px-3 py-2 font-semibold text-muted-foreground">日時</th>
+                    <th className="px-3 py-2 font-semibold text-muted-foreground">スキル名</th>
+                    <th className="px-3 py-2 font-semibold text-muted-foreground">金額</th>
+                    <th className="px-3 py-2 font-semibold text-muted-foreground">購入者名</th>
+                    <th className="px-3 py-2 font-semibold text-muted-foreground">出品者名</th>
+                    <th className="px-3 py-2 font-semibold text-muted-foreground">ステータス</th>
+                    <th className="px-3 py-2 font-semibold text-muted-foreground">Stripe</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -326,17 +326,17 @@ export default function AdminTransactionsPage() {
                     const statusBusy = statusUpdatingId === row.id
 
                     return (
-                      <tr key={row.id} className="border-b border-zinc-900/70">
-                        <td className="max-w-[240px] px-3 py-2 text-zinc-200">{row.id}</td>
-                        <td className="px-3 py-2 text-zinc-200">{formatDateTime(row.created_at)}</td>
-                        <td className="max-w-[260px] px-3 py-2 text-zinc-200">{skillTitleMap[skillId] ?? "—"}</td>
-                        <td className="px-3 py-2 text-zinc-200">{formatPrice(row.price)}</td>
-                        <td className="max-w-[220px] px-3 py-2 text-zinc-200">{buyerName || "—"}</td>
-                        <td className="max-w-[220px] px-3 py-2 text-zinc-200">{sellerName || "—"}</td>
-                        <td className="min-w-[11rem] px-3 py-2 text-zinc-200">
+                      <tr key={row.id} className="border-b border-border">
+                        <td className="max-w-[240px] px-3 py-2 text-foreground">{row.id}</td>
+                        <td className="px-3 py-2 text-foreground">{formatDateTime(row.created_at)}</td>
+                        <td className="max-w-[260px] px-3 py-2 text-foreground">{skillTitleMap[skillId] ?? "—"}</td>
+                        <td className="px-3 py-2 text-foreground">{formatPrice(row.price)}</td>
+                        <td className="max-w-[220px] px-3 py-2 text-foreground">{buyerName || "—"}</td>
+                        <td className="max-w-[220px] px-3 py-2 text-foreground">{sellerName || "—"}</td>
+                        <td className="min-w-[11rem] px-3 py-2 text-foreground">
                           <div className="flex flex-wrap items-center gap-2">
                             {statusRaw === "refunded" ? (
-                              <span className="inline-flex items-center rounded-lg bg-[var(--accent-color)] px-2.5 py-1 text-xs font-black tracking-wide text-white shadow-[0_0_20px_color-mix(in_srgb,var(--accent-color),transparent_50%)] ring-2 ring-white/35 ring-offset-2 ring-offset-zinc-950">
+                              <span className="inline-flex items-center rounded-lg bg-[var(--accent-color)] px-2.5 py-1 text-xs font-black tracking-wide text-white shadow-[0_0_20px_color-mix(in_srgb,var(--accent-color),transparent_50%)] ring-2 ring-white/35 ring-offset-2 ring-offset-background">
                                 返金済み
                               </span>
                             ) : (
@@ -348,7 +348,7 @@ export default function AdminTransactionsPage() {
                                     title="返金済みにする"
                                     aria-label="返金済みにする"
                                     disabled={statusBusy || loading}
-                                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-600 bg-zinc-900 text-zinc-300 transition-colors hover:border-[var(--accent-color)] hover:bg-[color-mix(in_srgb,var(--accent-color),transparent_88%)] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-colors hover:border-[var(--accent-color)] hover:bg-[color-mix(in_srgb,var(--accent-color),transparent_88%)] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                                     onClick={() => {
                                       void handleMarkTransactionRefunded(row.id)
                                     }}
@@ -369,13 +369,13 @@ export default function AdminTransactionsPage() {
                               href={stripeUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100 transition-colors hover:bg-zinc-800"
+                              className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground transition-colors hover:bg-muted"
                             >
                               Stripe
                               <ExternalLink className="h-3.5 w-3.5" />
                             </Link>
                           ) : (
-                            <span className="text-zinc-500">—</span>
+                            <span className="text-muted-foreground">—</span>
                           )}
                         </td>
                       </tr>
@@ -385,7 +385,7 @@ export default function AdminTransactionsPage() {
               </table>
             </div>
             <div className="flex items-center justify-between gap-3 text-sm">
-              <p className="text-zinc-400">
+              <p className="text-muted-foreground">
                 {totalCount}件中 {(safeCurrentPage - 1) * PAGE_SIZE + 1}-
                 {Math.min(safeCurrentPage * PAGE_SIZE, totalCount)}件を表示
               </p>
@@ -394,18 +394,18 @@ export default function AdminTransactionsPage() {
                   type="button"
                   onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                   disabled={safeCurrentPage <= 1}
-                  className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-zinc-100 transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-md border border-border bg-background px-3 py-1.5 text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   前へ
                 </button>
-                <span className="text-zinc-300">
+                <span className="text-muted-foreground">
                   {safeCurrentPage} / {totalPages}
                 </span>
                 <button
                   type="button"
                   onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                   disabled={safeCurrentPage >= totalPages}
-                  className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-zinc-100 transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-md border border-border bg-background px-3 py-1.5 text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   次へ
                 </button>

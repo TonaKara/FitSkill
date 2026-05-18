@@ -141,7 +141,7 @@ export async function POST(req: Request) {
         .eq("id", reportedUserId)
         .maybeSingle<{ display_name: string | null }>()
       targetName = (targetProfile?.display_name ?? "").trim() || `ユーザーID: ${reportedUserId}`
-      targetUrl = `${siteUrl}/profile/${encodeURIComponent(reportedUserId)}`
+      targetUrl = `${siteUrl}/store/${encodeURIComponent(reportedUserId)}`
     } else {
       const productId = Number(body.targetId)
       if (!Number.isFinite(productId)) {

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Loader2, Star, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { chatUi } from "@/lib/chat-ui"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { submitTransactionReview, type TransactionReviewRow } from "@/lib/transaction-reviews"
 import { cn } from "@/lib/utils"
@@ -88,7 +89,7 @@ export function TransactionReviewCard({
 
   if (reviewLoading) {
     return (
-      <div className="flex w-full items-center justify-center gap-2 rounded-2xl border border-zinc-700/80 bg-zinc-900/50 px-4 py-4 text-sm text-zinc-400">
+      <div className="flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-muted/50 px-4 py-4 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 shrink-0 animate-spin text-amber-500" aria-hidden />
         評価の状態を確認しています…
       </div>
@@ -97,12 +98,12 @@ export function TransactionReviewCard({
 
   return (
     <>
-      <div className="w-full max-w-md rounded-2xl border border-emerald-700/35 bg-emerald-950/25 px-4 py-3 text-center shadow-sm">
-        <p className="text-sm font-medium text-emerald-100/95">
+      <div className="w-full max-w-md rounded-2xl border border-emerald-600/35 bg-emerald-50 px-4 py-3 text-center shadow-sm dark:border-emerald-700/35 dark:bg-emerald-950/25">
+        <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100/95">
           取引が終了しました。{peerNoun}を評価してください。
         </p>
         {hasReview && displayLine ? (
-          <p className="mt-2 break-words text-left text-sm leading-relaxed text-zinc-200">{displayLine}</p>
+          <p className="mt-2 break-words text-left text-sm leading-relaxed text-foreground">{displayLine}</p>
         ) : null}
         {!hasReview ? (
           <div className="mt-3">
@@ -119,31 +120,31 @@ export function TransactionReviewCard({
 
       {modalOpen ? (
         <div
-          className="fixed inset-0 z-[65] flex items-center justify-center bg-black/80 px-4"
+          className="fixed inset-0 z-[65] flex items-center justify-center bg-black/50 px-4"
           onClick={() => (submitting ? null : setModalOpen(false))}
           role="dialog"
           aria-modal="true"
           aria-labelledby="tx-review-title"
         >
           <div
-            className="w-full max-w-md rounded-xl border border-zinc-600 bg-zinc-950 p-5 text-left shadow-2xl"
+            className="w-full max-w-md rounded-xl border border-border bg-card p-5 text-card-foreground shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between gap-2">
-              <h2 id="tx-review-title" className="text-lg font-bold text-white">
+              <h2 id="tx-review-title" className="text-lg font-bold text-foreground">
                 {peerNoun}を評価
               </h2>
               <button
                 type="button"
                 onClick={() => (submitting ? null : setModalOpen(false))}
-                className="rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                 aria-label="閉じる"
                 disabled={submitting}
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <p className="mb-3 text-sm text-zinc-400">5段階の星とコメント（任意）を入力できます。</p>
+            <p className="mb-3 text-sm text-muted-foreground">5段階の星とコメント（任意）を入力できます。</p>
             <div className="mb-3 flex items-center justify-center gap-1">
               {[1, 2, 3, 4, 5].map((n) => (
                 <button
@@ -157,19 +158,19 @@ export function TransactionReviewCard({
                   <Star
                     className={cn(
                       "h-8 w-8",
-                      n <= stars ? "fill-amber-400 text-amber-400" : "fill-zinc-800 text-zinc-600",
+                      n <= stars ? "fill-amber-400 text-amber-400" : "fill-muted text-muted-foreground/50",
                     )}
                     strokeWidth={1.2}
                   />
                 </button>
               ))}
             </div>
-            <p className="mb-2 text-center text-sm text-zinc-500">{stars > 0 ? `${stars} / 5` : "未選択"}</p>
+            <p className="mb-2 text-center text-sm text-muted-foreground">{stars > 0 ? `${stars} / 5` : "未選択"}</p>
             <textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="コメント（任意）"
-              className="mb-4 min-h-[88px] w-full rounded-md border border-zinc-600 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500"
+              className={cn(chatUi.textarea, "mb-4 min-h-[88px]")}
               maxLength={2000}
               disabled={submitting}
               rows={4}
@@ -178,7 +179,7 @@ export function TransactionReviewCard({
               <Button
                 type="button"
                 variant="outline"
-                className="border-zinc-600 bg-zinc-900"
+                className={chatUi.modalCancel}
                 onClick={() => (submitting ? null : setModalOpen(false))}
                 disabled={submitting}
               >
@@ -190,11 +191,7 @@ export function TransactionReviewCard({
                 disabled={submitting}
                 onClick={() => void handleSubmit()}
               >
-                {submitting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  "送信"
-                )}
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "送信"}
               </Button>
             </div>
           </div>

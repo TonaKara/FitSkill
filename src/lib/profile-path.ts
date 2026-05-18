@@ -18,6 +18,7 @@ const RESERVED_CUSTOM_IDS = new Set([
   "profile-setup",
   "signin",
   "skills",
+  "store",
 ])
 
 export function normalizeCustomId(value: string | null | undefined): string {
@@ -36,8 +37,12 @@ export function isUuid(value: string): boolean {
   return UUID_RE.test(value.trim())
 }
 
-export function buildProfilePath(profileId: string, customId?: string | null): string {
+/** 公開ストア（共有URL）のパス */
+export function buildStorePath(userId: string, customId?: string | null): string {
   const normalized = normalizeCustomId(customId)
-  const segment = normalized.length > 0 ? normalized : profileId
-  return `/profile/${encodeURIComponent(segment)}`
+  const segment = normalized.length > 0 ? normalized : userId
+  return `/store/${encodeURIComponent(segment)}`
 }
+
+/** @deprecated buildStorePath を利用してください */
+export const buildProfilePath = buildStorePath

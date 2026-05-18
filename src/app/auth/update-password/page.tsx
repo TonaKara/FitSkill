@@ -3,6 +3,7 @@
 import { FormEvent, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
+import { AuthPageShell } from "@/components/auth/auth-page-shell"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -69,7 +70,7 @@ export default function UpdatePasswordPage() {
       }
 
       setNotice(toSuccessNotice("パスワードを更新しました。ダッシュボードへ移動します。"))
-      router.push("/mypage")
+      router.push("/")
       router.refresh()
     } catch (error) {
       setNotice(toErrorNotice(error, false))
@@ -79,21 +80,20 @@ export default function UpdatePasswordPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-4 py-12 text-white">
+    <AuthPageShell>
       {notice && <NotificationToast notice={notice} onClose={() => setNotice(null)} />}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(230,74,25,0.35),transparent_45%),radial-gradient(circle_at_bottom,rgba(230,74,25,0.25),transparent_50%)]" />
 
-      <Card className="relative z-10 w-full max-w-md border-red-500/40 bg-zinc-950/95 shadow-[0_0_60px_rgba(230,74,25,0.25)]">
+      <Card className="relative z-10 w-full max-w-md border-border bg-card shadow-lg dark:border-red-500/40 dark:bg-zinc-950/95 dark:shadow-[0_0_60px_rgba(230,74,25,0.25)]">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold tracking-wide text-white">パスワード更新</CardTitle>
-          <CardDescription className="mt-1 text-zinc-400">
+          <CardTitle className="text-2xl font-bold tracking-wide text-foreground">パスワード更新</CardTitle>
+          <CardDescription className="mt-1 text-muted-foreground">
             新しいパスワードを設定して、アカウントへログインしてください。
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-zinc-100" htmlFor="new_password">
+              <label className="text-sm font-medium text-foreground" htmlFor="new_password">
                 新しいパスワード
               </label>
               <div className="relative">
@@ -104,7 +104,7 @@ export default function UpdatePasswordPage() {
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="8文字以上・大文字/小文字/数字を含める"
                   autoComplete="new-password"
-                  className="border-zinc-700 bg-zinc-900 pr-11 text-zinc-50 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                  className="border-input bg-background pr-11 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
                 />
                 <button
                   type="button"
@@ -124,7 +124,7 @@ export default function UpdatePasswordPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-zinc-100" htmlFor="confirm_password">
+              <label className="text-sm font-medium text-foreground" htmlFor="confirm_password">
                 新しいパスワード（確認用）
               </label>
               <div className="relative">
@@ -135,7 +135,7 @@ export default function UpdatePasswordPage() {
                   onChange={(event) => setConfirmPassword(event.target.value)}
                   placeholder="確認のため同じパスワードを入力"
                   autoComplete="new-password"
-                  className="border-zinc-700 bg-zinc-900 pr-11 text-zinc-50 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                  className="border-input bg-background pr-11 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
                 />
                 <button
                   type="button"
@@ -164,6 +164,6 @@ export default function UpdatePasswordPage() {
           </form>
         </CardContent>
       </Card>
-    </div>
+    </AuthPageShell>
   )
 }

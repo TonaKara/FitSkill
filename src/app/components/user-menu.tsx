@@ -3,11 +3,14 @@
 import Link from "next/link"
 import type { RefObject } from "react"
 import { Loader2, User } from "lucide-react"
+import { ProfileAvatar } from "@/components/profile-avatar"
 import { Button } from "@/components/ui/button"
+import { STORE_MENU_ITEMS, buildTradesAccountHref, storeMenuItemHref } from "@/lib/store-menu"
+import { cn } from "@/lib/utils"
 
 export type UserMenuProfileSummary = {
   displayName: string
-  avatarUrl: string
+  avatarUrl: string | null
 }
 
 type UserMenuProps = {
@@ -18,9 +21,10 @@ type UserMenuProps = {
   onOpenChange: (open: boolean) => void
   onLogoutRequest: () => void
   menuRef: RefObject<HTMLDivElement | null>
+  className?: string
 }
 
-/** ヘッダー右上：人型アイコンのみ表示。クリックでプロフィール確認・ナビ・ログアウトのドロップダウン */
+/** ヘッダー右上：人型アイコン。プロフィールカード・ストアメニュー6項目・ログアウト */
 export function UserMenu({
   profileSummary,
   profileLoading,
@@ -29,9 +33,12 @@ export function UserMenu({
   onOpenChange,
   onLogoutRequest,
   menuRef,
+  className,
 }: UserMenuProps) {
+  const tradesHref = buildTradesAccountHref()
+
   return (
-    <div ref={menuRef} className="relative ml-2 min-w-0 md:ml-3">
+    <div ref={menuRef} className={cn("relative ml-2 min-w-0 md:ml-3", className)}>
       <button
         type="button"
         id="header-user-menu-trigger"
@@ -54,7 +61,7 @@ export function UserMenu({
           id="header-user-menu"
           role="menu"
           aria-labelledby="header-user-menu-trigger"
-          className="absolute right-0 top-full z-[60] mt-1 w-[min(calc(100vw-2rem),16rem)] overflow-hidden rounded-lg border border-border bg-popover shadow-lg"
+          className="absolute right-0 top-full z-[60] mt-1 w-[min(calc(100vw-2rem),18rem)] overflow-hidden rounded-lg border border-border bg-popover shadow-lg"
         >
           <div className="flex items-center gap-3 border-b border-border px-3 py-3">
             {profileLoading ? (
@@ -68,13 +75,12 @@ export function UserMenu({
               </>
             ) : (
               <>
-                <div
-                  className="h-10 w-10 shrink-0 rounded-full bg-cover bg-center ring-2 ring-border"
-                  style={{
-                    backgroundImage: profileSummary ? `url(${profileSummary.avatarUrl})` : undefined,
-                  }}
-                  role="img"
-                  aria-hidden
+                <ProfileAvatar
+                  avatarUrl={profileSummary?.avatarUrl ?? null}
+                  alt={profileSummary?.displayName ?? "ユーザー"}
+                  className="h-10 w-10"
+                  ringClassName="ring-2 ring-border"
+                  sizes="40px"
                 />
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">ログイン中</p>
@@ -86,22 +92,22 @@ export function UserMenu({
             )}
           </div>
           <div className="py-1">
-            <Link
-              role="menuitem"
-              href="/mypage"
-              className="block px-3 py-2 text-sm text-foreground hover:bg-secondary"
-              onClick={() => onOpenChange(false)}
-            >
-              マイページ
-            </Link>
-            <Link
-              role="menuitem"
-              href="/mypage?tab=profile"
-              className="block px-3 py-2 text-sm text-foreground hover:bg-secondary"
-              onClick={() => onOpenChange(false)}
-            >
-              プロフィール設定
-            </Link>
+            {STORE_MENU_ITEMS.map((item) => {
+              const Icon = item.icon
+              const href = storeMenuItemHref(item, tradesHref)
+              return (
+                <Link
+                  key={item.slug}
+                  role="menuitem"
+                  href={href}
+                  className="flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-secondary"
+                  onClick={() => onOpenChange(false)}
+                >
+                  <Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                  {item.label}
+                </Link>
+              )
+            })}
           </div>
           <div className="border-t border-border p-2">
             <Button

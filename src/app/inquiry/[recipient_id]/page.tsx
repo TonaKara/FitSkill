@@ -5,7 +5,7 @@ export default function InquiryChatPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-zinc-950 text-zinc-200">
+        <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
           読み込み中...
         </div>
       }

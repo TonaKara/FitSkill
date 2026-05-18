@@ -17,7 +17,7 @@ const DISPUTE_HEADER_LABELS: Partial<Record<string, string>> = {
 export default function AdminDashboardPage() {
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-black tracking-wide text-white">ダッシュボード</h1>
+      <h1 className="text-3xl font-black tracking-wide text-foreground">ダッシュボード</h1>
       <AdminAnnouncementForm />
       <AdminTableCard
         title="異議申し立て一覧"

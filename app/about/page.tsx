@@ -4,7 +4,7 @@ import AboutPage from "@/about/page"
 export const metadata: Metadata = {
   title: "GritVibについて",
   description:
-    "相談から始まる安心の取引、透明な手数料、ガイドライン遵守など、GritVib（グリットヴィブ）がフィットネススキルマーケットで大切にしている方針をご紹介します。",
+    "個人の「好き」や「得意」を価値に変える個人ストアプラットフォーム・GritVib（グリットヴィブ）のコンセプト、特徴、安全への取り組みをご紹介します。",
   alternates: { canonical: "/about" },
   openGraph: { url: "/about" },
 }

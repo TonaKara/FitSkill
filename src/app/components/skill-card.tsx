@@ -7,6 +7,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { SkillCardFavorite } from "@/components/skill-card-favorite"
+import { ProfileAvatar } from "@/components/profile-avatar"
+import { formatSkillCategoryBadgeLabel } from "@/lib/skill-categories"
 import { SkillThumbnailSurface } from "@/components/skill-thumbnail-surface"
 import { saveHomeListScrollPosition } from "@/lib/home-list-scroll"
 import { skillThumbnailContainerAspectStyle } from "@/lib/skill-thumbnail"
@@ -20,7 +22,7 @@ interface SkillCardProps {
     id: number | string
     title: string
     instructor: string
-    instructorImage: string
+    instructorAvatarUrl: string | null
     category: string
     rating: number
     reviewCount: number
@@ -107,8 +109,11 @@ export function SkillCard({ skill, favoriteSkillId, initialFavoriteCount }: Skil
 
         {/* Category */}
         <div className="absolute bottom-3 left-3">
-          <Badge variant="outline" className="border-border/50 bg-background/50 backdrop-blur-sm text-foreground">
-            {skill.category}
+          <Badge
+            variant="outline"
+            className="border-primary/45 bg-primary/20 px-2.5 py-0.5 text-xs font-semibold text-primary-readable shadow-sm shadow-primary/10 backdrop-blur-md dark:border-red-400/50 dark:bg-red-950/70 dark:text-red-50 dark:shadow-black/30"
+          >
+            {formatSkillCategoryBadgeLabel(skill.category)}
           </Badge>
         </div>
       </div>
@@ -121,9 +126,13 @@ export function SkillCard({ skill, favoriteSkillId, initialFavoriteCount }: Skil
 
         {/* Instructor */}
         <div className="mb-3 flex items-center gap-2">
-          <div
-            className="h-6 w-6 rounded-full bg-cover bg-center ring-2 ring-primary/20"
-            style={{ backgroundImage: `url(${skill.instructorImage})` }}
+          <ProfileAvatar
+            avatarUrl={skill.instructorAvatarUrl}
+            alt=""
+            className="h-6 w-6"
+            ringClassName="ring-2 ring-primary/20"
+            sizes="24px"
+            iconClassName="min-h-2.5 min-w-2.5 max-h-4 max-w-4"
           />
           <span className="text-sm text-muted-foreground">{skill.instructor}</span>
         </div>

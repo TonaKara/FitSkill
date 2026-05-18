@@ -5,12 +5,11 @@ import Image from "next/image"
 import Link from "next/link"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, Loader2 } from "lucide-react"
-import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
 import { InquiryInboxList, type InquiryPeerProfile } from "@/components/inquiry/InquiryInboxList"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
-import { buildProfilePath } from "@/lib/profile-path"
-import { resolveProfileAvatarUrl } from "@/lib/profile-avatar"
+import { buildStorePath } from "@/lib/profile-path"
+import { ProfileAvatar } from "@/components/profile-avatar"
 import {
   fetchInquiryInboxList,
   fetchInquiryThreadMessages,
@@ -104,20 +103,20 @@ function InquirySkillContextBlock({
         className={`mx-auto max-w-lg rounded-xl border px-3 py-3 ${
           source === "nav_pending"
             ? "border-amber-500/35 bg-amber-950/25"
-            : "border-red-500/25 bg-zinc-900/80"
+            : "border-red-500/25 bg-muted/50"
         }`}
       >
-        <p className="mb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+        <p className="mb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           {source === "nav_pending" ? "こちらのスキルについて相談" : "相談スキル"}
         </p>
         {!detail ? (
-          <div className="flex items-center justify-center gap-2 py-2 text-xs text-zinc-500">
+          <div className="flex items-center justify-center gap-2 py-2 text-xs text-muted-foreground">
             <Loader2 className="h-4 w-4 shrink-0 animate-spin text-red-500" aria-hidden />
             スキル情報を読み込み中…
           </div>
         ) : (
           <div className="flex gap-3">
-            <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-zinc-800">
+            <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg bg-muted">
               <Image src={thumb} alt="" fill className="object-cover" sizes="96px" unoptimized />
             </div>
             <div className="min-w-0 flex-1">
@@ -125,7 +124,7 @@ function InquirySkillContextBlock({
                 {detail.category}
               </span>
               <p className="mt-1 line-clamp-2 text-sm font-semibold text-white">{detail.title}</p>
-              <p className="mt-0.5 text-xs text-zinc-400">
+              <p className="mt-0.5 text-xs text-muted-foreground">
                 ¥{Number(detail.price ?? 0).toLocaleString()} / 回
               </p>
               {purchaseHref ? (
@@ -141,7 +140,7 @@ function InquirySkillContextBlock({
           </div>
         )}
         {source === "nav_pending" ? (
-          <p className="mt-2 text-center text-[10px] text-zinc-500">
+          <p className="mt-2 text-center text-[10px] text-muted-foreground">
             下の送信欄から送るメッセージは、このスキルについての相談として届きます。
           </p>
         ) : null}
@@ -634,7 +633,7 @@ export function InquiryChatClient() {
 
   if (authLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-950 text-zinc-200">
+      <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
         <Loader2 className="h-8 w-8 animate-spin text-red-500" aria-hidden />
       </div>
     )
@@ -645,8 +644,8 @@ export function InquiryChatClient() {
     const qs = searchParams.toString()
     const full = qs ? `${path}?${qs}` : path
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-zinc-950 px-4 text-zinc-100">
-        <p className="text-center text-sm text-zinc-300">相談チャットを開くにはログインが必要です。</p>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-4 text-foreground">
+        <p className="text-center text-sm text-muted-foreground">相談チャットを開くにはログインが必要です。</p>
         <Button
           type="button"
           className="bg-red-600 text-white hover:bg-red-500"
@@ -660,8 +659,8 @@ export function InquiryChatClient() {
 
   if (!isUuid(peerId)) {
     return (
-      <div className="min-h-screen bg-zinc-950 px-4 py-16 text-center text-zinc-200">
-        <p className="text-sm text-zinc-400">URL が不正です。</p>
+      <div className="min-h-screen bg-background px-4 py-16 text-center text-muted-foreground">
+        <p className="text-sm text-muted-foreground">URL が不正です。</p>
         <Button asChild className="mt-6 bg-red-600 text-white hover:bg-red-500">
           <Link href="/inquiry/list">一覧へ</Link>
         </Button>
@@ -671,8 +670,8 @@ export function InquiryChatClient() {
 
   if (peerId === userId) {
     return (
-      <div className="min-h-screen bg-zinc-950 px-4 py-16 text-center text-zinc-200">
-        <p className="text-sm text-zinc-400">自分自身とはチャットできません。</p>
+      <div className="min-h-screen bg-background px-4 py-16 text-center text-muted-foreground">
+        <p className="text-sm text-muted-foreground">自分自身とはチャットできません。</p>
         <Button asChild className="mt-6 bg-red-600 text-white hover:bg-red-500">
           <Link href="/inquiry/list">一覧へ</Link>
         </Button>
@@ -682,20 +681,19 @@ export function InquiryChatClient() {
 
   if (preChatGuardPending) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-zinc-950 text-zinc-200">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background text-muted-foreground">
         <Loader2 className="h-8 w-8 animate-spin text-red-500" aria-hidden />
-        <p className="text-sm text-zinc-400">相談設定を確認しています…</p>
+        <p className="text-sm text-muted-foreground">相談設定を確認しています…</p>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      <Header />
-      <div className="mx-auto flex max-h-[calc(100dvh-4rem)] min-h-[calc(100dvh-4rem)] max-w-6xl flex-col md:flex-row md:border-x md:border-zinc-800">
-        <aside className="hidden w-full max-w-sm shrink-0 flex-col border-zinc-800 md:flex md:border-r">
-          <div className="border-b border-zinc-800 px-4 py-3">
-            <h2 className="text-sm font-bold text-zinc-200">相談一覧</h2>
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto flex max-h-[calc(100dvh-4rem)] min-h-[calc(100dvh-4rem)] max-w-6xl flex-col md:flex-row md:border-x md:border-border">
+        <aside className="hidden w-full max-w-sm shrink-0 flex-col border-border md:flex md:border-r">
+          <div className="border-b border-border px-4 py-3">
+            <h2 className="text-sm font-bold text-foreground">相談一覧</h2>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
             <InquiryInboxList
@@ -710,7 +708,7 @@ export function InquiryChatClient() {
         </aside>
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <div className="flex shrink-0 items-center gap-2 border-b border-zinc-800 px-3 py-2 md:px-4">
+          <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2 md:px-4">
             <Button
               type="button"
               variant="ghost"
@@ -719,23 +717,29 @@ export function InquiryChatClient() {
               onClick={() => router.push("/inquiry/list")}
               aria-label="一覧へ戻る"
             >
-              <ArrowLeft className="h-5 w-5 text-zinc-300" />
+              <ArrowLeft className="h-5 w-5 text-muted-foreground" />
             </Button>
+            <ProfileAvatar
+              avatarUrl={peerProfile?.avatar_url ?? null}
+              alt={peerName}
+              className="h-10 w-10 shrink-0 border border-border"
+              sizes="40px"
+            />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs text-zinc-500">相手</p>
+              <p className="truncate text-xs text-muted-foreground">相手</p>
               <p className="truncate text-sm font-semibold text-white">{peerName}</p>
             </div>
           </div>
 
           <div ref={messagesScrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 py-4 md:px-4">
             {messagesLoading ? (
-              <div className="flex justify-center py-12 text-zinc-500">
+              <div className="flex justify-center py-12 text-muted-foreground">
                 <Loader2 className="h-6 w-6 animate-spin text-red-500" />
               </div>
             ) : messagesError ? (
               <p className="text-center text-sm text-red-400">{messagesError}</p>
             ) : inquiryTimeline.length === 0 ? (
-              <p className="text-center text-sm text-zinc-500">
+              <p className="text-center text-sm text-muted-foreground">
                 メッセージはまだありません。スキル詳細の「出品者に質問する」から開くか、下の欄から送信してください。
               </p>
             ) : (
@@ -762,17 +766,18 @@ export function InquiryChatClient() {
                       : isPeerSender
                         ? peerName
                         : senderProfile?.display_name?.trim() || "ユーザー"
-                    const avatarSrc = resolveProfileAvatarUrl(
-                      mine ? myProfile?.avatar_url ?? null : isPeerSender ? peerProfile?.avatar_url ?? null : senderProfile?.avatar_url ?? null,
-                      label,
-                    )
-                    const senderProfilePath = buildProfilePath(m.sender_id, senderProfile?.custom_id ?? null)
+                    const messageAvatarUrl = mine
+                      ? myProfile?.avatar_url ?? null
+                      : isPeerSender
+                        ? peerProfile?.avatar_url ?? null
+                        : senderProfile?.avatar_url ?? null
+                    const senderProfilePath = buildStorePath(m.sender_id, senderProfile?.custom_id ?? null)
                     return (
                       <li key={m.id}>
                         {mine ? (
                           <div className="flex w-full justify-end">
                             <div className="flex min-w-0 max-w-[85%] flex-col items-end gap-1">
-                              <p className="max-w-full truncate px-1 text-xs text-zinc-500">{label}</p>
+                              <p className="max-w-full truncate px-1 text-xs text-muted-foreground">{label}</p>
                               <div className="rounded-2xl bg-red-900/50 px-3 py-2 text-sm leading-relaxed text-red-50">
                                 <p className="whitespace-pre-wrap break-words">{m.content}</p>
                                 <p className="mt-1 text-[10px] opacity-70">
@@ -794,13 +799,16 @@ export function InquiryChatClient() {
                               className="shrink-0"
                               aria-label={`${label}のプロフィールへ`}
                             >
-                              <div className="relative h-9 w-9 overflow-hidden rounded-full border border-zinc-700 bg-zinc-900">
-                                <Image src={avatarSrc} alt="" fill className="object-cover" sizes="36px" unoptimized />
-                              </div>
+                              <ProfileAvatar
+                                avatarUrl={messageAvatarUrl}
+                                alt={label}
+                                className="h-9 w-9 border border-border"
+                                sizes="36px"
+                              />
                             </Link>
                             <div className="min-w-0 max-w-[calc(100%-2.75rem)]">
-                              <p className="mb-1 truncate text-xs text-zinc-400">{label}</p>
-                              <div className="rounded-2xl bg-zinc-800 px-3 py-2 text-sm leading-relaxed text-zinc-100">
+                              <p className="mb-1 truncate text-xs text-muted-foreground">{label}</p>
+                              <div className="rounded-2xl bg-muted px-3 py-2 text-sm leading-relaxed text-foreground">
                                 <p className="whitespace-pre-wrap break-words">{m.content}</p>
                                 <p className="mt-1 text-[10px] opacity-70">
                                   {new Date(m.created_at).toLocaleString("ja-JP", {
@@ -819,7 +827,7 @@ export function InquiryChatClient() {
                   })}
                 </ul>
                 {messages.length === 0 ? (
-                  <p className="mt-4 text-center text-sm text-zinc-500">
+                  <p className="mt-4 text-center text-sm text-muted-foreground">
                     メッセージはまだありません。下の欄から送信してください。
                   </p>
                 ) : null}
@@ -828,7 +836,7 @@ export function InquiryChatClient() {
             )}
           </div>
 
-          <div className="shrink-0 border-t border-zinc-800 bg-zinc-950 p-3 md:p-4">
+          <div className="shrink-0 border-t border-border bg-card p-3 md:p-4">
             {sendError ? <p className="mb-2 text-center text-xs text-red-400">{sendError}</p> : null}
             {readStatusError ? <p className="mb-2 text-center text-xs text-amber-300">{readStatusError}</p> : null}
             <div className="flex gap-2">
@@ -837,7 +845,7 @@ export function InquiryChatClient() {
                 onChange={(e) => setText(e.target.value)}
                 rows={2}
                 placeholder="メッセージを入力..."
-                className="min-h-[44px] flex-1 resize-none rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                className="min-h-[44px] flex-1 resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
               />
               <Button
                 type="button"
@@ -848,7 +856,7 @@ export function InquiryChatClient() {
                 {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : "送信"}
               </Button>
             </div>
-            <p className="mt-2 text-center text-[10px] text-zinc-600">
+            <p className="mt-2 text-center text-[10px] text-muted-foreground">
               取引成立後のやり取りはスキル購入後に生成される専用の取引チャットをご利用ください。
             </p>
           </div>

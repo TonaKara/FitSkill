@@ -10,7 +10,6 @@ import {
   useState,
 } from "react"
 import { createPortal } from "react-dom"
-import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Loader2, X } from "lucide-react"
@@ -24,9 +23,10 @@ import {
   isStorageBucketNotFoundError,
   removeAvatarObjectAtPublicUrl,
 } from "@/lib/avatar-storage"
-import { normalizeProfileCategory } from "@/lib/profile-fields"
-import { PROFILE_AVATAR_CROP_EXPORT_PX, resolveProfileAvatarUrl } from "@/lib/profile-avatar"
-import { SKILL_CATEGORY_OPTIONS } from "@/lib/skill-categories"
+import { ProfileAvatar } from "@/components/profile-avatar"
+import { getProfileAvatarUrl, PROFILE_AVATAR_CROP_EXPORT_PX } from "@/lib/profile-avatar"
+import { ProfileInterestCategoryPicker } from "@/components/profile-interest-category-picker"
+import { loadProfileInterestCategories } from "@/lib/profile-interest-categories"
 import { getIsAdminFromProfile } from "@/lib/admin"
 import { toErrorNotice, type AppNotice } from "@/lib/notifications"
 import {
@@ -71,7 +71,8 @@ export default function ProfileSetupPage() {
   const [cropSourceUrl, setCropSourceUrl] = useState<string | null>(null)
 
   const [bio, setBio] = useState("")
-  const [fitnessHistory, setFitnessHistory] = useState("")
+  /** UI 非表示。既存ユーザーの DB 値を保存時にそのまま維持する */
+  const preservedFitnessHistoryRef = useRef<string | null>(null)
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [customId, setCustomId] = useState("")
   const [savedCustomId, setSavedCustomId] = useState("")
@@ -81,12 +82,6 @@ export default function ProfileSetupPage() {
   const customIdConfirmBypassRef = useRef(false)
 
   const siteBaseUrl = useMemo(() => getSiteUrl(), [])
-
-  const toggleCategory = (label: string) => {
-    setSelectedCategories((prev) =>
-      prev.includes(label) ? prev.filter((c) => c !== label) : [...prev, label],
-    )
-  }
 
   useEffect(() => {
     let mounted = true
@@ -148,10 +143,9 @@ export default function ProfileSetupPage() {
     setDisplayNameLabel(typeof nameVal === "string" ? nameVal.trim() : "")
     setStoredAvatarUrl(typeof avatarVal === "string" && avatarVal.trim().length > 0 ? avatarVal.trim() : null)
     setBio(typeof bioVal === "string" ? bioVal.trim() : "")
-    setFitnessHistory(typeof fhVal === "string" ? fhVal.trim() : "")
-    setSelectedCategories(
-      normalizeProfileCategory(row?.category).filter((c) => c !== "フィットネス"),
-    )
+    preservedFitnessHistoryRef.current =
+      typeof fhVal === "string" && fhVal.trim().length > 0 ? fhVal.trim() : null
+    setSelectedCategories(loadProfileInterestCategories(row?.category))
     setCustomId(customIdStr)
     setSavedCustomId(customIdStr)
     setPendingAvatarFile(null)
@@ -277,15 +271,15 @@ export default function ProfileSetupPage() {
     formRef.current?.requestSubmit()
   }, [])
 
-  const previewAvatarSrc = useMemo(() => {
+  const previewAvatarUrl = useMemo(() => {
     if (pendingAvatarPreview) {
       return pendingAvatarPreview
     }
     if (avatarMarkedForRemoval) {
-      return resolveProfileAvatarUrl(null, displayNameLabel || "?")
+      return null
     }
-    return resolveProfileAvatarUrl(storedAvatarUrl, displayNameLabel || "?")
-  }, [pendingAvatarPreview, avatarMarkedForRemoval, storedAvatarUrl, displayNameLabel])
+    return getProfileAvatarUrl(storedAvatarUrl)
+  }, [pendingAvatarPreview, avatarMarkedForRemoval, storedAvatarUrl])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -353,7 +347,7 @@ export default function ProfileSetupPage() {
 
       const payload: Record<string, unknown> = {
         bio,
-        fitness_history: fitnessHistory,
+        fitness_history: preservedFitnessHistoryRef.current,
         category: selectedCategories,
         custom_id: normalizedCustomId,
       }
@@ -460,15 +454,15 @@ export default function ProfileSetupPage() {
 
   if (authLoading || (userId && profileLoading)) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black text-zinc-200">
-        <Loader2 className="mr-2 h-5 w-5 animate-spin text-red-500" aria-hidden />
+      <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
+        <Loader2 className="mr-2 h-5 w-5 animate-spin text-primary" aria-hidden />
         読み込み中...
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-black px-4 pb-16 pt-8 text-zinc-50">
+    <div className="min-h-screen bg-background px-4 pb-16 pt-8 text-foreground">
       <ThumbnailCropModal
         open={cropModalOpen}
         imageSrc={cropSourceUrl}
@@ -482,10 +476,10 @@ export default function ProfileSetupPage() {
       />
       {notice && <NotificationToast notice={notice} onClose={() => setNotice(null)} />}
       <div className="mx-auto max-w-2xl">
-        <div className="mb-8 flex flex-wrap items-start justify-between gap-4 border-b border-zinc-800 pb-6">
+        <div className="mb-8 flex flex-wrap items-start justify-between gap-4 border-b border-border pb-6">
           <div>
-            <h1 className="text-2xl font-black tracking-wide text-white md:text-3xl">プロフィール設定</h1>
-            <p className="mt-2 text-sm text-zinc-400">
+            <h1 className="text-2xl font-black tracking-wide text-foreground md:text-3xl">プロフィール設定</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
               アイコン・自己紹介や興味のある分野を登録して、GritVib を始めましょう！
             </p>
           </div>
@@ -498,9 +492,9 @@ export default function ProfileSetupPage() {
         </div>
 
         <form ref={formRef} onSubmit={(e) => void handleSubmit(e)} className="space-y-8">
-          <div className="rounded-2xl border border-red-500/25 bg-zinc-950/80 p-6 shadow-[0_0_40px_rgba(230,74,25,0.12)]">
-            <p className="text-sm font-bold text-zinc-200">プロフィール画像</p>
-            <p className="mt-1 text-xs text-zinc-500">
+          <div className="overflow-hidden rounded-2xl border border-primary/25 bg-accent p-6 shadow-sm dark:border-red-500/25 dark:bg-zinc-950/80">
+            <p className="text-sm font-bold text-foreground">プロフィール画像</p>
+            <p className="mt-1 text-xs text-muted-foreground">
               プロフィールやチャットなどで表示されるアイコン画像を設定できます（任意）
             </p>
             <Input
@@ -511,29 +505,18 @@ export default function ProfileSetupPage() {
               onChange={handleAvatarFileSelect}
             />
             <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-              <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-full border border-zinc-700 bg-zinc-900">
-                {previewAvatarSrc.startsWith("blob:") ? (
-                  <Image
-                    src={previewAvatarSrc}
-                    alt="アイコンプレビュー"
-                    fill
-                    unoptimized
-                    className="object-cover"
-                    sizes="112px"
-                  />
-                ) : (
-                  // eslint-disable-next-line @next/next/no-img-element -- Supabase / ui-avatars の外部 URL
-                  <img
-                    src={previewAvatarSrc}
-                    alt=""
-                    className="absolute inset-0 h-full w-full object-cover"
-                  />
-                )}
+              <div className="relative h-28 w-28 shrink-0">
+                <ProfileAvatar
+                  src={previewAvatarUrl}
+                  alt="アイコンプレビュー"
+                  className="h-28 w-28 border border-border"
+                  sizes="112px"
+                />
                 {(pendingAvatarPreview || (storedAvatarUrl && !avatarMarkedForRemoval)) ? (
                   <button
                     type="button"
                     onClick={clearAvatarSelection}
-                    className="absolute right-1 top-1 inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-600/80 bg-black/70 text-zinc-100 transition-colors hover:border-red-500 hover:text-red-300"
+                    className="absolute right-1 top-1 inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background/90 text-foreground transition-colors hover:border-red-500 hover:text-red-300"
                     aria-label="プロフィール画像を削除"
                   >
                     <X className="h-4 w-4" aria-hidden />
@@ -553,8 +536,8 @@ export default function ProfileSetupPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-red-500/25 bg-zinc-950/80 p-6 shadow-[0_0_40px_rgba(230,74,25,0.12)]">
-            <label htmlFor="profile-setup-custom-id" className="text-sm font-bold text-zinc-200">
+          <div className="overflow-hidden rounded-2xl border border-primary/25 bg-accent p-6 shadow-sm dark:border-red-500/25 dark:bg-zinc-950/80">
+            <label htmlFor="profile-setup-custom-id" className="text-sm font-bold text-foreground">
               カスタムID（任意・設定推奨）
             </label>
             <Input
@@ -562,28 +545,28 @@ export default function ProfileSetupPage() {
               value={customId}
               onChange={(e) => setCustomId(normalizeCustomId(e.target.value))}
               placeholder="例: taro_fit"
-              className={`mt-2 border-zinc-700 placeholder:text-zinc-500 ${
+              className={`mt-2 border-input placeholder:text-muted-foreground ${
                 customIdLocked
-                  ? "cursor-not-allowed bg-zinc-800 text-zinc-400 opacity-100"
-                  : "bg-zinc-950 text-zinc-100 focus-visible:ring-red-500"
+                  ? "cursor-not-allowed bg-muted text-muted-foreground opacity-100"
+                  : "bg-background text-foreground focus-visible:ring-primary"
               }`}
               aria-describedby="profile-setup-custom-id-hint"
               disabled={customIdLocked}
             />
-            <p id="profile-setup-custom-id-hint" className="mt-2 text-xs leading-relaxed text-zinc-500">
-              プロフィールURLを見やすくできます（例: 『taro_fit』とした場合、
-              {`${siteBaseUrl}/profile/taro_fit`} のように表示されます）。英小文字で開始し、3〜30文字の英小文字・数字・アンダーバー・ハイフンが使えます。
+            <p id="profile-setup-custom-id-hint" className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              ストアURLを見やすくできます（例: 『taro_fit』とした場合、
+              {`${siteBaseUrl}/store/taro_fit`} のように表示されます）。英小文字で開始し、3〜30文字の英小文字・数字・アンダーバー・ハイフンが使えます。
               一度設定したカスタムIDは変更できませんのでご注意ください。
             </p>
             {customIdLocked ? (
-              <p className="mt-1 text-xs font-semibold text-zinc-400">
+              <p className="mt-1 text-xs font-semibold text-muted-foreground">
                 設定済みのため、カスタムIDは編集できません。
               </p>
             ) : null}
           </div>
 
-          <div className="rounded-2xl border border-red-500/25 bg-zinc-950/80 p-6 shadow-[0_0_40px_rgba(230,74,25,0.12)]">
-            <label htmlFor="bio" className="text-sm font-bold text-zinc-200">
+          <div className="overflow-hidden rounded-2xl border border-primary/25 bg-accent p-6 shadow-sm dark:border-red-500/25 dark:bg-zinc-950/80">
+            <label htmlFor="bio" className="text-sm font-bold text-foreground">
               自己紹介
             </label>
             <textarea
@@ -592,54 +575,20 @@ export default function ProfileSetupPage() {
               onChange={(e) => setBio(e.target.value)}
               rows={5}
               placeholder="自分の得意なことや経歴、克服したいことなど"
-              className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/80"
+              className="mt-2 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
 
-          <div className="rounded-2xl border border-red-500/25 bg-zinc-950/80 p-6 shadow-[0_0_40px_rgba(230,74,25,0.12)]">
-            <label htmlFor="fitness_history" className="text-sm font-bold text-zinc-200">
-              フィットネス歴
-            </label>
-            <textarea
-              id="fitness_history"
-              value={fitnessHistory}
-              onChange={(e) => setFitnessHistory(e.target.value)}
-              rows={4}
-              placeholder="例：ジム歴3年、週末はランニングなど"
-              className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/80"
-            />
-          </div>
-
-          <div className="rounded-2xl border border-red-500/25 bg-zinc-950/80 p-6 shadow-[0_0_40px_rgba(230,74,25,0.12)]">
-            <p className="text-sm font-bold text-zinc-200">興味のある分野</p>
-            <p className="mt-1 text-xs text-zinc-500">複数選択できます</p>
-            <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {SKILL_CATEGORY_OPTIONS.map((category) => {
-                const id = `cat-${category}`
-                const checked = selectedCategories.includes(category)
-                return (
-                  <li key={category}>
-                    <label
-                      htmlFor={id}
-                      className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors ${
-                        checked
-                          ? "border-red-500/60 bg-red-950/30"
-                          : "border-zinc-700 bg-zinc-900/50 hover:border-zinc-600"
-                      }`}
-                    >
-                      <input
-                        id={id}
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleCategory(category)}
-                        className="h-4 w-4 shrink-0 rounded border-zinc-600 bg-zinc-900 text-red-600 focus:ring-2 focus:ring-red-500 focus:ring-offset-0 focus:ring-offset-zinc-950"
-                      />
-                      <span className="text-sm text-zinc-200">{category}</span>
-                    </label>
-                  </li>
-                )
-              })}
-            </ul>
+          <div className="overflow-hidden rounded-2xl border border-primary/25 bg-accent p-6 shadow-sm dark:border-red-500/25 dark:bg-zinc-950/80">
+            <p className="text-sm font-bold text-foreground">興味のある分野</p>
+            <p className="mt-1 text-xs text-muted-foreground">複数選択できます</p>
+            <div className="mt-4">
+              <ProfileInterestCategoryPicker
+                selectedCategories={selectedCategories}
+                onChange={setSelectedCategories}
+                idPrefix="setup-cat"
+              />
+            </div>
           </div>
 
           <Button
@@ -663,7 +612,7 @@ export default function ProfileSetupPage() {
         showCustomIdConfirm &&
         createPortal(
           <div
-            className="fixed inset-0 z-[10000] flex min-h-[100dvh] w-full items-center justify-center overflow-y-auto bg-black/70 p-4 sm:p-6"
+            className="fixed inset-0 z-[10000] flex min-h-[100dvh] w-full items-center justify-center overflow-y-auto bg-background/80 backdrop-blur-sm p-4 sm:p-6"
             role="presentation"
             onClick={handleCustomIdConfirmCancel}
           >
@@ -671,31 +620,31 @@ export default function ProfileSetupPage() {
               role="dialog"
               aria-modal="true"
               aria-labelledby="profile-setup-custom-id-confirm-title"
-              className="my-auto w-full min-w-0 max-w-md shrink-0 overflow-hidden rounded-xl border border-zinc-700 bg-zinc-950 p-6 shadow-2xl"
+              className="my-auto w-full min-w-0 max-w-md shrink-0 overflow-hidden rounded-xl border border-border bg-card p-6 text-card-foreground shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <h2
                 id="profile-setup-custom-id-confirm-title"
-                className="text-base font-semibold leading-relaxed text-zinc-100"
+                className="text-base font-semibold leading-relaxed text-foreground"
               >
                 カスタムID設定の確認
               </h2>
-              <p className="mt-3 text-sm leading-relaxed text-zinc-300">
-                このIDで設定すると、プロフィールURLは以下になります。
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                このIDで設定すると、ストアURLは以下になります。
               </p>
-              <div className="mt-3 min-w-0 w-full overflow-hidden rounded-lg border border-red-500/35 bg-zinc-900 px-3 py-2">
-                <p className="font-mono text-xs leading-relaxed break-all text-red-200 [overflow-wrap:anywhere] sm:text-sm">
-                  {siteBaseUrl}/profile/{pendingCustomIdForConfirm}
+              <div className="mt-3 min-w-0 w-full overflow-hidden rounded-lg border border-red-500/35 bg-muted px-3 py-2">
+                <p className="font-mono text-xs leading-relaxed break-all text-red-700 dark:text-red-200 [overflow-wrap:anywhere] sm:text-sm">
+                  {siteBaseUrl}/store/{pendingCustomIdForConfirm}
                 </p>
               </div>
-              <p className="mt-3 text-sm leading-relaxed text-zinc-300">
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
                 カスタムIDは一度設定すると変更できません。この内容で保存しますか？
               </p>
               <div className="mt-6 flex gap-3">
                 <Button
                   type="button"
                   variant="outline"
-                  className="flex-1 border-zinc-600 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
+                  className="flex-1 border-border bg-muted text-foreground hover:bg-muted/80"
                   onClick={handleCustomIdConfirmCancel}
                   disabled={saving}
                 >

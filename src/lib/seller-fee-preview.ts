@@ -23,3 +23,8 @@ export function computeSellerFeePreview(salePriceYen: number): SellerFeePreview 
   const feeYen = saleYen - receiveYen
   return { receiveYen, feeYen }
 }
+
+/** 販売価格から講師の受取額（円）を算出。無効な価格は 0。 */
+export function computeSellerReceiveYen(salePriceYen: number): number {
+  return computeSellerFeePreview(salePriceYen)?.receiveYen ?? 0
+}

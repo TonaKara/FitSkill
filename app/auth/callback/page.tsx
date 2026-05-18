@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import type { EmailOtpType } from "@supabase/supabase-js"
-import { Loader2 } from "lucide-react"
+import { AuthLoadingScreen } from "@/components/auth/auth-loading-screen"
 import {
   buildSignupVerifiedLoginUrl,
   isSignupEmailConfirmationNextPath,
@@ -149,16 +149,11 @@ export default function AuthCallbackPage() {
 
   if (errorMessage) {
     return (
-      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 bg-black px-4 text-center text-sm text-zinc-300">
-        <p>{errorMessage}</p>
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 text-center">
+        <p className="text-sm text-destructive">{errorMessage}</p>
       </div>
     )
   }
 
-  return (
-    <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 bg-black px-4 text-zinc-200">
-      <Loader2 className="h-8 w-8 animate-spin text-red-500" aria-hidden />
-      <p className="text-sm">メール認証を確認しています…</p>
-    </div>
-  )
+  return <AuthLoadingScreen message="メール認証を確認しています…" />
 }

@@ -121,7 +121,7 @@ export function StripePaymentSheet({
 
   return (
     <div
-      className="fixed inset-0 z-[10001] flex min-h-[100dvh] w-full items-center justify-center overflow-y-auto bg-black/70 p-4 sm:p-6"
+      className="fixed inset-0 z-[10001] flex min-h-[100dvh] w-full items-center justify-center overflow-y-auto bg-black/50 p-4 sm:p-6"
       role="presentation"
       onClick={() => {
         if (!busy) {
@@ -133,16 +133,16 @@ export function StripePaymentSheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby="stripe-payment-title"
-        className="my-auto w-full max-w-md shrink-0 rounded-xl border border-zinc-700 bg-zinc-950 p-6 shadow-2xl"
+        className="my-auto w-full max-w-md shrink-0 rounded-xl border border-border bg-card p-6 text-card-foreground shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
-          <h2 id="stripe-payment-title" className="text-base font-semibold text-zinc-100">
+          <h2 id="stripe-payment-title" className="text-base font-semibold text-foreground">
             お支払い
           </h2>
           <button
             type="button"
-            className="rounded-md p-1 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200"
+            className="rounded-md p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
             onClick={() => {
               if (!busy) {
                 onClose()
@@ -153,7 +153,7 @@ export function StripePaymentSheet({
             <X className="h-5 w-5" />
           </button>
         </div>
-        <p className="mt-1 text-xs text-zinc-500">表示された方法でお支払いください。</p>
+        <p className="mt-1 text-xs text-muted-foreground">表示された方法でお支払いください。</p>
 
         <div ref={containerRef} className="mt-4 min-h-[200px]" />
 
@@ -163,7 +163,7 @@ export function StripePaymentSheet({
           <Button
             type="button"
             variant="outline"
-            className="border-zinc-600 bg-transparent text-zinc-200"
+            className="border-border bg-background text-foreground"
             disabled={busy}
             onClick={() => {
               if (!busy) {

@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react"
 import { SkillCard } from "@/components/skill-card"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { mapSkillRowToCardSkillFromJoin } from "@/lib/map-skill-to-card"
+import { matchesSkillCategoryFilter } from "@/lib/skill-categories"
 
 export const SKILL_SORT_OPTIONS = [
   { id: "popular", label: "人気順" },
@@ -23,7 +24,8 @@ export const SKILL_SORT_OPTIONS = [
 export type SkillSortOptionId = (typeof SKILL_SORT_OPTIONS)[number]["id"]
 
 export type HomeSkillFilters = {
-  category: string
+  parentCategory: string
+  subCategory: string
   preOffer: "all" | "enabled" | "disabled"
   format: "all" | "online" | "onsite"
   availability: "all" | "available" | "full"
@@ -35,7 +37,8 @@ export type HomeSkillFilters = {
 }
 
 export const DEFAULT_HOME_SKILL_FILTERS: HomeSkillFilters = {
-  category: "all",
+  parentCategory: "all",
+  subCategory: "all",
   preOffer: "all",
   format: "all",
   availability: "all",
@@ -45,143 +48,6 @@ export const DEFAULT_HOME_SKILL_FILTERS: HomeSkillFilters = {
   minPrice: null,
   maxPrice: null,
 }
-
-/** デザイン用の静的サンプル（常に「古い」側として並べる） */
-const DEMO_SKILLS = [
-  {
-    id: 1,
-    title: "初心者向けの筋トレメニューを提案",
-    instructor: "田中 健太",
-    instructorImage: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face",
-    category: "筋トレ",
-    rating: 4.9,
-    reviewCount: 328,
-    price: 5000,
-    duration_minutes: 60,
-    duration: "60分",
-    format: "onsite",
-    location_prefecture: "東京都",
-    students: 5,
-    image: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&h=500&fit=crop",
-    isPopular: true,
-  },
-  {
-    id: 2,
-    title: "朝ヨガオンラインレッスン",
-    instructor: "鈴木 美咲",
-    instructorImage: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face",
-    category: "ヨガ",
-    rating: 4.8,
-    reviewCount: 215,
-    price: 3500,
-    duration_minutes: 45,
-    duration: "45分",
-    format: "online",
-    location_prefecture: null,
-    students: 10,
-    image: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&h=500&fit=crop",
-    isNew: true,
-  },
-  {
-    id: 3,
-    title: "ボクシングフィットネス｜オンライン講座",
-    instructor: "山田 翔太",
-    instructorImage: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face",
-    category: "格闘技",
-    rating: 4.9,
-    reviewCount: 187,
-    price: 6000,
-    duration_minutes: 50,
-    duration: "50分",
-    format: "onsite",
-    location_prefecture: "大阪府",
-    students: 2,
-    image: "https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=800&h=500&fit=crop",
-    isPopular: true,
-  },
-  {
-    id: 4,
-    title: "ダイエッターのための運動メニューを考えます",
-    instructor: "佐藤 理恵",
-    instructorImage: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face",
-    category: "ダイエット",
-    rating: 4.7,
-    reviewCount: 412,
-    price: 4000,
-    duration_minutes: 30,
-    duration: "30分",
-    format: "online",
-    location_prefecture: null,
-    students: 3,
-    image: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=800&h=500&fit=crop",
-  },
-  {
-    id: 5,
-    title: "初心者のためのランニング講座",
-    instructor: "高橋 誠",
-    instructorImage: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=face",
-    category: "ランニング",
-    rating: 4.8,
-    reviewCount: 156,
-    price: 4500,
-    duration_minutes: 60,
-    duration: "60分",
-    format: "onsite",
-    location_prefecture: "神奈川県",
-    students: 20,
-    image: "https://images.unsplash.com/photo-1571008887538-b36bb32f4571?w=800&h=500&fit=crop",
-    isNew: true,
-  },
-  {
-    id: 6,
-    title: "デスクワーカーのための肩こり解消ストレッチ",
-    instructor: "中村 あゆみ",
-    instructorImage: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop&crop=face",
-    category: "ストレッチ",
-    rating: 4.6,
-    reviewCount: 289,
-    price: 3000,
-    duration_minutes: 40,
-    duration: "40分",
-    format: "online",
-    location_prefecture: null,
-    students: 10,
-    image: "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=800&h=500&fit=crop",
-  },
-  {
-    id: 7,
-    title: "K-POP完コピクラス",
-    instructor: "李 ユナ",
-    instructorImage: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=face",
-    category: "ダンス",
-    rating: 4.9,
-    reviewCount: 523,
-    price: 3500,
-    duration_minutes: 45,
-    duration: "45分",
-    format: "online",
-    location_prefecture: null,
-    students: 15,
-    image: "https://images.unsplash.com/photo-1524594152303-9fd13543fe6e?w=800&h=500&fit=crop",
-    isPopular: true,
-  },
-  {
-    id: 8,
-    title: "上級者向け筋トレメニュー作成",
-    instructor: "木村 大輔",
-    instructorImage: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100&h=100&fit=crop&crop=face",
-    category: "筋トレ",
-    rating: 4.8,
-    reviewCount: 178,
-    price: 8000,
-    duration_minutes: 90,
-    duration: "90分",
-    format: "onsite",
-    location_prefecture: "福岡県",
-    students: 1,
-    image: "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=800&h=500&fit=crop",
-  },
-] as const
 
 type ProfileEmbed = {
   display_name: string | null
@@ -235,7 +101,9 @@ type SkillFilterInput = {
 }
 
 function matchesFilters(item: SkillFilterInput, filters: HomeSkillFilters): boolean {
-  if (filters.category !== "all" && item.category !== filters.category) {
+  if (
+    !matchesSkillCategoryFilter(item.category, filters.parentCategory, filters.subCategory)
+  ) {
     return false
   }
   if (filters.preOffer === "enabled" && !item.hasConsultationOffer) {
@@ -629,39 +497,15 @@ export function SkillGrid({ filters, sortBy, searchKeyword }: SkillGridProps) {
       }
     })
 
-    const demoItems: SkillListItem[] = DEMO_SKILLS.map((skill) => ({
-      key: `demo-${skill.id}`,
-      skill,
-      filterInput: {
-        category: skill.category,
-        hasConsultationOffer: false,
-        price: skill.price,
-        durationMinutes: skill.duration_minutes,
-        format: skill.format,
-        locationPrefecture: skill.location_prefecture,
-        maxCapacity: Math.max(0, Math.floor(Number(skill.students))),
-        ongoingApplications: 0,
-        searchText: skill.title,
-      },
-      sortMeta: {
-        favoritesCount: 0,
-        createdAtMs: 0,
-        price: skill.price,
-        rating: skill.rating,
-        reviewCount: skill.reviewCount,
-        durationMinutes: skill.duration_minutes,
-      },
-    }))
-
     const allItems = dbItems
-      .concat(demoItems)
       .filter((item) => matchesFilters(item.filterInput, filters))
       .filter((item) => matchesSearchKeyword(item.filterInput.searchText, searchKeyword))
     return sortSkillItems(allItems, sortBy)
   }, [rows, ongoingApplicationCountBySkill, favoriteCountBySkill, filters, searchKeyword, sortBy])
 
   const isDefaultFilterState =
-    filters.category === "all" &&
+    filters.parentCategory === "all" &&
+    filters.subCategory === "all" &&
     filters.preOffer === "all" &&
     filters.format === "all" &&
     filters.availability === "all" &&

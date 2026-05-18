@@ -1,10 +1,9 @@
 "use client"
 
-import Image from "next/image"
 import Link from "next/link"
 import { Loader2 } from "lucide-react"
+import { ProfileAvatar } from "@/components/profile-avatar"
 import type { InquiryInboxListRow } from "@/lib/inquiry-messages"
-import { resolveProfileAvatarUrl } from "@/lib/profile-avatar"
 
 export type InquiryPeerProfile = {
   display_name: string | null
@@ -61,7 +60,7 @@ export function InquiryInboxList({
       {threads.map((t) => {
         const peer = peerProfiles[t.peer_id]
         const name = peer?.display_name?.trim() || "ユーザー"
-        const avatarSrc = resolveProfileAvatarUrl(peer?.avatar_url ?? null, name)
+        const peerAvatarUrl = peer?.avatar_url ?? null
         const skillTitle =
           skillTitles[t.last_origin_skill_id]?.trim() || `スキル #${t.last_origin_skill_id}`
         const active = activePeerId != null && activePeerId === t.peer_id
@@ -74,12 +73,16 @@ export function InquiryInboxList({
                 active ? "bg-red-950/40 ring-1 ring-inset ring-red-500/30" : "hover:bg-zinc-900/80"
               }`}
             >
-              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full ring-2 ring-zinc-800">
-                <Image src={avatarSrc} alt="" fill className="object-cover" sizes="48px" unoptimized />
-              </div>
+              <ProfileAvatar
+                avatarUrl={peerAvatarUrl}
+                alt={name}
+                className="h-12 w-12"
+                ringClassName="ring-2 ring-zinc-800"
+                sizes="48px"
+              />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="truncate font-semibold text-zinc-100">{name}</p>
+                  <p className="truncate font-semibold text-foreground">{name}</p>
                   <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
                     <span className="rounded-full border border-red-500/35 bg-red-950/50 px-2.5 py-1 text-xs font-medium leading-none text-red-200">
                       {skillTitle.length > 18 ? `${skillTitle.slice(0, 18)}…` : skillTitle}

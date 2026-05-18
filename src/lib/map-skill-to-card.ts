@@ -1,4 +1,4 @@
-import { resolveProfileAvatarUrl } from "@/lib/profile-avatar"
+import { getProfileAvatarUrl } from "@/lib/profile-avatar"
 import { resolveSkillThumbnailUrl } from "@/lib/skill-thumbnail"
 
 export type SkillRowForCard = {
@@ -32,7 +32,7 @@ function normalizeProfile(profiles: SkillFromDbWithProfile["profiles"]): Profile
 /** SkillCard 用オブジェクト（講師情報を明示指定） */
 export function mapSkillRowToCardSkillWithInstructor(
   row: SkillRowForCard,
-  instructor: { name: string; imageUrl: string },
+  instructor: { name: string; avatarUrl: string | null },
   ratingInfo?: { ratingAvg: number | null; reviewCount: number | null },
 ) {
   const ratingAvgRaw = Number(ratingInfo?.ratingAvg ?? 0)
@@ -44,7 +44,7 @@ export function mapSkillRowToCardSkillWithInstructor(
     id: row.id,
     title: row.title,
     instructor: instructor.name,
-    instructorImage: instructor.imageUrl,
+    instructorAvatarUrl: instructor.avatarUrl,
     category: row.category,
     rating,
     reviewCount,
@@ -62,7 +62,7 @@ export function mapSkillRowToCardSkillFromJoin(row: SkillFromDbWithProfile) {
   const instructor = profile?.display_name?.trim() || "講師"
   return mapSkillRowToCardSkillWithInstructor(row, {
     name: instructor,
-    imageUrl: resolveProfileAvatarUrl(profile?.avatar_url ?? null, instructor),
+    avatarUrl: getProfileAvatarUrl(profile?.avatar_url ?? null),
   }, {
     ratingAvg: profile?.rating_avg ?? null,
     reviewCount: profile?.review_count ?? null,

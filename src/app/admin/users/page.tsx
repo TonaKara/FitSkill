@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { AdminTableCard } from "@/components/admin/AdminTableCard"
 import { Input } from "@/components/ui/input"
+import { adminUi } from "@/lib/admin-ui"
 
 type UserTab = "admins" | "general" | "reported"
 
@@ -40,10 +41,10 @@ export default function AdminUsersPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-black tracking-wide text-white">ユーザー管理</h1>
+      <h1 className="text-3xl font-black tracking-wide text-foreground">ユーザー管理</h1>
 
       <div className="space-y-3">
-        <label className="block text-sm font-medium text-zinc-300" htmlFor="admin-user-search">
+        <label className={adminUi.label} htmlFor="admin-user-search">
           検索（ユーザーID・表示名）
         </label>
         <Input
@@ -52,7 +53,7 @@ export default function AdminUsersPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="ユーザーID または 表示名の一部で絞り込み"
-          className="max-w-xl border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500"
+          className={adminUi.filterInput}
         />
       </div>
 
@@ -63,7 +64,7 @@ export default function AdminUsersPage() {
           className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
             tab === "admins"
               ? "bg-red-600 text-white"
-              : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+              : adminUi.tabInactive
           }`}
         >
           管理者一覧
@@ -74,7 +75,7 @@ export default function AdminUsersPage() {
           className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
             tab === "general"
               ? "bg-red-600 text-white"
-              : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+              : adminUi.tabInactive
           }`}
         >
           一般ユーザー一覧
@@ -85,7 +86,7 @@ export default function AdminUsersPage() {
           className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
             tab === "reported"
               ? "bg-red-600 text-white"
-              : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+              : adminUi.tabInactive
           }`}
         >
           通報が多いユーザー

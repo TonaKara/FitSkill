@@ -42,3 +42,11 @@ export function getLogoutSuccessHref() {
   params.set(LOGOUT_QUERY, LOGOUT_QUERY_VALUE)
   return `/?${params.toString()}`
 }
+
+/** クライアントの認証キャッシュを捨て、未ログイン UI を即反映するためフルナビゲーションする */
+export function navigateAfterLogout() {
+  if (typeof window === "undefined") {
+    return
+  }
+  window.location.assign(getLogoutSuccessHref())
+}

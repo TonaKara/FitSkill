@@ -14,6 +14,8 @@ import {
   type CmsSettingsValues,
 } from "@/lib/cms-settings"
 import { SpecifiedCommercialLawView } from "@/components/cms/SpecifiedCommercialLawView"
+import { adminUi } from "@/lib/admin-ui"
+import { cn } from "@/lib/utils"
 
 export default function AdminCmsPage() {
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
@@ -70,19 +72,19 @@ export default function AdminCmsPage() {
   return (
     <div className="space-y-6">
       {notice ? <NotificationToast notice={notice} onClose={() => setNotice(null)} /> : null}
-      <h1 className="text-3xl font-black tracking-wide text-white">CMS設定</h1>
+      <h1 className="text-3xl font-black tracking-wide text-foreground">CMS設定</h1>
       {loading ? (
-        <div className="flex min-h-[180px] items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-300">
+        <div className="flex min-h-[180px] items-center justify-center rounded-xl border border-border bg-card text-muted-foreground">
           <Loader2 className="mr-2 h-5 w-5 animate-spin text-red-400" />
           設定を読み込み中...
         </div>
       ) : (
         <div className="grid gap-6 lg:grid-cols-2">
-          <section className="space-y-4 rounded-xl border border-zinc-800 bg-zinc-950 p-5">
-            <h2 className="text-lg font-bold text-white">編集フォーム</h2>
+          <section className="space-y-4 rounded-xl border border-border bg-card p-5">
+            <h2 className="text-lg font-bold text-foreground">編集フォーム</h2>
             {CMS_SETTINGS_FIELDS.map((field) => (
               <div key={field.key} className="space-y-2">
-                <label className="text-sm font-semibold text-zinc-200" htmlFor={`cms-${field.key}`}>
+                <label className={adminUi.label} htmlFor={`cms-${field.key}`}>
                   {field.label}
                 </label>
                 {field.multiline ? (
@@ -91,7 +93,7 @@ export default function AdminCmsPage() {
                     value={form[field.key]}
                     onChange={(event) => handleChange(field.key, event.target.value)}
                     rows={4}
-                    className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+                    className={cn("w-full px-3 py-2 text-sm focus:ring-red-500", adminUi.input)}
                   />
                 ) : (
                   <input
@@ -99,7 +101,7 @@ export default function AdminCmsPage() {
                     type="text"
                     value={form[field.key]}
                     onChange={(event) => handleChange(field.key, event.target.value)}
-                    className="h-10 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+                    className={cn("h-10 w-full px-3 text-sm focus:ring-red-500", adminUi.input)}
                   />
                 )}
               </div>
@@ -115,8 +117,8 @@ export default function AdminCmsPage() {
             </button>
           </section>
 
-          <section className="space-y-4 rounded-xl border border-zinc-800 bg-zinc-950 p-5">
-            <h2 className="text-lg font-bold text-white">プレビュー（特定商取引法に基づく表記）</h2>
+          <section className="space-y-4 rounded-xl border border-border bg-card p-5">
+            <h2 className="text-lg font-bold text-foreground">プレビュー（特定商取引法に基づく表記）</h2>
             <SpecifiedCommercialLawView settings={form} />
           </section>
         </div>

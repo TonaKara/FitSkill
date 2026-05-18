@@ -5,7 +5,7 @@ import LoginPage from "@/login/page"
 export const metadata: Metadata = {
   title: "ログイン",
   description:
-    "GritVib（グリットヴィブ）へのログイン。フィットネス指導スキルの出品・購入は、アカウント作成またはログインのうえでご利用ください。",
+    "GritVib（グリット・ヴィブ）へのログイン。ストアの開設やスキルの出品・購入は、アカウント作成またはログインのうえでご利用ください。",
   alternates: { canonical: "/login" },
   robots: { index: false, follow: true },
 }

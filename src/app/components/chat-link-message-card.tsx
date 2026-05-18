@@ -5,7 +5,12 @@ import { createPortal } from "react-dom"
 import { ExternalLink } from "lucide-react"
 import { ChatYoutubeRich } from "@/components/chat-youtube-rich"
 import { Button } from "@/components/ui/button"
-import { type LinkMessagePayload, type ZoomLinkPayload } from "@/lib/chat-link-payload"
+import {
+  DISCORD_LINK_SERVER_INVITE_NOTICE,
+  type DiscordLinkPayload,
+  type LinkMessagePayload,
+  type ZoomLinkPayload,
+} from "@/lib/chat-link-payload"
 import { cn } from "@/lib/utils"
 
 type Props = {
@@ -158,9 +163,102 @@ function ZoomInviteCard({ payload, mine }: { payload: ZoomLinkPayload; mine: boo
   )
 }
 
+function DiscordInviteCard({ payload, mine }: { payload: DiscordLinkPayload; mine: boolean }) {
+  const [toastOpen, setToastOpen] = useState(false)
+  const [portalReady, setPortalReady] = useState(false)
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    setPortalReady(true)
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current)
+      }
+    }
+  }, [])
+
+  const showCopiedToast = useCallback(() => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current)
+    }
+    setToastOpen(true)
+    toastTimerRef.current = setTimeout(() => {
+      setToastOpen(false)
+      toastTimerRef.current = null
+    }, 2000)
+  }, [])
+
+  const copyUserId = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(payload.userId)
+      showCopiedToast()
+    } catch {
+      /* 権限・非HTTPS 等 */
+    }
+  }, [payload.userId, showCopiedToast])
+
+  return (
+    <>
+      <div
+        className={cn(
+          "mt-0 rounded-xl border p-3 text-left shadow-sm",
+          mine
+            ? "border-red-900/60 bg-red-950/40"
+            : "border-zinc-600 bg-zinc-950/80",
+        )}
+      >
+        <p className="text-xs font-semibold text-[#949cf7]">Discord</p>
+        <div className="mt-3 rounded-lg border border-zinc-700/80 bg-black/20 p-2.5">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-medium text-zinc-400">ユーザー名（ID）</p>
+              <p className="mt-0.5 break-all font-mono text-sm text-zinc-100">{payload.userId}</p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className={cn(
+                "h-8 shrink-0 self-start px-2.5 text-[11px] font-medium",
+                mine
+                  ? "border-red-200/30 bg-red-900/40 text-red-50 hover:bg-red-900/60"
+                  : "border-zinc-500 bg-zinc-800/80 text-zinc-100 hover:bg-zinc-700",
+              )}
+              onClick={() => void copyUserId()}
+            >
+              IDをコピー
+            </Button>
+          </div>
+        </div>
+        <p className="mt-3 text-[11px] leading-relaxed text-amber-200/90">{DISCORD_LINK_SERVER_INVITE_NOTICE}</p>
+      </div>
+
+      {portalReady &&
+        toastOpen &&
+        createPortal(
+          <div
+            className="pointer-events-none fixed bottom-6 left-1/2 z-[10001] -translate-x-1/2 rounded-full border border-emerald-700/50 bg-emerald-950/95 px-4 py-2 text-[11px] font-medium text-emerald-100 shadow-lg backdrop-blur-sm"
+            role="status"
+            aria-live="polite"
+          >
+            コピーしました！
+          </div>,
+          document.body,
+        )}
+    </>
+  )
+}
+
 export function ChatLinkMessageCard({ payload, mine }: Props) {
   if (payload.kind === "zoom") {
     return <ZoomInviteCard payload={payload} mine={mine} />
+  }
+
+  if (payload.kind === "discord") {
+    return <DiscordInviteCard payload={payload} mine={mine} />
   }
 
   return <ChatYoutubeRich url={payload.url} mine={mine} />

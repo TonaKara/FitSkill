@@ -115,23 +115,23 @@ export function AdminAnnouncementsList() {
   )
 
   return (
-    <section className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+    <section className="rounded-xl border border-border bg-card p-4">
       {notice ? <NotificationToast notice={notice} onClose={() => setNotice(null)} /> : null}
-      <h2 className="mb-3 text-lg font-bold text-white">送信済みお知らせ一覧</h2>
+      <h2 className="mb-3 text-lg font-bold text-foreground">送信済みお知らせ一覧</h2>
       {loading ? (
-        <div className="flex items-center text-sm text-zinc-400">
+        <div className="flex items-center text-sm text-muted-foreground">
           <Loader2 className="mr-2 h-4 w-4 animate-spin text-red-500" />
           読み込み中...
         </div>
       ) : rows.length === 0 ? (
-        <p className="text-sm text-zinc-500">送信済みのお知らせはありません。</p>
+        <p className="text-sm text-muted-foreground">送信済みのお知らせはありません。</p>
       ) : (
         <ul className="space-y-3">
           {rows.map((item) => {
             const open = openIds.has(item.id)
             return (
-              <li key={item.id} className="overflow-hidden rounded border border-zinc-800 bg-zinc-900/50">
-                <div className="flex items-center gap-2 border-b border-zinc-800/80 px-3 py-2.5">
+              <li key={item.id} className="overflow-hidden rounded border border-border bg-muted/40">
+                <div className="flex items-center gap-2 border-b border-border/80 px-3 py-2.5">
                   <button
                     type="button"
                     className="min-w-0 flex-1 text-left"
@@ -148,14 +148,14 @@ export function AdminAnnouncementsList() {
                       })
                     }
                   >
-                    <p className="truncate text-sm font-semibold text-zinc-100">{item.title?.trim() || "タイトルなし"}</p>
-                    <p className="mt-1 text-xs text-zinc-500">{formatDateTime(item.created_at)}</p>
-                    <p className="mt-1 text-[11px] text-zinc-600">
+                    <p className="truncate text-sm font-semibold text-foreground">{item.title?.trim() || "タイトルなし"}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{formatDateTime(item.created_at)}</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground/80">
                       送信者ID: {item.sender_id?.trim() || "不明"}
                     </p>
                   </button>
                   <ChevronDown
-                    className={`h-4 w-4 shrink-0 text-zinc-500 transition-transform ${open ? "rotate-180" : ""}`}
+                    className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
                     aria-hidden
                   />
                   <Button
@@ -171,12 +171,12 @@ export function AdminAnnouncementsList() {
                 {open ? (
                   <div className="space-y-2 px-3 py-3 text-sm">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">理由</p>
-                      <p className="mt-1 whitespace-pre-wrap text-zinc-300">{item.reason?.trim() || "—"}</p>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">理由</p>
+                      <p className="mt-1 whitespace-pre-wrap text-foreground">{item.reason?.trim() || "—"}</p>
                     </div>
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">本文</p>
-                      <p className="mt-1 whitespace-pre-wrap text-zinc-200">{item.content?.trim() || "（本文なし）"}</p>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">本文</p>
+                      <p className="mt-1 whitespace-pre-wrap text-foreground">{item.content?.trim() || "（本文なし）"}</p>
                     </div>
                   </div>
                 ) : null}

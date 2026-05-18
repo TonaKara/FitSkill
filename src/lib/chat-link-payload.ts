@@ -1,4 +1,4 @@
-/** messages.file_type 用。構造化リンク（Zoom / YouTube）を content に JSON で保存する。 */
+/** messages.file_type 用。構造化リンク（Zoom / YouTube / Discord）を content に JSON で保存する。 */
 export const CHAT_LINK_FILE_TYPE = "link" as const
 
 /** content に YouTube の URL 文字列のみを保存する場合 */
@@ -16,7 +16,24 @@ export type YoutubeLinkPayload = {
   url: string
 }
 
-export type LinkMessagePayload = ZoomLinkPayload | YoutubeLinkPayload
+export type DiscordLinkPayload = {
+  kind: "discord"
+  userId: string
+}
+
+export type LinkMessagePayload = ZoomLinkPayload | YoutubeLinkPayload | DiscordLinkPayload
+
+/** Discord 連携入力画面の注意文 */
+export const DISCORD_LINK_SERVER_INVITE_NOTICE =
+  "このチャットから直接サーバーに招待する行為は禁止です。"
+
+export function isValidDiscordUserIdInput(value: string): boolean {
+  const trimmed = value.trim()
+  if (trimmed.length < 2 || trimmed.length > 37) {
+    return false
+  }
+  return /^[\w.]{2,32}$/.test(trimmed) || /^[\w.]{2,32}#\d{4}$/.test(trimmed)
+}
 
 export function serializeLinkPayload(payload: LinkMessagePayload): string {
   return JSON.stringify(payload)
@@ -54,6 +71,16 @@ export function parseLinkMessageContent(content: string): LinkMessagePayload | n
         return null
       }
       return { kind: "youtube", url }
+    }
+    if (obj.kind === "discord") {
+      if (typeof obj.userId !== "string") {
+        return null
+      }
+      const userId = obj.userId.trim()
+      if (!userId || !isValidDiscordUserIdInput(userId)) {
+        return null
+      }
+      return { kind: "discord", userId }
     }
     return null
   } catch {

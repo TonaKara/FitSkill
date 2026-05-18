@@ -20,15 +20,27 @@ import {
   SKILL_THUMBNAIL_EXPORT_WIDTH,
   skillThumbnailContainerAspectStyle,
 } from "@/lib/skill-thumbnail"
-import { SKILL_CATEGORY_OPTIONS as CATEGORY_OPTIONS } from "@/lib/skill-categories"
+import {
+  getPickerValuesFromStored,
+  getStoredCategoryFromPicker,
+  isSkillCategoryPickerComplete,
+  PARENT_FITNESS_LABEL,
+} from "@/lib/skill-categories"
+import { SkillCategoryPicker } from "@/components/skill-category-picker"
 import { PREFECTURE_OPTIONS } from "@/lib/prefectures"
 import { fetchConsultationSettings, toConsultationSkillId } from "@/lib/consultation"
 import { computeSellerFeePreview, SELLER_FEE_RATE } from "@/lib/seller-fee-preview"
+import { ALLOWED_EXTERNAL_TOOLS_ETC } from "@/lib/allowed-external-tools"
+import { cn } from "@/lib/utils"
 
 type LessonFormat = "onsite" | "online"
 
 /** 出品価格の下限（円） */
 const MIN_PRICE_YEN = 500
+/** 1回あたりの時間の下限（分） */
+const MIN_DURATION_MINUTES = 1
+/** 最大対応人数の下限（人） */
+const MIN_MAX_CAPACITY = 1
 
 function getPriceHintMessage(priceInput: string): string {
   const trimmed = priceInput.trim()
@@ -65,11 +77,33 @@ const DEFAULT_CONSULTATION_LABELS = {
 }
 
 const CONSULTATION_LABEL_PLACEHOLDERS = {
-  q1: "例 : 現在の悩みを教えてください",
-  q2: "例 : 目標を教えてください",
-  q3: "例 : これまでの運動経験を教えてください",
+  q1: "例 : いま気になっていることを教えてください",
+  q2: "例 : 目指していることを教えてください",
+  q3: "例 : これまでの経験やレベルを教えてください",
   free: "例 : その他、事前に伝えておきたいこと",
 }
+
+const createSkillUi = {
+  section: "min-w-0 space-y-3 rounded-xl border border-border bg-muted/40 p-4",
+  sectionLg: "min-w-0 space-y-4 rounded-xl border border-border bg-muted/40 p-4",
+  fieldset: "min-w-0 space-y-3 rounded-lg border border-border bg-muted/30 p-4",
+  label: "text-sm font-semibold text-foreground",
+  labelSub: "text-xs font-semibold text-muted-foreground",
+  input:
+    "border-border bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-red-500",
+  select:
+    "h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-red-500",
+  textarea:
+    "w-full rounded-md border border-border bg-background px-3 py-2 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-red-500",
+  checkbox: "h-4 w-4 rounded border-border bg-background text-red-600 focus:ring-red-500",
+  radio: "h-4 w-4 border-border text-red-600 focus:ring-red-500",
+  card: "min-w-0 overflow-x-clip border-primary/25 bg-card text-card-foreground shadow-sm",
+  modalOverlay:
+    "fixed inset-0 z-[10000] flex min-h-[100dvh] w-full items-center justify-center overflow-x-hidden overflow-y-auto bg-black/50 p-4 sm:p-6",
+  modal: "my-auto w-full max-w-sm shrink-0 rounded-xl border border-border bg-card p-6 text-card-foreground shadow-2xl",
+  modalLg: "my-auto w-full max-w-lg shrink-0 rounded-xl border border-border bg-card p-6 text-card-foreground shadow-2xl",
+  modalCancel: "flex-1 border-border bg-muted font-medium text-foreground hover:bg-muted/80",
+} as const
 
 function RequiredFieldMark() {
   return <span className="ml-1.5 text-xs font-medium text-red-500">必須</span>
@@ -149,6 +183,8 @@ function CreateSkillPageContent() {
   const [consultationEnabled, setConsultationEnabled] = useState(false)
   const [chatConsultationEnabled, setChatConsultationEnabled] = useState(false)
   const [consultationLabels, setConsultationLabels] = useState(DEFAULT_CONSULTATION_LABELS)
+  const [categoryParent, setCategoryParent] = useState("")
+  const [categorySub, setCategorySub] = useState("")
   const thumbnailInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
@@ -171,6 +207,8 @@ function CreateSkillPageContent() {
       setConsultationEnabled(false)
       setChatConsultationEnabled(false)
       setConsultationLabels(DEFAULT_CONSULTATION_LABELS)
+      setCategoryParent("")
+      setCategorySub("")
       return
     }
     setEditLoadFinished(false)
@@ -196,7 +234,7 @@ function CreateSkillPageContent() {
 
       const stripeChargeEnabled = await isStripeChargeEnabledForSeller(supabase, data.user.id)
       if (!stripeChargeEnabled) {
-        router.replace("/mypage?tab=payout")
+        router.replace("/account/sales")
         return
       }
 
@@ -241,16 +279,20 @@ function CreateSkillPageContent() {
       const row = data as SkillRow
 
       if (row.user_id !== userId) {
-        router.replace("/mypage")
+        router.replace("/")
         return
       }
 
       const fmt = row.format === "onsite" || row.format === "online" ? row.format : "online"
+      const loadedCategory = row.category ?? ""
+      const pickerValues = getPickerValuesFromStored(loadedCategory)
+      setCategoryParent(pickerValues.parentLabel)
+      setCategorySub(pickerValues.subLabel)
       setForm({
         title: row.title ?? "",
         targetAudience: row.target_audience ?? "",
         description: row.description ?? "",
-        category: row.category ?? "",
+        category: loadedCategory,
         price: row.price != null ? String(row.price) : "",
         durationMinutes: row.duration_minutes != null ? String(row.duration_minutes) : "",
         maxCapacity: row.max_capacity != null ? String(row.max_capacity) : "",
@@ -439,7 +481,7 @@ function CreateSkillPageContent() {
     }
 
     setShowDeleteConfirm(false)
-    router.push("/mypage")
+    router.push("/")
     router.refresh()
   }
 
@@ -483,7 +525,7 @@ function CreateSkillPageContent() {
     const title = form.title.trim()
     const targetAudience = form.targetAudience.trim()
     const description = form.description.trim()
-    const category = form.category
+    const category = getStoredCategoryFromPicker(categoryParent, categorySub)
     const priceTrimmed = form.price.trim()
     const price = Number(priceTrimmed)
     const durationMinutes = Number(form.durationMinutes)
@@ -494,7 +536,7 @@ function CreateSkillPageContent() {
       !title ||
       !targetAudience ||
       !description ||
-      !category ||
+      !isSkillCategoryPickerComplete(categoryParent, categorySub) ||
       !priceTrimmed ||
       !Number.isFinite(price) ||
       !Number.isFinite(durationMinutes) ||
@@ -507,6 +549,22 @@ function CreateSkillPageContent() {
     const priceHint = getPriceHintMessage(priceTrimmed)
     if (priceHint) {
       setPriceError(priceHint)
+      return false
+    }
+
+    if (!Number.isInteger(durationMinutes) || durationMinutes < MIN_DURATION_MINUTES) {
+      setNotice({
+        variant: "error",
+        message: `1回あたりの時間は${MIN_DURATION_MINUTES}分以上の整数で入力してください。`,
+      })
+      return false
+    }
+
+    if (!Number.isInteger(maxCapacity) || maxCapacity < MIN_MAX_CAPACITY) {
+      setNotice({
+        variant: "error",
+        message: `最大対応人数は${MIN_MAX_CAPACITY}人以上の整数で入力してください。`,
+      })
       return false
     }
 
@@ -581,18 +639,21 @@ function CreateSkillPageContent() {
         message: "出品には口座登録が必要です。売上・振込設定からStripe登録を完了してください。",
       })
       setShowFinalConfirm(false)
-      router.replace("/mypage?tab=payout")
+      router.replace("/account/sales")
       return
     }
 
     const title = form.title.trim()
     const targetAudience = form.targetAudience.trim()
     const description = form.description.trim()
-    const category = form.category
+    const category = getStoredCategoryFromPicker(categoryParent, categorySub)
     const priceTrimmed = form.price.trim()
     const price = Number(priceTrimmed)
-    const durationMinutes = Number(form.durationMinutes)
-    const maxCapacity = Number(form.maxCapacity)
+    const durationMinutes = Math.max(
+      MIN_DURATION_MINUTES,
+      Math.floor(Number(form.durationMinutes)),
+    )
+    const maxCapacity = Math.max(MIN_MAX_CAPACITY, Math.floor(Number(form.maxCapacity)))
     const q1 = consultationLabels.q1.trim()
     const q2 = consultationLabels.q2.trim()
     const q3 = consultationLabels.q3.trim()
@@ -647,7 +708,7 @@ function CreateSkillPageContent() {
 
         setInitialIsPublished(nextPublished)
         setPriceError("")
-        router.push("/mypage?tab=listings&updated=1")
+        router.push("/account/listings?updated=1")
         router.refresh()
       } else {
         const { data: insertedSkill, error } = await supabase
@@ -724,7 +785,7 @@ function CreateSkillPageContent() {
 
   if (isCheckingAuth || !editLoadFinished) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black text-zinc-200">
+      <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
         <Loader2 className="mr-2 h-5 w-5 animate-spin text-red-500" />
         {isCheckingAuth ? "ログイン状態を確認しています..." : "スキル情報を読み込んでいます..."}
       </div>
@@ -736,7 +797,7 @@ function CreateSkillPageContent() {
   const submitLabel = editSkillId ? "更新する" : "出品する"
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-black pb-14 pt-8 text-zinc-50">
+    <div className="min-h-screen w-full overflow-x-hidden bg-background pb-14 pt-8 text-foreground">
       <ThumbnailCropModal
         open={cropModalOpen}
         imageSrc={cropSourceUrl}
@@ -748,31 +809,31 @@ function CreateSkillPageContent() {
         subheading="枠は一覧サムネイルと同じ 16:10 の切り取りサイズです。ドラッグ・ピンチ・拡大スライダーで位置とズームを調整してください。"
       />
       {notice && <NotificationToast notice={notice} onClose={() => setNotice(null)} />}
-      <div className="mx-auto w-full min-w-0 max-w-3xl px-4 md:px-6">
+      <div className="w-full min-w-0 px-4 md:px-8 md:py-6">
         <div className="mb-6 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-          <h1 className="min-w-0 break-words text-2xl font-black tracking-wide text-white sm:text-3xl">{pageTitle}</h1>
+          <h1 className="min-w-0 break-words text-2xl font-black tracking-wide text-foreground sm:text-3xl">{pageTitle}</h1>
           <Button
             asChild
             variant="outline"
-            className="shrink-0 self-start border-zinc-700 bg-zinc-900 text-zinc-200 hover:border-red-500 hover:bg-zinc-800 sm:self-auto"
+            className="shrink-0 self-start border-border bg-muted text-foreground hover:border-primary hover:bg-muted/80 sm:self-auto"
           >
-            <Link href={editSkillId ? "/mypage" : "/"}>戻る</Link>
+            <Link href={editSkillId ? "/account/listings" : "/"}>戻る</Link>
           </Button>
         </div>
 
-        <Card className="min-w-0 overflow-x-clip border-red-500/35 bg-zinc-950 shadow-[0_0_48px_rgba(230,74,25,0.14)] max-sm:shadow-[0_0_24px_rgba(230,74,25,0.12)]">
+        <Card className={createSkillUi.card}>
           <CardHeader>
-            <CardTitle className="text-white">{formTitle}</CardTitle>
+            <CardTitle className="text-foreground">{formTitle}</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="min-w-0 space-y-5">
-              <section className="min-w-0 space-y-3 rounded-xl border border-zinc-800/80 bg-zinc-900/25 p-4">
+              <section className={createSkillUi.section}>
                 <div className="space-y-2">
-                  <label htmlFor="thumbnail" className="text-sm font-semibold text-zinc-200">
+                  <label htmlFor="thumbnail" className="text-sm font-semibold text-foreground">
                     サムネイル画像
                   </label>
                   {!editSkillId ? (
-                    <p className="text-xs text-zinc-500">サムネイル画像は後から設定することも可能です。</p>
+                    <p className="text-xs text-muted-foreground">サムネイル画像は後から設定することも可能です。</p>
                   ) : null}
                   <Input
                     id="thumbnail"
@@ -782,7 +843,7 @@ function CreateSkillPageContent() {
                     onChange={handleThumbnailSelect}
                     className="sr-only"
                   />
-                  <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 sm:p-4">
+                  <div className="rounded-lg border border-border bg-muted/30 p-3 sm:p-4">
                     <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-3">
                       <Button
                         type="button"
@@ -792,14 +853,14 @@ function CreateSkillPageContent() {
                       >
                         画像を選択
                       </Button>
-                      <span className="block min-h-5 break-all text-xs text-zinc-400 sm:text-sm">
+                      <span className="block min-h-5 break-all text-xs text-muted-foreground sm:text-sm">
                         {thumbnailFile?.name ?? "未選択"}
                       </span>
                     </div>
                   </div>
                   {thumbnailPreview ? (
                     <div
-                      className="relative mx-auto w-full max-w-md overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 sm:max-w-none"
+                      className="relative mx-auto w-full max-w-md overflow-hidden rounded-lg border border-border bg-card sm:max-w-none"
                       style={skillThumbnailContainerAspectStyle()}
                     >
                       {/* object-cover + 16:10 枠は一覧・詳細ヒーローと同じ。クロップ出力とピクセル対応 */}
@@ -812,7 +873,7 @@ function CreateSkillPageContent() {
                       <button
                         type="button"
                         onClick={clearThumbnailSelection}
-                        className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-600/80 bg-black/70 text-zinc-100 transition-colors hover:border-red-500 hover:text-red-300"
+                        className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background/90 text-foreground shadow-sm transition-colors hover:border-primary hover:text-primary-readable"
                         aria-label="サムネイル画像を削除"
                       >
                         <X className="h-4 w-4" aria-hidden />
@@ -822,10 +883,10 @@ function CreateSkillPageContent() {
                 </div>
               </section>
 
-              <section className="min-w-0 space-y-4 rounded-xl border border-zinc-800/80 bg-zinc-900/25 p-4">
-                <h2 className="text-sm font-semibold text-zinc-100">基本情報</h2>
+              <section className={createSkillUi.sectionLg}>
+                <h2 className="text-sm font-semibold text-foreground">基本情報</h2>
                 <div className="space-y-2">
-                  <label htmlFor="title" className="text-sm font-semibold text-zinc-200">
+                  <label htmlFor="title" className="text-sm font-semibold text-foreground">
                     題名
                     <RequiredFieldMark />
                   </label>
@@ -833,13 +894,13 @@ function CreateSkillPageContent() {
                     id="title"
                     value={form.title}
                     onChange={(event) => updateForm("title", event.target.value)}
-                    placeholder="例: 初心者向け自重トレーニング"
-                    className="border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                    placeholder="例: 初めての方向け・オンライン相談（30分）"
+                    className="border-border bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-red-500"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label htmlFor="target_audience" className="text-sm font-semibold text-zinc-200">
+                  <label htmlFor="target_audience" className="text-sm font-semibold text-foreground">
                     こんな人におすすめ
                     <RequiredFieldMark />
                   </label>
@@ -847,13 +908,13 @@ function CreateSkillPageContent() {
                     id="target_audience"
                     value={form.targetAudience}
                     onChange={(event) => updateForm("targetAudience", event.target.value)}
-                    placeholder="例：初心者の方、女性の方など"
-                    className="border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                    placeholder="例：はじめて学ぶ方、時間を区切って相談したい方など"
+                    className="border-border bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-red-500"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label htmlFor="description" className="text-sm font-semibold text-zinc-200">
+                  <label htmlFor="description" className="text-sm font-semibold text-foreground">
                     説明
                     <RequiredFieldMark />
                   </label>
@@ -862,41 +923,48 @@ function CreateSkillPageContent() {
                     value={form.description}
                     onChange={(event) => updateForm("description", event.target.value)}
                     rows={7}
-                    placeholder="自己紹介、指導方針（ZoomやYouTubeを使った指導スタイルなど）、指導の流れ、準備していただくもの（運動できる服装、飲み物など）などを自由に記載してください。"
-                    className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm leading-relaxed text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-500"
+                    placeholder={`あなたの強みや提供内容（${ALLOWED_EXTERNAL_TOOLS_ETC}を使う場合は連携方法も）、進め方・流れ、購入者に準備してほしいことを記載してください。`}
+                    className={createSkillUi.textarea}
                   />
-                  <p className="flex min-w-0 items-start gap-1.5 text-xs text-zinc-400">
+                  <p className="flex min-w-0 items-start gap-1.5 text-xs text-muted-foreground">
                     <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-400" aria-hidden />
-                    外部サービス（Zoom等）を利用する場合は、トラブル防止のため必ず説明欄に記載してください。
+                    外部ツール（{ALLOWED_EXTERNAL_TOOLS_ETC}）を利用する場合は、トラブル防止のため必ず説明欄に記載してください。
                   </p>
                 </div>
               </section>
 
-              <section className="min-w-0 space-y-4 rounded-xl border border-zinc-800/80 bg-zinc-900/25 p-4">
-                <h2 className="text-sm font-semibold text-zinc-100">提供方法</h2>
+              <section className={createSkillUi.sectionLg}>
+                <h2 className="text-sm font-semibold text-foreground">提供方法</h2>
                 <div className="grid min-w-0 gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <label htmlFor="category" className="text-sm font-semibold text-zinc-200">
-                      カテゴリー（50音順）
-                      <RequiredFieldMark />
-                    </label>
-                    <select
-                      id="category"
-                      value={form.category}
-                      onChange={(event) => updateForm("category", event.target.value)}
-                      className="h-10 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
-                    >
-                      <option value="">選択してください</option>
-                      {CATEGORY_OPTIONS.map((category) => (
-                        <option key={category} value={category}>
-                          {category}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="md:col-span-2">
+                    <SkillCategoryPicker
+                      parentLabel={categoryParent}
+                      subLabel={categorySub}
+                      onParentChange={(parent) => {
+                        setCategoryParent(parent)
+                        const nextSub = parent === PARENT_FITNESS_LABEL ? categorySub : ""
+                        if (parent !== PARENT_FITNESS_LABEL) {
+                          setCategorySub("")
+                        }
+                        updateForm(
+                          "category",
+                          getStoredCategoryFromPicker(parent, nextSub),
+                        )
+                      }}
+                      onSubChange={(sub) => {
+                        setCategorySub(sub)
+                        updateForm(
+                          "category",
+                          getStoredCategoryFromPicker(categoryParent, sub),
+                        )
+                      }}
+                      selectClassName={createSkillUi.select}
+                      requiredMark={<RequiredFieldMark />}
+                    />
                   </div>
 
                   <div className="space-y-2">
-                    <label htmlFor="format" className="text-sm font-semibold text-zinc-200">
+                    <label htmlFor="format" className="text-sm font-semibold text-foreground">
                       形式
                       <RequiredFieldMark />
                     </label>
@@ -911,7 +979,7 @@ function CreateSkillPageContent() {
                           prefecture: nextFormat === "online" ? "" : previous.prefecture,
                         }))
                       }}
-                      className="h-10 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+                      className={createSkillUi.select}
                     >
                       <option value="online">オンライン</option>
                       <option value="onsite">対面</option>
@@ -921,7 +989,7 @@ function CreateSkillPageContent() {
 
                 {form.format === "onsite" && (
                   <div className="space-y-2">
-                    <label htmlFor="prefecture" className="text-sm font-semibold text-zinc-200">
+                    <label htmlFor="prefecture" className="text-sm font-semibold text-foreground">
                       場所（都道府県）
                       <RequiredFieldMark />
                     </label>
@@ -931,7 +999,7 @@ function CreateSkillPageContent() {
                         id="prefecture"
                         value={form.prefecture}
                         onChange={(event) => updateForm("prefecture", event.target.value)}
-                        className="h-10 w-full rounded-md border border-zinc-700 bg-zinc-900 pl-9 pr-3 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+                        className={cn(createSkillUi.select, "pl-9")}
                       >
                         <option value="">都道府県を選択してください</option>
                         {PREFECTURE_OPTIONS.map((prefecture) => (
@@ -945,11 +1013,11 @@ function CreateSkillPageContent() {
                 )}
               </section>
 
-              <section className="min-w-0 space-y-4 rounded-xl border border-zinc-800/80 bg-zinc-900/25 p-4">
-                <h2 className="text-sm font-semibold text-zinc-100">価格・提供条件</h2>
+              <section className={createSkillUi.sectionLg}>
+                <h2 className="text-sm font-semibold text-foreground">価格・提供条件</h2>
                 <div className="grid min-w-0 gap-4 md:grid-cols-3">
                   <div className="space-y-2">
-                    <label htmlFor="price" className="text-sm font-semibold text-zinc-200">
+                    <label htmlFor="price" className="text-sm font-semibold text-foreground">
                       値段（円）
                       <RequiredFieldMark />
                     </label>
@@ -960,7 +1028,7 @@ function CreateSkillPageContent() {
                       value={form.price}
                       onChange={(event) => updateForm("price", event.target.value)}
                       placeholder="例: 3500"
-                      className="border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                      className="border-border bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-red-500"
                       aria-invalid={Boolean(priceError)}
                       aria-describedby={
                         [priceError ? "price-error" : null, feePreview ? "price-fee-preview" : null]
@@ -969,11 +1037,11 @@ function CreateSkillPageContent() {
                       }
                     />
                     {feePreview ? (
-                      <div id="price-fee-preview" className="mt-2 space-y-1 text-sm text-zinc-400">
+                      <div id="price-fee-preview" className="mt-2 space-y-1 text-sm text-muted-foreground">
                         <p>
                           手数料（{Math.round(SELLER_FEE_RATE * 100)}%）: {feePreview.feeYen.toLocaleString("ja-JP")}円
                         </p>
-                        <p className="font-medium text-zinc-300">
+                        <p className="font-medium text-foreground">
                           受け取り予定額: {feePreview.receiveYen.toLocaleString("ja-JP")}円
                         </p>
                       </div>
@@ -985,55 +1053,57 @@ function CreateSkillPageContent() {
                     ) : null}
                   </div>
                   <div className="space-y-2">
-                    <label htmlFor="duration" className="text-sm font-semibold text-zinc-200">
+                    <label htmlFor="duration" className="text-sm font-semibold text-foreground">
                       1回あたりの時間（分）
                       <RequiredFieldMark />
                     </label>
                     <Input
                       id="duration"
                       type="number"
-                      min={1}
+                      min={MIN_DURATION_MINUTES}
+                      step={1}
                       value={form.durationMinutes}
                       onChange={(event) => updateForm("durationMinutes", event.target.value)}
                       placeholder="例: 60"
-                      className="border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                      className="border-border bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-red-500"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label htmlFor="max-capacity" className="text-sm font-semibold text-zinc-200">
+                    <label htmlFor="max-capacity" className="text-sm font-semibold text-foreground">
                       最大対応人数
                       <RequiredFieldMark />
                     </label>
                     <Input
                       id="max-capacity"
                       type="number"
-                      min={1}
+                      min={MIN_MAX_CAPACITY}
+                      step={1}
                       value={form.maxCapacity}
                       onChange={(event) => updateForm("maxCapacity", event.target.value)}
                       placeholder="例: 5"
-                      className="border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                      className="border-border bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-red-500"
                     />
                   </div>
                 </div>
               </section>
 
-              <fieldset className="min-w-0 space-y-3 rounded-lg border border-zinc-700 bg-zinc-900/50 p-4">
-                <legend className="px-1 text-sm font-semibold text-zinc-200">事前オファー設定</legend>
-                <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-zinc-200">
+              <fieldset className={createSkillUi.fieldset}>
+                <legend className="px-1 text-sm font-semibold text-foreground">事前オファー設定</legend>
+                <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-foreground">
                   <input
                     type="checkbox"
-                    className="h-4 w-4 rounded border-zinc-600 bg-zinc-950 text-red-600 focus:ring-red-500"
+                    className={createSkillUi.checkbox}
                     checked={consultationEnabled}
                     onChange={(event) => setConsultationEnabled(event.target.checked)}
                   />
                   事前オファー（質問フォーム）を受け付ける
                 </label>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-muted-foreground">
                   オンにすると、購入前に回答フォームと講師の承認が必要になります（質問ラベルを設定してください）。
                 </p>
                 <div className="grid min-w-0 gap-3">
                   <div className="space-y-1">
-                    <label htmlFor="consultation-q1" className="inline-flex items-center text-xs font-semibold text-zinc-400">
+                    <label htmlFor="consultation-q1" className="inline-flex items-center text-xs font-semibold text-muted-foreground">
                       質問1
                       {consultationEnabled ? <RequiredFieldMark /> : null}
                     </label>
@@ -1043,12 +1113,12 @@ function CreateSkillPageContent() {
                       onChange={(event) =>
                         setConsultationLabels((prev) => ({ ...prev, q1: event.target.value }))
                       }
-                      className="border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                      className="border-border bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-red-500"
                       placeholder={CONSULTATION_LABEL_PLACEHOLDERS.q1}
                     />
                   </div>
                   <div className="space-y-1">
-                    <label htmlFor="consultation-q2" className="text-xs font-semibold text-zinc-400">
+                    <label htmlFor="consultation-q2" className="text-xs font-semibold text-muted-foreground">
                       質問2
                     </label>
                     <Input
@@ -1057,12 +1127,12 @@ function CreateSkillPageContent() {
                       onChange={(event) =>
                         setConsultationLabels((prev) => ({ ...prev, q2: event.target.value }))
                       }
-                      className="border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                      className="border-border bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-red-500"
                       placeholder={CONSULTATION_LABEL_PLACEHOLDERS.q2}
                     />
                   </div>
                   <div className="space-y-1">
-                    <label htmlFor="consultation-q3" className="text-xs font-semibold text-zinc-400">
+                    <label htmlFor="consultation-q3" className="text-xs font-semibold text-muted-foreground">
                       質問3
                     </label>
                     <Input
@@ -1071,12 +1141,12 @@ function CreateSkillPageContent() {
                       onChange={(event) =>
                         setConsultationLabels((prev) => ({ ...prev, q3: event.target.value }))
                       }
-                      className="border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                      className="border-border bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-red-500"
                       placeholder={CONSULTATION_LABEL_PLACEHOLDERS.q3}
                     />
                   </div>
                   <div className="space-y-1">
-                    <label htmlFor="consultation-free" className="text-xs font-semibold text-zinc-400">
+                    <label htmlFor="consultation-free" className="text-xs font-semibold text-muted-foreground">
                       自由記述
                     </label>
                     <Input
@@ -1085,52 +1155,52 @@ function CreateSkillPageContent() {
                       onChange={(event) =>
                         setConsultationLabels((prev) => ({ ...prev, free: event.target.value }))
                       }
-                      className="border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                      className="border-border bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-red-500"
                       placeholder={CONSULTATION_LABEL_PLACEHOLDERS.free}
                     />
                   </div>
                 </div>
               </fieldset>
 
-              <fieldset className="min-w-0 space-y-3 rounded-lg border border-zinc-700 bg-zinc-900/50 p-4">
-                <legend className="px-1 text-sm font-semibold text-zinc-200">事前相談（チャット）設定</legend>
-                <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-zinc-200">
+              <fieldset className={createSkillUi.fieldset}>
+                <legend className="px-1 text-sm font-semibold text-foreground">事前相談（チャット）設定</legend>
+                <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-foreground">
                   <input
                     type="checkbox"
-                    className="h-4 w-4 rounded border-zinc-600 bg-zinc-950 text-red-600 focus:ring-red-500"
+                    className={createSkillUi.checkbox}
                     checked={chatConsultationEnabled}
                     onChange={(event) => setChatConsultationEnabled(event.target.checked)}
                   />
                   購入前のチャット相談を受け付ける
                 </label>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-muted-foreground">
                   オンにすると、スキル詳細に「出品者に質問する」が表示され、取引前のメッセージのやり取りができます。
                 </p>
               </fieldset>
 
-              <fieldset className="min-w-0 space-y-3 rounded-lg border border-zinc-700 bg-zinc-900/50 p-4">
-                <legend className="px-1 text-sm font-semibold text-zinc-200">公開設定</legend>
+              <fieldset className={createSkillUi.fieldset}>
+                <legend className="px-1 text-sm font-semibold text-foreground">公開設定</legend>
                 <div className="flex flex-wrap gap-4">
                   <label
-                    className={`flex items-center gap-2 text-sm text-zinc-200 ${
+                    className={`flex items-center gap-2 text-sm text-foreground ${
                       adminPublishLocked ? "cursor-not-allowed opacity-60" : "cursor-pointer"
                     }`}
                   >
                     <input
                       type="radio"
                       name="skill-visibility"
-                      className="h-4 w-4 border-zinc-600 text-red-600 focus:ring-red-500"
+                      className={createSkillUi.radio}
                       checked={isPublished}
                       disabled={adminPublishLocked}
                       onChange={() => setIsPublished(true)}
                     />
                     公開中
                   </label>
-                  <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-200">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
                     <input
                       type="radio"
                       name="skill-visibility"
-                      className="h-4 w-4 border-zinc-600 text-red-600 focus:ring-red-500"
+                      className={createSkillUi.radio}
                       checked={!isPublished}
                       onChange={() => setIsPublished(false)}
                     />
@@ -1138,7 +1208,7 @@ function CreateSkillPageContent() {
                   </label>
                 </div>
                 {adminPublishLocked ? (
-                  <p className="text-xs text-amber-200">
+                  <p className="text-xs text-amber-800 dark:text-amber-200">
                     運営により非公開のため、ご自身で公開に戻すことはできません。
                   </p>
                 ) : null}
@@ -1161,7 +1231,7 @@ function CreateSkillPageContent() {
             </form>
 
             {editSkillId ? (
-              <div className="mt-6 border-t border-zinc-800 pt-6">
+              <div className="mt-6 border-t border-border pt-6">
                 <Button
                   type="button"
                   variant="destructive"
@@ -1171,7 +1241,7 @@ function CreateSkillPageContent() {
                 >
                   出品を取り消す
                 </Button>
-                <p className="mt-2 text-center text-xs text-zinc-500">取り消すとこの出品データは削除されます（元に戻せませんのでご注意ください）。</p>
+                <p className="mt-2 text-center text-xs text-muted-foreground">取り消すとこの出品データは削除されます（元に戻せませんのでご注意ください）。</p>
               </div>
             ) : null}
           </CardContent>
@@ -1182,7 +1252,7 @@ function CreateSkillPageContent() {
         showVisibilitySaveConfirm &&
         createPortal(
           <div
-            className="fixed inset-0 z-[10000] flex min-h-[100dvh] w-full items-center justify-center overflow-x-hidden overflow-y-auto bg-black/60 p-4 sm:p-6"
+            className={createSkillUi.modalOverlay}
             role="presentation"
             onClick={handleVisibilitySaveCancel}
           >
@@ -1190,16 +1260,16 @@ function CreateSkillPageContent() {
               role="dialog"
               aria-modal="true"
               aria-labelledby="visibility-save-confirm-title"
-              className="my-auto w-full max-w-sm shrink-0 rounded-xl border border-zinc-700 bg-zinc-950 p-6 shadow-2xl"
+              className={createSkillUi.modal}
               onClick={(e) => e.stopPropagation()}
             >
               <h2
                 id="visibility-save-confirm-title"
-                className="text-center text-base font-semibold leading-relaxed text-zinc-100"
+                className="text-center text-base font-semibold leading-relaxed text-foreground"
               >
                 {isPublished ? "このスキルを公開して保存しますか？" : "このスキルを非公開にして保存しますか？"}
               </h2>
-              <p className="mt-2 text-center text-sm text-zinc-400">
+              <p className="mt-2 text-center text-sm text-muted-foreground">
                 {isPublished
                   ? "保存するとスキル一覧に表示され、購入者が閲覧できる状態になります。"
                   : "保存するとスキル一覧から非表示になります（すでに開始した取引には影響しません）。"}
@@ -1208,7 +1278,7 @@ function CreateSkillPageContent() {
                 <Button
                   type="button"
                   variant="secondary"
-                  className="flex-1 border-zinc-600 bg-zinc-800 font-medium text-zinc-100 hover:bg-zinc-700"
+                  className={createSkillUi.modalCancel}
                   onClick={handleVisibilitySaveCancel}
                   disabled={isSubmitting}
                 >
@@ -1239,7 +1309,7 @@ function CreateSkillPageContent() {
         showDeleteConfirm &&
         createPortal(
           <div
-            className="fixed inset-0 z-[10000] flex min-h-[100dvh] w-full items-center justify-center overflow-x-hidden overflow-y-auto bg-black/60 p-4 sm:p-6"
+            className={createSkillUi.modalOverlay}
             role="presentation"
             onClick={handleDeleteCancel}
           >
@@ -1247,18 +1317,18 @@ function CreateSkillPageContent() {
               role="dialog"
               aria-modal="true"
               aria-labelledby="delete-skill-title"
-              className="my-auto w-full max-w-sm shrink-0 rounded-xl border border-zinc-700 bg-zinc-950 p-6 shadow-2xl"
+              className={createSkillUi.modal}
               onClick={(e) => e.stopPropagation()}
             >
-              <h2 id="delete-skill-title" className="text-center text-base font-semibold leading-relaxed text-zinc-100">
+              <h2 id="delete-skill-title" className="text-center text-base font-semibold leading-relaxed text-foreground">
                 この出品を取り消しますか？
               </h2>
-              <p className="mt-2 text-center text-sm text-zinc-400">削除すると復元できません。</p>
+              <p className="mt-2 text-center text-sm text-muted-foreground">削除すると復元できません。</p>
               <div className="mt-6 flex gap-3">
                 <Button
                   type="button"
                   variant="secondary"
-                  className="flex-1 border-zinc-600 bg-zinc-800 font-medium text-zinc-100 hover:bg-zinc-700"
+                  className={createSkillUi.modalCancel}
                   onClick={handleDeleteCancel}
                   disabled={isDeleting}
                 >
@@ -1289,7 +1359,7 @@ function CreateSkillPageContent() {
         showFinalConfirm &&
         createPortal(
           <div
-            className="fixed inset-0 z-[10000] flex min-h-[100dvh] w-full items-center justify-center overflow-x-hidden overflow-y-auto bg-black/60 p-4 sm:p-6"
+            className={createSkillUi.modalOverlay}
             role="presentation"
             onClick={() => {
               if (!isSubmitting) {
@@ -1301,16 +1371,16 @@ function CreateSkillPageContent() {
               role="dialog"
               aria-modal="true"
               aria-labelledby="final-confirm-skill-title"
-              className="my-auto w-full max-w-lg shrink-0 rounded-xl border border-zinc-700 bg-zinc-950 p-6 shadow-2xl"
+              className={createSkillUi.modalLg}
               onClick={(e) => e.stopPropagation()}
             >
-              <h2 id="final-confirm-skill-title" className="text-center text-base font-semibold text-zinc-100">
+              <h2 id="final-confirm-skill-title" className="text-center text-base font-semibold text-foreground">
                 最終確認
               </h2>
-              <p className="mt-1 text-center text-xs text-zinc-500">内容をご確認のうえ、同意して手続きを完了してください。</p>
-              <p className="mt-4 rounded-lg border border-zinc-700 bg-zinc-900/60 px-3 py-2 text-center text-sm text-zinc-300">
+              <p className="mt-1 text-center text-xs text-muted-foreground">内容をご確認のうえ、同意して手続きを完了してください。</p>
+              <p className="mt-4 rounded-lg border border-border bg-muted/40 px-3 py-2 text-center text-sm text-foreground">
                 公開設定:{" "}
-                <span className="font-semibold text-zinc-100">
+                <span className="font-semibold text-foreground">
                   {isPublished ? "公開中（一覧に表示）" : "非公開（一覧には表示しません）"}
                 </span>
               </p>
@@ -1342,7 +1412,7 @@ export default function CreateSkillPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-black text-zinc-200">
+        <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
           <Loader2 className="mr-2 h-5 w-5 animate-spin text-red-500" />
           読み込み中...
         </div>

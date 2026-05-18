@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { createAdminOriginNotification } from "@/lib/transaction-notifications"
 import { completeTransactionWithPayout } from "@/actions/payout"
+import { adminUi } from "@/lib/admin-ui"
+import { cn } from "@/lib/utils"
 
 const ADMIN_REASON_OPTIONS = [
   "利用規約違反",
@@ -271,17 +273,17 @@ export function DisputeAdminDetailModal({
       : null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 px-4 py-6">
-      <div className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-xl border border-zinc-700 bg-zinc-950 text-zinc-100 shadow-2xl">
-        <div className="flex shrink-0 items-center justify-between border-b border-zinc-800 px-5 py-4">
+    <div className={cn(adminUi.modalOverlay, "px-4 py-6")}>
+      <div className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-xl border border-border bg-card text-card-foreground shadow-2xl">
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
           <div>
-            <h2 className="text-lg font-bold text-white">異議申し立ての詳細</h2>
-            <p className="mt-0.5 text-xs text-zinc-500">取引ID: {transactionId || "—"}</p>
+            <h2 className="text-lg font-bold text-foreground">異議申し立ての詳細</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">取引ID: {transactionId || "—"}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded p-1 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+            className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             aria-label="閉じる"
           >
             <X className="h-5 w-5" />
@@ -290,9 +292,9 @@ export function DisputeAdminDetailModal({
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4 text-sm">
           <section>
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">チャット</h3>
-            <p className="mb-3 text-zinc-400">やりとりの内容はチャット画面で確認できます。</p>
-            <Button asChild type="button" variant="outline" size="sm" className="border-zinc-600 bg-zinc-900 text-zinc-100">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">チャット</h3>
+            <p className="mb-3 text-muted-foreground">やりとりの内容はチャット画面で確認できます。</p>
+            <Button asChild type="button" variant="outline" size="sm" className="border-border bg-background text-foreground">
               <Link href={`/chat/${transactionId}`} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
                 チャット画面を開く
@@ -301,24 +303,24 @@ export function DisputeAdminDetailModal({
           </section>
 
           <section>
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">申し立て内容</h3>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">申し立て内容</h3>
             <p className="mb-2">
-              <span className="text-zinc-500">理由:</span> <span className="text-zinc-100">{reason}</span>
+              <span className="text-muted-foreground">理由:</span> <span className="text-foreground">{reason}</span>
             </p>
-            <p className="mb-1 text-zinc-500">詳細</p>
-            <p className="whitespace-pre-wrap rounded-lg border border-zinc-800 bg-zinc-900/80 p-3 text-zinc-100">{detail}</p>
+            <p className="mb-1 text-muted-foreground">詳細</p>
+            <p className="whitespace-pre-wrap rounded-lg border border-border bg-muted p-3 text-foreground">{detail}</p>
             <div className="mt-3">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">証拠画像</p>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">証拠画像</p>
               {evidencePathOrUrl ? (
                 <DisputeEvidenceImage pathOrUrl={evidencePathOrUrl} alt="異議申し立ての証拠画像" chatThumbnail />
               ) : (
-                <p className="text-zinc-500">証拠画像はありません</p>
+                <p className="text-muted-foreground">証拠画像はありません</p>
               )}
             </div>
           </section>
 
-          <section className="border-t border-zinc-800 pt-4">
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">ユーザー対応</h3>
+          <section className="border-t border-border pt-4">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">ユーザー対応</h3>
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
@@ -342,9 +344,9 @@ export function DisputeAdminDetailModal({
           </section>
         </div>
 
-        <div className="shrink-0 space-y-3 border-t border-zinc-800 px-5 py-4">
+        <div className="shrink-0 space-y-3 border-t border-border px-5 py-4">
           <div className="space-y-2">
-            <label className="block text-xs font-semibold uppercase tracking-wide text-zinc-500" htmlFor="admin-dispute-reason">
+            <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground" htmlFor="admin-dispute-reason">
               理由選択
             </label>
             <div className="flex gap-2">
@@ -352,7 +354,7 @@ export function DisputeAdminDetailModal({
                 id="admin-dispute-reason"
                 value={adminReason}
                 onChange={(e) => setAdminReason(e.target.value)}
-                className="h-9 w-full rounded border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-100"
+                className={cn("h-9 w-full", adminUi.select)}
               >
                 <option value="">理由を選択</option>
                 {ADMIN_REASON_OPTIONS.map((reasonOption) => (
@@ -364,7 +366,7 @@ export function DisputeAdminDetailModal({
               <Button
                 type="button"
                 variant="outline"
-                className="border-zinc-600 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
+                className={adminUi.btnOutline}
                 onClick={() => onNotify(adminReason ? `選択中の理由: ${adminReason}` : "理由を選択してください。", adminReason ? "success" : "error")}
               >
                 送信
@@ -385,7 +387,7 @@ export function DisputeAdminDetailModal({
               type="button"
               variant="outline"
               disabled={!isDisputeActionable || actionBusy}
-              className="border-zinc-600 bg-zinc-900 text-zinc-100 hover:bg-zinc-800 disabled:opacity-50"
+              className="border-border bg-background text-foreground hover:bg-muted disabled:opacity-50"
               onClick={() => void handleRejectDispute()}
             >
               棄却（取引完了）
@@ -393,14 +395,14 @@ export function DisputeAdminDetailModal({
             <Button
               type="button"
               variant="outline"
-              className="border-zinc-600 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
+              className="border-border bg-background text-foreground hover:bg-muted"
               onClick={onClose}
             >
               閉じる
             </Button>
           </div>
           {!isDisputeActionable ? (
-            <p className="text-center text-xs text-zinc-500">
+            <p className="text-center text-xs text-muted-foreground">
               この取引は異議対応中ではないため、承認・棄却は実行できません。
             </p>
           ) : null}

@@ -1,27 +1,27 @@
 "use client"
 
-import { useEffect, useLayoutEffect, useMemo, useState } from "react"
-import { Header } from "@/components/header"
-import { LogoutSuccessToast } from "@/components/logout-success-toast"
-import { HeroBanner } from "@/components/hero-banner"
-import { DEFAULT_HOME_SKILL_FILTERS, SKILL_SORT_OPTIONS, SkillGrid, type SkillSortOptionId } from "@/components/skill-grid"
+import { useLayoutEffect, useMemo, useState } from "react"
 import { SlidersHorizontal, X } from "lucide-react"
+import {
+  DEFAULT_HOME_SKILL_FILTERS,
+  SKILL_SORT_OPTIONS,
+  SkillGrid,
+  type SkillSortOptionId,
+} from "@/components/skill-grid"
 import { Button } from "@/components/ui/button"
+import { useDiscoverSearch } from "@/lib/discover-search-context"
 import { PREFECTURE_OPTIONS } from "@/lib/prefectures"
-import { SKILL_CATEGORY_OPTIONS } from "@/lib/skill-categories"
+import {
+  FITNESS_SUB_CATEGORY_LABELS,
+  PARENT_CATEGORY_LABELS,
+  PARENT_FITNESS_LABEL,
+} from "@/lib/skill-categories"
 import { consumeHomeListScrollY } from "@/lib/home-list-scroll"
 
-type HeroStats = {
-  isAdmin: boolean
-  skillsCount: number
-  usersCount: number
-}
+export default function DiscoverSkillsClient() {
+  const discoverSearch = useDiscoverSearch()
+  const searchKeyword = discoverSearch?.keyword ?? ""
 
-type HomePageClientProps = {
-  heroStats: HeroStats | null
-}
-
-export default function HomePageClient({ heroStats }: HomePageClientProps) {
   const [showFilters, setShowFilters] = useState(false)
   const [sortBy, setSortBy] = useState<SkillSortOptionId>("popular")
   const [filters, setFilters] = useState(DEFAULT_HOME_SKILL_FILTERS)
@@ -29,7 +29,6 @@ export default function HomePageClient({ heroStats }: HomePageClientProps) {
   const [maxDurationInput, setMaxDurationInput] = useState("")
   const [minPriceInput, setMinPriceInput] = useState("")
   const [maxPriceInput, setMaxPriceInput] = useState("")
-  const [searchKeyword, setSearchKeyword] = useState("")
 
   useLayoutEffect(() => {
     const y = consumeHomeListScrollY()
@@ -93,34 +92,27 @@ export default function HomePageClient({ heroStats }: HomePageClientProps) {
     setFilters((prev) => ({ ...prev, maxDurationMinutes: parsed }))
   }
 
-  const handleBrowseSkillsClick = () => {
-    const listSection = document.getElementById("home-skill-list-section")
-    if (!listSection) {
-      return
-    }
-    listSection.scrollIntoView({ behavior: "smooth", block: "start" })
+  const resetFilters = () => {
+    setFilters(DEFAULT_HOME_SKILL_FILTERS)
+    setMinDurationInput("")
+    setMaxDurationInput("")
+    setMinPriceInput("")
+    setMaxPriceInput("")
   }
 
   return (
-    <div className="min-h-[100svh] bg-background pb-20 md:min-h-screen md:pb-0">
-      <LogoutSuccessToast />
-      <Header fixed searchKeyword={searchKeyword} onSearchKeywordChange={setSearchKeyword} />
-
-      <main className="mx-auto max-w-7xl px-4 pb-6 pt-[calc(4rem+1rem)]">
-        <div className="mb-6">
-          <HeroBanner onBrowseSkillsClick={handleBrowseSkillsClick} heroStats={heroStats} />
-        </div>
-
-        <div id="home-skill-list-section" className="mb-6 scroll-mt-20">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-foreground md:text-2xl">スキル一覧</h2>
-              <p className="mt-1 text-sm text-muted-foreground">ぴったりのフィットネススキルを見つけよう</p>
+    <div className="min-w-0 w-full bg-background">
+      <main className="box-border w-full min-w-0 max-w-full px-3 pb-8 pt-4 sm:px-4 md:max-w-6xl md:px-8 md:pb-8 md:pt-6">
+        <div id="discover-skill-list-section" className="mb-6 scroll-mt-20">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold text-foreground md:text-2xl">スキル一覧</h1>
+              <p className="mt-1 text-sm text-muted-foreground">公開中のスキルを探して購入できます</p>
             </div>
 
             <div className="hidden items-center gap-3 md:flex">
               <Button variant="outline" className="border-border hover:bg-secondary" onClick={() => setShowFilters(true)}>
-                <SlidersHorizontal className="mr-2 h-4 w-4" />
+                <SlidersHorizontal className="mr-2 h-4 w-4" aria-hidden />
                 フィルター
               </Button>
               <select
@@ -141,7 +133,7 @@ export default function HomePageClient({ heroStats }: HomePageClientProps) {
 
         <div className="mb-6 flex items-center justify-between gap-3 md:hidden">
           <Button variant="outline" size="sm" className="flex-1 border-border" onClick={() => setShowFilters(true)}>
-            <SlidersHorizontal className="mr-2 h-4 w-4" />
+            <SlidersHorizontal className="mr-2 h-4 w-4" aria-hidden />
             フィルター
           </Button>
           <select
@@ -159,50 +151,70 @@ export default function HomePageClient({ heroStats }: HomePageClientProps) {
         </div>
 
         <SkillGrid filters={filters} sortBy={sortBy} searchKeyword={searchKeyword} />
-
-        <div className="mt-10 flex justify-center">
-          <Button
-            variant="outline"
-            size="lg"
-            className="border-primary text-primary-readable transition-all hover:bg-primary hover:text-primary-foreground"
-          >
-            もっと見る
-          </Button>
-        </div>
       </main>
 
       {showFilters ? (
         <div className="fixed inset-0 z-50 bg-black/60 p-4" onClick={() => setShowFilters(false)}>
           <section
-            className="mx-auto mt-8 max-h-[85svh] w-full max-w-2xl overflow-y-auto rounded-xl border border-border bg-background p-4 md:max-h-[85vh] md:p-6"
+            className="mx-auto mt-8 max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-border bg-background p-4 md:p-6"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-foreground">フィルター</h3>
+              <h2 className="text-lg font-bold text-foreground">フィルター</h2>
               <Button variant="ghost" size="icon" onClick={() => setShowFilters(false)} aria-label="閉じる">
-                <X className="h-4 w-4" />
+                <X className="h-4 w-4" aria-hidden />
               </Button>
             </div>
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <label htmlFor="category-filter" className="text-sm font-semibold text-foreground">
-                  カテゴリ
+                <label htmlFor="parent-category-filter" className="text-sm font-semibold text-foreground">
+                  大カテゴリ
                 </label>
                 <select
-                  id="category-filter"
-                  value={filters.category}
-                  onChange={(event) => setFilters((prev) => ({ ...prev, category: event.target.value }))}
+                  id="parent-category-filter"
+                  value={filters.parentCategory}
+                  onChange={(event) => {
+                    const parentCategory = event.target.value
+                    setFilters((prev) => ({
+                      ...prev,
+                      parentCategory,
+                      subCategory: parentCategory === PARENT_FITNESS_LABEL ? prev.subCategory : "all",
+                    }))
+                  }}
                   className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground"
                 >
                   <option value="all">すべて</option>
-                  {SKILL_CATEGORY_OPTIONS.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
+                  {PARENT_CATEGORY_LABELS.map((label) => (
+                    <option key={label} value={label}>
+                      {label}
                     </option>
                   ))}
                 </select>
               </div>
+
+              {filters.parentCategory === PARENT_FITNESS_LABEL ? (
+                <div className="space-y-2">
+                  <label htmlFor="sub-category-filter" className="text-sm font-semibold text-foreground">
+                    小カテゴリ
+                  </label>
+                  <select
+                    id="sub-category-filter"
+                    value={filters.subCategory}
+                    onChange={(event) =>
+                      setFilters((prev) => ({ ...prev, subCategory: event.target.value }))
+                    }
+                    className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground"
+                  >
+                    <option value="all">すべて</option>
+                    {FITNESS_SUB_CATEGORY_LABELS.map((label) => (
+                      <option key={label} value={label}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
 
               <div className="space-y-2">
                 <label htmlFor="pre-offer-filter" className="text-sm font-semibold text-foreground">
@@ -254,7 +266,7 @@ export default function HomePageClient({ heroStats }: HomePageClientProps) {
                     id="location-filter"
                     value={filters.locationPrefecture}
                     onChange={(event) => setFilters((prev) => ({ ...prev, locationPrefecture: event.target.value }))}
-                    className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground"
+                    className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground"
                   >
                     <option value="">都道府県を選択</option>
                     {PREFECTURE_OPTIONS.map((prefecture) => (
@@ -283,12 +295,12 @@ export default function HomePageClient({ heroStats }: HomePageClientProps) {
                 >
                   <option value="all">すべて</option>
                   <option value="available">対応可能</option>
-                  <option value="full">満枠対応中</option>
+                  <option value="full">満員対応中</option>
                 </select>
               </div>
 
               <div className="space-y-2">
-                <p className="text-sm font-semibold text-foreground">1回当たりの時間</p>
+                <p className="text-sm font-semibold text-foreground">1回あたりの時間</p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <input
                     type="number"
@@ -339,16 +351,7 @@ export default function HomePageClient({ heroStats }: HomePageClientProps) {
             </div>
 
             <div className="mt-6 flex items-center justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setFilters(DEFAULT_HOME_SKILL_FILTERS)
-                  setMinDurationInput("")
-                  setMaxDurationInput("")
-                  setMinPriceInput("")
-                  setMaxPriceInput("")
-                }}
-              >
+              <Button variant="outline" onClick={resetFilters}>
                 リセット
               </Button>
               <Button onClick={() => setShowFilters(false)}>適用して閉じる</Button>
@@ -356,7 +359,6 @@ export default function HomePageClient({ heroStats }: HomePageClientProps) {
           </section>
         </div>
       ) : null}
-
     </div>
   )
 }

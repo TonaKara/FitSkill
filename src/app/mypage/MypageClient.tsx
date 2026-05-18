@@ -7,7 +7,6 @@ import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useTheme } from "next-themes"
 import { Copy, Heart, Loader2, Pencil, ShieldAlert, Star, X } from "lucide-react"
-import { Header } from "@/components/header"
 import {
   ACCENT_COLOR_OPTIONS,
   resolveStoredAccentColor,
@@ -37,11 +36,12 @@ import {
   type EmailNotificationSettings,
   type EmailNotificationTopicKey,
 } from "@/lib/email-notification-settings"
-import { normalizeProfileCategory } from "@/lib/profile-fields"
-import { buildProfilePath, isReservedCustomId, isValidCustomIdFormat, normalizeCustomId } from "@/lib/profile-path"
-import { SKILL_CATEGORY_OPTIONS } from "@/lib/skill-categories"
+import { buildStorePath, isReservedCustomId, isValidCustomIdFormat, normalizeCustomId } from "@/lib/profile-path"
+import { ProfileInterestCategoryPicker } from "@/components/profile-interest-category-picker"
+import { loadProfileInterestCategories } from "@/lib/profile-interest-categories"
 import { resolveSkillThumbnailUrl, skillThumbnailContainerAspectStyle } from "@/lib/skill-thumbnail"
-import { PROFILE_AVATAR_CROP_EXPORT_PX, resolveProfileAvatarUrl } from "@/lib/profile-avatar"
+import { ProfileAvatar } from "@/components/profile-avatar"
+import { getProfileAvatarUrl, PROFILE_AVATAR_CROP_EXPORT_PX } from "@/lib/profile-avatar"
 import { getIsAdminFromProfile } from "@/lib/admin"
 import { getBanStatusFromProfile } from "@/lib/ban"
 import { toErrorNotice, type AppNotice } from "@/lib/notifications"
@@ -61,13 +61,32 @@ import {
   getStripeExpressDashboardUrl,
   getStripeOnboardingUrl,
 } from "@/actions/stripe"
-import { getLogoutSuccessHref } from "@/components/logout-success-toast"
+import { navigateAfterLogout } from "@/components/logout-success-toast"
 import { MypageInquirySection } from "./MypageInquirySection"
+import { MypageTradesHub } from "./MypageTradesHub"
 import { parseStoredMypageModePreference, writeMypageModePreference } from "@/lib/mypage-mode-preference"
+import {
+  parseTradesPanel,
+  parseTradesSide,
+  resolveTradesContentSection,
+  TRADES_HUB_PANEL_CARD,
+  TRADES_HUB_PANEL_CARD_BODY,
+  TRADES_HUB_PANEL_OUTER,
+  type TradesPanel,
+  type TradesSide,
+} from "@/lib/mypage-trades"
+import { cn } from "@/lib/utils"
+import {
+  buildAccountSectionHref,
+  isAccountPath,
+  pathnameToMypageSection,
+  type MypageSectionKey,
+} from "@/lib/store-menu"
 
 type MypageSection =
   | "profile"
   | "listings"
+  | "trades"
   | "requests"
   | "inquiry"
   | "learning"
@@ -82,21 +101,11 @@ type MypageMode = "student" | "instructor"
 type MenuItem = { id: MypageSection; label: string }
 
 const STUDENT_PRIMARY_MENU: MenuItem[] = [
+  { id: "trades", label: "取引・メッセージ" },
   { id: "favorites", label: "お気に入り" },
-  { id: "requests", label: "リクエスト" },
-  { id: "inquiry", label: "相談中の案件" },
-  { id: "learning", label: "進行中の取引（受講中）" },
-  { id: "transactions", label: "取引履歴" },
 ]
 
-const INSTRUCTOR_PRIMARY_MENU: MenuItem[] = [
-  { id: "listings", label: "出品管理" },
-  { id: "requests", label: "リクエスト" },
-  { id: "inquiry", label: "相談" },
-  { id: "teaching", label: "進行中の取引（対応中）" },
-  { id: "transactions", label: "取引履歴" },
-  { id: "payout", label: "売上・振込設定" },
-]
+const INSTRUCTOR_PRIMARY_MENU: MenuItem[] = [{ id: "trades", label: "取引・メッセージ" }]
 
 const SETTINGS_MENU: MenuItem[] = [
   { id: "profile", label: "プロフィール" },
@@ -155,9 +164,9 @@ function resolveModeForSection(section: MypageSection, fallbackMode: MypageMode)
   return fallbackMode
 }
 
-/** `/mypage` で tab 未指定時の初期パネル（受講生: お気に入り / 講師: 出品管理） */
-function defaultMypageHomeSection(mode: MypageMode): MypageSection {
-  return mode === "instructor" ? "listings" : "favorites"
+/** `/mypage` で tab 未指定時の初期パネル */
+function defaultMypageHomeSection(_mode: MypageMode): MypageSection {
+  return "trades"
 }
 
 type ListedSkill = {
@@ -201,7 +210,7 @@ type MypageTransactionItem = {
   skillTitle: string
   skillImageUrl: string
   peerDisplayName: string
-  peerAvatarUrl: string
+  peerAvatarUrl: string | null
   startedAtLabel: string
 }
 
@@ -220,7 +229,7 @@ type ConsultationRequestItem = {
   buyerId: string
   sellerId: string
   buyerDisplayName: string
-  buyerAvatarUrl: string
+  buyerAvatarUrl: string | null
   buyerProfilePath: string
   q1Label: string
   q2Label: string
@@ -239,7 +248,7 @@ type SentConsultationRequestItem = {
   skillTitle: string
   sellerId: string
   sellerDisplayName: string
-  sellerAvatarUrl: string
+  sellerAvatarUrl: string | null
   sellerProfilePath: string
   transactionId: string | null
   status: ConsultationRequestStatus
@@ -344,14 +353,23 @@ export default function MypageClient() {
   const [userId, setUserId] = useState<string | null>(null)
   const [isBannedUser, setIsBannedUser] = useState(false)
 
+  const accountSectionFromPath = pathnameToMypageSection(pathname)
+  const isAccountLayout = accountSectionFromPath !== null || isAccountPath(pathname)
   const sectionParam = searchParams.get("tab")
   const modeParam = searchParams.get("mode")
   const modeFromParam = modeParam === "student" || modeParam === "instructor" ? modeParam : null
   const [storedMode] = useState<MypageMode | null>(() => parseStoredMypageModePreference())
-  const section: MypageSection = isMypageSection(sectionParam)
-    ? sectionParam
-    : defaultMypageHomeSection(modeFromParam ?? storedMode ?? "student")
+  const section: MypageSection = accountSectionFromPath
+    ? accountSectionFromPath
+    : isMypageSection(sectionParam)
+      ? sectionParam
+      : defaultMypageHomeSection(modeFromParam ?? storedMode ?? "student")
   const currentMode: MypageMode = modeFromParam ?? resolveModeForSection(section, storedMode ?? inferModeFromSection(section))
+  const tradesSide: TradesSide = parseTradesSide(searchParams.get("side"), currentMode)
+  const tradesPanel: TradesPanel = parseTradesPanel(searchParams.get("panel"))
+  const activeContentSection: MypageSection =
+    section === "trades" ? resolveTradesContentSection(tradesSide, tradesPanel) : section
+  const tradeViewAsSeller = section === "trades" ? tradesSide === "seller" : currentMode === "instructor"
   const stripeReturnParam = searchParams.get("stripe")
   const updatedParam = searchParams.get("updated")
 
@@ -363,7 +381,8 @@ export default function MypageClient() {
   const [savedCustomId, setSavedCustomId] = useState("")
   const [lastNameChange, setLastNameChange] = useState<Date | null>(null)
   const [bio, setBio] = useState("")
-  const [fitnessHistory, setFitnessHistory] = useState("")
+  /** UI 非表示。既存ユーザーの DB 値を保存時にそのまま維持する */
+  const preservedFitnessHistoryRef = useRef<string | null>(null)
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [profileRatingAvg, setProfileRatingAvg] = useState<number | null>(null)
   const [profileReviewCount, setProfileReviewCount] = useState(0)
@@ -444,43 +463,111 @@ export default function MypageClient() {
 
   const handleSectionChange = useCallback(
     (nextSection: MypageSection) => {
+      if (isAccountLayout) {
+        const sectionKey = nextSection as MypageSectionKey
+        router.replace(
+          buildAccountSectionHref(sectionKey, {
+            mode: resolveModeForSection(nextSection, currentMode),
+            side:
+              nextSection === "trades"
+                ? ((searchParams.get("side") as TradesSide | null) ??
+                  (currentMode === "instructor" ? "seller" : "buyer"))
+                : undefined,
+            panel:
+              nextSection === "trades"
+                ? parseTradesPanel(searchParams.get("panel"))
+                : undefined,
+          }),
+        )
+        return
+      }
       const params = new URLSearchParams(searchParams.toString())
       params.set("tab", nextSection)
       params.set("mode", resolveModeForSection(nextSection, currentMode))
+      if (nextSection === "trades") {
+        if (!params.get("side")) {
+          params.set("side", currentMode === "instructor" ? "seller" : "buyer")
+        }
+        if (!params.get("panel")) {
+          params.set("panel", "active")
+        }
+      } else {
+        params.delete("side")
+        params.delete("panel")
+      }
       const query = params.toString()
       router.replace(query ? `${pathname}?${query}` : pathname)
     },
-    [router, pathname, searchParams, currentMode],
+    [router, pathname, searchParams, currentMode, isAccountLayout],
+  )
+
+  const handleTradesHubChange = useCallback(
+    (next: { side?: TradesSide; panel?: TradesPanel }) => {
+      const side =
+        next.side ??
+        parseTradesSide(searchParams.get("side"), currentMode)
+      const panel = next.panel ?? parseTradesPanel(searchParams.get("panel"))
+      if (isAccountLayout) {
+        router.replace(
+          buildAccountSectionHref("trades", {
+            mode: currentMode,
+            side,
+            panel,
+          }),
+        )
+        return
+      }
+      const params = new URLSearchParams(searchParams.toString())
+      params.set("tab", "trades")
+      params.set("mode", currentMode)
+      params.set("side", side)
+      params.set("panel", panel)
+      const query = params.toString()
+      router.replace(query ? `${pathname}?${query}` : pathname)
+    },
+    [router, pathname, searchParams, currentMode, isAccountLayout],
   )
 
   const handleModeChange = useCallback(
     (nextMode: MypageMode) => {
+      writeMypageModePreference(nextMode)
+      if (isAccountLayout) {
+        if (section === "trades") {
+          router.replace(
+            buildAccountSectionHref("trades", {
+              mode: nextMode,
+              side: nextMode === "instructor" ? "seller" : "buyer",
+              panel: parseTradesPanel(searchParams.get("panel")),
+            }),
+          )
+        }
+        return
+      }
       const params = new URLSearchParams(searchParams.toString())
       const modeMenu = nextMode === "instructor" ? INSTRUCTOR_PRIMARY_MENU : STUDENT_PRIMARY_MENU
       const allowedSections = new Set([...modeMenu.map((item) => item.id), ...SETTINGS_MENU.map((item) => item.id)])
       const nextSection = allowedSections.has(section) ? section : modeMenu[0].id
 
       params.set("mode", nextMode)
-      writeMypageModePreference(nextMode)
       params.set("tab", nextSection)
       const query = params.toString()
       router.replace(query ? `${pathname}?${query}` : pathname)
     },
-    [pathname, router, searchParams, section],
+    [pathname, router, searchParams, section, isAccountLayout],
   )
 
-  const handleCopyProfileUrl = useCallback(async () => {
+  const handleCopyStoreUrl = useCallback(async () => {
     if (!userId) {
-      setNotice({ variant: "error", message: "プロフィールURLの取得に失敗しました。" })
+      setNotice({ variant: "error", message: "ストアURLの取得に失敗しました。" })
       return
     }
     if (typeof window === "undefined") {
       return
     }
-    const profileUrl = `${window.location.origin}${buildProfilePath(userId, savedCustomId)}`
+    const profileUrl = `${window.location.origin}${buildStorePath(userId, savedCustomId)}`
     try {
       await navigator.clipboard.writeText(profileUrl)
-      setNotice({ variant: "success", message: "プロフィールURLをコピーしました。" })
+      setNotice({ variant: "success", message: "ストアURLをコピーしました。" })
     } catch {
       const textarea = document.createElement("textarea")
       textarea.value = profileUrl
@@ -495,7 +582,7 @@ export default function MypageClient() {
         setNotice({ variant: "error", message: "コピーに失敗しました。手動でコピーしてください。" })
         return
       }
-      setNotice({ variant: "success", message: "プロフィールURLをコピーしました。" })
+      setNotice({ variant: "success", message: "ストアURLをコピーしました。" })
     }
   }, [savedCustomId, userId])
 
@@ -521,15 +608,9 @@ export default function MypageClient() {
     setAccentColorValue(nextColor)
   }
 
-  const isDarkMode = (theme === "system" ? resolvedTheme : theme) !== "light"
+  const isDarkMode = (theme ?? resolvedTheme) === "dark"
   const handleThemeToggle = () => {
     setTheme(isDarkMode ? "light" : "dark")
-  }
-
-  const toggleCategory = (label: string) => {
-    setSelectedCategories((prev) =>
-      prev.includes(label) ? prev.filter((c) => c !== label) : [...prev, label],
-    )
   }
 
   const closeAvatarCropModal = () => {
@@ -614,15 +695,15 @@ export default function MypageClient() {
     return publicUrl
   }
 
-  const profileAvatarPreviewSrc = useMemo(() => {
+  const profileAvatarPreviewUrl = useMemo(() => {
     if (pendingAvatarPreview) {
       return pendingAvatarPreview
     }
     if (avatarMarkedForRemoval) {
-      return resolveProfileAvatarUrl(null, displayName.trim() || "?")
+      return null
     }
-    return resolveProfileAvatarUrl(profileAvatarUrl, displayName.trim() || "?")
-  }, [pendingAvatarPreview, avatarMarkedForRemoval, profileAvatarUrl, displayName])
+    return getProfileAvatarUrl(profileAvatarUrl)
+  }, [pendingAvatarPreview, avatarMarkedForRemoval, profileAvatarUrl])
 
   useEffect(() => {
     return () => {
@@ -728,10 +809,9 @@ export default function MypageClient() {
     setSavedCustomId(customIdStr)
     setLastNameChange(parseProfileDate(rawLast))
     setBio(typeof bioVal === "string" ? bioVal.trim() : "")
-    setFitnessHistory(typeof fhVal === "string" ? fhVal.trim() : "")
-    setSelectedCategories(
-      normalizeProfileCategory(row?.category).filter((c) => c !== "フィットネス"),
-    )
+    preservedFitnessHistoryRef.current =
+      typeof fhVal === "string" && fhVal.trim().length > 0 ? fhVal.trim() : null
+    setSelectedCategories(loadProfileInterestCategories(row?.category))
     setProfileRatingAvg(Number.isFinite(ratingAvg) ? ratingAvg : null)
     setProfileReviewCount(Number.isFinite(reviewCount) ? Math.max(0, Math.floor(reviewCount)) : 0)
     setIsStripeRegistered(row?.is_stripe_registered === true)
@@ -937,7 +1017,7 @@ export default function MypageClient() {
       if (finalizedSuccessfully) {
         setNotice({ variant: "success", message: "Stripe連携が完了しました。" })
       }
-      router.replace("/mypage?tab=payout&mode=instructor")
+      router.replace(buildAccountSectionHref("payout", { mode: "instructor" }))
     }
 
     void finalizeStripeStatus()
@@ -1249,8 +1329,8 @@ export default function MypageClient() {
           buyerId: row.buyer_id,
           sellerId: row.seller_id,
           buyerDisplayName: buyerName,
-          buyerAvatarUrl: resolveProfileAvatarUrl(buyer?.avatar_url ?? null, buyerName),
-          buyerProfilePath: buildProfilePath(row.buyer_id, buyer?.custom_id ?? null),
+          buyerAvatarUrl: buyer?.avatar_url ?? null,
+          buyerProfilePath: buildStorePath(row.buyer_id, buyer?.custom_id ?? null),
           q1Label: setting?.q1_label?.trim() || "",
           q2Label: setting?.q2_label?.trim() || "",
           q3Label: setting?.q3_label?.trim() || "",
@@ -1414,8 +1494,8 @@ export default function MypageClient() {
           skillTitle: skillTitleById.get(row.skill_id) ?? "スキル",
           sellerId: row.seller_id,
           sellerDisplayName: sellerName,
-          sellerAvatarUrl: resolveProfileAvatarUrl(seller?.avatar_url ?? null, sellerName),
-          sellerProfilePath: buildProfilePath(row.seller_id, seller?.custom_id ?? null),
+          sellerAvatarUrl: seller?.avatar_url ?? null,
+          sellerProfilePath: buildStorePath(row.seller_id, seller?.custom_id ?? null),
           transactionId,
           status: row.status,
           rejectionReason: dbReason || fallbackReason,
@@ -1428,11 +1508,11 @@ export default function MypageClient() {
   }, [supabase, userId])
 
   useEffect(() => {
-    if (userId && section === "requests") {
+    if (userId && activeContentSection === "requests") {
       void loadConsultationRequests()
       void loadSentConsultationRequests()
     }
-  }, [userId, section, loadConsultationRequests, loadSentConsultationRequests])
+  }, [userId, activeContentSection, loadConsultationRequests, loadSentConsultationRequests])
 
   const loadFavoriteSkills = useCallback(async () => {
     if (!userId) {
@@ -1537,7 +1617,7 @@ export default function MypageClient() {
   }, [userId, section, supabase])
 
   useEffect(() => {
-    if (!userId || (section !== "learning" && section !== "teaching")) {
+    if (!userId || (activeContentSection !== "learning" && activeContentSection !== "teaching")) {
       return
     }
 
@@ -1548,7 +1628,7 @@ export default function MypageClient() {
       setTransactionsError(null)
 
       try {
-        const isLearning = section === "learning"
+        const isLearning = activeContentSection === "learning"
         if (isLearning) {
           await autoCompleteTransactions(supabase, { userId })
         }
@@ -1613,7 +1693,7 @@ export default function MypageClient() {
             skillTitle: skill?.title?.trim() ? skill.title : "スキル",
             skillImageUrl: resolveSkillThumbnailUrl(skill?.thumbnail_url ?? null),
             peerDisplayName: name.length > 0 ? name : "名前未設定",
-            peerAvatarUrl: resolveProfileAvatarUrl(prof?.avatar_url, name),
+            peerAvatarUrl: prof?.avatar_url ?? null,
             startedAtLabel: formatTransactionStartedAtLabel(row.created_at),
           })
         }
@@ -1631,10 +1711,10 @@ export default function MypageClient() {
     return () => {
       cancelled = true
     }
-  }, [userId, section, supabase])
+  }, [userId, activeContentSection, supabase])
 
   useEffect(() => {
-    if (!userId || section !== "transactions") {
+    if (!userId || activeContentSection !== "transactions") {
       return
     }
 
@@ -1648,7 +1728,7 @@ export default function MypageClient() {
         const { data: txRows, error: txError } = await supabase
           .from("transactions")
           .select("id, created_at, completed_at, buyer_id, seller_id, status, skills ( id, title, thumbnail_url )")
-          .eq(currentMode === "instructor" ? "seller_id" : "buyer_id", userId)
+          .eq(tradeViewAsSeller ? "seller_id" : "buyer_id", userId)
           .in("status", ["completed", "canceled", "refunded"])
           .order("completed_at", { ascending: false })
           .order("created_at", { ascending: false })
@@ -1664,7 +1744,7 @@ export default function MypageClient() {
         }
 
         const rows = (txRows ?? []) as TransactionHistoryListRow[]
-        const peerIds = rows.map((r) => (currentMode === "instructor" ? r.buyer_id : r.seller_id))
+        const peerIds = rows.map((r) => (tradeViewAsSeller ? r.buyer_id : r.seller_id))
         const uniquePeerIds = [...new Set(peerIds)]
 
         if (uniquePeerIds.length === 0) {
@@ -1694,7 +1774,7 @@ export default function MypageClient() {
 
         const items: MypageHistoryTransactionItem[] = []
         for (const row of rows) {
-          const peerId = currentMode === "instructor" ? row.buyer_id : row.seller_id
+          const peerId = tradeViewAsSeller ? row.buyer_id : row.seller_id
           const prof = profileById.get(peerId)
           const name = prof?.display_name?.trim() ?? ""
           const s = row.skills
@@ -1705,7 +1785,7 @@ export default function MypageClient() {
             skillTitle: skill?.title?.trim() ? skill.title : "スキル",
             skillImageUrl: resolveSkillThumbnailUrl(skill?.thumbnail_url ?? null),
             peerDisplayName: name.length > 0 ? name : "名前未設定",
-            peerAvatarUrl: resolveProfileAvatarUrl(prof?.avatar_url, name),
+            peerAvatarUrl: prof?.avatar_url ?? null,
             startedAtLabel: formatTransactionStartedAtLabel(row.created_at),
             statusLabel: historyStatusLabel(row.status),
             completedAtLabel: formatHistoryCompletedAtLabel(row.completed_at, row.created_at),
@@ -1725,7 +1805,7 @@ export default function MypageClient() {
     return () => {
       cancelled = true
     }
-  }, [userId, section, supabase, currentMode])
+  }, [userId, activeContentSection, supabase, tradeViewAsSeller])
 
   const handleUnfavorite = async (favoriteId: string) => {
     if (!userId) {
@@ -1905,7 +1985,7 @@ export default function MypageClient() {
 
     const sharedFields = {
       bio: bio.trim() || null,
-      fitness_history: fitnessHistory.trim() || null,
+      fitness_history: preservedFitnessHistoryRef.current,
       category: selectedCategories,
       custom_id: normalizedCustomId || null,
       ...avatarExtras,
@@ -2030,19 +2110,17 @@ export default function MypageClient() {
     }
     setAccountLogoutBusy(true)
     const { error } = await supabase.auth.signOut()
-    setAccountLogoutBusy(false)
     if (!error) {
-      setShowAccountLogoutConfirm(false)
-      router.push(getLogoutSuccessHref())
-      router.refresh()
+      navigateAfterLogout()
       return
     }
+    setAccountLogoutBusy(false)
     setNotice({ variant: "error", message: "ログアウトに失敗しました。もう一度お試しください。" })
-  }, [accountLogoutBusy, supabase, router])
+  }, [accountLogoutBusy, supabase])
 
   const canChangeDisplayNameNow = canChangeDisplayNameAfterCooldown(lastNameChange)
   const customIdLocked = savedCustomId.trim().length > 0
-  const profilePreviewPath = userId ? buildProfilePath(userId, savedCustomId) : null
+  const profilePreviewPath = userId ? buildStorePath(userId, savedCustomId) : null
   const nextEligibleAt = useMemo(
     () => getNextDisplayNameChangeEligibleAt(lastNameChange),
     [lastNameChange],
@@ -2074,10 +2152,10 @@ export default function MypageClient() {
     lastNameChange != null && !canChangeDisplayNameNow && nextEligibleAt != null
 
   useEffect(() => {
-    if (section === "transactions") {
+    if (activeContentSection === "transactions") {
       setHistoryPage(1)
     }
-  }, [section])
+  }, [activeContentSection])
 
   useEffect(() => {
     setHistoryPage((prev) => Math.min(prev, historyTotalPages))
@@ -2093,7 +2171,7 @@ export default function MypageClient() {
       return
     }
     window.scrollTo({ top: 0, left: 0, behavior: "auto" })
-  }, [section])
+  }, [section, activeContentSection])
 
   const shouldBlockByProfileLoading =
     userId != null &&
@@ -2116,11 +2194,10 @@ export default function MypageClient() {
     if (section !== "listings" && section !== "payout") {
       return
     }
-    const params = new URLSearchParams(searchParams.toString())
-    params.set("tab", "favorites")
-    const query = params.toString()
-    router.replace(query ? `${pathname}?${query}` : pathname)
-  }, [isBannedUser, pathname, router, searchParams, section])
+    router.replace(
+      buildAccountSectionHref("trades", { side: "buyer", panel: "active", mode: "student" }),
+    )
+  }, [isBannedUser, router, section])
 
   if (authLoading || shouldBlockByProfileLoading) {
     return (
@@ -2149,10 +2226,14 @@ export default function MypageClient() {
         subheading="枠内が保存される範囲です。ドラッグで位置を、ホイールやピンチで拡大・縮小できます。"
       />
       {notice && <NotificationToast notice={notice} onClose={() => setNotice(null)} />}
-      <Header />
-
-      <div className="mx-auto flex max-w-7xl flex-col md:min-h-[calc(100vh-4rem)] md:flex-row">
-        {/* PC のみサイドバー（スマホのメニューはヘッダー右のハンバーガーから） */}
+      <div
+        className={
+          isAccountLayout
+            ? "w-full"
+            : "mx-auto flex max-w-7xl flex-col md:min-h-[calc(100vh-4rem)] md:flex-row"
+        }
+      >
+        {!isAccountLayout ? (
         <nav
           aria-label="マイページメニュー"
           className="hidden md:block md:static md:w-56 md:shrink-0 md:border-r md:border-zinc-800 md:bg-zinc-950 md:pt-6"
@@ -2238,6 +2319,7 @@ export default function MypageClient() {
             ) : null}
           </div>
         </nav>
+        ) : null}
 
         <main className="flex-1 px-4 pb-16 pt-6 md:px-8 md:pt-8">
           {isAdmin ? (
@@ -2247,21 +2329,23 @@ export default function MypageClient() {
               </Button>
             </div>
           ) : null}
-          <div className="mb-4 flex justify-end">
-            <Button
-              asChild
-              variant="outline"
-              className="border-zinc-700 bg-zinc-900 text-zinc-200 hover:border-red-500 hover:bg-zinc-800"
-            >
-              <Link href="/">トップページに戻る</Link>
-            </Button>
-          </div>
+          {isAccountLayout ? null : (
+            <div className="mb-4 flex justify-end">
+              <Button
+                asChild
+                variant="outline"
+                className="border-border bg-muted text-foreground hover:border-primary hover:bg-muted/80"
+              >
+                <Link href="/">マイストアへ</Link>
+              </Button>
+            </div>
+          )}
           {section === "profile" && (
             <div className="mx-auto max-w-2xl">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <h1 className="text-2xl font-black tracking-wide text-white md:text-3xl">プロフィール設定</h1>
-                  <p className="mt-1 text-sm text-zinc-400">
+                  <h1 className="text-2xl font-black tracking-wide text-foreground md:text-3xl">プロフィール設定</h1>
+                  <p className="mt-1 text-sm text-muted-foreground">
                     アイコン・表示名・自己紹介・興味のある分野を管理します。
                   </p>
                 </div>
@@ -2271,7 +2355,7 @@ export default function MypageClient() {
                       asChild
                       type="button"
                       variant="outline"
-                      className="border-zinc-700 bg-zinc-950 text-zinc-100 hover:border-red-400 hover:bg-zinc-900"
+                      className="border-border bg-background text-foreground hover:border-primary hover:bg-muted"
                     >
                       <Link href={profilePreviewPath} target="_blank" rel="noreferrer">
                         プレビューを見る
@@ -2281,19 +2365,19 @@ export default function MypageClient() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => void handleCopyProfileUrl()}
-                    className="border-red-500/45 bg-zinc-950 text-red-100 hover:border-red-400 hover:bg-red-950/35"
+                    onClick={() => void handleCopyStoreUrl()}
+                    className="border-primary/45 bg-accent text-primary-readable hover:border-primary hover:bg-primary/15"
                   >
                     <Copy className="mr-2 h-4 w-4" aria-hidden />
-                    自分のプロフィールURLをコピーする
+                    自分のストアURLをコピーする
                   </Button>
                 </div>
               </div>
 
               <form ref={profileFormRef} onSubmit={(e) => void handleProfileSubmit(e)} className="mt-8 space-y-8">
-                <div className="rounded-2xl border border-red-500/25 bg-zinc-900/80 p-6 shadow-[0_0_40px_rgba(230,74,25,0.12)]">
-                  <p className="text-sm font-bold text-zinc-200">プロフィール画像</p>
-                  <p className="mt-1 text-xs text-zinc-500">
+                <div className="overflow-hidden rounded-2xl border border-primary/25 bg-accent p-6 shadow-sm dark:border-red-500/25 dark:bg-zinc-900/80">
+                  <p className="text-sm font-bold text-foreground">プロフィール画像</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
                     プロフィールやチャットなどで表示されるアイコン画像を設定できます（任意）
                   </p>
                   <Input
@@ -2304,29 +2388,18 @@ export default function MypageClient() {
                     onChange={handleAvatarFileSelect}
                   />
                   <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-                    <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-full border border-zinc-700 bg-zinc-950">
-                      {profileAvatarPreviewSrc.startsWith("blob:") ? (
-                        <Image
-                          src={profileAvatarPreviewSrc}
-                          alt="アイコンプレビュー"
-                          fill
-                          unoptimized
-                          className="object-cover"
-                          sizes="112px"
-                        />
-                      ) : (
-                        // eslint-disable-next-line @next/next/no-img-element -- Supabase / ui-avatars の外部 URL
-                        <img
-                          src={profileAvatarPreviewSrc}
-                          alt=""
-                          className="absolute inset-0 h-full w-full object-cover"
-                        />
-                      )}
+                    <div className="relative h-28 w-28 shrink-0">
+                      <ProfileAvatar
+                        src={profileAvatarPreviewUrl}
+                        alt="アイコンプレビュー"
+                        className="h-28 w-28 border border-border"
+                        sizes="112px"
+                      />
                       {(pendingAvatarPreview || (profileAvatarUrl && !avatarMarkedForRemoval)) ? (
                         <button
                           type="button"
                           onClick={clearAvatarSelection}
-                          className="absolute right-1 top-1 inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-600/80 bg-black/70 text-zinc-100 transition-colors hover:border-red-500 hover:text-red-300"
+                          className="absolute right-1 top-1 inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background/90 text-foreground transition-colors hover:border-primary hover:text-primary"
                           aria-label="プロフィール画像を削除または選択を解除"
                         >
                           <X className="h-4 w-4" aria-hidden />
@@ -2346,8 +2419,8 @@ export default function MypageClient() {
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-red-500/25 bg-zinc-900/80 p-6 shadow-[0_0_40px_rgba(230,74,25,0.12)]">
-                  <label htmlFor="mypage-display-name" className="text-sm font-bold text-zinc-200">
+                <div className="overflow-hidden rounded-2xl border border-primary/25 bg-accent p-6 shadow-sm dark:border-red-500/25 dark:bg-zinc-900/80">
+                  <label htmlFor="mypage-display-name" className="text-sm font-bold text-foreground">
                     表示名
                   </label>
                   <Input
@@ -2355,19 +2428,19 @@ export default function MypageClient() {
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
                     placeholder="ニックネームや本名など"
-                    className="mt-2 border-zinc-700 bg-zinc-950 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                    className="mt-2 border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
                     aria-describedby="mypage-display-name-hint"
                   />
-                  <p id="mypage-display-name-hint" className="mt-2 space-y-1 text-xs leading-relaxed text-zinc-500">
+                  <p id="mypage-display-name-hint" className="mt-2 space-y-1 text-xs leading-relaxed text-muted-foreground">
                     <span className="block">※表示名の変更は30日に1回のみ可能です</span>
                     {showNextChangeDate && nextEligibleAt ? (
-                      <span className="block text-zinc-400">
+                      <span className="block text-muted-foreground">
                         次回変更可能日: {formatDateYmdSlashes(nextEligibleAt)}
                       </span>
                     ) : null}
                   </p>
 
-                  <label htmlFor="mypage-custom-id" className="mt-5 block text-sm font-bold text-zinc-200">
+                  <label htmlFor="mypage-custom-id" className="mt-5 block text-sm font-bold text-foreground">
                     カスタムID（任意・設定推奨）
                   </label>
                   <Input
@@ -2375,16 +2448,16 @@ export default function MypageClient() {
                     value={customId}
                     onChange={(e) => setCustomId(normalizeCustomId(e.target.value))}
                     placeholder="例: taro_fit"
-                    className={`mt-2 border-zinc-700 placeholder:text-zinc-500 ${
+                    className={`mt-2 border-input placeholder:text-muted-foreground ${
                       customIdLocked
-                        ? "cursor-not-allowed bg-zinc-800 text-zinc-400 opacity-100"
-                        : "bg-zinc-950 text-zinc-100 focus-visible:ring-red-500"
+                        ? "cursor-not-allowed bg-muted text-muted-foreground opacity-100"
+                        : "bg-background text-foreground focus-visible:ring-primary"
                     }`}
                     aria-describedby="mypage-custom-id-hint"
                     disabled={customIdLocked}
                   />
-                  <p id="mypage-custom-id-hint" className="mt-2 text-xs leading-relaxed text-zinc-500">
-                    プロフィールURLを見やすくできます（例: 『taro_fit』とした場合、https://gritvib.com/profile/taro_fit のように表示されます）。英小文字で開始し、3〜30文字の英小文字・数字・アンダーバー・ハイフンが使えます。
+                  <p id="mypage-custom-id-hint" className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                    ストアURLを見やすくできます（例: 『taro_fit』とした場合、https://gritvib.com/store/taro_fit のように表示されます）。英小文字で開始し、3〜30文字の英小文字・数字・アンダーバー・ハイフンが使えます。
                     一度設定したカスタムIDは変更できませんのでご注意ください。
                   </p>
                   {customIdLocked ? (
@@ -2394,8 +2467,8 @@ export default function MypageClient() {
                   ) : null}
                 </div>
 
-                <div className="rounded-2xl border border-red-500/25 bg-zinc-900/80 p-6 shadow-[0_0_40px_rgba(230,74,25,0.12)]">
-                  <label htmlFor="mypage-bio" className="text-sm font-bold text-zinc-200">
+                <div className="overflow-hidden rounded-2xl border border-primary/25 bg-accent p-6 shadow-sm dark:border-red-500/25 dark:bg-zinc-900/80">
+                  <label htmlFor="mypage-bio" className="text-sm font-bold text-foreground">
                     自己紹介
                   </label>
                   <textarea
@@ -2404,54 +2477,20 @@ export default function MypageClient() {
                     onChange={(e) => setBio(e.target.value)}
                     rows={5}
                     placeholder="自分の得意なことや経歴、克服したいことなど"
-                    className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/80"
+                    className="mt-2 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
                   />
                 </div>
 
-                <div className="rounded-2xl border border-red-500/25 bg-zinc-900/80 p-6 shadow-[0_0_40px_rgba(230,74,25,0.12)]">
-                  <label htmlFor="mypage-fitness_history" className="text-sm font-bold text-zinc-200">
-                    フィットネス歴
-                  </label>
-                  <textarea
-                    id="mypage-fitness_history"
-                    value={fitnessHistory}
-                    onChange={(e) => setFitnessHistory(e.target.value)}
-                    rows={4}
-                    placeholder="例：ジム歴3年、週末はランニングなど"
-                    className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/80"
-                  />
-                </div>
-
-                <div className="rounded-2xl border border-red-500/25 bg-zinc-900/80 p-6 shadow-[0_0_40px_rgba(230,74,25,0.12)]">
-                  <p className="text-sm font-bold text-zinc-200">興味のある分野</p>
-                  <p className="mt-1 text-xs text-zinc-500">複数選択できます</p>
-                  <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {SKILL_CATEGORY_OPTIONS.map((category) => {
-                      const id = `mypage-cat-${category}`
-                      const checked = selectedCategories.includes(category)
-                      return (
-                        <li key={category}>
-                          <label
-                            htmlFor={id}
-                            className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors ${
-                              checked
-                                ? "border-red-500/60 bg-red-950/30"
-                                : "border-zinc-700 bg-zinc-950/50 hover:border-zinc-600"
-                            }`}
-                          >
-                            <input
-                              id={id}
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => toggleCategory(category)}
-                              className="h-4 w-4 shrink-0 rounded border-zinc-600 bg-zinc-950 text-red-600 focus:ring-2 focus:ring-red-500 focus:ring-offset-0 focus:ring-offset-zinc-950"
-                            />
-                            <span className="text-sm text-zinc-200">{category}</span>
-                          </label>
-                        </li>
-                      )
-                    })}
-                  </ul>
+                <div className="overflow-hidden rounded-2xl border border-primary/25 bg-accent p-6 shadow-sm dark:border-red-500/25 dark:bg-zinc-900/80">
+                  <p className="text-sm font-bold text-foreground">興味のある分野</p>
+                  <p className="mt-1 text-xs text-muted-foreground">複数選択できます</p>
+                  <div className="mt-4">
+                    <ProfileInterestCategoryPicker
+                      selectedCategories={selectedCategories}
+                      onChange={setSelectedCategories}
+                      idPrefix="mypage-cat"
+                    />
+                  </div>
                 </div>
 
                 <Button
@@ -2474,8 +2513,8 @@ export default function MypageClient() {
 
           {section === "listings" && (
             <div className="mx-auto max-w-3xl">
-              <h1 className="text-2xl font-black tracking-wide text-white md:text-3xl">出品商品管理</h1>
-              <p className="mt-1 text-sm text-zinc-400">あなたが出品したスキルの一覧です。</p>
+              <h1 className="text-2xl font-black tracking-wide text-foreground md:text-3xl">出品商品管理</h1>
+              <p className="mt-1 text-sm text-zinc-400">出品したスキルの一覧です。</p>
 
               <div className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 md:p-6">
                 {listingsLoading ? (
@@ -2561,22 +2600,49 @@ export default function MypageClient() {
             </div>
           )}
 
-          {section === "inquiry" && userId ? <MypageInquirySection userId={userId} mode={currentMode} /> : null}
+          {section === "trades" ? (
+            <MypageTradesHub
+              mode={currentMode}
+              side={tradesSide}
+              panel={tradesPanel}
+              onSideChange={(side) => handleTradesHubChange({ side })}
+              onPanelChange={(panel) => handleTradesHubChange({ panel })}
+            />
+          ) : null}
 
-          {section === "requests" && (
-            <div className="mx-auto max-w-4xl">
-              <h1 className="text-2xl font-black tracking-wide text-white md:text-3xl">
-                {currentMode === "instructor" ? "受信リクエスト" : "送信済みリクエスト"}
-              </h1>
-              <p className="mt-1 text-sm text-zinc-400">
-                {currentMode === "instructor"
-                  ? "受講生から届いたリクエストを確認し、承認または拒否できます。"
-                  : "自分が送信したリクエストの進捗を確認できます。"}
-              </p>
+          {activeContentSection === "inquiry" && userId ? (
+            <MypageInquirySection
+              userId={userId}
+              mode={section === "trades" ? (tradesSide === "seller" ? "instructor" : "student") : currentMode}
+            />
+          ) : null}
 
-              {currentMode === "instructor" ? (
-                <div className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 md:p-6">
-                  <h2 className="text-sm font-semibold text-zinc-200">受信リクエスト</h2>
+          {activeContentSection === "requests" && (
+            <div className={section === "trades" ? TRADES_HUB_PANEL_OUTER : "mx-auto max-w-4xl"}>
+              {section !== "trades" ? (
+                <>
+                  <h1 className="text-2xl font-black tracking-wide text-foreground md:text-3xl">
+                    {tradeViewAsSeller ? "受信リクエスト" : "送信済みリクエスト"}
+                  </h1>
+                  <p className="mt-1 text-sm text-zinc-400">
+                    {tradeViewAsSeller
+                      ? "購入者から届いた事前オファーを確認し、承認または拒否できます。"
+                      : "自分が送信した事前オファーの進捗を確認できます。"}
+                  </p>
+                </>
+              ) : null}
+
+              {tradeViewAsSeller ? (
+                <div
+                  className={cn(
+                    "rounded-2xl border border-zinc-800 bg-zinc-900/50",
+                    section === "trades" ? TRADES_HUB_PANEL_CARD : "mt-8 p-4 md:p-6",
+                  )}
+                >
+                  <div className={section === "trades" ? TRADES_HUB_PANEL_CARD_BODY : undefined}>
+                  {section !== "trades" ? (
+                    <h2 className="text-sm font-semibold text-zinc-200">受信リクエスト</h2>
+                  ) : null}
                   <div className="mb-4 flex flex-wrap gap-2">
                     <Button
                       type="button"
@@ -2586,7 +2652,7 @@ export default function MypageClient() {
                       className={
                         consultationRequestViewFilter === "pending"
                           ? "bg-red-600 text-white hover:bg-red-500"
-                          : "border-zinc-700 bg-zinc-900 text-zinc-200 hover:border-red-500 hover:bg-zinc-800"
+                          : "border-border bg-muted text-foreground hover:border-primary hover:bg-muted/80"
                       }
                     >
                       未対応
@@ -2599,7 +2665,7 @@ export default function MypageClient() {
                       className={
                         consultationRequestViewFilter === "handled"
                           ? "bg-red-600 text-white hover:bg-red-500"
-                          : "border-zinc-700 bg-zinc-900 text-zinc-200 hover:border-red-500 hover:bg-zinc-800"
+                          : "border-border bg-muted text-foreground hover:border-primary hover:bg-muted/80"
                       }
                     >
                       対応済み
@@ -2612,7 +2678,7 @@ export default function MypageClient() {
                       className={
                         consultationRequestViewFilter === "all"
                           ? "bg-red-600 text-white hover:bg-red-500"
-                          : "border-zinc-700 bg-zinc-900 text-zinc-200 hover:border-red-500 hover:bg-zinc-800"
+                          : "border-border bg-muted text-foreground hover:border-primary hover:bg-muted/80"
                       }
                     >
                       すべて
@@ -2638,7 +2704,7 @@ export default function MypageClient() {
                       {filteredConsultationRequests.map((item) => {
                         const busy = consultationActionBusyId === item.id
                         return (
-                          <li key={item.id} className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4">
+                          <li key={item.id} className="rounded-xl border border-border bg-card/70 p-4">
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                               <div className="min-w-0">
                                 <p className="font-semibold text-white">{item.skillTitle}</p>
@@ -2647,11 +2713,12 @@ export default function MypageClient() {
                                     href={item.buyerProfilePath}
                                     className="inline-flex items-center gap-2 rounded-md px-1 py-0.5 transition-colors hover:bg-zinc-800/80 hover:text-zinc-200"
                                   >
-                                    <div
-                                      className="h-7 w-7 shrink-0 rounded-full border border-zinc-700 bg-zinc-800 bg-cover bg-center"
-                                      style={{ backgroundImage: `url(${item.buyerAvatarUrl})` }}
-                                      role="img"
-                                      aria-hidden
+                                    <ProfileAvatar
+                                      avatarUrl={item.buyerAvatarUrl}
+                                      alt={item.buyerDisplayName}
+                                      className="h-7 w-7 border border-zinc-700"
+                                      sizes="28px"
+                                      iconClassName="min-h-2.5 min-w-2.5 max-h-4 max-w-4"
                                     />
                                     <span>{item.buyerDisplayName}</span>
                                   </Link>
@@ -2763,11 +2830,22 @@ export default function MypageClient() {
                       })}
                     </ul>
                   )}
+                  </div>
                 </div>
               ) : (
-                <div className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 md:p-6">
-                  <h2 className="text-sm font-semibold text-zinc-200">送信済みリクエスト</h2>
-                  <p className="mt-1 text-xs text-zinc-500">自分が送った事前オファーの状況を確認できます。</p>
+                <div
+                  className={cn(
+                    "rounded-2xl border border-zinc-800 bg-zinc-900/50",
+                    section === "trades" ? TRADES_HUB_PANEL_CARD : "mt-8 p-4 md:p-6",
+                  )}
+                >
+                  <div className={section === "trades" ? TRADES_HUB_PANEL_CARD_BODY : undefined}>
+                  {section !== "trades" ? (
+                    <>
+                      <h2 className="text-sm font-semibold text-zinc-200">送信済みリクエスト</h2>
+                      <p className="mt-1 text-xs text-zinc-500">自分が送った事前オファーの状況を確認できます。</p>
+                    </>
+                  ) : null}
                   {sentConsultationRequestsLoading ? (
                     <div className="flex items-center justify-center py-12 text-zinc-400">
                       <Loader2 className="mr-2 h-5 w-5 animate-spin text-red-500" aria-hidden />
@@ -2780,7 +2858,7 @@ export default function MypageClient() {
                   ) : (
                     <ul className="mt-4 space-y-4">
                       {sentConsultationRequests.map((item) => (
-                        <li key={item.id} className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4">
+                        <li key={item.id} className="rounded-xl border border-border bg-card/70 p-4">
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div className="min-w-0">
                               <Link
@@ -2798,11 +2876,12 @@ export default function MypageClient() {
                                   href={item.sellerProfilePath}
                                   className="inline-flex items-center gap-2 rounded-md px-1 py-0.5 transition-colors hover:bg-zinc-800/80 hover:text-zinc-200"
                                 >
-                                  <div
-                                    className="h-7 w-7 shrink-0 rounded-full border border-zinc-700 bg-zinc-800 bg-cover bg-center"
-                                    style={{ backgroundImage: `url(${item.sellerAvatarUrl})` }}
-                                    role="img"
-                                    aria-hidden
+                                  <ProfileAvatar
+                                    avatarUrl={item.sellerAvatarUrl}
+                                    alt={item.sellerDisplayName}
+                                    className="h-7 w-7 border border-zinc-700"
+                                    sizes="28px"
+                                    iconClassName="min-h-2.5 min-w-2.5 max-h-4 max-w-4"
                                   />
                                   <span>{item.sellerDisplayName}</span>
                                 </Link>
@@ -2836,6 +2915,7 @@ export default function MypageClient() {
                       ))}
                     </ul>
                   )}
+                  </div>
                 </div>
               )}
             </div>
@@ -2843,7 +2923,7 @@ export default function MypageClient() {
 
           {section === "favorites" && (
             <div className="mx-auto max-w-3xl">
-              <h1 className="text-2xl font-black tracking-wide text-white md:text-3xl">お気に入り</h1>
+              <h1 className="text-2xl font-black tracking-wide text-foreground md:text-3xl">お気に入り</h1>
               <p className="mt-1 text-sm text-zinc-400">保存したスキルの一覧です。</p>
 
               <div className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 md:p-6">
@@ -2906,7 +2986,7 @@ export default function MypageClient() {
 
           {section === "reviews" && (
             <div className="mx-auto max-w-3xl">
-              <h1 className="text-2xl font-black tracking-wide text-white md:text-3xl">評価</h1>
+              <h1 className="text-2xl font-black tracking-wide text-foreground md:text-3xl">評価</h1>
               <p className="mt-1 text-sm text-zinc-400">あなたに届いた評価とコメントを確認できます。</p>
 
               <div className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 md:p-6">
@@ -3010,18 +3090,27 @@ export default function MypageClient() {
             </div>
           )}
 
-          {(section === "learning" || section === "teaching") && (
-            <div className="mx-auto max-w-3xl">
-              <h1 className="text-2xl font-black tracking-wide text-white md:text-3xl">
-                {section === "learning" ? "受講中" : "対応中"}
-              </h1>
-              <p className="mt-1 text-sm text-zinc-400">
-                {section === "learning"
-                  ? "購入して進行中のスキルです。チャットで講師とやり取りできます。"
-                  : "あなたが出品者として対応中の取引です。チャットで受講者とやり取りできます。"}
-              </p>
+          {(activeContentSection === "learning" || activeContentSection === "teaching") && (
+            <div className={section === "trades" ? TRADES_HUB_PANEL_OUTER : "mx-auto max-w-3xl"}>
+              {section !== "trades" ? (
+                <>
+                  <h1 className="text-2xl font-black tracking-wide text-foreground md:text-3xl">
+                    {activeContentSection === "learning" ? "受講中" : "対応中"}
+                  </h1>
+                  <p className="mt-1 text-sm text-zinc-400">
+                    {activeContentSection === "learning"
+                      ? "購入して進行中の商品です。チャットで出品者とやり取りできます。"
+                      : "あなたのストアで進行中の取引です。チャットで購入者とやり取りできます。"}
+                  </p>
+                </>
+              ) : null}
 
-              <div className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 md:p-6">
+              <div
+                className={cn(
+                  "rounded-2xl border border-zinc-800 bg-zinc-900/50",
+                  section === "trades" ? TRADES_HUB_PANEL_CARD : "mt-8 p-4 md:p-6",
+                )}
+              >
                 {transactionsLoading ? (
                   <div className="flex items-center justify-center py-12 text-zinc-400">
                     <Loader2 className="mr-2 h-5 w-5 animate-spin text-red-500" aria-hidden />
@@ -3031,28 +3120,44 @@ export default function MypageClient() {
                   <p className="py-8 text-center text-sm text-red-400">{transactionsError}</p>
                 ) : transactionItems.length === 0 ? (
                   <p className="py-8 text-center text-sm text-zinc-500">
-                    {section === "learning"
-                      ? "受講中の取引はありません。"
-                      : "対応中の取引はありません。"}
+                    {activeContentSection === "learning"
+                      ? "進行中の購入取引はありません。"
+                      : "進行中の受注はありません。"}
                   </p>
                 ) : (
+                  <div className={section === "trades" ? TRADES_HUB_PANEL_CARD_BODY : undefined}>
                   <ul className="space-y-4">
                     {transactionItems.map((item) => (
                       <li
                         key={item.transactionId}
-                        className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4 transition-colors hover:border-red-500/40 hover:bg-zinc-900/70"
+                        className="rounded-2xl border border-border bg-card/70 p-4 transition-colors hover:border-red-500/40 hover:bg-zinc-900/70"
                       >
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                           <div className="flex min-w-0 flex-1 items-center gap-3">
-                            <div
-                              className="w-28 shrink-0 overflow-hidden rounded-xl border border-zinc-700 bg-zinc-800 bg-cover bg-center"
-                              style={{
-                                ...skillThumbnailContainerAspectStyle(),
-                                backgroundImage: `url(${item.skillImageUrl || item.peerAvatarUrl})`,
-                              }}
-                              role="img"
-                              aria-hidden
-                            />
+                            {item.skillImageUrl ? (
+                              <div
+                                className="w-28 shrink-0 overflow-hidden rounded-xl border border-zinc-700 bg-zinc-800 bg-cover bg-center"
+                                style={{
+                                  ...skillThumbnailContainerAspectStyle(),
+                                  backgroundImage: `url(${item.skillImageUrl})`,
+                                }}
+                                role="img"
+                                aria-hidden
+                              />
+                            ) : (
+                              <div
+                                className="w-28 shrink-0 overflow-hidden rounded-xl border border-zinc-700"
+                                style={skillThumbnailContainerAspectStyle()}
+                              >
+                                <ProfileAvatar
+                                  avatarUrl={item.peerAvatarUrl}
+                                  alt={item.peerDisplayName}
+                                  className="h-full w-full"
+                                  roundedClassName="rounded-none"
+                                  sizes="112px"
+                                />
+                              </div>
+                            )}
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-base font-bold text-white md:text-lg">{item.skillTitle}</p>
                               <p className="mt-1 text-sm text-zinc-400">講師: {item.peerDisplayName}</p>
@@ -3070,23 +3175,33 @@ export default function MypageClient() {
                       </li>
                     ))}
                   </ul>
+                  </div>
                 )}
               </div>
             </div>
           )}
 
-          {section === "transactions" && (
-            <div className="mx-auto max-w-3xl">
-              <h1 className="text-2xl font-black tracking-wide text-white md:text-3xl">
-                取引履歴（{currentMode === "instructor" ? "講師として対応" : "受講生として利用"}）
-              </h1>
-              <p className="mt-1 text-sm text-zinc-400">
-                {currentMode === "instructor"
-                  ? "講師として対応した取引の履歴です。完了・返金・キャンセル済みの案件を確認できます。"
-                  : "受講生として利用した取引の履歴です。完了・返金・キャンセル済みの案件を確認できます。"}
-              </p>
+          {activeContentSection === "transactions" && (
+            <div className={section === "trades" ? TRADES_HUB_PANEL_OUTER : "mx-auto max-w-3xl"}>
+              {section !== "trades" ? (
+                <>
+                  <h1 className="text-2xl font-black tracking-wide text-foreground md:text-3xl">
+                    取引履歴（{tradeViewAsSeller ? "売った商品" : "買った商品"}）
+                  </h1>
+                  <p className="mt-1 text-sm text-zinc-400">
+                    {tradeViewAsSeller
+                      ? "ストアでの販売・対応の履歴です。完了・返金・キャンセル済みの案件を確認できます。"
+                      : "購入した取引の履歴です。完了・返金・キャンセル済みの案件を確認できます。"}
+                  </p>
+                </>
+              ) : null}
 
-              <div className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 md:p-6">
+              <div
+                className={cn(
+                  "rounded-2xl border border-zinc-800 bg-zinc-900/50",
+                  section === "trades" ? TRADES_HUB_PANEL_CARD : "mt-8 p-4 md:p-6",
+                )}
+              >
                 {historyTransactionsLoading ? (
                   <div className="flex items-center justify-center py-12 text-zinc-400">
                     <Loader2 className="mr-2 h-5 w-5 animate-spin text-red-500" aria-hidden />
@@ -3096,33 +3211,49 @@ export default function MypageClient() {
                   <p className="py-8 text-center text-sm text-red-400">{historyTransactionsError}</p>
                 ) : historyTransactionItems.length === 0 ? (
                   <p className="py-8 text-center text-sm text-zinc-500">
-                    {currentMode === "instructor"
-                      ? "講師として対応した取引履歴はまだありません。"
-                      : "受講生として利用した取引履歴はまだありません。"}
+                    {tradeViewAsSeller
+                      ? "売った商品の履歴はまだありません。"
+                      : "買った商品の履歴はまだありません。"}
                   </p>
                 ) : (
+                  <div className={section === "trades" ? TRADES_HUB_PANEL_CARD_BODY : undefined}>
                   <>
                     <ul className="space-y-4">
                       {paginatedHistoryTransactionItems.map((item) => (
                         <li
                           key={item.transactionId}
-                          className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4 transition-colors hover:border-red-500/40 hover:bg-zinc-900/70"
+                          className="rounded-2xl border border-border bg-card/70 p-4 transition-colors hover:border-red-500/40 hover:bg-zinc-900/70"
                         >
                           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                             <div className="flex min-w-0 flex-1 items-center gap-3">
-                              <div
-                                className="w-28 shrink-0 overflow-hidden rounded-xl border border-zinc-700 bg-zinc-800 bg-cover bg-center"
-                                style={{
-                                  ...skillThumbnailContainerAspectStyle(),
-                                  backgroundImage: `url(${item.skillImageUrl || item.peerAvatarUrl})`,
-                                }}
-                                role="img"
-                                aria-hidden
-                              />
+                              {item.skillImageUrl ? (
+                                <div
+                                  className="w-28 shrink-0 overflow-hidden rounded-xl border border-zinc-700 bg-zinc-800 bg-cover bg-center"
+                                  style={{
+                                    ...skillThumbnailContainerAspectStyle(),
+                                    backgroundImage: `url(${item.skillImageUrl})`,
+                                  }}
+                                  role="img"
+                                  aria-hidden
+                                />
+                              ) : (
+                                <div
+                                  className="w-28 shrink-0 overflow-hidden rounded-xl border border-zinc-700"
+                                  style={skillThumbnailContainerAspectStyle()}
+                                >
+                                  <ProfileAvatar
+                                    avatarUrl={item.peerAvatarUrl}
+                                    alt={item.peerDisplayName}
+                                    className="h-full w-full"
+                                    roundedClassName="rounded-none"
+                                    sizes="112px"
+                                  />
+                                </div>
+                              )}
                               <div className="min-w-0 flex-1">
                                 <p className="truncate text-base font-bold text-white md:text-lg">{item.skillTitle}</p>
                                 <p className="mt-1 text-sm text-zinc-400">
-                                  {currentMode === "instructor" ? "受講生" : "講師"}: {item.peerDisplayName}
+                                  {tradeViewAsSeller ? "購入者" : "出品者"}: {item.peerDisplayName}
                                 </p>
                                 <p className="mt-1 text-xs text-zinc-500">{item.startedAtLabel}</p>
                               </div>
@@ -3155,7 +3286,7 @@ export default function MypageClient() {
                           variant="outline"
                           disabled={historyPage <= 1}
                           onClick={() => setHistoryPage((prev) => Math.max(1, prev - 1))}
-                          className="border-zinc-700 bg-zinc-900 text-zinc-200 hover:border-red-500 hover:bg-zinc-800 disabled:opacity-50"
+                          className="border-border bg-muted text-foreground hover:border-primary hover:bg-muted/80 disabled:opacity-50"
                         >
                           前へ
                         </Button>
@@ -3168,13 +3299,14 @@ export default function MypageClient() {
                           variant="outline"
                           disabled={historyPage >= historyTotalPages}
                           onClick={() => setHistoryPage((prev) => Math.min(historyTotalPages, prev + 1))}
-                          className="border-zinc-700 bg-zinc-900 text-zinc-200 hover:border-red-500 hover:bg-zinc-800 disabled:opacity-50"
+                          className="border-border bg-muted text-foreground hover:border-primary hover:bg-muted/80 disabled:opacity-50"
                         >
                           次へ
                         </Button>
                       </div>
                     </div>
                   </>
+                  </div>
                 )}
               </div>
             </div>
@@ -3182,9 +3314,9 @@ export default function MypageClient() {
 
           {section === "payout" && (
             <div className="mx-auto max-w-2xl rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6 text-left sm:p-8">
-              <h1 className="text-xl font-bold text-white">売上・振込設定</h1>
+              <h1 className="text-xl font-bold text-foreground">売上・振込設定</h1>
               {!isStripeSetupComplete ? (
-                <div className="mt-6 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+                <div className="mt-6 rounded-xl border border-border bg-card/60 p-4">
                   <p className="text-sm text-zinc-400">未登録です。下のボタンからStripe登録を開始してください。</p>
                   <div className="mt-4">
                     <Button
@@ -3206,7 +3338,7 @@ export default function MypageClient() {
                 </div>
               ) : (
                 <>
-                  <p className="mt-2 text-sm text-zinc-400">登録済みです。Stripeダッシュボードへ移動できます。</p>
+                  <p className="mt-2 text-sm text-muted-foreground">登録済みです。Stripeダッシュボードへ移動できます。</p>
                   <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
                     <Button
                       type="button"
@@ -3228,7 +3360,7 @@ export default function MypageClient() {
               )}
 
               {isStripeSetupComplete ? (
-                <div className="mt-6 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+                <div className="mt-6 rounded-xl border border-border bg-card/60 p-4">
                   <h2 className="text-sm font-semibold text-zinc-200">Stripe Connect 残高</h2>
                   {connectBalanceLoading ? (
                     <div className="mt-3 flex items-center text-sm text-zinc-400">
@@ -3262,7 +3394,7 @@ export default function MypageClient() {
               ) : null}
 
               <p className="mt-6 text-xs text-zinc-500">
-                ※決済情報や本人確認の管理は、すべて決済代行会社Stripeのシステム上で行われます。当アプリでクレジットカード情報等を保持することはありません。
+                ※決済情報や本人確認の管理は、すべて決済代行会社Stripeのシステム上で行われます。当サイトでクレジットカード情報等を保持することはありません。
               </p>
             </div>
           )}
@@ -3270,23 +3402,22 @@ export default function MypageClient() {
           {section === "account" && (
             <div className="mx-auto max-w-2xl space-y-8">
               <div>
-                <h1 className="text-2xl font-black tracking-wide text-white md:text-3xl">{accountLabel}</h1>
+                <h1 className="text-2xl font-black tracking-wide text-foreground md:text-3xl">{accountLabel}</h1>
                 <p className="mt-1 text-sm text-zinc-400">アカウントの確認やログアウトはこちらから行えます。</p>
               </div>
 
               <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 text-left shadow-[0_0_40px_rgba(0,0,0,0.25)] md:p-8">
                 <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center sm:gap-6">
-                  <div
-                    className="h-20 w-20 shrink-0 rounded-full border border-zinc-700 bg-zinc-800 bg-cover bg-center ring-2 ring-red-500/25"
-                    style={{
-                      backgroundImage: `url(${resolveProfileAvatarUrl(profileAvatarUrl, displayName || "ユーザー")})`,
-                    }}
-                    role="img"
-                    aria-hidden
+                  <ProfileAvatar
+                    avatarUrl={profileAvatarUrl}
+                    alt={displayName || "ユーザー"}
+                    className="h-20 w-20"
+                    ringClassName="border border-zinc-700 ring-2 ring-red-500/25"
+                    sizes="80px"
                   />
                   <div className="min-w-0 flex-1 text-center sm:text-left">
                     <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">表示名</p>
-                    <p className="mt-1 max-w-full truncate text-xl font-bold text-white">
+                    <p className="mt-1 max-w-full truncate text-xl font-bold text-foreground">
                       {profileLoading ? "読み込み中..." : displayName || "未設定"}
                     </p>
                     <p className="mt-2 text-xs text-zinc-500">プロフィールの編集は「プロフィール」から行えます。</p>
@@ -3296,28 +3427,28 @@ export default function MypageClient() {
                 <div className="mt-8 border-t border-zinc-800 pt-8">
                   <h2 className="text-sm font-semibold text-zinc-200">表示テーマ</h2>
                   <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-                    ライトモード / ダークモードを切り替えられます（初期設定はダークモードです）。
+                    オフのときはライト表示、オンにするとダークモードになります。
                   </p>
                   <div className="mt-4 flex items-center justify-between rounded-xl border border-zinc-700 bg-zinc-950/60 px-4 py-3">
                     <span className="text-sm font-medium text-zinc-200">
-                      {!themeReady ? "読み込み中..." : isDarkMode ? "ダークモード" : "ライトモード"}
+                      {!themeReady ? "読み込み中..." : "ダークモード"}
                     </span>
                     <button
                       type="button"
                       role="switch"
-                      aria-checked={!themeReady ? true : isDarkMode}
-                      aria-label="表示テーマを切り替える"
+                      aria-checked={themeReady && isDarkMode}
+                      aria-label="ダークモードを切り替える"
                       disabled={!themeReady}
                       onClick={handleThemeToggle}
                       className={`flex h-8 w-14 items-center rounded-full px-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 disabled:opacity-60 ${
-                        !themeReady || isDarkMode
+                        themeReady && isDarkMode
                           ? "bg-red-600 focus-visible:ring-red-500"
                           : "bg-zinc-600 focus-visible:ring-zinc-500"
                       }`}
                     >
                       <span
                         className={`block h-6 w-6 rounded-full bg-white shadow-md transition-[margin] duration-200 ease-out ${
-                          !themeReady || isDarkMode ? "ml-auto" : "ml-0"
+                          themeReady && isDarkMode ? "ml-auto" : "ml-0"
                         }`}
                       />
                     </button>
@@ -3386,7 +3517,7 @@ export default function MypageClient() {
                         <li
                           key={item.key}
                           className={`flex items-start justify-between gap-3 rounded-xl border px-4 py-3 ${
-                            disabled ? "border-zinc-800 bg-zinc-950/40 opacity-70" : "border-zinc-700 bg-zinc-950/60"
+                            disabled ? "border-border bg-card/40 opacity-70" : "border-zinc-700 bg-zinc-950/60"
                           }`}
                         >
                           <div className="min-w-0 pt-0.5">
@@ -3440,7 +3571,7 @@ export default function MypageClient() {
 
       {showStripeOnboardingConfirm ? (
         <div
-          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 p-4"
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4"
           role="presentation"
           onClick={handleCloseStripeOnboardingConfirm}
         >
@@ -3455,7 +3586,7 @@ export default function MypageClient() {
               Stripe講師登録の確認
             </h2>
 
-            <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-900/70 p-4">
+            <div className="mt-4 rounded-xl border border-border bg-muted p-4">
               <p className="text-sm font-semibold text-zinc-200">
                 スムーズに登録を進めるため、Stripe上にはデフォルトで以下の内容が入力されます
               </p>
@@ -3464,7 +3595,9 @@ export default function MypageClient() {
                 <li>事業形態: 個人事業主</li>
                 <li>業種: 教育 &gt; その他</li>
                 <li>URL: https://gritvib.com</li>
-                <li>説明: フィットネスの知識や技術を共有します。</li>
+                <li>
+                  説明: 個人向けストアプラットフォーム「GritVib」において、オンライン相談、デジタルコンテンツの提供、または実面を伴う個人スキルの取引・レッスン等のサービスを提供します。
+                </li>
               </ul>
             </div>
 
@@ -3475,7 +3608,7 @@ export default function MypageClient() {
               </p>
               <ul className="mt-2 space-y-1.5 text-sm leading-relaxed text-zinc-200">
                 <li>これらの情報は登録後、Stripeダッシュボードから変更可能です。</li>
-                <li>口座情報や個人情報はStripeが厳重に管理し、当アプリのデータベースには保存されません。</li>
+                <li>口座情報や個人情報はStripeが厳重に管理し、当サイトのデータベースには保存されません。</li>
               </ul>
             </div>
 
@@ -3530,7 +3663,7 @@ export default function MypageClient() {
         showCustomIdConfirm &&
         createPortal(
           <div
-            className="fixed inset-0 z-[10000] flex min-h-[100dvh] w-full items-center justify-center overflow-y-auto bg-black/70 p-4 sm:p-6"
+            className="fixed inset-0 z-[10000] flex min-h-[100dvh] w-full items-center justify-center overflow-y-auto bg-background/80 backdrop-blur-sm p-4 sm:p-6"
             role="presentation"
             onClick={handleCustomIdConfirmCancel}
           >
@@ -3545,11 +3678,11 @@ export default function MypageClient() {
                 カスタムID設定の確認
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-zinc-300">
-                このIDで設定すると、プロフィールURLは以下になります。
+                このIDで設定すると、ストアURLは以下になります。
               </p>
               <div className="mt-3 min-w-0 w-full overflow-hidden rounded-lg border border-red-500/35 bg-zinc-900 px-3 py-2">
                 <p className="font-mono text-xs leading-relaxed break-all text-red-200 [overflow-wrap:anywhere] sm:text-sm">
-                  https://gritvib.com/profile/{pendingCustomIdForConfirm}
+                  https://gritvib.com/store/{pendingCustomIdForConfirm}
                 </p>
               </div>
               <p className="mt-3 text-sm leading-relaxed text-zinc-300">
@@ -3583,7 +3716,7 @@ export default function MypageClient() {
         listingPublishConfirmId &&
         createPortal(
           <div
-            className="fixed inset-0 z-[10000] flex min-h-[100dvh] w-full items-center justify-center overflow-y-auto bg-black/70 p-4 sm:p-6"
+            className="fixed inset-0 z-[10000] flex min-h-[100dvh] w-full items-center justify-center overflow-y-auto bg-background/80 backdrop-blur-sm p-4 sm:p-6"
             role="presentation"
             onClick={() => {
               if (!publishingListingId) {
@@ -3644,7 +3777,7 @@ export default function MypageClient() {
         showAccountLogoutConfirm &&
         createPortal(
           <div
-            className="fixed inset-0 z-[10000] flex min-h-[100dvh] w-full items-center justify-center overflow-y-auto bg-black/70 p-4 sm:p-6"
+            className="fixed inset-0 z-[10000] flex min-h-[100dvh] w-full items-center justify-center overflow-y-auto bg-background/80 backdrop-blur-sm p-4 sm:p-6"
             role="presentation"
             onClick={handleAccountLogoutCancel}
           >

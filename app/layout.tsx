@@ -2,9 +2,12 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ConsoleGuard } from "@/components/ConsoleGuard";
 import { AccessibilityModeSync } from "@/components/AccessibilityModeSync";
-import { BottomNav } from "@/components/bottom-nav";
+import { AppShellLayout } from "@/components/layout/AppShellLayout";
 import { ConditionalFooter } from "@/components/layout/ConditionalFooter";
+import { ConditionalSiteHeader } from "@/components/layout/ConditionalSiteHeader";
 import { MobileHeaderMenuProvider } from "@/components/mobile-header-menu-context";
+import { DiscoverSearchProvider } from "@/lib/discover-search-context";
+import { HeaderAuthProvider } from "@/lib/header-auth-context";
 import { MaintenanceGuard } from "@/components/MaintenanceGuard";
 import { ThemeProvider } from "@/components/theme-provider";
 import {
@@ -31,7 +34,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
     { media: "(prefers-color-scheme: dark)", color: "#09090b" },
   ],
 };
@@ -56,7 +59,6 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  // Keep only site-level Open Graph fields in root metadata.
   openGraph: {
     type: "website",
     locale: "ja_JP",
@@ -68,7 +70,6 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     description: LAYOUT_DESCRIPTION,
   },
-  // Shared icon metadata（ヘッダー左上と同じオレンジ角丸タイル＋白マーク＋黒3本線。`npm run generate:brand-assets` で生成）
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
@@ -77,7 +78,7 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
-}
+};
 
 export default function RootLayout({
   children,
@@ -93,26 +94,32 @@ export default function RootLayout({
       <body className="flex h-[100svh] min-h-[100svh] flex-col overflow-hidden md:h-full md:min-h-full md:overflow-visible">
         <ThemeProvider
           attribute="class"
-          defaultTheme="dark"
-          enableSystem
+          defaultTheme="light"
+          enableSystem={false}
           storageKey="theme"
           disableTransitionOnChange={false}
         >
-          <MobileHeaderMenuProvider>
-            <AccessibilityModeSync />
-            <ConsoleGuard />
-            <div className="flex h-[100svh] min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:h-auto md:min-h-full md:overflow-visible">
-              <MaintenanceGuard>
-                <main className="relative min-w-0 flex-1 overflow-x-hidden overflow-y-auto [overscroll-behavior-x:none]">
-                  <div className="flex min-h-full min-w-0 flex-col overflow-x-hidden">
-                    <div className="min-w-0 flex-1">{children}</div>
-                    <ConditionalFooter />
-                  </div>
-                </main>
-              </MaintenanceGuard>
-              <BottomNav />
-            </div>
-          </MobileHeaderMenuProvider>
+          <DiscoverSearchProvider>
+            <HeaderAuthProvider>
+            <MobileHeaderMenuProvider>
+              <AccessibilityModeSync />
+              <ConsoleGuard />
+              <div className="flex h-[100svh] min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:h-auto md:min-h-full md:overflow-visible">
+                <MaintenanceGuard>
+                  <main className="relative min-w-0 flex-1 overflow-x-hidden overflow-y-auto [overscroll-behavior-x:none]">
+                    <div className="flex min-h-full min-w-0 flex-col overflow-x-hidden">
+                      <ConditionalSiteHeader />
+                      <AppShellLayout>
+                        <div className="min-w-0 flex-1">{children}</div>
+                      </AppShellLayout>
+                      <ConditionalFooter />
+                    </div>
+                  </main>
+                </MaintenanceGuard>
+              </div>
+            </MobileHeaderMenuProvider>
+            </HeaderAuthProvider>
+          </DiscoverSearchProvider>
         </ThemeProvider>
       </body>
     </html>

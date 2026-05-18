@@ -1,0 +1,207 @@
+"use client"
+
+import { useCallback, useMemo, useState } from "react"
+import { Loader2, ShieldAlert } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import {
+  getStripeOnboardingUrl,
+} from "@/actions/stripe"
+import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import { formatStripeOnboardingUrlErrorForUser } from "@/lib/stripe-payout-error-notice"
+import type { AppNotice } from "@/lib/notifications"
+
+type StripeInstructorOnboardingCtaProps = {
+  disabled?: boolean
+  onNotice: (notice: AppNotice) => void
+  className?: string
+}
+
+export function StripeInstructorOnboardingCta({
+  disabled = false,
+  onNotice,
+  className,
+}: StripeInstructorOnboardingCtaProps) {
+  const supabase = useMemo(() => getSupabaseBrowserClient(), [])
+  const [busy, setBusy] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
+
+  const resolveStripeAccessToken = useCallback(async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      return null
+    }
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    return session?.access_token?.trim() || null
+  }, [supabase])
+
+  const handleOpenConfirm = useCallback(() => {
+    if (busy || disabled) {
+      return
+    }
+    setShowConfirm(true)
+  }, [busy, disabled])
+
+  const handleCloseConfirm = useCallback(() => {
+    if (busy) {
+      return
+    }
+    setShowConfirm(false)
+  }, [busy])
+
+  const handleStripeLinkOpen = useCallback(async () => {
+    setBusy(true)
+    try {
+      const accessToken = await resolveStripeAccessToken()
+      if (!accessToken) {
+        setBusy(false)
+        onNotice({
+          variant: "error",
+          message: formatStripeOnboardingUrlErrorForUser(
+            "not_authenticated",
+            "Stripe の画面を開けませんでした。時間を置いて再度お試しください。",
+          ),
+        })
+        return
+      }
+      const result = await getStripeOnboardingUrl(true, accessToken)
+      if (!result.ok) {
+        setBusy(false)
+        onNotice({
+          variant: "error",
+          message: formatStripeOnboardingUrlErrorForUser(
+            result.error,
+            "Stripe の画面を開けませんでした。時間を置いて再度お試しください。",
+          ),
+        })
+        return
+      }
+      setShowConfirm(false)
+      window.location.assign(result.url)
+    } catch (err) {
+      setBusy(false)
+      const raw = err instanceof Error ? err.message : String(err)
+      onNotice({
+        variant: "error",
+        message: formatStripeOnboardingUrlErrorForUser(
+          raw,
+          "Stripe の画面を開けませんでした。時間を置いて再度お試しください。",
+        ),
+      })
+    }
+  }, [onNotice, resolveStripeAccessToken])
+
+  return (
+    <>
+      <div className={className}>
+        <Button
+          type="button"
+          className="h-auto min-h-10 w-full whitespace-normal bg-primary py-2.5 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 sm:w-auto"
+          disabled={busy || disabled}
+          onClick={handleOpenConfirm}
+        >
+          {busy ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+              発行中...
+            </>
+          ) : (
+            "Stripeで講師登録を始める"
+          )}
+        </Button>
+      </div>
+
+      {showConfirm ? (
+        <div
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4"
+          role="presentation"
+          onClick={handleCloseConfirm}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="stripe-onboarding-confirm-title"
+            className="w-full max-w-xl rounded-2xl border border-border bg-background p-5 shadow-2xl md:p-6"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="stripe-onboarding-confirm-title" className="text-lg font-bold text-foreground">
+              Stripe講師登録の確認
+            </h2>
+
+            <div className="mt-4 rounded-xl border border-border bg-muted/40 p-4">
+              <p className="text-sm font-semibold text-foreground">
+                スムーズに登録を進めるため、Stripe上にはデフォルトで以下の内容が入力されます
+              </p>
+              <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+                <li>国: 日本</li>
+                <li>事業形態: 個人事業主</li>
+                <li>業種: 教育 &gt; その他</li>
+                <li>URL: https://gritvib.com</li>
+                <li>
+                  説明: 個人向けストアプラットフォーム「GritVib」において、オンライン相談、デジタルコンテンツの提供、または実面を伴う個人スキルの取引・レッスン等のサービスを提供します。
+                </li>
+              </ul>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-primary/30 bg-primary/10 p-4">
+              <p className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+                <ShieldAlert className="h-4 w-4 text-primary-readable" aria-hidden />
+                注意事項
+              </p>
+              <ul className="mt-2 space-y-1.5 text-sm leading-relaxed text-muted-foreground">
+                <li>これらの情報は登録後、Stripeダッシュボードから変更可能です。</li>
+                <li>口座情報や個人情報はStripeが厳重に管理し、当サイトのデータベースには保存されません。</li>
+              </ul>
+            </div>
+
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseConfirm}
+                disabled={busy}
+              >
+                キャンセル
+              </Button>
+              <Button
+                type="button"
+                className="bg-primary font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
+                onClick={() => void handleStripeLinkOpen()}
+                disabled={busy}
+              >
+                {busy ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                    Stripeへ進む...
+                  </>
+                ) : (
+                  "内容に同意してStripeへ進む"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {busy ? (
+        <div
+          className="fixed inset-0 z-[10002] flex flex-col items-center justify-center gap-4 bg-black/80 px-6 text-center backdrop-blur-[2px]"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <Loader2 className="h-10 w-10 shrink-0 animate-spin text-primary" aria-hidden />
+          <div className="max-w-md space-y-2">
+            <p className="text-base font-bold text-foreground">Stripe の画面を準備しています</p>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              しばらくすると Stripe のサイトへ移動します。この画面のままお待ちください。
+            </p>
+          </div>
+        </div>
+      ) : null}
+    </>
+  )
+}

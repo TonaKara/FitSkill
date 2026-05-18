@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button"
 import { NotificationToast } from "@/components/ui/notification-toast"
 import type { AppNotice } from "@/lib/notifications"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import { adminStatusBadgeClass, adminUi } from "@/lib/admin-ui"
 import { createAdminOriginNotification } from "@/lib/transaction-notifications"
+import { cn } from "@/lib/utils"
 
 type Filter =
   | { column: string; value: string | number | boolean }
@@ -97,46 +99,6 @@ function formatDateTimeCell(value: unknown): string | null {
     hour: "2-digit",
     minute: "2-digit",
   })
-}
-
-function statusBadgeClass(status: string): string {
-  if (status === "pending") {
-    return "bg-red-950/60 text-red-300 ring-1 ring-red-500/40"
-  }
-  if (status === "investigating") {
-    return "bg-blue-950/60 text-blue-300 ring-1 ring-blue-500/40"
-  }
-  if (status === "resolved") {
-    return "bg-emerald-950/60 text-emerald-300 ring-1 ring-emerald-500/40"
-  }
-  if (status === "ignored") {
-    return "bg-zinc-800 text-zinc-300 ring-1 ring-zinc-600"
-  }
-  if (status === "banned") {
-    return "bg-red-950/60 text-red-300 ring-1 ring-red-500/40"
-  }
-  if (status === "active") {
-    return "bg-emerald-950/60 text-emerald-300 ring-1 ring-emerald-500/40"
-  }
-  if (status === "completed") {
-    return "bg-emerald-950/60 text-emerald-200 ring-1 ring-emerald-500/35"
-  }
-  if (status === "disputed") {
-    return "bg-amber-950/60 text-amber-200 ring-1 ring-amber-500/40"
-  }
-  if (status === "refunded" || status === "canceled") {
-    return "bg-violet-950/60 text-violet-200 ring-1 ring-violet-500/40"
-  }
-  if (status === "approval_pending") {
-    return "bg-sky-950/60 text-sky-200 ring-1 ring-sky-500/35"
-  }
-  if (status === "open") {
-    return "bg-amber-950/50 text-amber-100 ring-1 ring-amber-500/35"
-  }
-  if (status === "rejected") {
-    return "bg-zinc-800 text-zinc-300 ring-1 ring-zinc-600"
-  }
-  return "bg-zinc-900 text-zinc-300 ring-1 ring-zinc-700"
 }
 
 export function AdminTableCard({
@@ -303,7 +265,7 @@ export function AdminTableCard({
             size="sm"
             disabled={isPending}
             className={`h-8 text-xs text-white disabled:opacity-60 ${
-              isPublished ? "bg-emerald-600 hover:bg-emerald-500" : "bg-zinc-600 hover:bg-zinc-500"
+              isPublished ? "bg-emerald-600 hover:bg-emerald-500" : "bg-muted text-muted-foreground hover:bg-muted/80"
             }`}
             onClick={(event) => {
               event.stopPropagation()
@@ -324,10 +286,10 @@ export function AdminTableCard({
       const raw = rawValue == null || String(rawValue).length === 0 ? "" : String(rawValue)
       const label = raw ? (DISPUTE_STATUS_LABEL_MAP[raw] ?? raw) : "—"
       if (!raw) {
-        return <span className="text-zinc-500">—</span>
+        return <span className="text-muted-foreground">—</span>
       }
       return (
-        <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${statusBadgeClass(raw)}`}>
+        <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${adminStatusBadgeClass(raw)}`}>
           {label}
         </span>
       )
@@ -342,7 +304,7 @@ export function AdminTableCard({
             ? "通常"
             : (STATUS_LABEL_MAP[rawStatus] ?? rawStatus)
       return (
-        <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${statusBadgeClass(rawStatus)}`}>
+        <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${adminStatusBadgeClass(rawStatus)}`}>
           {label}
         </span>
       )
@@ -662,7 +624,7 @@ export function AdminTableCard({
           <select
             value={selectedReason}
             onChange={(event) => updateReason(rowKey, event.target.value)}
-            className="h-8 rounded border border-zinc-700 bg-zinc-900 px-2 text-xs text-zinc-100"
+            className="h-8 rounded border border-border bg-background px-2 text-xs text-foreground"
           >
             <option value="">理由を選択</option>
             {ADMIN_REASON_OPTIONS.map((reason) => (
@@ -676,7 +638,7 @@ export function AdminTableCard({
             size="sm"
             disabled={isPending}
             className={`h-8 text-xs text-white disabled:opacity-60 ${
-              isBanned ? "bg-zinc-600 hover:bg-zinc-500" : "bg-red-600 hover:bg-red-500"
+              isBanned ? "bg-muted text-muted-foreground hover:bg-muted/80" : "bg-red-600 hover:bg-red-500"
             }`}
             onClick={(event) => {
               event.stopPropagation()
@@ -691,7 +653,7 @@ export function AdminTableCard({
 
     if (tableName === "profiles") {
       if (isAdminProfilesView) {
-        return <span className="text-zinc-500">—</span>
+        return <span className="text-muted-foreground">—</span>
       }
       const rowKey = rowIdentityKey(row)
       const isPending = actionPendingKey === rowKey
@@ -702,7 +664,7 @@ export function AdminTableCard({
           <select
             value={selectedReason}
             onChange={(event) => updateReason(rowKey, event.target.value)}
-            className="h-8 rounded border border-zinc-700 bg-zinc-900 px-2 text-xs text-zinc-100"
+            className="h-8 rounded border border-border bg-background px-2 text-xs text-foreground"
           >
             <option value="">理由を選択</option>
             {ADMIN_REASON_OPTIONS.map((reason) => (
@@ -716,7 +678,7 @@ export function AdminTableCard({
             size="sm"
             disabled={isPending}
             className={`h-8 text-xs text-white disabled:opacity-60 ${
-              isBanned ? "bg-zinc-600 hover:bg-zinc-500" : "bg-red-600 hover:bg-red-500"
+              isBanned ? "bg-muted text-muted-foreground hover:bg-muted/80" : "bg-red-600 hover:bg-red-500"
             }`}
             onClick={(event) => {
               event.stopPropagation()
@@ -743,7 +705,7 @@ export function AdminTableCard({
           <select
             value={selectedReason}
             onChange={(event) => updateReason(rowKey, event.target.value)}
-            className="h-8 rounded border border-zinc-700 bg-zinc-900 px-2 text-xs text-zinc-100"
+            className="h-8 rounded border border-border bg-background px-2 text-xs text-foreground"
           >
             <option value="">理由を選択</option>
             {ADMIN_REASON_OPTIONS.map((reason) => (
@@ -758,7 +720,7 @@ export function AdminTableCard({
             size="sm"
             disabled={isPending}
             className={`h-8 text-xs text-white disabled:opacity-60 ${
-              isPublished ? "bg-emerald-600 hover:bg-emerald-500" : "bg-zinc-600 hover:bg-zinc-500"
+              isPublished ? "bg-emerald-600 hover:bg-emerald-500" : "bg-muted text-muted-foreground hover:bg-muted/80"
             }`}
             onClick={(event) => {
               event.stopPropagation()
@@ -793,7 +755,7 @@ export function AdminTableCard({
           <select
             value={selectedReason}
             onChange={(event) => updateReason(rowKey, event.target.value)}
-            className="h-8 rounded border border-zinc-700 bg-zinc-900 px-2 text-xs text-zinc-100"
+            className="h-8 rounded border border-border bg-background px-2 text-xs text-foreground"
           >
             <option value="">理由を選択</option>
             {ADMIN_REASON_OPTIONS.map((reason) => (
@@ -818,7 +780,7 @@ export function AdminTableCard({
       )
     }
 
-    return <span className="text-zinc-500">—</span>
+    return <span className="text-muted-foreground">—</span>
   }
 
   useEffect(() => {
@@ -1087,32 +1049,32 @@ export function AdminTableCard({
   }
 
   return (
-    <Card className="border-zinc-800 bg-zinc-950">
+    <Card className="border-border bg-card">
       {notice ? <NotificationToast notice={notice} onClose={() => setNotice(null)} /> : null}
       <CardHeader>
-        <CardTitle className="text-white">{title}</CardTitle>
+        <CardTitle className="text-foreground">{title}</CardTitle>
       </CardHeader>
       <CardContent>
         {loading ? (
-          <div className="flex items-center text-sm text-zinc-400">
+          <div className="flex items-center text-sm text-muted-foreground">
             <Loader2 className="mr-2 h-4 w-4 animate-spin text-red-500" />
             読み込み中...
           </div>
         ) : accessDenied ? (
-          <p className="text-sm text-amber-300">権限がありません</p>
+          <p className="text-sm text-amber-700 dark:text-amber-300">権限がありません</p>
         ) : errorMessage ? (
-          <p className="text-sm text-red-400">{errorMessage}</p>
+          <p className="text-sm text-destructive">{errorMessage}</p>
         ) : rows.length === 0 ? (
-          <p className="text-sm text-zinc-500">データはまだありません</p>
+          <p className="text-sm text-muted-foreground">データはまだありません</p>
         ) : visibleRows.length === 0 ? (
-          <p className="text-sm text-zinc-500">検索条件に一致するデータはありません</p>
+          <p className="text-sm text-muted-foreground">検索条件に一致するデータはありません</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full border-collapse text-left text-sm">
               <thead>
-                <tr className="border-b border-zinc-800">
+                <tr className="border-b border-border">
                   {columns.map((column) => (
-                    <th key={column} className="px-3 py-2 font-semibold text-zinc-300">
+                    <th key={column} className={adminUi.tableHead}>
                       {headerLabels?.[column] ?? column}
                     </th>
                   ))}
@@ -1122,11 +1084,11 @@ export function AdminTableCard({
                 {visibleRows.map((row, index) => (
                   <tr
                     key={`${tableName}-${String(row.id ?? index)}-${index}`}
-                    className="cursor-pointer border-b border-zinc-900/70 transition-colors hover:bg-zinc-900/60"
+                    className={adminUi.tableRow}
                     onClick={() => handleRowClick(row)}
                   >
                     {columns.map((column) => (
-                      <td key={`${tableName}-${String(row.id ?? index)}-${column}`} className="max-w-[260px] px-3 py-2 text-zinc-200">
+                      <td key={`${tableName}-${String(row.id ?? index)}-${column}`} className={adminUi.tableCell}>
                         {renderCellValue(row, column)}
                       </td>
                     ))}

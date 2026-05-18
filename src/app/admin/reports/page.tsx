@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react"
 import { AdminTableCard } from "@/components/admin/AdminTableCard"
 import { ADMIN_TABLE_HEADER_LABELS } from "@/lib/admin-table-labels"
+import { adminUi } from "@/lib/admin-ui"
+import { cn } from "@/lib/utils"
 
 const REPORT_STATUS_OPTIONS = [
   { value: "all", label: "すべて" },
@@ -20,16 +22,16 @@ export default function AdminReportsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-black tracking-wide text-white">通報一覧</h1>
+      <h1 className="text-3xl font-black tracking-wide text-foreground">通報一覧</h1>
       <div className="space-y-3">
-        <label className="block text-sm font-medium text-zinc-300" htmlFor="admin-report-status-filter">
+        <label className={adminUi.label} htmlFor="admin-report-status-filter">
           処理状況で絞り込み
         </label>
         <select
           id="admin-report-status-filter"
           value={statusFilter}
           onChange={(event) => setStatusFilter(event.target.value as (typeof REPORT_STATUS_OPTIONS)[number]["value"])}
-          className="h-10 w-full max-w-xs rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-500"
+          className={cn("w-full max-w-xs", adminUi.select)}
         >
           {REPORT_STATUS_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>

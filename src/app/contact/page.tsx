@@ -11,6 +11,7 @@ import { NotificationToast } from "@/components/ui/notification-toast"
 import { toErrorNotice, type AppNotice } from "@/lib/notifications"
 import { getIsAdminFromProfile } from "@/lib/admin"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import { CONTENT_PAGE_MAIN_CLASS } from "@/lib/content-page-layout"
 
 const CONTACT_CATEGORY_OPTIONS = [
   "ご意見",
@@ -248,15 +249,15 @@ export default function ContactPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black px-4 py-10 text-zinc-100">
+    <main className={CONTENT_PAGE_MAIN_CLASS}>
       {notice ? <NotificationToast notice={notice} onClose={() => setNotice(null)} /> : null}
-      <div className="mx-auto w-full max-w-3xl">
+      <div className="w-full min-w-0">
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-3xl font-black tracking-wide text-white">お問い合わせ</h1>
+          <h1 className="text-3xl font-black tracking-wide text-foreground">お問い合わせ</h1>
           <Button
             asChild
             variant="outline"
-            className="border-zinc-700 bg-zinc-900 text-zinc-200 hover:border-red-500 hover:bg-zinc-800"
+            className="border-border bg-muted text-foreground hover:border-primary hover:bg-muted/80"
           >
             <Link href="/">
               <span className="inline-flex items-center gap-2">
@@ -267,14 +268,14 @@ export default function ContactPage() {
           </Button>
         </div>
 
-        <Card className="border-zinc-800 bg-zinc-950">
+        <Card className="border-border bg-card">
           <CardHeader>
-            <CardTitle className="text-white">フォーム入力</CardTitle>
+            <CardTitle className="text-foreground">フォーム入力</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
-                <label htmlFor="contact-name" className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-200">
+                <label htmlFor="contact-name" className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
                   名前<span className="text-xs font-medium text-red-400">必須</span>
                 </label>
                 <Input
@@ -283,12 +284,12 @@ export default function ContactPage() {
                   required
                   value={form.name}
                   onChange={handleChange("name")}
-                  className="border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                  className="focus-visible:ring-red-500"
                 />
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="contact-email" className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-200">
+                <label htmlFor="contact-email" className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
                   メールアドレス<span className="text-xs font-medium text-red-400">必須</span>
                 </label>
                 <Input
@@ -297,12 +298,12 @@ export default function ContactPage() {
                   required
                   value={form.email}
                   onChange={handleChange("email")}
-                  className="border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                  className="focus-visible:ring-red-500"
                 />
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="contact-category" className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-200">
+                <label htmlFor="contact-category" className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
                   カテゴリ<span className="text-xs font-medium text-red-400">必須</span>
                 </label>
                 <select
@@ -310,7 +311,7 @@ export default function ContactPage() {
                   required
                   value={form.category}
                   onChange={handleChange("category")}
-                  className="h-10 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-red-500"
                 >
                   <option value="">選択してください</option>
                   {CONTACT_CATEGORY_OPTIONS.map((option) => (
@@ -322,7 +323,7 @@ export default function ContactPage() {
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="contact-subject" className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-200">
+                <label htmlFor="contact-subject" className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
                   件名<span className="text-xs font-medium text-red-400">必須</span>
                 </label>
                 <Input
@@ -332,29 +333,29 @@ export default function ContactPage() {
                   maxLength={SUBJECT_MAX_LENGTH}
                   value={form.subject}
                   onChange={handleChange("subject")}
-                  className="border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                  className="focus-visible:ring-red-500"
                 />
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="contact-transaction-id" className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-200">
-                  取引ID<span className="text-xs font-medium text-zinc-400">任意</span>
+                <label htmlFor="contact-transaction-id" className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+                  取引ID<span className="text-xs font-medium text-muted-foreground">任意</span>
                 </label>
                 <Input
                   id="contact-transaction-id"
                   type="text"
                   value={form.transactionId}
                   onChange={handleChange("transactionId")}
-                  className="border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                  className="focus-visible:ring-red-500"
                 />
-                <p className="text-xs leading-relaxed text-zinc-400">
+                <p className="text-xs leading-relaxed text-muted-foreground">
                   取引に関するお問い合わせの場合は、マイページの「進行中の取引（受講中 / 対応中）」一覧に表示される
                   「取引ID」をご記入ください。
                 </p>
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="contact-content" className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-200">
+                <label htmlFor="contact-content" className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
                   内容<span className="text-xs font-medium text-red-400">必須</span>
                 </label>
                 <textarea
@@ -364,16 +365,16 @@ export default function ContactPage() {
                   value={form.content}
                   onChange={handleChange("content")}
                   rows={6}
-                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-red-500"
                 />
               </div>
 
               <div className="space-y-2">
                 <label
                   htmlFor="contact-attachment"
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-200"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-foreground"
                 >
-                  添付ファイル<span className="text-xs font-medium text-zinc-400">任意</span>
+                  添付ファイル<span className="text-xs font-medium text-muted-foreground">任意</span>
                 </label>
                 <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
                   <input
@@ -389,19 +390,19 @@ export default function ContactPage() {
                     type="button"
                     variant="outline"
                     disabled={isSubmitting}
-                    className="h-10 border-zinc-600 bg-zinc-900 text-zinc-200 hover:border-red-500 hover:bg-zinc-800"
+                    className="h-10 border-border bg-background text-foreground hover:border-red-500 hover:bg-muted"
                     onClick={() => attachmentInputRef.current?.click()}
                   >
                     ファイルを選択
                   </Button>
-                  <span className="min-h-5 break-all text-xs text-zinc-400 sm:text-sm">
+                  <span className="min-h-5 break-all text-xs text-muted-foreground sm:text-sm">
                     {attachment ? attachment.name : "選択されていません"}
                   </span>
                 </div>
                 {attachmentPreviewUrl ? (
                   <div className="w-full min-w-0">
                     <div className="flex w-36 max-w-full flex-col gap-2">
-                      <div className="relative aspect-square w-36 max-w-full overflow-hidden rounded-md border border-zinc-700 bg-zinc-100 p-1">
+                      <div className="relative aspect-square w-36 max-w-full overflow-hidden rounded-md border border-border bg-muted p-1">
                         {/* eslint-disable-next-line @next/next/no-img-element -- ローカル画像プレビュー */}
                         <img
                           src={attachmentPreviewUrl}
@@ -415,7 +416,7 @@ export default function ContactPage() {
                         size="sm"
                         onClick={handleAttachmentClear}
                         disabled={isSubmitting}
-                        className="h-7 border border-zinc-600 bg-zinc-900 text-xs text-zinc-100 hover:bg-zinc-800"
+                        className="h-7 border border-border bg-background text-xs text-foreground hover:bg-muted"
                       >
                         削除
                       </Button>
@@ -442,6 +443,6 @@ export default function ContactPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </main>
   )
 }

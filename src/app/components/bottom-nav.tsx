@@ -1,44 +1,44 @@
 "use client"
 
 import { Suspense, useEffect, useMemo, useRef, useState, startTransition } from "react"
-import { Home, Heart, PlusCircle, BookOpen, ClipboardList, User } from "lucide-react"
+import { Store, Heart, PlusCircle, MessageSquare, Settings } from "lucide-react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { useMobileHeaderMenu } from "@/components/mobile-header-menu-context"
-import {
-  MYPAGE_MODE_PREFERENCE_CHANGE_EVENT,
-  MYPAGE_MODE_STORAGE_KEY,
-  readMypageModePreference,
-  type MypageModePreference,
-} from "@/lib/mypage-mode-preference"
+import { buildAccountSectionHref, buildTradesAccountHref } from "@/lib/store-menu"
 
 const navItems = [
-  { id: "home", label: "ホーム", icon: Home },
-  { id: "favorites", label: "お気に入り", icon: Heart },
+  { id: "store", label: "マイストア", icon: Store },
+  { id: "trades", label: "取引", icon: MessageSquare },
   { id: "create", label: "出品", icon: PlusCircle },
-  { id: "progress", label: "受講中", icon: BookOpen },
-  { id: "profile", label: "プロフィール", icon: User },
+  { id: "favorites", label: "お気に入り", icon: Heart },
+  { id: "settings", label: "設定", icon: Settings },
 ] as const
 
-/** 現在の URL に対応するボトムナビの選択状態（クリックだけのローカル state に依存しない） */
 function resolveBottomNavActiveId(pathname: string, searchParams: URLSearchParams): string | null {
   if (pathname === "/") {
-    return "home"
+    return "store"
   }
   if (pathname.startsWith("/create-skill")) {
     return "create"
   }
-  if (pathname === "/mypage" || pathname.startsWith("/mypage/")) {
-    const tab = searchParams.get("tab")
-    if (tab === "favorites") {
+  if (pathname.startsWith("/account/")) {
+    const segment = pathname.split("/")[2]
+    if (segment === "favorites") {
       return "favorites"
     }
-    if (tab === "learning" || tab === "teaching") {
-      return "progress"
+    if (segment === "trades") {
+      return "trades"
     }
-    if (tab === "profile" || tab === "reviews" || tab === "account") {
-      return "profile"
+    if (
+      segment === "profile" ||
+      segment === "reviews" ||
+      segment === "settings" ||
+      segment === "sales" ||
+      segment === "listings"
+    ) {
+      return "settings"
     }
     return null
   }
@@ -51,10 +51,6 @@ function pushNav(router: ReturnType<typeof useRouter>, href: string) {
   })
 }
 
-/**
- * 連続タップで古い非同期ハンドラが後から `router.push` しないよう、
- * ナビ操作ごとにトークンを進めて打ち消す。
- */
 function useNavIntentGuard() {
   const seqRef = useRef(0)
   const beginIntent = () => {
@@ -63,6 +59,10 @@ function useNavIntentGuard() {
   }
   const isStale = (token: number) => token !== seqRef.current
   return { beginIntent, isStale }
+}
+
+function tradesHrefForMode(): string {
+  return buildTradesAccountHref()
 }
 
 function BottomNavInner() {
@@ -74,34 +74,7 @@ function BottomNavInner() {
   const { beginIntent, isStale } = useNavIntentGuard()
 
   const [isCreateChecking, setIsCreateChecking] = useState(false)
-  const [isFavoritesChecking, setIsFavoritesChecking] = useState(false)
-  const [isProgressNavChecking, setIsProgressNavChecking] = useState(false)
-  const [isProfileChecking, setIsProfileChecking] = useState(false)
-  const [mypageMode, setMypageMode] = useState<MypageModePreference>("student")
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return
-    }
-    setMypageMode(readMypageModePreference())
-    const syncFromEvent = (event: Event) => {
-      const detail = (event as CustomEvent<MypageModePreference>).detail
-      if (detail === "student" || detail === "instructor") {
-        setMypageMode(detail)
-      }
-    }
-    window.addEventListener(MYPAGE_MODE_PREFERENCE_CHANGE_EVENT, syncFromEvent)
-    const onStorage = (ev: StorageEvent) => {
-      if (ev.key === MYPAGE_MODE_STORAGE_KEY && (ev.newValue === "student" || ev.newValue === "instructor")) {
-        setMypageMode(ev.newValue)
-      }
-    }
-    window.addEventListener("storage", onStorage)
-    return () => {
-      window.removeEventListener(MYPAGE_MODE_PREFERENCE_CHANGE_EVENT, syncFromEvent)
-      window.removeEventListener("storage", onStorage)
-    }
-  }, [])
+  const [isAuthNavChecking, setIsAuthNavChecking] = useState(false)
 
   const navActiveId = useMemo(
     () => resolveBottomNavActiveId(pathname, searchParams),
@@ -110,10 +83,10 @@ function BottomNavInner() {
 
   useEffect(() => {
     router.prefetch("/")
-    router.prefetch("/mypage?tab=favorites")
-    router.prefetch("/mypage?tab=profile")
-    router.prefetch("/mypage?tab=learning&mode=student")
-    router.prefetch("/mypage?tab=teaching&mode=instructor")
+    router.prefetch("/account/trades?side=buyer&panel=active")
+    router.prefetch("/account/trades?side=seller&panel=active")
+    router.prefetch("/account/favorites")
+    router.prefetch("/account/settings")
     router.prefetch("/create-skill")
     router.prefetch("/login")
   }, [router])
@@ -121,6 +94,25 @@ function BottomNavInner() {
   const leftItems = navItems.slice(0, 2)
   const createItem = navItems.find((item) => item.id === "create")
   const rightItems = navItems.slice(3)
+
+  const requireAuthNav = async (href: string) => {
+    if (isAuthNavChecking) {
+      return
+    }
+    const intent = beginIntent()
+    setIsAuthNavChecking(true)
+    const { data } = await supabase.auth.getSession()
+    if (isStale(intent)) {
+      setIsAuthNavChecking(false)
+      return
+    }
+    setIsAuthNavChecking(false)
+    if (data.session?.user) {
+      pushNav(router, href)
+      return
+    }
+    pushNav(router, "/login")
+  }
 
   const handleCreateClick = async () => {
     if (isCreateChecking) {
@@ -134,87 +126,10 @@ function BottomNavInner() {
       return
     }
     setIsCreateChecking(false)
-
     if (data.session?.user) {
       pushNav(router, "/create-skill")
       return
     }
-
-    pushNav(router, "/login")
-  }
-
-  const handleFavoritesClick = async () => {
-    if (isFavoritesChecking) {
-      return
-    }
-    const intent = beginIntent()
-    setIsFavoritesChecking(true)
-    const { data } = await supabase.auth.getSession()
-    if (isStale(intent)) {
-      setIsFavoritesChecking(false)
-      return
-    }
-    setIsFavoritesChecking(false)
-
-    if (data.session?.user) {
-      pushNav(router, "/mypage?tab=favorites")
-      return
-    }
-
-    pushNav(router, "/login")
-  }
-
-  const handleProgressNavClick = async () => {
-    if (isProgressNavChecking) {
-      return
-    }
-    const intent = beginIntent()
-    setIsProgressNavChecking(true)
-    const { data } = await supabase.auth.getSession()
-    const user = data.session?.user
-
-    if (!user) {
-      if (isStale(intent)) {
-        setIsProgressNavChecking(false)
-        return
-      }
-      setIsProgressNavChecking(false)
-      pushNav(router, "/login")
-      return
-    }
-
-    if (isStale(intent)) {
-      setIsProgressNavChecking(false)
-      return
-    }
-    setIsProgressNavChecking(false)
-
-    const mode = readMypageModePreference()
-    if (mode === "instructor") {
-      pushNav(router, "/mypage?tab=teaching&mode=instructor")
-      return
-    }
-    pushNav(router, "/mypage?tab=learning&mode=student")
-  }
-
-  const handleProfileClick = async () => {
-    if (isProfileChecking) {
-      return
-    }
-    const intent = beginIntent()
-    setIsProfileChecking(true)
-    const { data } = await supabase.auth.getSession()
-    if (isStale(intent)) {
-      setIsProfileChecking(false)
-      return
-    }
-    setIsProfileChecking(false)
-
-    if (data.session?.user) {
-      pushNav(router, "/mypage?tab=profile")
-      return
-    }
-
     pushNav(router, "/login")
   }
 
@@ -225,7 +140,7 @@ function BottomNavInner() {
   return (
     <nav
       className={cn(
-        "fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur supports-[backdrop-filter]:bg-background/80 transform-gpu will-change-transform md:hidden",
+        "fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background pb-[env(safe-area-inset-bottom,0px)] dark:bg-background/95 dark:backdrop-blur dark:supports-[backdrop-filter]:bg-background/80 transform-gpu will-change-transform md:hidden",
         isMobileMenuOpen && "hidden",
       )}
     >
@@ -239,17 +154,16 @@ function BottomNavInner() {
               key={item.id}
               type="button"
               onClick={() => {
-                if (item.id === "favorites") {
-                  void handleFavoritesClick()
-                  return
-                }
-                if (item.id === "home") {
+                if (item.id === "store") {
                   beginIntent()
                   pushNav(router, "/")
                   return
                 }
+                if (item.id === "trades") {
+                  void requireAuthNav(tradesHrefForMode())
+                }
               }}
-              disabled={item.id === "favorites" && isFavoritesChecking}
+              disabled={isAuthNavChecking && (item.id === "trades")}
               className="flex flex-col items-center gap-1 transition-colors"
             >
               <Icon
@@ -284,9 +198,7 @@ function BottomNavInner() {
           </button>
         ) : null}
         {rightItems.map((item) => {
-          const isProgress = item.id === "progress"
-          const Icon = isProgress ? (mypageMode === "instructor" ? ClipboardList : BookOpen) : item.icon
-          const label = isProgress ? (mypageMode === "instructor" ? "対応中" : "受講中") : item.label
+          const Icon = item.icon
           const isActive = navActiveId === item.id
 
           return (
@@ -294,18 +206,15 @@ function BottomNavInner() {
               key={item.id}
               type="button"
               onClick={() => {
-                if (item.id === "progress") {
-                  void handleProgressNavClick()
+                if (item.id === "favorites") {
+                  void requireAuthNav(buildAccountSectionHref("favorites"))
                   return
                 }
-                if (item.id === "profile") {
-                  void handleProfileClick()
-                  return
+                if (item.id === "settings") {
+                  void requireAuthNav(buildAccountSectionHref("account"))
                 }
               }}
-              disabled={
-                (item.id === "progress" && isProgressNavChecking) || (item.id === "profile" && isProfileChecking)
-              }
+              disabled={isAuthNavChecking}
               className="flex flex-col items-center gap-1 transition-colors"
             >
               <Icon
@@ -320,7 +229,7 @@ function BottomNavInner() {
                   isActive ? "text-primary-readable" : "text-muted-foreground",
                 )}
               >
-                {label}
+                {item.label}
               </span>
             </button>
           )

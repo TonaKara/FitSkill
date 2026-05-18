@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
-import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
 import { InquiryInboxList, type InquiryPeerProfile } from "@/components/inquiry/InquiryInboxList"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
@@ -99,7 +98,7 @@ export function InquiryListClient() {
 
   if (authLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-950 text-zinc-200">
+      <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
         <Loader2 className="h-8 w-8 animate-spin text-red-500" aria-hidden />
       </div>
     )
@@ -107,8 +106,8 @@ export function InquiryListClient() {
 
   if (!userId) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-zinc-950 px-4 text-zinc-100">
-        <p className="text-center text-sm text-zinc-300">相談一覧を表示するにはログインが必要です。</p>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-4 text-foreground">
+        <p className="text-center text-sm text-muted-foreground">相談一覧を表示するにはログインが必要です。</p>
         <Button
           type="button"
           className="bg-red-600 text-white hover:bg-red-500"
@@ -121,19 +120,18 @@ export function InquiryListClient() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      <Header />
+    <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-lg px-4 pb-16 pt-6 md:max-w-2xl md:pt-8">
         <div className="mb-6 flex items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-black tracking-wide text-white">購入前の相談</h1>
-            <p className="mt-1 text-sm text-zinc-400">相手を選ぶとチャットが開きます。</p>
+            <h1 className="text-2xl font-black tracking-wide text-foreground">購入前の相談</h1>
+            <p className="mt-1 text-sm text-muted-foreground">相手を選ぶとチャットが開きます。</p>
           </div>
-          <Button asChild variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-200 hover:border-red-500">
+          <Button asChild variant="outline" className="border-border bg-background text-muted-foreground hover:border-red-500">
             <Link href="/">ホームへ</Link>
           </Button>
         </div>
-        <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/40">
+        <div className="overflow-hidden rounded-2xl border border-border bg-muted/40">
           <InquiryInboxList
             threads={threads}
             peerProfiles={peerProfiles}

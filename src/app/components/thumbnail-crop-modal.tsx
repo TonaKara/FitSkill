@@ -275,7 +275,7 @@ export function ThumbnailCropModal({
       aria-labelledby="thumbnail-crop-title"
     >
       <div className="thumbnail-crop-modal relative my-2 flex max-h-[96svh] w-[min(92vw,1320px)] min-w-0 flex-col overflow-hidden rounded-2xl border border-red-500/40 bg-zinc-950 shadow-[0_0_80px_rgba(230,74,25,0.25)] sm:my-0 sm:w-[min(78vw,1320px)]">
-        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-800 bg-zinc-950 px-4 py-3 md:px-6">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border bg-card px-4 py-3 md:px-6">
           <div>
             <h2 id="thumbnail-crop-title" className="text-base font-bold text-white md:text-lg">
               {heading}
@@ -352,7 +352,7 @@ export function ThumbnailCropModal({
 
         {error ? <p className="shrink-0 px-4 pb-2 text-center text-sm text-red-400 md:px-6">{error}</p> : null}
 
-        <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-zinc-800 bg-zinc-950 px-4 py-4 sm:flex-row sm:justify-end md:px-6">
+        <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-border bg-card px-4 py-4 sm:flex-row sm:justify-end md:px-6">
           <Button
             type="button"
             variant="outline"

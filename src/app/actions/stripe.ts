@@ -26,7 +26,8 @@ const STRIPE_ONBOARDING_DEFAULTS = {
   country: "JP" as const,
   businessType: "individual" as const,
   mcc: "8299", // 教育 > その他
-  productDescription: "フィットネスの知識や技術を共有します。",
+  productDescription:
+    "個人向けストアプラットフォーム「GritVib」において、オンライン相談、デジタルコンテンツの提供、または実面を伴う個人スキルの取引・レッスン等のサービスを提供します。",
 }
 
 type StripeProfileWriteRow = {
@@ -343,8 +344,8 @@ export async function getStripeOnboardingUrl(
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
       type: "account_onboarding",
-      return_url: `${baseUrl}/mypage?tab=payout&mode=instructor&stripe=return`,
-      refresh_url: `${baseUrl}/mypage?tab=payout&mode=instructor&stripe=return`,
+      return_url: `${baseUrl}/account/sales?mode=instructor&stripe=return`,
+      refresh_url: `${baseUrl}/account/sales?mode=instructor&stripe=return`,
     })
 
     return { ok: true, url: accountLink.url }

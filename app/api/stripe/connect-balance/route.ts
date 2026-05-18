@@ -1,6 +1,7 @@
 import Stripe from "stripe"
 import { assertStripeConnectAccountOwnership } from "@/lib/stripe-account-ownership"
 import { requireApiUser } from "@/lib/api-auth"
+import { sumConnectAccountLifetimeReceiveYen } from "@/lib/stripe-connect-lifetime-receive"
 
 function getStripeClient() {
   const secretKey = process.env.STRIPE_SECRET_KEY
@@ -41,6 +42,7 @@ export async function GET() {
           total: 0,
           pending: 0,
           available: 0,
+          lifetimeReceiveYen: null,
           currency: "jpy",
         },
         { status: 200 },
@@ -56,6 +58,7 @@ export async function GET() {
     const balance = await stripe.balance.retrieve({}, { stripeAccount: accountId })
     const pending = sumBalanceAmounts(balance.pending)
     const available = sumBalanceAmounts(balance.available)
+    const lifetimeReceiveYen = await sumConnectAccountLifetimeReceiveYen(stripe, accountId)
 
     return Response.json(
       {
@@ -63,6 +66,7 @@ export async function GET() {
         total: available + pending,
         pending,
         available,
+        lifetimeReceiveYen,
         currency: "jpy",
       },
       { status: 200 },

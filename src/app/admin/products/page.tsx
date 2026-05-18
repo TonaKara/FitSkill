@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { AdminTableCard } from "@/components/admin/AdminTableCard"
 import { Input } from "@/components/ui/input"
+import { adminUi } from "@/lib/admin-ui"
 
 const SKILL_COLUMNS = [
   "id",
@@ -31,10 +32,10 @@ export default function AdminProductsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-black tracking-wide text-white">商品管理</h1>
+      <h1 className="text-3xl font-black tracking-wide text-foreground">商品管理</h1>
 
       <div className="space-y-3">
-        <label className="block text-sm font-medium text-zinc-300" htmlFor="admin-skill-search">
+        <label className={adminUi.label} htmlFor="admin-skill-search">
           検索（商品ID・タイトル）
         </label>
         <Input
@@ -43,7 +44,7 @@ export default function AdminProductsPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="商品ID または タイトルの一部で絞り込み"
-          className="max-w-xl border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500"
+          className={adminUi.filterInput}
         />
       </div>
 

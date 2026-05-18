@@ -47,7 +47,7 @@ export async function POST(req: Request) {
       submitterProfileId.length > 0
         ? [
             `- 送信者 profiles.id: ${submitterProfileId}`,
-            `- 公開プロフィール: ${baseUrl}/profile/${encodeURIComponent(submitterProfileId)}`,
+            `- 公開ストア: ${baseUrl}/store/${encodeURIComponent(submitterProfileId)}`,
           ]
         : ["- 送信者 profiles.id: （未ログインの送信）"]
 

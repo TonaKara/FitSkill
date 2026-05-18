@@ -51,7 +51,7 @@ export function LegalDocumentModal({ open, kind, onClose, zClassName = "z-[10050
 
   return createPortal(
     <div
-      className={cn("fixed inset-0 flex items-center justify-center overflow-y-auto bg-black/70 p-4", zClassName)}
+      className={cn("fixed inset-0 flex items-center justify-center overflow-y-auto bg-black/50 p-4", zClassName)}
       role="presentation"
       onClick={onClose}
     >
@@ -59,18 +59,18 @@ export function LegalDocumentModal({ open, kind, onClose, zClassName = "z-[10050
         role="dialog"
         aria-modal="true"
         aria-labelledby="legal-doc-modal-title"
-        className="my-8 w-full max-w-2xl rounded-xl border border-zinc-700 bg-zinc-950 shadow-2xl"
+        className="my-8 w-full max-w-2xl rounded-xl border border-border bg-card text-card-foreground shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-3 border-b border-zinc-800 px-4 py-3 sm:px-5">
-          <h2 id="legal-doc-modal-title" className="pr-2 text-base font-bold text-white sm:text-lg">
+        <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3 sm:px-5">
+          <h2 id="legal-doc-modal-title" className="pr-2 text-base font-bold text-foreground sm:text-lg">
             {title}
           </h2>
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="shrink-0 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+            className="shrink-0 text-muted-foreground hover:bg-muted hover:text-foreground"
             onClick={onClose}
             aria-label="閉じる"
           >
@@ -80,7 +80,7 @@ export function LegalDocumentModal({ open, kind, onClose, zClassName = "z-[10050
         <div className="max-h-[min(70dvh,560px)] overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
           <LegalDocumentContent
             sections={sections}
-            className="space-y-5 rounded-lg border border-zinc-800 bg-zinc-900/50 p-4 sm:p-5"
+            className="space-y-5 rounded-lg border border-border bg-muted/40 p-4 sm:p-5"
           />
         </div>
       </div>
@@ -88,4 +88,3 @@ export function LegalDocumentModal({ open, kind, onClose, zClassName = "z-[10050
     document.body,
   )
 }
-

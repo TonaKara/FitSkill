@@ -1,223 +1,38 @@
 "use client"
 
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { Loader2, Menu, Search, X } from "lucide-react"
+import { usePathname, useRouter } from "next/navigation"
+import { Loader2, Menu, Search, User } from "lucide-react"
 import { NotificationBell } from "@/components/notification-bell"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import type { Session } from "@supabase/supabase-js"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { BrandMarkSvg } from "@/components/BrandMarkSvg"
-import { resolveProfileAvatarUrl } from "@/lib/profile-avatar"
-import { getLogoutSuccessHref } from "@/components/logout-success-toast"
+import { navigateAfterLogout } from "@/components/logout-success-toast"
+import { useHeaderAuth } from "@/lib/header-auth-context"
 import { UserMenu } from "@/components/user-menu"
+import { MobileHeaderMenuDrawer } from "@/components/mobile-header-menu-drawer"
 import { useMobileHeaderMenu } from "@/components/mobile-header-menu-context"
 import { cn } from "@/lib/utils"
-import {
-  MYPAGE_MODE_STORAGE_KEY,
-  MYPAGE_MODE_PREFERENCE_CHANGE_EVENT,
-  readMypageModePreference,
-  writeMypageModePreference,
-  type MypageModePreference,
-} from "@/lib/mypage-mode-preference"
-
 type HeaderProps = {
   searchKeyword?: string
   onSearchKeywordChange?: (value: string) => void
   fixed?: boolean
 }
 
-type ProfileSummary = {
-  displayName: string
-  avatarUrl: string
-}
-
-type MobileMypageMode = MypageModePreference
-
-type MobileMenuLink = { label: string; href: string }
-
-type MobileMenuGroup = {
-  heading: string
-  description: string
-  items: MobileMenuLink[]
-}
-
-/** スマホヘッダーメニュー — マイページ各タブへのリンク（グループは視認性のためのUIのみ） */
-const MOBILE_STUDENT_MENU_GROUPS: MobileMenuGroup[] = [
-  {
-    heading: "お気に入り",
-    description: "気になるスキルを保存してすぐに開けます",
-    items: [{ label: "お気に入り", href: "/mypage?mode=student&tab=favorites" }],
-  },
-  {
-    heading: "取引・コミュニケーション",
-    description: "リクエスト・相談・進行中のレッスン",
-    items: [
-      { label: "リクエスト", href: "/mypage?mode=student&tab=requests" },
-      { label: "相談中の案件", href: "/mypage?mode=student&tab=inquiry" },
-      { label: "進行中の取引（受講中）", href: "/mypage?mode=student&tab=learning" },
-    ],
-  },
-  {
-    heading: "取引履歴",
-    description: "過去のやり取りを一覧で確認",
-    items: [{ label: "取引履歴", href: "/mypage?mode=student&tab=transactions" }],
-  },
-  {
-    heading: "評価・プロフィール",
-    description: "評価・公開プロフィール・アカウント設定など",
-    items: [
-      { label: "評価", href: "/mypage?mode=student&tab=reviews" },
-      { label: "プロフィール設定", href: "/mypage?mode=student&tab=profile" },
-      { label: "アカウント設定", href: "/mypage?mode=student&tab=account" },
-    ],
-  },
-]
-
-const MOBILE_INSTRUCTOR_MENU_GROUPS: MobileMenuGroup[] = [
-  {
-    heading: "出品・売上",
-    description: "出品スキル・売上・振込・振込先の管理",
-    items: [
-      { label: "出品管理", href: "/mypage?mode=instructor&tab=listings" },
-      { label: "売上・振込", href: "/mypage?mode=instructor&tab=payout" },
-    ],
-  },
-  {
-    heading: "取引・案件",
-    description: "リクエストから進行中のレッスンまで",
-    items: [
-      { label: "リクエスト", href: "/mypage?mode=instructor&tab=requests" },
-      { label: "相談", href: "/mypage?mode=instructor&tab=inquiry" },
-      { label: "進行中の取引（対応中）", href: "/mypage?mode=instructor&tab=teaching" },
-    ],
-  },
-  {
-    heading: "取引履歴",
-    description: "過去のやり取りを一覧で確認",
-    items: [{ label: "取引履歴", href: "/mypage?mode=instructor&tab=transactions" }],
-  },
-  {
-    heading: "評価・プロフィール",
-    description: "評価・公開プロフィール・アカウント設定など",
-    items: [
-      { label: "評価", href: "/mypage?mode=instructor&tab=reviews" },
-      { label: "プロフィール設定", href: "/mypage?mode=instructor&tab=profile" },
-      { label: "アカウント設定", href: "/mypage?mode=instructor&tab=account" },
-    ],
-  },
-]
-
 export function Header({ searchKeyword, onSearchKeywordChange, fixed = false }: HeaderProps = {}) {
   const router = useRouter()
+  const pathname = usePathname()
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
   const { isMobileMenuOpen: isMenuOpen, setMobileMenuOpen: setIsMenuOpen } = useMobileHeaderMenu()
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [isAuthLoading, setIsAuthLoading] = useState(true)
-  const [profileSummary, setProfileSummary] = useState<ProfileSummary | null>(null)
-  const [profileLoading, setProfileLoading] = useState(false)
-  const profileFetchUserIdRef = useRef<string | null>(null)
+  const { isAuthenticated, isAuthLoading, profileSummary, profileLoading } = useHeaderAuth()
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement | null>(null)
-  const mobileMenuButtonRef = useRef<HTMLButtonElement | null>(null)
-  const mobileMenuPanelRef = useRef<HTMLDivElement | null>(null)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
   const [portalReady, setPortalReady] = useState(false)
-  const [mobileMypageMode, setMobileMypageMode] = useState<MobileMypageMode>("student")
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return
-    }
-    setMobileMypageMode(readMypageModePreference())
-    const syncFromEvent = (event: Event) => {
-      const detail = (event as CustomEvent<MobileMypageMode>).detail
-      if (detail === "student" || detail === "instructor") {
-        setMobileMypageMode(detail)
-      }
-    }
-    window.addEventListener(MYPAGE_MODE_PREFERENCE_CHANGE_EVENT, syncFromEvent)
-    const onStorage = (ev: StorageEvent) => {
-      if (ev.key === MYPAGE_MODE_STORAGE_KEY && (ev.newValue === "student" || ev.newValue === "instructor")) {
-        setMobileMypageMode(ev.newValue)
-      }
-    }
-    window.addEventListener("storage", onStorage)
-    return () => {
-      window.removeEventListener(MYPAGE_MODE_PREFERENCE_CHANGE_EVENT, syncFromEvent)
-      window.removeEventListener("storage", onStorage)
-    }
-  }, [])
-
-  useEffect(() => {
-    let mounted = true
-
-    const applyProfileFromRow = (
-      row: { display_name: string | null; avatar_url: string | null } | null,
-    ): ProfileSummary => {
-      const displayNameRaw = typeof row?.display_name === "string" ? row.display_name.trim() : ""
-      const label = displayNameRaw.length > 0 ? displayNameRaw : "ユーザー"
-      return {
-        displayName: label,
-        avatarUrl: resolveProfileAvatarUrl(row?.avatar_url ?? null, label),
-      }
-    }
-
-    const loadSessionAndProfile = async (session: Session | null) => {
-      const user = session?.user ?? null
-      if (!mounted) {
-        return
-      }
-      setIsAuthenticated(Boolean(user))
-      setIsAuthLoading(false)
-
-      if (!user) {
-        profileFetchUserIdRef.current = null
-        setProfileSummary(null)
-        setProfileLoading(false)
-        return
-      }
-
-      const prevUid = profileFetchUserIdRef.current
-      const userIdChanged = prevUid !== user.id
-      profileFetchUserIdRef.current = user.id
-      if (userIdChanged) {
-        setProfileSummary(null)
-        setProfileLoading(true)
-      }
-
-      const { data } = await supabase
-        .from("profiles")
-        .select("display_name, avatar_url")
-        .eq("id", user.id)
-        .maybeSingle()
-
-      if (!mounted) {
-        return
-      }
-      setProfileLoading(false)
-      setProfileSummary(applyProfileFromRow(data as { display_name: string | null; avatar_url: string | null } | null))
-    }
-
-    void supabase.auth.getSession().then(({ data }) => {
-      void loadSessionAndProfile(data.session)
-    })
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      void loadSessionAndProfile(session)
-    })
-
-    return () => {
-      mounted = false
-      subscription.unsubscribe()
-    }
-  }, [supabase])
 
   useEffect(() => {
     setPortalReady(true)
@@ -249,50 +64,6 @@ export function Header({ searchKeyword, onSearchKeywordChange, fixed = false }: 
     }
   }, [userMenuOpen])
 
-  /** スマホ: メニュー展開中にパネル／ハンバーガー外をタップしたら閉じる */
-  useEffect(() => {
-    if (!isMenuOpen) {
-      return
-    }
-    const onPointerDown = (event: MouseEvent | TouchEvent) => {
-      if (typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches) {
-        return
-      }
-      const target = event.target
-      if (!(target instanceof Node)) {
-        return
-      }
-      if (mobileMenuButtonRef.current?.contains(target)) {
-        return
-      }
-      if (mobileMenuPanelRef.current?.contains(target)) {
-        return
-      }
-      setIsMenuOpen(false)
-    }
-    document.addEventListener("mousedown", onPointerDown)
-    document.addEventListener("touchstart", onPointerDown, { passive: true })
-    return () => {
-      document.removeEventListener("mousedown", onPointerDown)
-      document.removeEventListener("touchstart", onPointerDown)
-    }
-  }, [isMenuOpen])
-
-  /** スマホ: メニューオーバーレイ表示中は背面スクロールしない */
-  useEffect(() => {
-    if (!isMenuOpen || typeof document === "undefined") {
-      return
-    }
-    if (typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches) {
-      return
-    }
-    const prev = document.body.style.overflow
-    document.body.style.overflow = "hidden"
-    return () => {
-      document.body.style.overflow = prev
-    }
-  }, [isMenuOpen])
-
   const handleLoginClick = () => {
     if (isAuthLoading) {
       return
@@ -308,7 +79,7 @@ export function Header({ searchKeyword, onSearchKeywordChange, fixed = false }: 
       return
     }
 
-    router.push("/login")
+    router.push("/login?mode=signup")
   }
 
   const handleLogoutMenuClick = () => {
@@ -327,34 +98,31 @@ export function Header({ searchKeyword, onSearchKeywordChange, fixed = false }: 
     }
     setIsSigningOut(true)
     const { error } = await supabase.auth.signOut()
-    setIsSigningOut(false)
     if (!error) {
-      setShowLogoutConfirm(false)
-      setIsAuthenticated(false)
-      profileFetchUserIdRef.current = null
-      setProfileSummary(null)
-      setProfileLoading(false)
-      router.push(getLogoutSuccessHref())
-      router.refresh()
+      navigateAfterLogout()
+      return
     }
+    setIsSigningOut(false)
   }
 
   return (
     <header
       className={cn(
         fixed
-          ? "fixed inset-x-0 top-0 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 transform-gpu will-change-transform md:transform-none md:will-change-auto"
-          : "sticky top-0 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 transform-gpu will-change-transform md:transform-none md:will-change-auto",
+          ? cn(
+              "fixed top-0 border-b border-border bg-background dark:bg-background/95 dark:backdrop-blur dark:supports-[backdrop-filter]:bg-background/80 transform-gpu will-change-transform md:transform-none md:will-change-auto",
+              "inset-x-0",
+            )
+          : "sticky top-0 border-b border-border bg-background dark:bg-background/95 dark:backdrop-blur dark:supports-[backdrop-filter]:bg-background/80 transform-gpu will-change-transform md:transform-none md:will-change-auto",
         /* ボトムナビ（z-50）より手前に出し、メニュー最下段が隠れないようにする */
         isMenuOpen ? "z-[70]" : "z-50",
       )}
     >
-      <div className="mx-auto max-w-7xl px-4">
+      <div className="w-full px-4 md:px-6">
         <div className="flex h-16 min-h-16 items-center justify-between gap-2 sm:gap-3 md:gap-4">
-          {/* Logo */}
           <Link
             href="/"
-            className="shrink-0 flex items-center gap-2 rounded-lg outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="flex shrink-0 items-center gap-2 rounded-lg outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#e64a19] sm:h-10 sm:w-10">
               <BrandMarkSvg className="block h-8 w-8 shrink-0 sm:h-9 sm:w-9" />
@@ -386,17 +154,34 @@ export function Header({ searchKeyword, onSearchKeywordChange, fixed = false }: 
           )}
 
           {/* Navigation - Desktop */}
-          <nav className="hidden items-center gap-6 md:flex">
-            <Link href="/" className="text-sm font-medium text-foreground hover:text-primary-readable transition-colors">
-              スキルを探す
-            </Link>
-            <button
-              type="button"
-              onClick={handleCreateSkillClick}
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary-readable"
-            >
-              スキルを出品
-            </button>
+          <nav className="hidden items-center gap-4 md:flex">
+            {isAuthLoading ? (
+              <Button
+                type="button"
+                disabled
+                aria-busy="true"
+                aria-label="読み込み中"
+                className="pointer-events-none h-9 min-w-[5.5rem] bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm"
+              >
+                <span className="opacity-0">教える</span>
+              </Button>
+            ) : isAuthenticated ? (
+              <Button
+                type="button"
+                onClick={handleCreateSkillClick}
+                className="h-9 bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
+              >
+                教える
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                onClick={handleCreateSkillClick}
+                className="h-9 bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
+              >
+                無料でお店をつくる
+              </Button>
+            )}
             <Link href="/guide" className="text-sm font-medium text-muted-foreground hover:text-primary-readable transition-colors">
               使い方
             </Link>
@@ -405,177 +190,56 @@ export function Header({ searchKeyword, onSearchKeywordChange, fixed = false }: 
           {/* Actions */}
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <NotificationBell />
-            {isAuthenticated ? (
-              <div className="hidden md:block">
-                <UserMenu
-                  profileSummary={profileSummary}
-                  profileLoading={profileLoading}
-                  isAuthLoading={isAuthLoading}
-                  open={userMenuOpen}
-                  onOpenChange={setUserMenuOpen}
-                  onLogoutRequest={handleLogoutMenuClick}
-                  menuRef={userMenuRef}
-                />
-              </div>
-            ) : (
-              <Button
-                className="hidden md:flex bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
-                onClick={handleLoginClick}
-                disabled={isAuthLoading}
-              >
-                ログイン
-              </Button>
-            )}
-            <Button
-              ref={mobileMenuButtonRef}
-              variant="ghost"
-              size="icon"
-              className="md:hidden"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              aria-expanded={isMenuOpen}
-              aria-controls="header-mobile-menu"
-              aria-label={isMenuOpen ? "メニューを閉じる" : "メニューを開く"}
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Mobile Menu — fixed オーバーレイ（本文レイアウトを押し下げない） */}
-        {isMenuOpen && (
-          <div
-            ref={mobileMenuPanelRef}
-            id="header-mobile-menu"
-            role="dialog"
-            aria-modal="true"
-            aria-label="アカウントメニュー"
-            className="fixed inset-x-0 top-16 z-[60] flex h-[calc(100svh-4rem)] max-h-[calc(100svh-4rem)] min-h-0 flex-col md:hidden"
-          >
             <button
               type="button"
-              aria-label="メニューを閉じる"
-              className="min-h-0 flex-1 bg-black/45 backdrop-blur-[1px]"
-              onClick={() => setIsMenuOpen(false)}
-            />
-            <div className="pointer-events-auto max-h-[min(88svh,calc(100svh-4rem))] w-full shrink-0 overflow-hidden rounded-t-2xl border-x border-t border-zinc-800 bg-zinc-950 shadow-[0_-16px_48px_rgba(0,0,0,0.55)]">
-              <nav className="relative flex max-h-[min(88svh,calc(100svh-4rem))] flex-col gap-2 overflow-y-auto px-4 pb-[max(2rem,calc(1rem+env(safe-area-inset-bottom)))] pt-4">
-                <button
-                  type="button"
-                  aria-label="メニューを閉じる"
-                  className="absolute right-3 top-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900/80 text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <X className="h-4 w-4" />
-                </button>
-                {isAuthenticated ? (
-                  <>
-                    {profileLoading || profileSummary ? (
-                      <div className="mb-2 flex items-center gap-3 rounded-lg border border-border bg-popover px-3 py-2.5">
-                        {profileLoading ? (
-                          <>
-                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-muted">
-                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden />
-                            </span>
-                            <p className="text-xs text-muted-foreground">プロフィールを読み込み中…</p>
-                          </>
-                        ) : profileSummary ? (
-                          <>
-                            <div
-                              className="h-10 w-10 shrink-0 rounded-full bg-cover bg-center ring-2 ring-border"
-                              style={{ backgroundImage: `url(${profileSummary.avatarUrl})` }}
-                              role="img"
-                              aria-hidden
-                            />
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">ログイン中</p>
-                              <p className="truncate text-sm font-semibold text-foreground">{profileSummary.displayName}</p>
-                            </div>
-                          </>
-                        ) : null}
-                      </div>
-                    ) : null}
-                    <div className="mb-1 flex w-full rounded-lg border border-zinc-800 bg-zinc-900/80 p-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          writeMypageModePreference("student")
-                          setMobileMypageMode("student")
-                        }}
-                        className={`flex-1 rounded-md px-3 py-2 text-xs font-semibold transition-colors ${
-                          mobileMypageMode === "student"
-                            ? "bg-red-600 text-white shadow-sm shadow-black/30"
-                            : "text-zinc-400 hover:text-zinc-100"
-                        }`}
-                      >
-                        受講生として利用
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          writeMypageModePreference("instructor")
-                          setMobileMypageMode("instructor")
-                        }}
-                        className={`flex-1 rounded-md px-3 py-2 text-xs font-semibold transition-colors ${
-                          mobileMypageMode === "instructor"
-                            ? "bg-red-600 text-white shadow-sm shadow-black/30"
-                            : "text-zinc-400 hover:text-zinc-100"
-                        }`}
-                      >
-                        講師として利用
-                      </button>
-                    </div>
-                    <div className="space-y-3 pb-1">
-                      {(mobileMypageMode === "student" ? MOBILE_STUDENT_MENU_GROUPS : MOBILE_INSTRUCTOR_MENU_GROUPS).map(
-                        (group) => (
-                          <section
-                            key={group.heading}
-                            className="overflow-hidden rounded-xl border-2 border-primary bg-gradient-to-b from-zinc-900/85 to-zinc-950/95 shadow-[0_10px_36px_rgba(0,0,0,0.4)] shadow-primary/15"
-                          >
-                            <div className="border-b border-primary/35 bg-zinc-900/55 px-3 py-2.5">
-                              <h2 className="text-base font-extrabold leading-snug tracking-tight text-primary-readable sm:text-[1.0625rem]">
-                                {group.heading}
-                              </h2>
-                              <p className="mt-1 text-[11px] leading-snug text-zinc-500">{group.description}</p>
-                            </div>
-                            <ul className="divide-y divide-zinc-800/80">
-                              {group.items.map((item) => (
-                                <li key={item.href}>
-                                  <Link
-                                    href={item.href}
-                                    onClick={() => setIsMenuOpen(false)}
-                                    className="block px-3 py-2.5 text-[13px] font-medium text-zinc-100 transition-colors hover:bg-zinc-800/90 hover:text-white sm:text-sm"
-                                  >
-                                    {item.label}
-                                  </Link>
-                                </li>
-                              ))}
-                            </ul>
-                          </section>
-                        ),
-                      )}
-                    </div>
-                    <Button
-                      type="button"
-                      onClick={handleLogoutMenuClick}
-                      className="mt-2 w-full bg-red-600 font-semibold text-white hover:bg-red-500"
-                    >
-                      ログアウト
-                    </Button>
-                  </>
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              disabled={isAuthLoading}
+              aria-label="メニューを開く"
+              aria-expanded={isMenuOpen}
+              aria-controls="mobile-header-menu"
+              className="ml-2 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-foreground outline-none transition-colors hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-60 md:hidden"
+            >
+              {isAuthLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden />
+              ) : (
+                <Menu className="h-5 w-5" aria-hidden />
+              )}
+            </button>
+            {isAuthenticated ? (
+              <UserMenu
+                profileSummary={profileSummary}
+                profileLoading={profileLoading}
+                isAuthLoading={isAuthLoading}
+                open={userMenuOpen}
+                onOpenChange={setUserMenuOpen}
+                onLogoutRequest={handleLogoutMenuClick}
+                menuRef={userMenuRef}
+                className="hidden md:block"
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={handleLoginClick}
+                disabled={isAuthLoading}
+                aria-label="ログイン"
+                className="ml-2 hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg text-foreground outline-none transition-colors hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-60 md:ml-3 md:inline-flex"
+              >
+                {isAuthLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden />
                 ) : (
-                  <Button
-                    className="w-full bg-primary font-semibold text-primary-foreground hover:bg-primary/90"
-                    onClick={handleLoginClick}
-                    disabled={isAuthLoading}
-                  >
-                    ログイン
-                  </Button>
+                  <User className="h-5 w-5" aria-hidden />
                 )}
-              </nav>
-            </div>
+              </button>
+            )}
           </div>
-        )}
+        </div>
       </div>
+
+      <MobileHeaderMenuDrawer
+        portalReady={portalReady}
+        onLogoutRequest={handleLogoutMenuClick}
+        onLoginRequest={handleLoginClick}
+      />
 
       {portalReady &&
         showLogoutConfirm &&

@@ -1,10 +1,10 @@
 import { Suspense } from "react"
-import MypageClient from "./MypageClient"
+import { MypageRedirectClient } from "./MypageRedirectClient"
 
 export default function MyPage() {
   return (
     <Suspense fallback={null}>
-      <MypageClient />
+      <MypageRedirectClient />
     </Suspense>
   )
 }

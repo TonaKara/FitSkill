@@ -1,6 +1,8 @@
 import "server-only"
 import Stripe from "stripe"
 
+const STRIPE_ACCOUNT_ACCESS_DENIED_MESSAGE = "Stripeアカウントへのアクセス権限がありません。"
+
 function resolveStripeConnectOwnerUserId(metadata: Stripe.Metadata | null | undefined): string {
   const userId = metadata?.user_id?.trim() ?? ""
   if (userId) {
@@ -30,7 +32,7 @@ export async function assertStripeConnectAccountOwnership(params: {
   const ownerUserId = resolveStripeConnectOwnerUserId(account.metadata)
 
   if (!ownerUserId || ownerUserId !== normalizedExpectedUserId) {
-    throw new Error("Unauthorized Stripe account access.")
+    throw new Error(STRIPE_ACCOUNT_ACCESS_DENIED_MESSAGE)
   }
 }
 
@@ -61,7 +63,7 @@ export async function ensureStripeConnectAccountOwnershipMetadata(params: {
   }
 
   if (ownerUserId !== normalizedExpectedUserId) {
-    throw new Error("Unauthorized Stripe account access.")
+    throw new Error(STRIPE_ACCOUNT_ACCESS_DENIED_MESSAGE)
   }
 
   if (!account.metadata?.user_id?.trim()) {

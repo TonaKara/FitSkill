@@ -5,7 +5,9 @@ import { useEffect, useMemo, useState } from "react"
 import { Loader2, X } from "lucide-react"
 import { DisputeEvidenceImage } from "@/components/DisputeEvidenceImage"
 import { Button } from "@/components/ui/button"
+import { adminUi } from "@/lib/admin-ui"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import { cn } from "@/lib/utils"
 
 type DetailModalProps = {
   open: boolean
@@ -128,44 +130,44 @@ export function DetailModal({
     return (
       <div className="space-y-3 text-sm">
         <p>
-          <span className="text-zinc-400">名前:</span> {String(item.name ?? "—")}
+          <span className="text-muted-foreground">名前:</span> {String(item.name ?? "—")}
         </p>
         <p>
-          <span className="text-zinc-400">メール:</span> {String(item.email ?? "—")}
+          <span className="text-muted-foreground">メール:</span> {String(item.email ?? "—")}
         </p>
         <p>
-          <span className="text-zinc-400">カテゴリ:</span> {String(item.category ?? "—")}
+          <span className="text-muted-foreground">カテゴリ:</span> {String(item.category ?? "—")}
         </p>
         <p>
-          <span className="text-zinc-400">件名:</span> {String(item.subject ?? "—")}
+          <span className="text-muted-foreground">件名:</span> {String(item.subject ?? "—")}
         </p>
         <p>
-          <span className="text-zinc-400">取引ID:</span> {String(item.transaction_id ?? "—")}
+          <span className="text-muted-foreground">取引ID:</span> {String(item.transaction_id ?? "—")}
         </p>
         <p>
-          <span className="text-zinc-400">送信者プロフィール:</span>{" "}
+          <span className="text-muted-foreground">送信者プロフィール:</span>{" "}
           {profileId ? (
-            <Link href={`/profile/${encodeURIComponent(profileId)}`} className="text-red-400 underline hover:text-red-300">
+            <Link href={`/store/${encodeURIComponent(profileId)}`} className="text-red-400 underline hover:text-red-300">
               {profileId}
             </Link>
           ) : (
-            <span className="text-zinc-500">未ログインの送信</span>
+            <span className="text-muted-foreground">未ログインの送信</span>
           )}
         </p>
         <p>
-          <span className="text-zinc-400">内容:</span> {String(item.content ?? "—")}
+          <span className="text-muted-foreground">内容:</span> {String(item.content ?? "—")}
         </p>
         <div>
-          <p className="mb-1 text-zinc-400">添付画像:</p>
+          <p className="mb-1 text-muted-foreground">添付画像:</p>
           {attachmentUrl ? (
-            <div className="h-56 w-full overflow-hidden rounded-lg border border-zinc-700 bg-zinc-100 p-2">
+            <div className="h-56 w-full overflow-hidden rounded-lg border border-border bg-muted p-2">
               {/* eslint-disable-next-line @next/next/no-img-element -- 管理画面の添付画像表示 */}
               <img src={attachmentUrl} alt="添付画像" className="h-full w-full object-contain" />
             </div>
           ) : attachmentSecurityBlocked ? (
-            <p className="text-amber-300">セキュリティ上の理由により画像を表示できません</p>
+            <p className="text-amber-700 dark:text-amber-300">セキュリティ上の理由により画像を表示できません</p>
           ) : (
-            <p className="text-zinc-500">画像はありません</p>
+            <p className="text-muted-foreground">画像はありません</p>
           )}
         </div>
       </div>
@@ -185,17 +187,17 @@ export function DetailModal({
     return (
       <div className="space-y-4 text-sm">
         <div>
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">詳細（申立人入力）</p>
-          <p className="whitespace-pre-wrap rounded-lg border border-zinc-800 bg-zinc-900/80 p-3 text-zinc-100">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">詳細（申立人入力）</p>
+          <p className="whitespace-pre-wrap rounded-lg border border-border bg-muted p-3 text-foreground">
             {detail}
           </p>
         </div>
         <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">証拠画像</p>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">証拠画像</p>
           {evidencePathOrUrl ? (
             <DisputeEvidenceImage pathOrUrl={evidencePathOrUrl} alt="異議申し立ての証拠画像" />
           ) : (
-            <p className="text-zinc-500">証拠画像はありません</p>
+            <p className="text-muted-foreground">証拠画像はありません</p>
           )}
         </div>
       </div>
@@ -207,22 +209,22 @@ export function DetailModal({
     const targetValue = tableName === "user_reports" ? item.reported_user_id : item.product_id
     return (
       <div className="space-y-3 text-sm">
-        <p><span className="text-zinc-400">通報理由:</span> {String(item.reason ?? "—")}</p>
-        <p><span className="text-zinc-400">内容:</span> {String(item.content ?? "—")}</p>
-        <p><span className="text-zinc-400">{targetLabel}:</span> {String(targetValue ?? "—")}</p>
+        <p><span className="text-muted-foreground">通報理由:</span> {String(item.reason ?? "—")}</p>
+        <p><span className="text-muted-foreground">内容:</span> {String(item.content ?? "—")}</p>
+        <p><span className="text-muted-foreground">{targetLabel}:</span> {String(targetValue ?? "—")}</p>
       </div>
     )
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 px-4">
-      <div className="w-full max-w-2xl rounded-xl border border-zinc-700 bg-zinc-950 p-5 text-zinc-100 shadow-2xl">
+    <div className={cn(adminUi.modalOverlay, "px-4")}>
+      <div className={adminUi.modal}>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-white">詳細</h2>
+          <h2 className="text-lg font-bold text-foreground">詳細</h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded p-1 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200"
+            className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             aria-label="閉じる"
           >
             <X className="h-5 w-5" />
@@ -243,15 +245,15 @@ export function DetailModal({
                     : Object.entries(item)
                   ).map(([key, value]) => (
                     <p key={key}>
-                      <span className="text-zinc-400">{key}:</span> {value == null ? "—" : String(value)}
+                      <span className="text-muted-foreground">{key}:</span> {value == null ? "—" : String(value)}
                     </p>
                   ))}
                 </div>
               )}
 
           {canUpdateStatus ? (
-            <div className="rounded-lg border border-zinc-800 bg-zinc-900/70 p-3">
-              <label htmlFor="admin-status-select" className="mb-1 block text-xs font-semibold text-zinc-300">
+            <div className="rounded-lg border border-border bg-muted p-3">
+              <label htmlFor="admin-status-select" className={cn("mb-1 block", adminUi.labelSection)}>
                 ステータス変更
               </label>
               <div className="flex items-center gap-2">
@@ -260,7 +262,7 @@ export function DetailModal({
                   value={currentStatus}
                   onChange={(event) => void handleStatusSelect(event)}
                   disabled={statusUpdating}
-                  className="h-9 rounded-md border border-zinc-700 bg-zinc-950 px-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  className={cn("h-9 px-2 text-sm focus:ring-red-500", adminUi.select)}
                 >
                   {STATUS_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -280,7 +282,7 @@ export function DetailModal({
             type="button"
             onClick={onClose}
             variant="outline"
-            className="border-zinc-600 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
+            className={adminUi.btnOutline}
           >
             閉じる
           </Button>

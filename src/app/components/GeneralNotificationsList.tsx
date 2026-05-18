@@ -103,10 +103,10 @@ export function GeneralNotificationsList({ userId, adminOrigin, onRead }: Genera
       return "/inquiry/list"
     }
     if (n.type === "consultation_request") {
-      return "/mypage?tab=requests&mode=instructor"
+      return "/account/trades?side=seller&panel=offers"
     }
     if (n.type === "consultation_rejected") {
-      return "/mypage?tab=requests&mode=student"
+      return "/account/trades?side=buyer&panel=offers"
     }
     if (n.type === "consultation_accepted") {
       const reason = n.reason?.trim() ?? ""
@@ -114,7 +114,7 @@ export function GeneralNotificationsList({ userId, adminOrigin, onRead }: Genera
       if (m?.[1]) {
         return `/skills/${m[1]}`
       }
-      return "/mypage?tab=requests&mode=student"
+      return "/account/trades?side=buyer&panel=offers"
     }
     if (n.type === "completion_request" || n.type === "message" || n.type === "completion_approved" || n.type === "dispute") {
       const txId = parseTransactionIdFromNotificationReason(n.reason)
@@ -233,7 +233,7 @@ export function GeneralNotificationsList({ userId, adminOrigin, onRead }: Genera
 
   if (!adminOrigin) {
     return (
-      <ul className="max-h-72 space-y-1 overflow-y-auto px-1">
+      <ul className="max-h-72 space-y-1 overflow-y-auto p-1">
         {rows.map((n) => {
           return (
             <li key={n.id}>

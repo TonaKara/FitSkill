@@ -198,42 +198,42 @@ export default function AdminMaintenancePage() {
   return (
     <div className="space-y-6">
       {notice ? <NotificationToast notice={notice} onClose={() => setNotice(null)} /> : null}
-      <h1 className="text-3xl font-black tracking-wide text-white">メンテナンス設定</h1>
+      <h1 className="text-3xl font-black tracking-wide text-foreground">メンテナンス設定</h1>
 
-      <Card className="border-zinc-800 bg-zinc-950 text-zinc-100">
+      <Card className="border-border bg-card text-card-foreground">
         <CardHeader>
-          <CardTitle className="text-xl font-bold text-white">メンテナンスモード</CardTitle>
-          <CardDescription className="text-zinc-400">
+          <CardTitle className="text-xl font-bold text-foreground">メンテナンスモード</CardTitle>
+          <CardDescription className="text-muted-foreground">
             有効にすると、公開ページのアクセスがメンテナンス画面へ切り替わります。
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {loading ? (
-            <div className="flex items-center text-sm text-zinc-400">
+            <div className="flex items-center text-sm text-muted-foreground">
               <Loader2 className="mr-2 h-4 w-4 animate-spin text-red-500" />
               読み込み中...
             </div>
           ) : accessDenied ? (
-            <p className="text-sm text-amber-300">権限がありません</p>
+            <p className="text-sm text-amber-700 dark:text-amber-300">権限がありません</p>
           ) : row ? (
             <>
               {settingsWarning ? (
-                <p className="rounded-lg border border-amber-700/50 bg-amber-950/40 px-3 py-2 text-sm text-amber-100">
+                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700/50 dark:bg-amber-950/40 dark:text-amber-100">
                   {settingsWarning}
                 </p>
               ) : null}
               <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-sm font-medium text-zinc-300">現在の状態</p>
-                  <p className="mt-1 text-lg font-semibold text-white">
+                  <p className="text-sm font-medium text-foreground">現在の状態</p>
+                  <p className="mt-1 text-lg font-semibold text-foreground">
                     {maintenanceOn ? (
-                      <span className="text-red-400">ON（メンテナンス中）</span>
+                      <span className="text-red-600 dark:text-red-400">ON（メンテナンス中）</span>
                     ) : (
-                      <span className="text-emerald-400">OFF（通常稼働）</span>
+                      <span className="text-emerald-600 dark:text-emerald-400">OFF（通常稼働）</span>
                     )}
                   </p>
                   {row.updated_at ? (
-                    <p className="mt-2 text-xs text-zinc-500">
+                    <p className="mt-2 text-xs text-muted-foreground">
                       最終更新:{" "}
                       {new Date(row.updated_at).toLocaleString("ja-JP", {
                         year: "numeric",
@@ -247,7 +247,7 @@ export default function AdminMaintenancePage() {
                 </div>
 
                 <div className="flex flex-col gap-2 sm:items-end">
-                  <span className="text-xs font-medium text-zinc-500">切り替え</span>
+                  <span className="text-xs font-medium text-muted-foreground">切り替え</span>
                   <button
                     type="button"
                     role="switch"
@@ -256,8 +256,8 @@ export default function AdminMaintenancePage() {
                     disabled={updating}
                     onClick={() => void handleToggle()}
                     className={cn(
-                      "flex h-10 w-[4.25rem] shrink-0 items-center rounded-full px-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 disabled:cursor-not-allowed disabled:opacity-50",
-                      maintenanceOn ? "bg-red-600" : "bg-zinc-600",
+                      "flex h-10 w-[4.25rem] shrink-0 items-center rounded-full px-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50",
+                      maintenanceOn ? "bg-red-600" : "bg-muted",
                     )}
                   >
                     <span
@@ -267,14 +267,14 @@ export default function AdminMaintenancePage() {
                       )}
                     />
                   </button>
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-xs text-muted-foreground">
                     {updating ? "更新中…" : maintenanceOn ? "クリックで OFF にします" : "クリックで ON にします"}
                   </p>
                 </div>
               </div>
             </>
           ) : (
-            <p className="text-sm text-zinc-500">読み込み結果を表示できませんでした。</p>
+            <p className="text-sm text-muted-foreground">読み込み結果を表示できませんでした。</p>
           )}
         </CardContent>
       </Card>

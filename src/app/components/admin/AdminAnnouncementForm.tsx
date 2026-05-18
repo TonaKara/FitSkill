@@ -4,7 +4,9 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { NotificationToast } from "@/components/ui/notification-toast"
 import type { AppNotice } from "@/lib/notifications"
+import { adminUi } from "@/lib/admin-ui"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import { cn } from "@/lib/utils"
 import {
   sendAdminNotification,
   type CreateAnnouncementParams,
@@ -115,30 +117,30 @@ export function AdminAnnouncementForm() {
   }
 
   return (
-    <section className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+    <section className="rounded-xl border border-border bg-card p-4">
       {notice ? <NotificationToast notice={notice} onClose={() => setNotice(null)} /> : null}
-      <h2 className="mb-3 text-lg font-bold text-white">お知らせ作成</h2>
+      <h2 className="mb-3 text-lg font-bold text-foreground">お知らせ作成</h2>
       {adminChecking ? (
-        <p className="mb-3 text-sm text-zinc-400">管理者権限を確認中...</p>
+        <p className="mb-3 text-sm text-muted-foreground">管理者権限を確認中...</p>
       ) : !isAdmin ? (
-        <p className="mb-3 text-sm text-red-400">管理者権限がないため送信できません。</p>
+        <p className="mb-3 text-sm text-destructive">管理者権限がないため送信できません。</p>
       ) : null}
       <form className="space-y-3" onSubmit={(e) => void handleSubmit(e)}>
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-zinc-400">タイトル</label>
+          <label className={cn("mb-1 block", adminUi.labelSection)}>タイトル</label>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="h-10 w-full rounded border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-100"
+            className={cn("h-10 w-full px-3 text-sm", adminUi.input)}
             placeholder="例: 規約改定のお知らせ"
           />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-zinc-400">理由選択</label>
+          <label className={cn("mb-1 block", adminUi.labelSection)}>理由選択</label>
           <select
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            className="h-10 w-full rounded border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-100"
+            className={cn("h-10 w-full", adminUi.select)}
           >
             <option value="">理由を選択</option>
             {ANNOUNCEMENT_REASON_OPTIONS.map((option) => (
@@ -149,11 +151,11 @@ export function AdminAnnouncementForm() {
           </select>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-zinc-400">本文</label>
+          <label className={cn("mb-1 block", adminUi.labelSection)}>本文</label>
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="min-h-[120px] w-full rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
+            className={cn("min-h-[120px] w-full px-3 py-2 text-sm", adminUi.input)}
             placeholder="お知らせ本文を入力"
           />
         </div>

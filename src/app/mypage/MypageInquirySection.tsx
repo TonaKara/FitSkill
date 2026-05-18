@@ -1,11 +1,10 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
 import { InquiryInboxList, type InquiryPeerProfile } from "@/components/inquiry/InquiryInboxList"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { fetchInquiryInboxList, type InquiryInboxListRow } from "@/lib/inquiry-messages"
+import { TRADES_HUB_PANEL_CARD, TRADES_HUB_PANEL_OUTER } from "@/lib/mypage-trades"
 import { normalizeSkillBigIntId, uniqueSkillBigIntIds } from "@/lib/skill-id-bigint"
 
 type MypageInquirySectionProps = {
@@ -85,27 +84,19 @@ export function MypageInquirySection({ userId, mode }: MypageInquirySectionProps
   }, [userId, load])
 
   return (
-    <div className="mx-auto max-w-4xl">
-      <h1 className="text-2xl font-black tracking-wide text-white md:text-3xl">購入前の相談</h1>
-      <p className="mt-1 text-sm text-zinc-400">
-        {mode === "instructor"
-          ? "あなたの出品に届いた相談を表示しています。"
-          : "あなたが送信した相談を表示しています。"}
-      </p>
-
-      <div className="mt-6 flex flex-wrap gap-2">
-        <Button asChild className="bg-red-600 font-bold text-white hover:bg-red-500">
-          <Link href="/inquiry/list">相談一覧を全画面で開く</Link>
-        </Button>
-      </div>
-
-      <div className="mt-8 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/50">
+    <div className={TRADES_HUB_PANEL_OUTER}>
+      <div className={TRADES_HUB_PANEL_CARD}>
         <InquiryInboxList
           threads={threads}
           peerProfiles={peerProfiles}
           skillTitles={skillTitles}
           loading={loading}
           error={error}
+          emptyHint={
+            mode === "instructor"
+              ? "まだ相談メッセージはありません。購入希望者から相談を受けるとここに表示されます。"
+              : "まだ相談メッセージはありません。スキル詳細から出品者に質問できます。"
+          }
         />
       </div>
     </div>

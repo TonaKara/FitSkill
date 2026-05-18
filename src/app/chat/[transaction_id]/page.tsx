@@ -24,7 +24,7 @@ import {
   parseLinkMessageContent,
   serializeLinkPayload,
 } from "@/lib/chat-link-payload"
-import { resolveProfileAvatarUrl } from "@/lib/profile-avatar"
+import { ProfileAvatar } from "@/components/profile-avatar"
 import { buildProfilePath } from "@/lib/profile-path"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { autoCompleteMyPendingTransactionsWithPayout, completeTransactionWithPayout } from "@/actions/payout"
@@ -32,6 +32,8 @@ import { createTransactionNotification, NOTIFICATION_TYPE } from "@/lib/transact
 import { DisputeEvidenceImage } from "@/components/DisputeEvidenceImage"
 import { TransactionReviewCard } from "@/components/chat/TransactionReviewCard"
 import { fetchMyTransactionReview, type TransactionReviewRow } from "@/lib/transaction-reviews"
+import { ALLOWED_EXTERNAL_TOOLS_SLASH } from "@/lib/allowed-external-tools"
+import { chatUi } from "@/lib/chat-ui"
 import { cn, getUnknownErrorMessage } from "@/lib/utils"
 import type { AppNotice } from "@/lib/notifications"
 
@@ -203,11 +205,11 @@ function ChatMediaSigned({ supabase, path, fileType, onExpand }: ChatMediaSigned
   }, [supabase, path])
 
   if (failed) {
-    return <p className="text-xs text-amber-200/90">メディアを読み込めませんでした。</p>
+    return <p className="text-xs text-amber-800 dark:text-amber-200/90">メディアを読み込めませんでした。</p>
   }
   if (!signedUrl) {
     return (
-      <div className="flex h-[200px] w-[200px] items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900">
+      <div className="flex h-[200px] w-[200px] items-center justify-center rounded-lg border border-border bg-muted">
         <Loader2 className="h-6 w-6 animate-spin text-red-500" aria-hidden />
       </div>
     )
@@ -870,7 +872,6 @@ export default function ChatTransactionPage() {
   }, [messages, myTransactionReview, myTransactionReviewLoading, transaction?.status])
 
   const otherName = otherProfile?.display_name?.trim() || "相手"
-  const otherAvatar = resolveProfileAvatarUrl(otherProfile?.avatar_url ?? null, otherName)
   const isSeller = Boolean(userId && transaction && transaction.seller_id === userId)
   const isBuyer = Boolean(userId && transaction && transaction.buyer_id === userId)
   const isRatingTerminal =
@@ -1397,7 +1398,7 @@ export default function ChatTransactionPage() {
 
   if (authLoading || !transactionId) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black text-zinc-200">
+      <div className="flex min-h-screen items-center justify-center bg-black text-muted-foreground">
         <Loader2 className="h-8 w-8 animate-spin text-red-500" aria-hidden />
       </div>
     )
@@ -1406,8 +1407,8 @@ export default function ChatTransactionPage() {
   if (!userId) {
     const redirectTo = transactionId ? `/login?redirect=${encodeURIComponent(chatPathWithQuery)}` : "/login"
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black px-4 text-zinc-100">
-        <p className="text-center text-sm text-zinc-300">この取引チャットを開くにはログインが必要です。</p>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black px-4 text-foreground">
+        <p className="text-center text-sm text-muted-foreground">この取引チャットを開くにはログインが必要です。</p>
         <Button
           type="button"
           className="bg-red-600 text-white hover:bg-red-500"
@@ -1421,7 +1422,7 @@ export default function ChatTransactionPage() {
 
   if (txLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black text-zinc-200">
+      <div className="flex min-h-screen items-center justify-center bg-black text-muted-foreground">
         <Loader2 className="h-8 w-8 animate-spin text-red-500" aria-hidden />
         <span className="ml-2 text-sm">取引を読み込み中...</span>
       </div>
@@ -1430,12 +1431,12 @@ export default function ChatTransactionPage() {
 
   if (loadError || !transaction) {
     return (
-      <div className="min-h-screen bg-black px-4 py-10 text-zinc-100">
+      <div className="min-h-screen bg-black px-4 py-10 text-foreground">
         <div className="mx-auto max-w-2xl">
           <Button
             type="button"
             variant="outline"
-            className="mb-8 border-zinc-700 bg-zinc-900 text-zinc-200 hover:border-red-500 hover:bg-zinc-800"
+            className="mb-8 border-border bg-muted text-foreground hover:border-primary hover:bg-muted/80"
             onClick={handleHeaderBack}
           >
             <span className="inline-flex items-center gap-2">
@@ -1451,37 +1452,33 @@ export default function ChatTransactionPage() {
 
   return (
     <div
-      className="flex h-[100dvh] flex-col overflow-hidden bg-black text-zinc-100"
+      className="flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground"
       onPointerDownCapture={dismissDisputePickerIfOutside}
     >
       {notice ? <NotificationToast notice={notice} onClose={() => setNotice(null)} /> : null}
-      <header className="sticky top-0 z-10 border-b border-zinc-800 bg-zinc-950/95 backdrop-blur">
+      <header className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur">
         <div className="mx-auto flex max-w-2xl flex-col gap-3 px-4 py-3">
           <div className="flex items-center gap-3">
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="shrink-0 text-zinc-400 hover:bg-zinc-800 hover:text-white"
+              className="shrink-0 text-muted-foreground hover:bg-muted hover:text-foreground"
               onClick={handleHeaderBack}
             >
               <span aria-label="戻る">
                 <ArrowLeft className="h-5 w-5" />
               </span>
             </Button>
-            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-zinc-700 bg-zinc-900">
-              <Image
-                src={otherAvatar}
-                alt=""
-                fill
-                className="object-cover"
-                sizes="40px"
-                unoptimized
-              />
-            </div>
+            <ProfileAvatar
+              avatarUrl={otherProfile?.avatar_url ?? null}
+              alt={otherName}
+              className="h-10 w-10 border border-border"
+              sizes="40px"
+            />
             <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold text-white">{otherName}</p>
-              <p className="text-xs text-zinc-500">取引チャット</p>
+              <p className="truncate font-semibold text-foreground">{otherName}</p>
+              <p className="text-xs text-muted-foreground">取引チャット</p>
             </div>
           </div>
 
@@ -1499,7 +1496,7 @@ export default function ChatTransactionPage() {
                     !SELLER_APPLY_COMPLETION_STATUSES.has(transaction.status)
                   }
                   onClick={() => setRequestAgreementOpen(true)}
-                  className="border-amber-600/60 bg-amber-950/40 text-amber-100 hover:border-amber-500 hover:bg-amber-950/70"
+                  className="border-amber-600/50 bg-amber-50 text-amber-900 hover:border-amber-500 hover:bg-amber-100 dark:border-amber-600/60 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/70"
                 >
                   {completing ? (
                     <>
@@ -1523,11 +1520,11 @@ export default function ChatTransactionPage() {
 
           {isBuyer && isApprovalPending ? (
             <div ref={disputeBuyerActionsRef} className="flex flex-col gap-2 pl-[52px]">
-              <p className="text-xs text-amber-200/90">
+              <p className="text-xs text-amber-800 dark:text-amber-200/90">
                 完了申請が届いています。問題がなければ承認、問題があれば異議申し立てを行ってください。
               </p>
               {transaction.applied_at ? (
-                <p className="text-[11px] text-zinc-400">
+                <p className="text-[11px] text-muted-foreground">
                   {formatAppliedDeadline(transaction.applied_at)} までに操作がない場合は自動的に完了します。
                 </p>
               ) : null}
@@ -1547,7 +1544,7 @@ export default function ChatTransactionPage() {
                   size="sm"
                   disabled={completing}
                   onClick={() => setShowDisputeReasonPicker((prev) => !prev)}
-                  className="border-red-500/50 bg-red-950/30 text-red-100 hover:bg-red-950/60"
+                  className="border-red-500/50 bg-red-50 text-red-800 hover:bg-red-100 dark:border-red-500/50 dark:bg-red-950/30 dark:text-red-100 dark:hover:bg-red-950/60"
                 >
                   異議申し立て
                 </Button>
@@ -1559,18 +1556,18 @@ export default function ChatTransactionPage() {
           ) : null}
 
           {isBannedUser ? (
-            <p className="pl-[52px] text-xs text-amber-200">
+            <p className="pl-[52px] text-xs text-amber-800 dark:text-amber-200">
               このアカウントは現在利用停止中のため、進行中取引のメッセージ閲覧のみ可能です。新規送信はできません。
             </p>
           ) : isCanceledOrRefunded ? (
-            <p className="pl-[52px] text-xs text-zinc-500">
+            <p className="pl-[52px] text-xs text-muted-foreground">
               取引はキャンセルまたは返金により終了しています。メッセージの送信はできません。
             </p>
           ) : isCompleted ? (
-            <p className="pl-[52px] text-xs text-zinc-500">この取引は終了しています。メッセージの送信はできません。</p>
+            <p className="pl-[52px] text-xs text-muted-foreground">この取引は終了しています。メッセージの送信はできません。</p>
           ) : isDisputed ? (
             <div className="pl-[52px]">
-              <div className="max-w-full rounded-md border border-amber-500/30 bg-amber-950/35 px-3 py-2 text-xs leading-snug text-amber-50/95">
+              <div className="max-w-full rounded-md border border-amber-500/30 bg-amber-50 px-3 py-2 text-xs leading-snug text-amber-950 dark:bg-amber-950/35 dark:text-amber-50/95">
                 {isBuyer
                   ? "この取引は異議申し立て中です。運営の確認が入るまで完了しません。"
                   : isSeller
@@ -1578,15 +1575,15 @@ export default function ChatTransactionPage() {
                     : "この取引は異議申し立て中です。運営の確認が入るまで完了しません。"}
               </div>
               {canViewDisputeSubmission ? (
-                <div className="mt-2 max-w-full space-y-2 rounded-md border border-zinc-700/70 bg-zinc-900/50 px-3 py-2 text-xs text-zinc-200">
+                <div className="mt-2 max-w-full space-y-2 rounded-md border border-border bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
                   {transaction.disputed_reason ? (
                     <p>
-                      <span className="text-zinc-500">理由:</span> {transaction.disputed_reason}
+                      <span className="text-muted-foreground">理由:</span> {transaction.disputed_reason}
                     </p>
                   ) : null}
                   {transaction.disputed_reason_detail ? (
                     <p className="whitespace-pre-wrap">
-                      <span className="text-zinc-500">詳細:</span> {transaction.disputed_reason_detail}
+                      <span className="text-muted-foreground">詳細:</span> {transaction.disputed_reason_detail}
                     </p>
                   ) : null}
                   {transaction.disputed_evidence_url?.trim() ? (
@@ -1617,13 +1614,12 @@ export default function ChatTransactionPage() {
         ) : (
           <>
         {messages.length === 0 ? (
-          <p className="py-8 text-center text-sm text-zinc-500">まだメッセージがありません。挨拶を送ってみましょう。</p>
+          <p className="py-8 text-center text-sm text-muted-foreground">まだメッセージがありません。挨拶を送ってみましょう。</p>
         ) : (
           messages.map((m) => {
             const mine = m.sender_id === userId
             const prof = senderProfiles[m.sender_id]
             const label = mine ? "自分" : prof?.display_name?.trim() || "ユーザー"
-            const avatarSrc = resolveProfileAvatarUrl(prof?.avatar_url ?? null, label)
             const senderProfilePath = buildProfilePath(m.sender_id, prof?.custom_id ?? null)
             const linkPayload =
               m.file_type === CHAT_LINK_FILE_TYPE ? parseLinkMessageContent(m.content) : null
@@ -1647,7 +1643,7 @@ export default function ChatTransactionPage() {
                   isYoutubeMessage ? "p-2" : "px-3 py-2",
                   mine
                     ? "bg-red-600 text-white"
-                    : "border border-zinc-700 bg-zinc-900 text-zinc-100",
+                    : "border border-border bg-muted text-foreground",
                 )}
               >
                 {linkPayload ? (
@@ -1689,7 +1685,7 @@ export default function ChatTransactionPage() {
                     mine ? "justify-end" : "justify-start",
                   )}
                 >
-                  <p className={cn("text-[11px]", mine ? "text-red-100/90" : "text-zinc-500")}>
+                  <p className={cn("text-[11px]", mine ? "text-red-100/90" : "text-muted-foreground")}>
                     {formatMessageTime(m.created_at)}
                   </p>
                   {mine ? (
@@ -1710,7 +1706,7 @@ export default function ChatTransactionPage() {
               return (
                 <div key={messageIdKey(m.id)} className="flex w-full justify-end">
                   <div className={cn("flex min-w-0 flex-col items-end gap-1", bubbleWidthClass)}>
-                    <p className="max-w-full truncate px-1 text-left text-xs text-zinc-500">{label}</p>
+                    <p className="max-w-full truncate px-1 text-left text-xs text-muted-foreground">{label}</p>
                     {bubble}
                   </div>
                 </div>
@@ -1724,9 +1720,12 @@ export default function ChatTransactionPage() {
                   className="shrink-0"
                   aria-label={`${label}のプロフィールへ`}
                 >
-                  <div className="relative h-9 w-9 overflow-hidden rounded-full border border-zinc-700 bg-zinc-900">
-                    <Image src={avatarSrc} alt="" fill className="object-cover" sizes="36px" unoptimized />
-                  </div>
+                  <ProfileAvatar
+                    avatarUrl={prof?.avatar_url ?? null}
+                    alt={label}
+                    className="h-9 w-9 border border-border"
+                    sizes="36px"
+                  />
                 </Link>
                 <div
                   className={cn(
@@ -1734,7 +1733,7 @@ export default function ChatTransactionPage() {
                     isYoutubeMessage ? "flex-1 max-w-[400px]" : "max-w-[calc(100%-2.75rem)]",
                   )}
                 >
-                  <p className="mb-1 truncate text-xs text-zinc-400">{label}</p>
+                  <p className="mb-1 truncate text-xs text-muted-foreground">{label}</p>
                   {bubble}
                 </div>
               </div>
@@ -1767,25 +1766,25 @@ export default function ChatTransactionPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      <footer className="shrink-0 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur">
+      <footer className="shrink-0 border-t border-border bg-card/95 backdrop-blur">
         <form
           onSubmit={(e) => void handleSend(e)}
           className="mx-auto flex max-w-2xl flex-col gap-2 px-4 py-3"
         >
           {file ? (
-            <div className="relative overflow-hidden rounded-lg border border-zinc-600 bg-zinc-900/80 p-2">
+            <div className="relative overflow-hidden rounded-lg border border-border bg-muted/40 p-2">
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
                 disabled={sending}
-                className="absolute right-1 top-1 z-10 h-8 w-8 rounded-full bg-black/60 text-zinc-200 hover:bg-black/80 hover:text-white"
+                className="absolute right-1 top-1 z-10 h-8 w-8 rounded-full border border-border bg-background/90 text-foreground shadow-sm hover:border-primary hover:text-primary-readable"
                 aria-label="添付を取り消し"
                 onClick={clearPendingFile}
               >
                 <X className="h-4 w-4" />
               </Button>
-              <div className="flex min-h-[5rem] max-h-40 items-center justify-center overflow-hidden rounded-md bg-black/40">
+              <div className="flex min-h-[5rem] max-h-40 items-center justify-center overflow-hidden rounded-md bg-muted/60">
                 {previewUrl ? (
                   file.type.startsWith("image/") ? (
                     // eslint-disable-next-line @next/next/no-img-element -- ローカルプレビュー用 blob URL
@@ -1797,7 +1796,7 @@ export default function ChatTransactionPage() {
                   <Loader2 className="h-6 w-6 animate-spin text-red-500" aria-hidden />
                 )}
               </div>
-              <p className="mt-1 truncate text-center text-[11px] text-zinc-500">{file.name}</p>
+              <p className="mt-1 truncate text-center text-[11px] text-muted-foreground">{file.name}</p>
             </div>
           ) : null}
           <div className="flex gap-2">
@@ -1814,7 +1813,7 @@ export default function ChatTransactionPage() {
               variant="outline"
               size="icon"
               disabled={!canSend || sending || linkSending}
-              className="shrink-0 border-zinc-600 bg-zinc-900 text-zinc-200 hover:border-red-500 hover:bg-zinc-800"
+              className="shrink-0 border-border bg-background text-foreground hover:border-primary hover:bg-muted"
               aria-label="画像または動画を添付"
               onClick={() => fileInputRef.current?.click()}
             >
@@ -1826,8 +1825,12 @@ export default function ChatTransactionPage() {
                 variant="outline"
                 size="icon"
                 disabled={!canSend || sending || linkSending}
-                className="shrink-0 border-zinc-600 bg-zinc-900 text-zinc-200 hover:border-red-500 hover:bg-zinc-800"
-                aria-label={isSeller ? "外部ツール連携（Zoom / YouTube）" : "外部ツール連携（YouTube）"}
+              className="shrink-0 border-border bg-background text-foreground hover:border-primary hover:bg-muted"
+              aria-label={
+                isSeller
+                  ? `外部ツール連携（${ALLOWED_EXTERNAL_TOOLS_SLASH}）`
+                  : "外部ツール連携（YouTube）"
+              }
                 onClick={() => setLinkModalOpen(true)}
               >
                 <Link2 className="h-4 w-4" />
@@ -1838,7 +1841,7 @@ export default function ChatTransactionPage() {
               onChange={(e) => setText(e.target.value)}
               placeholder={canSend ? "メッセージを入力..." : "送信できません"}
               disabled={!canSend || sending || linkSending}
-              className="border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500"
+              className="border-border bg-background text-foreground placeholder:text-muted-foreground"
               maxLength={8000}
               autoComplete="off"
             />
@@ -1850,16 +1853,16 @@ export default function ChatTransactionPage() {
               {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
           </div>
-          <p className="text-[11px] leading-relaxed text-zinc-500">
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
             {isBannedUser ? (
               "利用停止中は進行中取引のチャット閲覧のみ可能です。"
             ) : (
               <>
                 ＋で画像や動画の選択ができます（1ファイル
-                <strong className="font-medium text-zinc-400">10MB以下</strong>・画像または動画のみ）。
+                <strong className="font-medium text-muted-foreground">10MB以下</strong>・画像または動画のみ）。
                 <br />
                 {isSeller
-                  ? "リンクアイコンから外部ツール（Zoom/YouTube）連携ができます。"
+                  ? `リンクアイコンから外部ツール（${ALLOWED_EXTERNAL_TOOLS_SLASH}）連携ができます。`
                   : isBuyer
                     ? "リンクアイコンから外部ツール（YouTube）連携ができます。"
                     : "リンクアイコンから外部ツール連携ができます。"}
@@ -1878,18 +1881,18 @@ export default function ChatTransactionPage() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="dispute-form-title"
-            className="absolute inset-x-0 bottom-0 z-30 flex max-h-[min(85dvh,calc(100%-0.5rem))] flex-col rounded-t-2xl border border-zinc-700 border-b-0 bg-zinc-950 shadow-[0_-12px_48px_rgba(0,0,0,0.55)]"
+            className="absolute inset-x-0 bottom-0 z-30 flex max-h-[min(85dvh,calc(100%-0.5rem))] flex-col rounded-t-2xl border border-border border-b-0 bg-card shadow-[0_-12px_48px_rgba(0,0,0,0.55)]"
           >
             <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 overflow-y-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">
               <div className="flex items-start justify-between gap-2">
-                <h2 id="dispute-form-title" className="text-base font-semibold text-white">
+                <h2 id="dispute-form-title" className="text-base font-semibold text-foreground">
                   異議申し立て
                 </h2>
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="shrink-0 text-zinc-400 hover:text-white"
+                  className="shrink-0 text-muted-foreground hover:text-foreground"
                   aria-label="閉じる"
                   disabled={completing}
                   onClick={() => setShowDisputeReasonPicker(false)}
@@ -1897,7 +1900,7 @@ export default function ChatTransactionPage() {
                   <X className="h-5 w-5" />
                 </Button>
               </div>
-              <p className="text-xs text-zinc-400">
+              <p className="text-xs text-muted-foreground">
                 内容を確認のうえ送信してください。運営が内容を確認します。
               </p>
               {completeError ? (
@@ -1906,7 +1909,7 @@ export default function ChatTransactionPage() {
                 </p>
               ) : null}
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="dispute-reason" className="text-xs font-medium text-zinc-300">
+                <label htmlFor="dispute-reason" className="text-xs font-medium text-muted-foreground">
                   理由
                 </label>
                 <select
@@ -1914,7 +1917,7 @@ export default function ChatTransactionPage() {
                   value={disputeReason}
                   onChange={(e) => setDisputeReason(e.target.value)}
                   disabled={completing}
-                  className="h-10 rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 disabled:opacity-50"
+                  className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 disabled:opacity-50"
                 >
                   {DISPUTE_REASON_OPTIONS.map((opt) => (
                     <option key={opt} value={opt}>
@@ -1924,7 +1927,7 @@ export default function ChatTransactionPage() {
                 </select>
               </div>
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="dispute-detail" className="text-xs font-medium text-zinc-300">
+                <label htmlFor="dispute-detail" className="text-xs font-medium text-muted-foreground">
                   詳細（任意）
                 </label>
                 <textarea
@@ -1935,11 +1938,11 @@ export default function ChatTransactionPage() {
                   rows={4}
                   maxLength={2000}
                   placeholder="状況を具体的にご記入ください"
-                  className="min-h-[5rem] resize-y rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 disabled:opacity-50"
+                  className="min-h-[5rem] resize-y rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 disabled:opacity-50"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-zinc-300">証拠写真（任意）</span>
+                <span className="text-xs font-medium text-muted-foreground">証拠写真（任意）</span>
                 <input
                   ref={disputeEvidenceInputRef}
                   type="file"
@@ -1955,13 +1958,13 @@ export default function ChatTransactionPage() {
                     size="sm"
                     disabled={completing}
                     onClick={() => disputeEvidenceInputRef.current?.click()}
-                    className="border-zinc-600 bg-zinc-900 text-zinc-200 hover:border-red-500 hover:bg-zinc-800"
+                    className="border-border bg-background text-foreground hover:border-primary hover:bg-muted"
                   >
                     写真を選択
                   </Button>
                   {disputeEvidenceFile ? (
                     <>
-                      <span className="max-w-[12rem] truncate text-xs text-zinc-400 sm:max-w-xs">
+                      <span className="max-w-[12rem] truncate text-xs text-muted-foreground sm:max-w-xs">
                         {disputeEvidenceFile.name}
                       </span>
                       <Button
@@ -1969,7 +1972,7 @@ export default function ChatTransactionPage() {
                         variant="ghost"
                         size="sm"
                         disabled={completing}
-                        className="h-8 px-2 text-xs text-zinc-400 hover:text-white"
+                        className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
                         onClick={handleDisputeEvidenceClear}
                       >
                         取り消し
@@ -1978,7 +1981,7 @@ export default function ChatTransactionPage() {
                   ) : null}
                 </div>
                 {disputeEvidencePreviewUrl ? (
-                  <div className="relative mt-1 overflow-hidden rounded-md border border-zinc-700 bg-black/40">
+                  <div className="relative mt-1 overflow-hidden rounded-md border border-border bg-black/40">
                     {/* eslint-disable-next-line @next/next/no-img-element -- ローカルプレビュー用 blob URL */}
                     <img
                       src={disputeEvidencePreviewUrl}
@@ -1987,15 +1990,15 @@ export default function ChatTransactionPage() {
                     />
                   </div>
                 ) : null}
-                <p className="text-[11px] text-zinc-500">画像のみ・10MB以下</p>
+                <p className="text-[11px] text-muted-foreground">画像のみ・10MB以下</p>
               </div>
-              <div className="flex flex-wrap justify-end gap-2 border-t border-zinc-800 pt-3">
+              <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-3">
                 <Button
                   type="button"
                   variant="outline"
                   disabled={completing}
                   onClick={() => setShowDisputeReasonPicker(false)}
-                  className="border-zinc-600 bg-zinc-900 text-zinc-200"
+                  className="border-border bg-background text-muted-foreground"
                 >
                   キャンセル
                 </Button>
@@ -2048,13 +2051,13 @@ export default function ChatTransactionPage() {
           aria-labelledby="request-agreement-title"
         >
           <div
-            className="w-full max-w-2xl rounded-2xl border border-zinc-700 bg-zinc-950 p-5 text-zinc-100 shadow-2xl"
+            className="w-full max-w-2xl rounded-2xl border border-border bg-card p-5 text-foreground shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 id="request-agreement-title" className="text-lg font-bold text-white">
+            <h2 id="request-agreement-title" className="text-lg font-bold text-foreground">
               【取引完了申請に関する重要事項】
             </h2>
-            <div className="mt-3 space-y-3 text-sm leading-relaxed text-zinc-300">
+            <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground">
               <p>
                 生徒が取引完了ボタンを押すと、写真・動画データはサーバーから完全に削除され、復元できなくなります。
               </p>
@@ -2071,7 +2074,7 @@ export default function ChatTransactionPage() {
                 type="button"
                 variant="outline"
                 disabled={completing}
-                className="border-zinc-600 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
+                className="border-border bg-background text-foreground hover:bg-muted"
                 onClick={() => setRequestAgreementOpen(false)}
               >
                 キャンセル
@@ -2101,13 +2104,13 @@ export default function ChatTransactionPage() {
           aria-labelledby="approve-agreement-title"
         >
           <div
-            className="w-full max-w-2xl rounded-2xl border border-zinc-700 bg-zinc-950 p-5 text-zinc-100 shadow-2xl"
+            className="w-full max-w-2xl rounded-2xl border border-border bg-card p-5 text-foreground shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 id="approve-agreement-title" className="text-lg font-bold text-white">
+            <h2 id="approve-agreement-title" className="text-lg font-bold text-foreground">
               【取引完了の最終確認】
             </h2>
-            <div className="mt-3 space-y-3 text-sm leading-relaxed text-zinc-300">
+            <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground">
               <p>
                 この操作を行うと、チャット内の写真・動画データはサーバーから完全に削除され、復元できなくなります。
               </p>
@@ -2123,7 +2126,7 @@ export default function ChatTransactionPage() {
                 type="button"
                 variant="outline"
                 disabled={completing}
-                className="border-zinc-600 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
+                className="border-border bg-background text-foreground hover:bg-muted"
                 onClick={() => setApproveAgreementOpen(false)}
               >
                 キャンセル

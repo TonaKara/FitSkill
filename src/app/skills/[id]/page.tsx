@@ -21,8 +21,9 @@ import { StripePaymentSheet } from "@/components/stripe-payment-sheet"
 import { TradeFinalConfirmStep } from "@/components/TradeFinalConfirmStep"
 import { Button } from "@/components/ui/button"
 import { NotificationToast } from "@/components/ui/notification-toast"
-import { resolveProfileAvatarUrl } from "@/lib/profile-avatar"
-import { buildProfilePath } from "@/lib/profile-path"
+import { ProfileAvatar } from "@/components/profile-avatar"
+import { buildStorePath } from "@/lib/profile-path"
+import { formatSkillCategoryDisplay } from "@/lib/skill-categories"
 import { resolveSkillThumbnailUrl, skillThumbnailContainerAspectStyle } from "@/lib/skill-thumbnail"
 import { getIsAdminFromProfile } from "@/lib/admin"
 import { formatErrorMessageOnly } from "@/lib/notifications"
@@ -779,7 +780,7 @@ export default function SkillDetailPage() {
 
   if (loading || checkoutCancelSyncing) {
     return (
-      <div className="flex min-h-[100svh] items-center justify-center bg-black text-zinc-200 md:min-h-screen">
+      <div className="flex min-h-[100svh] items-center justify-center bg-background text-muted-foreground md:min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-red-500" aria-hidden />
         <span className="ml-2 text-sm">{checkoutCancelSyncing ? "申し込み人数を確認しています" : "読み込み中..."}</span>
       </div>
@@ -788,9 +789,9 @@ export default function SkillDetailPage() {
 
   if (!skill) {
     return (
-      <div className="min-h-[100svh] bg-black px-4 py-16 text-center text-zinc-200 md:min-h-screen">
-        <p className="text-lg font-semibold text-white">スキルが見つかりません</p>
-        <p className="mt-2 text-sm text-zinc-400">URL をご確認ください。</p>
+      <div className="min-h-[100svh] bg-background px-4 py-16 text-center text-muted-foreground md:min-h-screen">
+        <p className="text-lg font-semibold text-foreground">スキルが見つかりません</p>
+        <p className="mt-2 text-sm text-muted-foreground">URL をご確認ください。</p>
         <Button asChild className="mt-8 bg-red-600 text-white hover:bg-red-500">
           <Link href="/" scroll={false}>
             ホームへ戻る
@@ -802,7 +803,6 @@ export default function SkillDetailPage() {
 
   const profile = normalizeProfile(skill.profiles)
   const instructorName = profile?.display_name?.trim() || "講師"
-  const instructorAvatarSrc = resolveProfileAvatarUrl(profile?.avatar_url ?? null, instructorName)
   const hasInstructorRating =
     profile?.rating_avg != null &&
     Number.isFinite(Number(profile.rating_avg)) &&
@@ -1092,22 +1092,22 @@ export default function SkillDetailPage() {
   }
 
   return (
-    <div className="min-h-[100svh] bg-black pb-24 pt-6 text-zinc-100 md:min-h-screen">
+    <div className="min-h-[100svh] bg-background pb-24 pt-6 text-foreground md:min-h-screen">
       {notice ? <NotificationToast notice={notice} onClose={() => setNotice(null)} /> : null}
       <div className="mx-auto max-w-3xl px-4 md:px-6">
         <Button
           asChild
           variant="outline"
-          className="mb-6 border-zinc-700 bg-zinc-900 text-zinc-200 hover:border-red-500 hover:bg-zinc-800"
+          className="mb-6 border-border bg-muted text-foreground hover:border-primary hover:bg-muted/80"
         >
-          <Link href="/" scroll={false} className="inline-flex items-center gap-2">
+          <Link href="/discover" scroll={false} className="inline-flex items-center gap-2">
             <ArrowLeft className="h-4 w-4" />
             一覧へ戻る
           </Link>
         </Button>
 
-        <div className="overflow-hidden rounded-2xl border border-red-500/30 bg-zinc-950 shadow-[0_0_60px_rgba(230,74,25,0.15)]">
-          <div className="relative w-full bg-zinc-900" style={skillThumbnailContainerAspectStyle()}>
+        <div className="overflow-hidden rounded-2xl border border-red-500/30 bg-card shadow-lg shadow-red-500/10 dark:shadow-[0_0_60px_rgba(230,74,25,0.15)]">
+          <div className="relative w-full bg-muted" style={skillThumbnailContainerAspectStyle()}>
             <Image
               src={thumbSrc}
               alt=""
@@ -1120,7 +1120,7 @@ export default function SkillDetailPage() {
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
             <div className="absolute bottom-4 left-4 right-4">
               <span className="inline-block rounded-full border border-red-500/40 bg-black/50 px-3 py-1 text-xs font-semibold text-red-300 backdrop-blur-sm">
-                {skill.category}
+                {formatSkillCategoryDisplay(skill.category)}
               </span>
               <h1 className="mt-3 text-2xl font-black tracking-tight text-white md:text-3xl">{skill.title}</h1>
             </div>
@@ -1128,107 +1128,104 @@ export default function SkillDetailPage() {
 
           <div className="space-y-8 p-6 md:p-8">
             <section>
-              <h2 className="mb-3 text-sm font-bold uppercase tracking-wider text-red-400">講師</h2>
+              <h2 className="mb-3 text-sm font-bold uppercase tracking-wider text-red-600 dark:text-red-400">講師</h2>
               <Link
-                href={buildProfilePath(skill.user_id, profile?.custom_id)}
-                className="flex items-center gap-4 rounded-xl border border-red-500/30 bg-zinc-900/70 p-4 transition-colors hover:border-red-500/55 hover:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                href={buildStorePath(skill.user_id, profile?.custom_id)}
+                className="flex items-center gap-4 rounded-xl border border-red-500/30 bg-muted/60 p-4 transition-colors hover:border-red-500/55 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
               >
-                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full ring-2 ring-red-500/25">
-                  <Image
-                    src={instructorAvatarSrc}
-                    alt=""
-                    fill
-                    className="object-cover"
-                    unoptimized
-                    sizes="56px"
-                  />
-                </div>
+                <ProfileAvatar
+                  avatarUrl={profile?.avatar_url ?? null}
+                  alt={instructorName}
+                  className="h-14 w-14"
+                  ringClassName="ring-2 ring-red-500/25"
+                  sizes="56px"
+                />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-bold text-white">{instructorName}</p>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-400">
+                  <p className="truncate font-bold text-foreground">{instructorName}</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
                     {hasInstructorRating ? (
                       <>
-                        <span className="inline-flex items-center gap-1 text-zinc-200">
+                        <span className="inline-flex items-center gap-1 text-foreground">
                           <Star className="h-3.5 w-3.5 shrink-0 fill-red-500 text-red-500" aria-hidden />
-                          <span className="font-semibold text-white">
+                          <span className="font-semibold text-foreground">
                             {Number(profile?.rating_avg).toFixed(1)}
                           </span>
                         </span>
-                        <span className="text-zinc-500">·</span>
+                        <span className="text-muted-foreground">·</span>
                         <span>レビュー {profile?.review_count} 件</span>
                       </>
                     ) : (
-                      <span className="text-zinc-500">評価なし</span>
+                      <span className="text-muted-foreground">評価なし</span>
                     )}
                   </div>
                 </div>
-                <ChevronRight className="h-5 w-5 shrink-0 text-zinc-500" aria-hidden />
+                <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
               </Link>
             </section>
 
             <section className="space-y-2">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-red-400">価格</h2>
-              <p className="text-3xl font-black text-white">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-red-600 dark:text-red-400">価格</h2>
+              <p className="text-3xl font-black text-foreground">
                 ¥{skill.price.toLocaleString()}
-                <span className="ml-2 text-base font-semibold text-zinc-500">/ 回</span>
+                <span className="ml-2 text-base font-semibold text-muted-foreground">/ 回</span>
               </p>
             </section>
 
             <section className="space-y-2">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-red-400">説明</h2>
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-300">{skill.description}</p>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-red-600 dark:text-red-400">説明</h2>
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">{skill.description}</p>
             </section>
 
             <section className="space-y-2">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-red-400">こんな人におすすめ</h2>
-              <p className="text-sm leading-relaxed text-zinc-300">{skill.target_audience}</p>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-red-600 dark:text-red-400">こんな人におすすめ</h2>
+              <p className="text-sm leading-relaxed text-foreground">{skill.target_audience}</p>
             </section>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <section className="flex gap-3 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
+              <section className="flex gap-3 rounded-xl border border-border bg-muted/50 p-4">
                 <Monitor className="mt-0.5 h-5 w-5 shrink-0 text-red-500" aria-hidden />
                 <div>
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-500">形式</h2>
-                  <p className="mt-1 font-semibold text-white">{formatLessonFormat(skill.format)}</p>
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">形式</h2>
+                  <p className="mt-1 font-semibold text-foreground">{formatLessonFormat(skill.format)}</p>
                 </div>
               </section>
-              <section className="flex gap-3 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
+              <section className="flex gap-3 rounded-xl border border-border bg-muted/50 p-4">
                 <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-red-500" aria-hidden />
                 <div>
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-500">場所</h2>
-                  <p className="mt-1 font-semibold text-white">{formatLocation(skill)}</p>
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">場所</h2>
+                  <p className="mt-1 font-semibold text-foreground">{formatLocation(skill)}</p>
                 </div>
               </section>
             </div>
 
-            <section className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
+            <section className="rounded-xl border border-border bg-muted/50 p-4">
               <div className="flex items-start gap-3">
                 <Users className="mt-0.5 h-5 w-5 shrink-0 text-red-500" aria-hidden />
                 <div className="min-w-0 flex-1 space-y-3">
                   <div>
-                    <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-500">対応人数</h2>
-                    <p className="mt-1 text-lg font-bold text-white">
-                      対応可能人数: <span className="text-red-400">{maxCap}</span> 名
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">対応人数</h2>
+                    <p className="mt-1 text-lg font-bold text-foreground">
+                      対応可能人数: <span className="text-red-600 dark:text-red-400">{maxCap}</span> 名
                     </p>
                   </div>
-                  <div className="border-t border-zinc-800 pt-3">
-                    <p className="text-sm text-zinc-300">
-                      現在の申し込み人数: <span className="font-semibold text-white">{enrolled}</span> 名
+                  <div className="border-t border-border pt-3">
+                    <p className="text-sm text-muted-foreground">
+                      現在の申し込み人数: <span className="font-semibold text-foreground">{enrolled}</span> 名
                     </p>
                   </div>
                 </div>
               </div>
             </section>
 
-            <section className="space-y-1 text-sm text-zinc-400">
+            <section className="space-y-1 text-sm text-muted-foreground">
               <p>
-                1回あたりの時間: <span className="font-medium text-zinc-200">{skill.duration_minutes}分</span>
+                1回あたりの時間: <span className="font-medium text-foreground">{skill.duration_minutes}分</span>
               </p>
             </section>
           </div>
         </div>
 
-        <div className="mt-8 border-t border-zinc-800 py-4 md:border-0 md:py-0">
+        <div className="mt-8 border-t border-border py-4 md:border-0 md:py-0">
           {showAskSeller || showPreOfferPrimary ? (
             <div
               className={cn(
@@ -1265,51 +1262,51 @@ export default function SkillDetailPage() {
               {showPreOfferFormExpanded ? (
                 <div
                   className={cn(
-                    "space-y-3 rounded-md border border-zinc-700 bg-black/30 p-3 sm:p-4",
+                    "space-y-3 rounded-md border border-border bg-muted/40 p-3 sm:p-4",
                     showBothSellerActions && "[grid-area:form]",
                   )}
                 >
                   {showConsultationQ1 ? (
                     <div className="space-y-1">
-                      <label className="text-xs font-semibold text-zinc-400">{consultationLabel.q1}</label>
+                      <label className="text-xs font-semibold text-muted-foreground">{consultationLabel.q1}</label>
                       <textarea
                         rows={3}
                         value={consultationForm.a1}
                         onChange={(event) => setConsultationForm((prev) => ({ ...prev, a1: event.target.value }))}
-                        className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+                        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-red-500"
                       />
                     </div>
                   ) : null}
                   {showConsultationQ2 ? (
                     <div className="space-y-1">
-                      <label className="text-xs font-semibold text-zinc-400">{consultationLabel.q2}</label>
+                      <label className="text-xs font-semibold text-muted-foreground">{consultationLabel.q2}</label>
                       <textarea
                         rows={3}
                         value={consultationForm.a2}
                         onChange={(event) => setConsultationForm((prev) => ({ ...prev, a2: event.target.value }))}
-                        className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+                        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-red-500"
                       />
                     </div>
                   ) : null}
                   {showConsultationQ3 ? (
                     <div className="space-y-1">
-                      <label className="text-xs font-semibold text-zinc-400">{consultationLabel.q3}</label>
+                      <label className="text-xs font-semibold text-muted-foreground">{consultationLabel.q3}</label>
                       <textarea
                         rows={3}
                         value={consultationForm.a3}
                         onChange={(event) => setConsultationForm((prev) => ({ ...prev, a3: event.target.value }))}
-                        className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+                        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-red-500"
                       />
                     </div>
                   ) : null}
                   {showConsultationFree ? (
                     <div className="space-y-1">
-                      <label className="text-xs font-semibold text-zinc-400">{consultationLabel.free}</label>
+                      <label className="text-xs font-semibold text-muted-foreground">{consultationLabel.free}</label>
                       <textarea
                         rows={4}
                         value={consultationForm.free}
                         onChange={(event) => setConsultationForm((prev) => ({ ...prev, free: event.target.value }))}
-                        className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+                        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-red-500"
                       />
                     </div>
                   ) : null}
@@ -1328,7 +1325,7 @@ export default function SkillDetailPage() {
                   asChild
                   variant="outline"
                   className={cn(
-                    "h-11 w-full rounded-md border-zinc-600 bg-zinc-900 text-base font-bold text-zinc-100 hover:border-red-500 hover:bg-zinc-800",
+                    "h-11 w-full rounded-md border-border bg-background text-base font-bold text-foreground hover:border-red-500 hover:bg-muted",
                     showBothSellerActions && showPreOfferFormExpanded && "[grid-area:ask]",
                   )}
                 >
@@ -1348,17 +1345,17 @@ export default function SkillDetailPage() {
             </div>
           ) : null}
           {showAskSeller ? (
-            <p className="mb-3 text-center text-[11px] text-zinc-500">
+            <p className="mb-3 text-center text-[11px] text-muted-foreground">
               購入前の質問は「出品者に質問する」から。お取引が始まったあとの連絡は取引チャットをご利用ください。
             </p>
           ) : null}
           {consultationEnabled ? (
-            <p className="mb-3 rounded-lg border border-red-500/40 bg-red-950/30 px-3 py-2 text-sm text-red-200">
+            <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900 dark:border-red-500/40 dark:bg-red-950/30 dark:text-red-200">
               こちらのスキルには事前オファーが設定されています。初回ご購入前に申し込みが必要です。
             </p>
           ) : null}
           {purchaseError ? (
-            <p className="mb-3 rounded-lg border border-red-500/40 bg-red-950/40 px-3 py-2 text-center text-sm text-red-300">
+            <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-center text-sm text-red-800 dark:border-red-500/40 dark:bg-red-950/40 dark:text-red-300">
               {purchaseError}
             </p>
           ) : null}
@@ -1366,14 +1363,14 @@ export default function SkillDetailPage() {
             <Button
               type="button"
               disabled
-              className="h-12 w-full rounded-md bg-zinc-700 text-base font-bold text-zinc-200"
+              className="h-12 w-full rounded-md bg-muted text-base font-bold text-muted-foreground"
             >
               自分のスキルです
             </Button>
           ) : hasActivePurchase && latestTransaction ? (
             <Button
               asChild
-              className="h-12 w-full rounded-md border border-red-500/40 bg-zinc-900 text-base font-bold text-white shadow-sm transition-all duration-300 ease-out hover:border-red-500 hover:bg-zinc-800"
+              className="h-12 w-full rounded-md border border-red-500/40 bg-card text-base font-bold text-foreground shadow-sm transition-all duration-300 ease-out hover:border-red-500 hover:bg-muted"
             >
               <Link
                 href={`/chat/${String(latestTransaction.id)}`}
@@ -1388,36 +1385,36 @@ export default function SkillDetailPage() {
               <Button
                 type="button"
                 disabled
-                className="h-12 w-full cursor-not-allowed rounded-md !bg-gray-600 !text-zinc-100 hover:!bg-gray-600 disabled:!opacity-100"
+                className="h-12 w-full cursor-not-allowed rounded-md !bg-muted !text-muted-foreground hover:!bg-muted disabled:!opacity-100"
               >
                 満枠対応中
               </Button>
               <button
                 type="button"
                 onClick={() => setReportModalOpen(true)}
-                className="w-full text-center text-xs text-zinc-500 underline-offset-4 transition-colors hover:text-zinc-300 hover:underline"
+                className="w-full text-center text-xs text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
               >
                 この商品を通報する
               </button>
             </div>
           ) : shouldShowConsultationAction ? (
-            <div className="space-y-3 rounded-lg border border-zinc-700 bg-zinc-900/70 p-4">
+            <div className="space-y-3 rounded-lg border border-border bg-muted/60 p-4">
               {consultationAnswer?.status === "pending" ? (
                 <Button
                   type="button"
                   disabled
-                  className="h-11 w-full rounded-md bg-zinc-700 text-base font-bold text-zinc-200"
+                  className="h-11 w-full rounded-md bg-muted text-base font-bold text-muted-foreground"
                 >
                   承認待ち
                 </Button>
               ) : null}
               {consultationAnswer?.status === "rejected" ? (
-                <p className="text-sm text-amber-300">リクエストは拒否されました。</p>
+                <p className="text-sm text-amber-800 dark:text-amber-300">リクエストは拒否されました。</p>
               ) : null}
               <button
                 type="button"
                 onClick={() => setReportModalOpen(true)}
-                className="w-full text-center text-xs text-zinc-500 underline-offset-4 transition-colors hover:text-zinc-300 hover:underline"
+                className="w-full text-center text-xs text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
               >
                 この商品を通報する
               </button>
@@ -1431,7 +1428,7 @@ export default function SkillDetailPage() {
                 className={cn(
                   "h-12 w-full rounded-md text-base font-bold shadow-sm transition-all duration-300 ease-out",
                   isFull || isOwnSkill
-                    ? "cursor-not-allowed !bg-gray-600 !text-zinc-100 hover:!bg-gray-600 disabled:!opacity-100"
+                    ? "cursor-not-allowed !bg-muted !text-muted-foreground hover:!bg-muted disabled:!opacity-100"
                     : "bg-red-600 text-white hover:bg-red-500 active:scale-[0.99]",
                 )}
               >
@@ -1444,7 +1441,7 @@ export default function SkillDetailPage() {
               <button
                 type="button"
                 onClick={() => setReportModalOpen(true)}
-                className="w-full text-center text-xs text-zinc-500 underline-offset-4 transition-colors hover:text-zinc-300 hover:underline"
+                className="w-full text-center text-xs text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
               >
                 この商品を通報する
               </button>
@@ -1453,7 +1450,7 @@ export default function SkillDetailPage() {
             <Button
               type="button"
               disabled
-              className="h-12 w-full rounded-md bg-zinc-700 text-base font-bold text-zinc-200"
+              className="h-12 w-full rounded-md bg-muted text-base font-bold text-muted-foreground"
             >
               購入条件を確認できませんでした
             </Button>
@@ -1461,7 +1458,7 @@ export default function SkillDetailPage() {
             <Button
               type="button"
               disabled
-              className="h-12 w-full rounded-md bg-zinc-700 text-base font-bold text-zinc-200"
+              className="h-12 w-full rounded-md bg-muted text-base font-bold text-muted-foreground"
             >
               取引状態を確認中...
             </Button>
@@ -1469,7 +1466,7 @@ export default function SkillDetailPage() {
             <Button
               type="button"
               disabled
-              className="h-12 w-full rounded-md bg-zinc-700 text-base font-bold text-zinc-200"
+              className="h-12 w-full rounded-md bg-muted text-base font-bold text-muted-foreground"
             >
               取引状態を確認できませんでした
             </Button>
@@ -1527,7 +1524,7 @@ export default function SkillDetailPage() {
           purchaseConfirmOpen &&
           createPortal(
             <div
-              className="fixed inset-0 z-[10000] flex min-h-[100dvh] w-full items-center justify-center overflow-y-auto bg-black/60 p-4 sm:p-6"
+              className="fixed inset-0 z-[10000] flex min-h-[100dvh] w-full items-center justify-center overflow-y-auto bg-black/50 p-4 sm:p-6"
               role="presentation"
               onClick={() => {
                 if (!purchasePending) {
@@ -1539,13 +1536,13 @@ export default function SkillDetailPage() {
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="final-confirm-purchase-title"
-                className="my-auto w-full max-w-lg shrink-0 rounded-xl border border-zinc-700 bg-zinc-950 p-6 shadow-2xl"
+                className="my-auto w-full max-w-lg shrink-0 rounded-xl border border-border bg-card p-6 shadow-2xl"
                 onClick={(e) => e.stopPropagation()}
               >
-                <h2 id="final-confirm-purchase-title" className="text-center text-base font-semibold text-zinc-100">
+                <h2 id="final-confirm-purchase-title" className="text-center text-base font-semibold text-foreground">
                   最終確認
                 </h2>
-                <p className="mt-1 text-center text-xs text-zinc-500">購入前の注意事項に同意して、取引を開始してください。</p>
+                <p className="mt-1 text-center text-xs text-muted-foreground">購入前の注意事項に同意して、取引を開始してください。</p>
                 <div className="mt-5">
                   <TradeFinalConfirmStep
                     variant="buyer"

@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Eye, EyeOff, Loader2, ShieldAlert } from "lucide-react"
+import { AuthPageShell } from "@/components/auth/auth-page-shell"
 import { BrandMarkSvg } from "@/components/BrandMarkSvg"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -134,6 +135,17 @@ export default function LoginPage() {
    * `/login?token_hash=...&type=signup` に着地し `/auth/callback` を通らない。
    * その場合はクエリを保ったまま `/auth/callback` へ送る（`next` 欠落の signup/email は補完）。
    */
+  useEffect(() => {
+    const modeParam = searchParams.get("mode")?.trim().toLowerCase()
+    if (modeParam === "signup") {
+      setMode("signup")
+      return
+    }
+    if (modeParam === "reset") {
+      setMode("reset")
+    }
+  }, [searchParams])
+
   useEffect(() => {
     if (authCallbackBridgeSentRef.current) {
       return
@@ -524,24 +536,23 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-4 py-12 text-white">
+    <AuthPageShell>
       {notice && <NotificationToast notice={notice} onClose={() => setNotice(null)} />}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(230,74,25,0.35),transparent_45%),radial-gradient(circle_at_bottom,rgba(230,74,25,0.25),transparent_50%)]" />
 
-      <Card className="relative z-10 w-full max-w-md border-red-500/40 bg-zinc-950/95 shadow-[0_0_60px_rgba(230,74,25,0.25)]">
+      <Card className="relative z-10 w-full max-w-md border-border bg-card shadow-lg dark:border-red-500/40 dark:bg-zinc-950/95 dark:shadow-[0_0_60px_rgba(230,74,25,0.25)]">
         <CardHeader className="space-y-4">
           <div className="inline-flex w-fit items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs font-semibold">
             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#e64a19]">
               <BrandMarkSvg className="h-5 w-5" />
             </div>
             <span>
-              <span className="text-red-300">Grit</span>
-              <span className="text-white">Vib</span>
+              <span className="text-primary-readable">Grit</span>
+              <span className="text-foreground">Vib</span>
             </span>
           </div>
           <div>
-            <CardTitle className="text-2xl font-bold tracking-wide text-white">{title}</CardTitle>
-            <CardDescription className="mt-1 text-zinc-400">
+            <CardTitle className="text-2xl font-bold tracking-wide text-foreground">{title}</CardTitle>
+            <CardDescription className="mt-1 text-muted-foreground">
               {isAwaitingSignupVerification
                 ? isSignupVerificationRecovery
                   ? "ログインするとプロフィール設定に進めます。うまくいかないときの案内は下記をご覧ください。"
@@ -557,13 +568,13 @@ export default function LoginPage() {
           <Button
             asChild
             variant="outline"
-            className="w-full border-zinc-700 bg-zinc-900 text-zinc-100 hover:border-red-500 hover:bg-zinc-800 hover:text-white"
+            className="w-full border-border bg-muted text-foreground hover:border-primary hover:bg-muted/80 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-red-500 dark:hover:bg-zinc-800 dark:hover:text-white"
           >
             <Link href="/">ホームに戻る</Link>
           </Button>
 
           {!isAwaitingSignupVerification ? (
-          <div className="grid grid-cols-2 rounded-lg border border-zinc-800 bg-zinc-900 p-1">
+          <div className="grid grid-cols-2 rounded-lg border border-border bg-muted p-1 dark:border-zinc-800 dark:bg-zinc-900">
             <button
               type="button"
               onClick={() => {
@@ -578,7 +589,7 @@ export default function LoginPage() {
                 "rounded-md px-3 py-2 text-sm font-semibold transition-colors",
                 mode === "login"
                   ? "bg-red-600 text-white shadow-[0_0_22px_rgba(230,74,25,0.45)]"
-                  : "text-zinc-400 hover:text-zinc-200",
+                  : "text-muted-foreground hover:text-foreground dark:text-zinc-400 dark:hover:text-zinc-200",
               )}
             >
               ログイン
@@ -597,7 +608,7 @@ export default function LoginPage() {
                 "rounded-md px-3 py-2 text-sm font-semibold transition-colors",
                 mode === "signup"
                   ? "bg-red-600 text-white shadow-[0_0_22px_rgba(230,74,25,0.45)]"
-                  : "text-zinc-400 hover:text-zinc-200",
+                  : "text-muted-foreground hover:text-foreground dark:text-zinc-400 dark:hover:text-zinc-200",
               )}
             >
               新規登録
@@ -609,13 +620,13 @@ export default function LoginPage() {
         <CardContent>
           {isAwaitingSignupVerification ? (
             <div className="space-y-5">
-              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-4 text-sm leading-relaxed text-zinc-100">
-                <p className="font-semibold text-emerald-200">
+              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-4 text-sm leading-relaxed text-emerald-950 dark:text-emerald-100">
+                <p className="font-semibold text-emerald-800 dark:text-emerald-200">
                   {isSignupVerificationRecovery
                     ? "メールの確認は、リンクを開いたら完了していることがほとんどです"
                     : "確認メールを送信しました。"}
                 </p>
-                <p className="mt-3 text-zinc-300">
+                <p className="mt-3 text-emerald-900/85 dark:text-emerald-100/90">
                   {isSignupVerificationRecovery
                     ? "登録したメールアドレスとパスワードでログインすると、プロフィール設定に進めます。"
                     : "認証用メールを送信しました。メール内のリンクを開いて認証を完了してください。認証後にプロフィール設定へ進みます。"}
@@ -623,7 +634,7 @@ export default function LoginPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-100" htmlFor="signup_verification_email">
+                <label className="text-sm font-medium text-foreground" htmlFor="signup_verification_email">
                   送信先メールアドレス
                 </label>
                 <Input
@@ -635,16 +646,16 @@ export default function LoginPage() {
                     setVerificationPanelNotice(null)
                   }}
                   autoComplete="email"
-                  className="border-zinc-700 bg-zinc-900 text-zinc-50 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                  className="border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
                 />
-                <p className="text-xs leading-relaxed text-zinc-400">
+                <p className="text-xs leading-relaxed text-muted-foreground">
                   再送前に宛先をご確認ください。
                 </p>
                 {email.trim().length > 0 && !isLikelyEmail(normalizedResendEmail) ? (
                   <p className="text-xs text-red-400">メールアドレスの形式が正しくありません。</p>
                 ) : null}
                 {resendEmailChangedFromRegistered ? (
-                  <p className="text-xs text-amber-200">
+                  <p className="text-xs text-amber-800 dark:text-amber-200">
                     登録時のメールアドレス（{registeredSignupEmail}）と異なります。別アドレスで受け取るには登録し直してください。
                   </p>
                 ) : null}
@@ -655,8 +666,8 @@ export default function LoginPage() {
                   className={cn(
                     "rounded-lg border px-4 py-3 text-sm leading-relaxed whitespace-pre-line",
                     verificationPanelNotice.variant === "error"
-                      ? "border-red-500/40 bg-red-500/10 text-red-100"
-                      : "border-emerald-500/30 bg-emerald-500/10 text-emerald-100",
+                      ? "border-red-500/40 bg-red-500/10 text-red-900 dark:text-red-100"
+                      : "border-emerald-500/30 bg-emerald-500/10 text-emerald-900 dark:text-emerald-100",
                   )}
                 >
                   {verificationPanelNotice.message}
@@ -664,9 +675,9 @@ export default function LoginPage() {
               ) : null}
 
               {isSignupVerificationRecovery ? (
-                <div className="rounded-lg border border-zinc-800 bg-zinc-900/70 px-4 py-4 text-sm text-zinc-300">
-                  <p className="font-semibold text-zinc-100">ログインができない場合</p>
-                  <p className="mt-2 leading-relaxed text-zinc-400">
+                <div className="rounded-lg border border-border bg-muted px-4 py-4 text-sm text-muted-foreground">
+                  <p className="font-semibold text-foreground">ログインができない場合</p>
+                  <p className="mt-2 leading-relaxed text-muted-foreground">
                     確認メールのリンクを開いているのにログインできないときは、次を順にお試しください。
                   </p>
                   <ul className="mt-3 list-disc space-y-2 pl-5">
@@ -686,8 +697,8 @@ export default function LoginPage() {
                   </ul>
                 </div>
               ) : (
-                <div className="rounded-lg border border-zinc-800 bg-zinc-900/70 px-4 py-4 text-sm text-zinc-300">
-                  <p className="font-semibold text-zinc-100">メールが届かない場合</p>
+                <div className="rounded-lg border border-border bg-muted px-4 py-4 text-sm text-muted-foreground">
+                  <p className="font-semibold text-foreground">メールが届かない場合</p>
                   <ul className="mt-3 list-disc space-y-2 pl-5">
                     <li>迷惑メールフォルダやプロモーションタブをご確認ください。</li>
                     {hasSignupVerificationResent ? (
@@ -706,9 +717,9 @@ export default function LoginPage() {
               )}
 
               {hasSignupVerificationResent ? (
-                <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-4 text-sm leading-relaxed text-amber-100">
-                  <p className="font-semibold text-amber-200">確認メールは再送済みです</p>
-                  <p className="mt-3 text-amber-100/90">
+                <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-4 text-sm leading-relaxed text-amber-950 dark:text-amber-100">
+                  <p className="font-semibold text-amber-800 dark:text-amber-200">確認メールは再送済みです</p>
+                  <p className="mt-3 text-amber-900/90 dark:text-amber-100/90">
                     それでも届かない場合は、下の「お問い合わせ」からご連絡ください。
                   </p>
                 </div>
@@ -736,7 +747,7 @@ export default function LoginPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-11 w-full border-amber-500/50 bg-zinc-900 text-amber-100 hover:bg-zinc-800"
+                  className="h-11 w-full border-amber-500/50 bg-muted text-amber-900 hover:bg-muted/80 dark:text-amber-100"
                   onClick={returnToSignupWithEditedEmail}
                 >
                   このメールアドレスで登録し直す
@@ -750,7 +761,7 @@ export default function LoginPage() {
                 className={
                   hasSignupVerificationResent
                     ? "h-11 w-full bg-red-600 text-white hover:bg-red-500"
-                    : "h-11 w-full border-zinc-600 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
+                    : "h-11 w-full border-border bg-muted text-foreground hover:bg-muted/80"
                 }
               >
                 <Link href="/contact">お問い合わせ</Link>
@@ -759,7 +770,7 @@ export default function LoginPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="h-11 w-full border-zinc-600 bg-zinc-900 text-zinc-100 hover:bg-zinc-800"
+                className="h-11 w-full border-border bg-muted text-foreground hover:bg-muted/80"
                 onClick={returnToLoginFromSignupVerification}
               >
                 ログイン画面に戻る
@@ -769,7 +780,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {isSignup && (
               <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-100" htmlFor="full_name">
+                <label className="text-sm font-medium text-foreground" htmlFor="full_name">
                   氏名（本名）
                 </label>
                 <Input
@@ -778,7 +789,7 @@ export default function LoginPage() {
                   onChange={(event) => setFullName(event.target.value)}
                   placeholder="例: 山田 太郎"
                   autoComplete="name"
-                  className="border-zinc-700 bg-zinc-900 text-zinc-50 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                  className="border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
                 />
                 <p className="text-xs leading-relaxed text-muted-foreground">
                   ※氏名は安全なコミュニティ運営のためにのみ使用され、他のユーザーには公開されません（表示名のみが公開されます）。ご本人確認と、健全な取引のためにご協力をお願いします。
@@ -788,7 +799,7 @@ export default function LoginPage() {
 
             {isSignup && (
               <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-100" htmlFor="birthday">
+                <label className="text-sm font-medium text-foreground" htmlFor="birthday">
                   誕生日
                 </label>
                 <Input
@@ -804,14 +815,14 @@ export default function LoginPage() {
                     setBirthday(next)
                   }}
                   autoComplete="bday"
-                  className="border-zinc-700 bg-zinc-900 text-zinc-50 [color-scheme:dark] focus-visible:ring-red-500"
+                  className="border-input bg-background text-foreground dark:[color-scheme:dark] focus-visible:ring-red-500"
                 />
               </div>
             )}
 
             {isSignup && (
               <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-100" htmlFor="display_name">
+                <label className="text-sm font-medium text-foreground" htmlFor="display_name">
                   表示名
                 </label>
                 <Input
@@ -820,13 +831,13 @@ export default function LoginPage() {
                   onChange={(event) => setDisplayName(event.target.value)}
                   placeholder="例: Kenta Trainer"
                   autoComplete="nickname"
-                  className="border-zinc-700 bg-zinc-900 text-zinc-50 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                  className="border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
                 />
               </div>
             )}
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-zinc-100" htmlFor="email">
+              <label className="text-sm font-medium text-foreground" htmlFor="email">
                 メールアドレス
               </label>
               <Input
@@ -836,13 +847,13 @@ export default function LoginPage() {
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="you@example.com"
                 autoComplete="email"
-                className="border-zinc-700 bg-zinc-900 text-zinc-50 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                className="border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
               />
             </div>
 
             {isSignup && (
               <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-100" htmlFor="confirm_email">
+                <label className="text-sm font-medium text-foreground" htmlFor="confirm_email">
                   メールアドレス（確認用）
                 </label>
                 <Input
@@ -852,7 +863,7 @@ export default function LoginPage() {
                   onChange={(event) => setConfirmEmail(event.target.value)}
                   placeholder="確認のため同じメールアドレスを入力"
                   autoComplete="email"
-                  className="border-zinc-700 bg-zinc-900 text-zinc-50 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                  className="border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
                 />
                 {confirmEmail.length > 0 && !isEmailMatched && (
                   <p className="text-xs text-red-400">メールアドレスが一致していません。</p>
@@ -862,7 +873,7 @@ export default function LoginPage() {
 
             {!isReset && (
               <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-100" htmlFor="password">
+                <label className="text-sm font-medium text-foreground" htmlFor="password">
                   パスワード
                 </label>
                 <div className="relative">
@@ -873,12 +884,12 @@ export default function LoginPage() {
                     onChange={(event) => setPassword(event.target.value)}
                     placeholder={isSignup ? "8文字以上・大文字/小文字/数字を含める" : "パスワードを入力"}
                     autoComplete={isSignup ? "new-password" : "current-password"}
-                    className="border-zinc-700 bg-zinc-900 pr-11 text-zinc-50 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                    className="border-input bg-background pr-11 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((previous) => !previous)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 transition-colors hover:text-red-300"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-primary"
                     aria-label={showPassword ? "パスワードを隠す" : "パスワードを表示"}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -897,7 +908,7 @@ export default function LoginPage() {
 
             {isSignup && (
               <div className="space-y-2">
-                <label className="text-sm font-medium text-zinc-100" htmlFor="confirm_password">
+                <label className="text-sm font-medium text-foreground" htmlFor="confirm_password">
                   パスワード（確認用）
                 </label>
                 <div className="relative">
@@ -908,12 +919,12 @@ export default function LoginPage() {
                     onChange={(event) => setConfirmPassword(event.target.value)}
                     placeholder="確認のため同じパスワードを入力"
                     autoComplete="new-password"
-                    className="border-zinc-700 bg-zinc-900 pr-11 text-zinc-50 placeholder:text-zinc-500 focus-visible:ring-red-500"
+                    className="border-input bg-background pr-11 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword((previous) => !previous)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 transition-colors hover:text-red-300"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-primary"
                     aria-label={showConfirmPassword ? "確認用パスワードを隠す" : "確認用パスワードを表示"}
                   >
                     {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -926,7 +937,7 @@ export default function LoginPage() {
             )}
 
             {isSignup && (
-              <div className="flex items-start gap-2 rounded-md border border-zinc-800 bg-zinc-900/70 px-3 py-2 text-xs text-zinc-400">
+              <div className="flex items-start gap-2 rounded-md border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
                 <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
                 <p>
                   表示名は30日に1回、変更できます。一度設定すると30日間は変更ができませんのでご注意ください。
@@ -937,8 +948,8 @@ export default function LoginPage() {
             {!isSignup && !isReset && (
               <div className="space-y-3">
                 {canShowPostEmailLoginHelp ? (
-                  <div className="rounded-lg border border-zinc-700 bg-zinc-900/80 px-3 py-3 text-xs leading-relaxed text-zinc-300">
-                    <p className="font-semibold text-zinc-100">ログインができない場合</p>
+                  <div className="rounded-lg border border-border bg-muted px-3 py-3 text-xs leading-relaxed text-muted-foreground">
+                    <p className="font-semibold text-foreground">ログインができない場合</p>
                     <ul className="mt-2 list-disc space-y-1.5 pl-4">
                       <li>メールアドレスとパスワードの入力ミスがないかご確認ください。</li>
                       <li>パスワードを忘れた場合は、下の「パスワードを忘れた場合」から再設定できます。</li>
@@ -956,7 +967,7 @@ export default function LoginPage() {
                         markPostEmailConfirmLoginHelpDone()
                         setHidePostEmailLoginHelp(true)
                       }}
-                      className="mt-3 w-full text-left text-xs text-zinc-500 underline-offset-4 transition-colors hover:text-zinc-300 hover:underline"
+                      className="mt-3 w-full text-left text-xs text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
                     >
                       この案内を表示しない
                     </button>
@@ -969,7 +980,7 @@ export default function LoginPage() {
                     setNotice(null)
                     setPassword("")
                   }}
-                  className="w-full text-right text-sm text-zinc-400 underline-offset-4 transition-colors hover:text-red-300 hover:underline"
+                  className="w-full text-right text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-red-300 hover:underline"
                 >
                   パスワードを忘れた場合
                 </button>
@@ -983,7 +994,7 @@ export default function LoginPage() {
                   setMode("login")
                   setNotice(null)
                 }}
-                className="w-full text-right text-sm text-zinc-400 underline-offset-4 transition-colors hover:text-red-300 hover:underline"
+                className="w-full text-right text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-red-300 hover:underline"
               >
                 ログインに戻る
               </button>
@@ -1011,7 +1022,7 @@ export default function LoginPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </AuthPageShell>
   )
 }
 
