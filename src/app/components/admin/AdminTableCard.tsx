@@ -1018,18 +1018,34 @@ export function AdminTableCard({
         return
       }
 
+      if (tableName === "user_reports" || tableName === "product_reports") {
+        const response = await fetch("/api/admin/reports/status", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            table: tableName,
+            status: nextStatus,
+            reporter_id: String(selectedItem.reporter_id ?? ""),
+            reported_user_id:
+              tableName === "user_reports" ? String(selectedItem.reported_user_id ?? "") : undefined,
+            product_id:
+              tableName === "product_reports" ? String(selectedItem.product_id ?? "") : undefined,
+            created_at: String(selectedItem.created_at ?? ""),
+          }),
+        })
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => null)) as { error?: string } | null
+          throw new Error(payload?.error ?? "ステータス更新に失敗しました。")
+        }
+        setSelectedItem((prev) => (prev ? { ...prev, status: nextStatus } : prev))
+        setReloadTick((prev) => prev + 1)
+        return
+      }
+
       let query = supabase.from(tableName).update({ status: nextStatus })
-      if (tableName === "user_reports") {
-        query = query
-          .eq("reporter_id", String(selectedItem.reporter_id ?? ""))
-          .eq("reported_user_id", String(selectedItem.reported_user_id ?? ""))
-          .eq("created_at", String(selectedItem.created_at ?? ""))
-      } else if (tableName === "product_reports") {
-        query = query
-          .eq("reporter_id", String(selectedItem.reporter_id ?? ""))
-          .eq("product_id", Number(selectedItem.product_id))
-          .eq("created_at", String(selectedItem.created_at ?? ""))
-      } else if (tableName === "transactions") {
+      if (tableName === "transactions") {
         query = query.eq("id", String(selectedItem.id ?? ""))
       } else {
         setStatusUpdating(false)

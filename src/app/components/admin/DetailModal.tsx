@@ -118,8 +118,12 @@ export function DetailModal({
     setStatusError(null)
     try {
       await onStatusChange(value)
-    } catch {
-      setStatusError("ステータス更新に失敗しました。")
+    } catch (err) {
+      setStatusError(
+        err instanceof Error && err.message.trim().length > 0
+          ? err.message
+          : "ステータス更新に失敗しました。",
+      )
     }
   }
 
