@@ -317,7 +317,7 @@ export default function PublicProfilePage({ resolvedProfileId }: PublicProfilePa
                       return (
                         <div key={stars} className="flex items-center gap-3 text-sm">
                           <div className="w-10 shrink-0 text-neutral-500 dark:text-muted-foreground">星{stars}</div>
-                          <div className="h-2.5 w-36 overflow-hidden rounded-full bg-primary/15 md:h-3 md:w-52">
+                          <div className="h-2.5 min-w-0 flex-1 overflow-hidden rounded-full bg-primary/15 md:h-3">
                             <div
                               className="h-full rounded-full transition-all"
                               style={{ width: `${percentage}%`, backgroundColor: barColor }}
@@ -365,13 +365,13 @@ export default function PublicProfilePage({ resolvedProfileId }: PublicProfilePa
                     <StoreEmptyPlaceholder>コメント付きの評価はまだありません。</StoreEmptyPlaceholder>
                   </div>
                 ) : (
-                  <div className="mt-4 max-h-96 space-y-3 overflow-y-auto pr-1">
+                  <div className="mt-4 max-h-96 w-full space-y-3 overflow-y-auto pr-1 md:max-h-none md:overflow-visible">
                     {filteredRatingComments.map((ratingComment) => {
                       const displayDate = formatRatingDate(ratingComment.createdAt)
                       return (
                         <article
                           key={ratingComment.id}
-                          className="rounded-xl border border-border bg-muted/30 p-4"
+                          className="w-full rounded-xl border border-border bg-muted/30 p-4 md:p-5"
                         >
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <p className="text-sm font-semibold text-neutral-900 dark:text-foreground">

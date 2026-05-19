@@ -2985,7 +2985,7 @@ export default function MypageClient() {
           )}
 
           {section === "reviews" && (
-            <div className="mx-auto max-w-3xl">
+            <div className="w-full">
               <h1 className="text-2xl font-black tracking-wide text-foreground md:text-3xl">評価</h1>
               <p className="mt-1 text-sm text-zinc-400">あなたに届いた評価とコメントを確認できます。</p>
 
@@ -3006,8 +3006,8 @@ export default function MypageClient() {
                         const percentage = profileReviewCount > 0 ? Math.round((count / denominator) * 100) : 0
                         return (
                           <div key={stars} className="flex items-center gap-3 text-sm">
-                            <div className="w-12 shrink-0 text-zinc-300">星{stars}</div>
-                            <div className="h-3 flex-1 overflow-hidden rounded-full bg-zinc-800">
+                            <div className="w-10 shrink-0 text-zinc-300 md:w-12">星{stars}</div>
+                            <div className="h-3 min-w-0 flex-1 overflow-hidden rounded-full bg-zinc-800">
                               <div
                                 className="h-full rounded-full bg-red-500 transition-all"
                                 style={{ width: `${percentage}%` }}
@@ -3017,7 +3017,7 @@ export default function MypageClient() {
                             <button
                               type="button"
                               onClick={() => setSelectedReviewStars((prev) => (prev === stars ? null : stars))}
-                              className={`w-16 shrink-0 text-right transition-colors ${
+                              className={`min-w-14 shrink-0 text-right transition-colors ${
                                 selectedReviewStars === stars
                                   ? "font-semibold text-red-300"
                                   : "text-zinc-400 hover:text-zinc-200"
@@ -3051,11 +3051,14 @@ export default function MypageClient() {
                       {filteredReviewComments.length === 0 ? (
                         <p className="mt-3 text-sm text-zinc-500">コメント付きの評価はまだありません。</p>
                       ) : (
-                        <div className="mt-4 max-h-96 space-y-3 overflow-y-auto pr-1">
+                        <div className="mt-4 max-h-96 w-full space-y-3 overflow-y-auto pr-1 md:max-h-none md:overflow-visible">
                           {filteredReviewComments.map((reviewComment) => {
                             const displayDate = formatRatingDate(reviewComment.createdAt)
                             return (
-                              <article key={reviewComment.id} className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
+                              <article
+                                key={reviewComment.id}
+                                className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 md:p-5"
+                              >
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                   <p className="text-sm font-semibold text-white">{reviewComment.senderName}</p>
                                   <div className="flex items-center gap-2">

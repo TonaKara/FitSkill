@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useLayoutEffect, useRef } from "react"
+import { useCallback, useLayoutEffect, useRef, useState } from "react"
 import { cn } from "@/lib/utils"
 
 const MIN_ROWS = 1
@@ -17,13 +17,12 @@ function minTextareaHeightPx(): number {
   return LINE_HEIGHT_PX * MIN_ROWS + PADDING_Y_PX
 }
 
-function resizeTextarea(el: HTMLTextAreaElement) {
-  const maxHeight = maxTextareaHeightPx()
-  const minHeight = minTextareaHeightPx()
-  el.style.height = "auto"
-  const next = Math.min(Math.max(el.scrollHeight, minHeight), maxHeight)
-  el.style.height = `${next}px`
-  el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden"
+function measureTextareaContentHeight(el: HTMLTextAreaElement): number {
+  const previousHeight = el.style.height
+  el.style.height = "0px"
+  const contentHeight = el.scrollHeight
+  el.style.height = previousHeight
+  return contentHeight
 }
 
 export type ChatComposerTextareaProps = {
@@ -51,18 +50,43 @@ export function ChatComposerTextarea({
   "aria-label": ariaLabel,
 }: ChatComposerTextareaProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [heightPx, setHeightPx] = useState(minTextareaHeightPx)
+  const [overflowY, setOverflowY] = useState<"auto" | "hidden">("hidden")
 
   const syncHeight = useCallback(() => {
     const el = textareaRef.current
     if (!el) {
       return
     }
-    resizeTextarea(el)
+    const maxHeight = maxTextareaHeightPx()
+    const minHeight = minTextareaHeightPx()
+    const contentHeight = measureTextareaContentHeight(el)
+    const next = Math.min(Math.max(contentHeight, minHeight), maxHeight)
+    setHeightPx(next)
+    setOverflowY(contentHeight > maxHeight ? "auto" : "hidden")
   }, [])
 
   useLayoutEffect(() => {
     syncHeight()
   }, [value, syncHeight])
+
+  useLayoutEffect(() => {
+    const el = textareaRef.current
+    if (!el || typeof ResizeObserver === "undefined") {
+      return
+    }
+    const observer = new ResizeObserver(() => {
+      syncHeight()
+    })
+    observer.observe(el)
+    return () => {
+      observer.disconnect()
+    }
+  }, [syncHeight])
+
+  const handleChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    onChange(event.target.value)
+  }
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) {
@@ -77,6 +101,8 @@ export function ChatComposerTextarea({
     onSubmit()
   }
 
+  const maxHeight = maxTextareaHeightPx()
+
   return (
     <textarea
       ref={textareaRef}
@@ -88,19 +114,21 @@ export function ChatComposerTextarea({
       maxLength={maxLength}
       aria-label={ariaLabel ?? placeholder}
       autoComplete="off"
-      onChange={(event) => onChange(event.target.value)}
+      onChange={handleChange}
+      onInput={syncHeight}
       onKeyDown={handleKeyDown}
       className={cn(
-        "min-h-[2.5rem] min-w-0 flex-1 resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm leading-6 text-foreground",
+        "box-border block min-w-0 flex-1 resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm leading-6 text-foreground",
         "placeholder:text-muted-foreground",
-        "transition-[height,border-color,box-shadow] duration-150",
+        "transition-[border-color,box-shadow] duration-150",
         "focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25",
         "disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}
       style={{
-        maxHeight: maxTextareaHeightPx(),
-        overflowY: "hidden",
+        height: heightPx,
+        maxHeight,
+        overflowY,
       }}
     />
   )

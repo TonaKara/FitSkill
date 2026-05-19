@@ -98,7 +98,7 @@ export function TransactionReviewCard({
 
   return (
     <>
-      <div className="w-full max-w-md rounded-2xl border border-emerald-600/35 bg-emerald-50 px-4 py-3 text-center shadow-sm dark:border-emerald-700/35 dark:bg-emerald-950/25">
+      <div className="w-full max-w-md rounded-2xl border border-emerald-600/35 bg-emerald-50 px-4 py-3 text-center shadow-sm md:max-w-2xl dark:border-emerald-700/35 dark:bg-emerald-950/25">
         <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100/95">
           取引が終了しました。{peerNoun}を評価してください。
         </p>
@@ -127,7 +127,7 @@ export function TransactionReviewCard({
           aria-labelledby="tx-review-title"
         >
           <div
-            className="w-full max-w-md rounded-xl border border-border bg-card p-5 text-card-foreground shadow-2xl"
+            className="w-full max-w-md rounded-xl border border-border bg-card p-5 text-card-foreground shadow-2xl md:max-w-2xl md:p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between gap-2">
@@ -170,7 +170,7 @@ export function TransactionReviewCard({
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="コメント（任意）"
-              className={cn(chatUi.textarea, "mb-4 min-h-[88px]")}
+              className={cn(chatUi.textarea, "mb-4 w-full min-h-[88px] md:min-h-[140px]")}
               maxLength={2000}
               disabled={submitting}
               rows={4}
