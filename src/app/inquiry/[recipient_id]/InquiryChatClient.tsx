@@ -5,6 +5,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, Loader2 } from "lucide-react"
+import { ChatComposerTextarea } from "@/components/chat/ChatComposerTextarea"
 import { Button } from "@/components/ui/button"
 import { InquiryInboxList, type InquiryPeerProfile } from "@/components/inquiry/InquiryInboxList"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
@@ -14,6 +15,7 @@ import {
   fetchInquiryInboxList,
   fetchInquiryThreadMessages,
   insertInquiryMessage,
+  mapInquiryMessageRow,
   markInquiryThreadRead,
   type InquiryInboxListRow,
   type InquiryMessageRow,
@@ -50,6 +52,42 @@ function mapRecordToSkillHeader(rec: Record<string, unknown>): SkillHeaderRow | 
     category: String(rec.category ?? ""),
     thumbnail_url: (rec.thumbnail_url as string | null) ?? null,
   }
+}
+
+function inquiryMessageIdKey(id: string): string {
+  return id
+}
+
+function mergeInquiryMessageRow(prev: InquiryMessageRow[], row: InquiryMessageRow): InquiryMessageRow[] {
+  const key = inquiryMessageIdKey(row.id)
+  if (prev.some((m) => inquiryMessageIdKey(m.id) === key)) {
+    return prev
+  }
+  return [...prev, row].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  )
+}
+
+function applyInquiryMessageUpdate(prev: InquiryMessageRow[], row: InquiryMessageRow): InquiryMessageRow[] {
+  const key = inquiryMessageIdKey(row.id)
+  const idx = prev.findIndex((m) => inquiryMessageIdKey(m.id) === key)
+  if (idx === -1) {
+    return mergeInquiryMessageRow(prev, row)
+  }
+  const next = [...prev]
+  next[idx] = row
+  return next
+}
+
+function isInquiryThreadPair(
+  row: Pick<InquiryMessageRow, "sender_id" | "recipient_id">,
+  userId: string,
+  peerId: string,
+): boolean {
+  return (
+    (row.sender_id === userId && row.recipient_id === peerId) ||
+    (row.sender_id === peerId && row.recipient_id === userId)
+  )
 }
 
 function buildInquiryTimeline(messages: InquiryMessageRow[], skillIdFromQuery: string | null): InquiryTimelineItem[] {
@@ -278,13 +316,26 @@ export function InquiryChatClient() {
       setMessagesError(error)
     } else {
       setMessages(rows)
-      const { error: readErr } = await markInquiryThreadRead(supabase, userId, peerId)
-      if (readErr) {
-        console.warn("[inquiry] mark read", readErr)
-        setReadStatusError(`既読更新に失敗しました: ${readErr}`)
-      }
     }
     setMessagesLoading(false)
+  }, [supabase, userId, peerId])
+
+  const markPeerInquiryAsRead = useCallback(async () => {
+    if (!userId || !isUuid(peerId) || peerId === userId) {
+      return
+    }
+    const { error: readErr } = await markInquiryThreadRead(supabase, userId, peerId)
+    if (readErr) {
+      console.warn("[inquiry] mark read", readErr)
+      setReadStatusError(`既読更新に失敗しました: ${readErr}`)
+      return
+    }
+    setReadStatusError(null)
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.recipient_id === userId && m.sender_id === peerId && !m.is_read ? { ...m, is_read: true } : m,
+      ),
+    )
   }, [supabase, userId, peerId])
 
   useEffect(() => {
@@ -339,6 +390,13 @@ export function InquiryChatClient() {
   useEffect(() => {
     void loadMessages()
   }, [loadMessages])
+
+  useEffect(() => {
+    if (messagesLoading || !userId) {
+      return
+    }
+    void markPeerInquiryAsRead()
+  }, [messagesLoading, userId, markPeerInquiryAsRead])
 
   useEffect(() => {
     initialScrollDoneRef.current = false
@@ -549,18 +607,30 @@ export function InquiryChatClient() {
       return
     }
 
-    const maybeRefreshForThread = (payload: { new: Record<string, unknown>; old: Record<string, unknown> }) => {
-      const sid = String(payload.new.sender_id ?? payload.old.sender_id ?? "")
-      const rid = String(payload.new.recipient_id ?? payload.old.recipient_id ?? "")
-      const hasPair = sid.length > 0 && rid.length > 0
-      const inThread = hasPair
-        ? (sid === userId && rid === peerId) || (sid === peerId && rid === userId)
-        : true
-      if (!inThread) {
+    const handleRealtimePayload = (payload: { eventType: string; new: unknown; old: unknown }) => {
+      if (payload.eventType === "INSERT") {
+        const row = mapInquiryMessageRow((payload.new as Record<string, unknown>) ?? {})
+        if (!row || !isInquiryThreadPair(row, userId, peerId)) {
+          return
+        }
+        setMessages((prev) => mergeInquiryMessageRow(prev, row))
+        if (row.recipient_id === userId) {
+          void markPeerInquiryAsRead()
+        }
+        void loadInbox()
         return
       }
-      void loadMessages()
-      void loadInbox()
+
+      if (payload.eventType === "UPDATE") {
+        const row = mapInquiryMessageRow((payload.new as Record<string, unknown>) ?? {})
+        if (!row || !isInquiryThreadPair(row, userId, peerId)) {
+          return
+        }
+        setMessages((prev) => applyInquiryMessageUpdate(prev, row))
+        if (row.sender_id === userId) {
+          void loadInbox()
+        }
+      }
     }
 
     const ch = supabase
@@ -568,29 +638,23 @@ export function InquiryChatClient() {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "inquiry_messages" },
-        (payload) => {
-          maybeRefreshForThread({
-            new: (payload.new as Record<string, unknown>) ?? {},
-            old: (payload.old as Record<string, unknown>) ?? {},
-          })
-        },
+        handleRealtimePayload,
       )
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "inquiry_messages" },
-        (payload) => {
-          maybeRefreshForThread({
-            new: (payload.new as Record<string, unknown>) ?? {},
-            old: (payload.old as Record<string, unknown>) ?? {},
-          })
-        },
+        handleRealtimePayload,
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR") {
+          console.error("[inquiry] inquiry_messages realtime subscription failed", { peerId, status })
+        }
+      })
 
     return () => {
       void supabase.removeChannel(ch)
     }
-  }, [userId, peerId, supabase, loadMessages, loadInbox])
+  }, [userId, peerId, supabase, markPeerInquiryAsRead, loadInbox])
 
   const handleSend = async () => {
     if (!userId || !isUuid(peerId) || peerId === userId) {
@@ -839,25 +903,30 @@ export function InquiryChatClient() {
           <div className="shrink-0 border-t border-border bg-card p-3 md:p-4">
             {sendError ? <p className="mb-2 text-center text-xs text-red-400">{sendError}</p> : null}
             {readStatusError ? <p className="mb-2 text-center text-xs text-amber-300">{readStatusError}</p> : null}
-            <div className="flex gap-2">
-              <textarea
+            <div className="flex items-end gap-2">
+              <ChatComposerTextarea
                 value={text}
-                onChange={(e) => setText(e.target.value)}
-                rows={2}
+                onChange={setText}
                 placeholder="メッセージを入力..."
-                className="min-h-[44px] flex-1 resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                disabled={sending || effectiveOriginSkillId == null}
+                onSubmit={() => void handleSend()}
+                className="focus:border-red-500 focus:ring-red-500/25"
               />
               <Button
                 type="button"
                 disabled={sending || effectiveOriginSkillId == null}
                 onClick={() => void handleSend()}
-                className="h-auto shrink-0 self-end bg-red-600 px-4 font-bold text-white hover:bg-red-500 disabled:opacity-50"
+                className="mb-0.5 h-auto shrink-0 bg-red-600 px-4 font-bold text-white hover:bg-red-500 disabled:opacity-50"
               >
                 {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : "送信"}
               </Button>
             </div>
-            <p className="mt-2 text-center text-[10px] text-muted-foreground">
+            <p className="mt-2 text-center text-[10px] leading-relaxed text-muted-foreground">
               取引成立後のやり取りはスキル購入後に生成される専用の取引チャットをご利用ください。
+              <span className="hidden md:inline">
+                <br />
+                PCでは Enter で送信、Shift+Enter で改行できます。
+              </span>
             </p>
           </div>
         </div>

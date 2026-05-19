@@ -41,7 +41,7 @@ function mapInquiryInboxListRow(raw: Record<string, unknown>): InquiryInboxListR
   }
 }
 
-function mapInquiryMessageRow(raw: Record<string, unknown>): InquiryMessageRow | null {
+export function mapInquiryMessageRow(raw: Record<string, unknown>): InquiryMessageRow | null {
   const origin = normalizeSkillBigIntId(raw.origin_skill_id)
   if (origin == null) {
     return null

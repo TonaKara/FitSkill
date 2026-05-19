@@ -30,6 +30,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { autoCompleteMyPendingTransactionsWithPayout, completeTransactionWithPayout } from "@/actions/payout"
 import { createTransactionNotification, NOTIFICATION_TYPE } from "@/lib/transaction-notifications"
 import { DisputeEvidenceImage } from "@/components/DisputeEvidenceImage"
+import { ChatComposerTextarea } from "@/components/chat/ChatComposerTextarea"
 import { TransactionReviewCard } from "@/components/chat/TransactionReviewCard"
 import { fetchMyTransactionReview, type TransactionReviewRow } from "@/lib/transaction-reviews"
 import { ALLOWED_EXTERNAL_TOOLS_SLASH } from "@/lib/allowed-external-tools"
@@ -401,6 +402,7 @@ export default function ChatTransactionPage() {
 
   const listRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const composerFormRef = useRef<HTMLFormElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const disputeEvidenceInputRef = useRef<HTMLInputElement>(null)
   /** 異議申し立てフォーム・関連ボタン領域（外側クリックでフォームを閉じる判定用） */
@@ -817,49 +819,88 @@ export default function ChatTransactionPage() {
       return
     }
 
+    const handleRealtimePayload = (payload: { eventType: string; new: unknown; old: unknown }) => {
+      if (payload.eventType === "INSERT") {
+        const row = payload.new as MessageRow
+        if (!row?.id) {
+          return
+        }
+        setMessages((prev) => mergeMessageRow(prev, row))
+        if (String(row.sender_id) !== String(userId)) {
+          shouldAutoScrollRef.current = true
+          void markPeerMessagesAsRead()
+        }
+        return
+      }
+      if (payload.eventType === "UPDATE") {
+        const row = payload.new as MessageRow
+        if (!row?.id) {
+          return
+        }
+        setMessages((prev) => applyMessageUpdate(prev, row))
+        return
+      }
+      if (payload.eventType === "DELETE") {
+        const oldRow = payload.old as Partial<MessageRow> & { id?: unknown }
+        const id = oldRow?.id
+        if (id == null) {
+          return
+        }
+        setMessages((prev) => prev.filter((m) => messageIdKey(m.id) !== messageIdKey(id)))
+      }
+    }
+
     const channel = supabase
       .channel(`messages:${transactionId}`)
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "INSERT",
           schema: "public",
           table: "messages",
           filter: `transaction_id=eq.${transactionId}`,
         },
-        (payload: { eventType: string; new: unknown; old: unknown }) => {
-          if (payload.eventType === "INSERT") {
-            const row = payload.new as MessageRow
-            if (!row?.id) {
-              return
-            }
-            setMessages((prev) => mergeMessageRow(prev, row))
-            return
-          }
-          if (payload.eventType === "UPDATE") {
-            const row = payload.new as MessageRow
-            if (!row?.id) {
-              return
-            }
-            setMessages((prev) => applyMessageUpdate(prev, row))
-            return
-          }
-          if (payload.eventType === "DELETE") {
-            const oldRow = payload.old as Partial<MessageRow> & { id?: unknown }
-            const id = oldRow?.id
-            if (id == null) {
-              return
-            }
-            setMessages((prev) => prev.filter((m) => messageIdKey(m.id) !== messageIdKey(id)))
-          }
-        },
+        handleRealtimePayload,
       )
-      .subscribe()
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "messages",
+          filter: `transaction_id=eq.${transactionId}`,
+        },
+        handleRealtimePayload,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "messages",
+          filter: `transaction_id=eq.${transactionId}`,
+        },
+        handleRealtimePayload,
+      )
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR") {
+          console.error("[chat] messages realtime subscription failed", { transactionId, status })
+        }
+      })
+
+    /** Realtime 未設定環境向け: 表示中は定期的に差分同期 */
+    const pollId = window.setInterval(() => {
+      if (document.visibilityState !== "visible") {
+        return
+      }
+      void loadMessages({ silent: true })
+    }, 8000)
 
     return () => {
+      window.clearInterval(pollId)
       void supabase.removeChannel(channel)
     }
-  }, [supabase, transactionId, transaction, userId])
+  }, [supabase, transactionId, transaction, userId, markPeerMessagesAsRead, loadMessages])
 
   useEffect(() => {
     if (!messagesEndRef.current) {
@@ -1768,6 +1809,7 @@ export default function ChatTransactionPage() {
 
       <footer className="shrink-0 border-t border-border bg-card/95 backdrop-blur">
         <form
+          ref={composerFormRef}
           onSubmit={(e) => void handleSend(e)}
           className="mx-auto flex max-w-2xl flex-col gap-2 px-4 py-3"
         >
@@ -1799,7 +1841,7 @@ export default function ChatTransactionPage() {
               <p className="mt-1 truncate text-center text-[11px] text-muted-foreground">{file.name}</p>
             </div>
           ) : null}
-          <div className="flex gap-2">
+          <div className="flex items-end gap-2">
             <input
               ref={fileInputRef}
               type="file"
@@ -1813,7 +1855,7 @@ export default function ChatTransactionPage() {
               variant="outline"
               size="icon"
               disabled={!canSend || sending || linkSending}
-              className="shrink-0 border-border bg-background text-foreground hover:border-primary hover:bg-muted"
+              className="mb-0.5 shrink-0 border-border bg-background text-foreground hover:border-primary hover:bg-muted"
               aria-label="画像または動画を添付"
               onClick={() => fileInputRef.current?.click()}
             >
@@ -1825,7 +1867,7 @@ export default function ChatTransactionPage() {
                 variant="outline"
                 size="icon"
                 disabled={!canSend || sending || linkSending}
-              className="shrink-0 border-border bg-background text-foreground hover:border-primary hover:bg-muted"
+              className="mb-0.5 shrink-0 border-border bg-background text-foreground hover:border-primary hover:bg-muted"
               aria-label={
                 isSeller
                   ? `外部ツール連携（${ALLOWED_EXTERNAL_TOOLS_SLASH}）`
@@ -1836,19 +1878,19 @@ export default function ChatTransactionPage() {
                 <Link2 className="h-4 w-4" />
               </Button>
             ) : null}
-            <Input
+            <ChatComposerTextarea
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={setText}
               placeholder={canSend ? "メッセージを入力..." : "送信できません"}
               disabled={!canSend || sending || linkSending}
-              className="border-border bg-background text-foreground placeholder:text-muted-foreground"
               maxLength={8000}
-              autoComplete="off"
+              onSubmit={() => composerFormRef.current?.requestSubmit()}
             />
             <Button
               type="submit"
               disabled={!canSend || sending || linkSending || (!text.trim() && !file)}
-              className="shrink-0 bg-red-600 text-white hover:bg-red-500"
+              className="mb-0.5 shrink-0 bg-red-600 text-white hover:bg-red-500"
+              aria-label="送信"
             >
               {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
@@ -1866,6 +1908,10 @@ export default function ChatTransactionPage() {
                   : isBuyer
                     ? "リンクアイコンから外部ツール（YouTube）連携ができます。"
                     : "リンクアイコンから外部ツール連携ができます。"}
+                <span className="hidden md:inline">
+                  <br />
+                  PCでは Enter で送信、Shift+Enter で改行できます。
+                </span>
               </>
             )}
           </p>
