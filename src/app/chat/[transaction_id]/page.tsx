@@ -30,8 +30,24 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { autoCompleteMyPendingTransactionsWithPayout, completeTransactionWithPayout } from "@/actions/payout"
 import { createTransactionNotification, NOTIFICATION_TYPE } from "@/lib/transaction-notifications"
 import { DisputeEvidenceImage } from "@/components/DisputeEvidenceImage"
+import { ChatAttachmentFileCard } from "@/components/chat/ChatAttachmentFileCard"
 import { ChatComposerTextarea } from "@/components/chat/ChatComposerTextarea"
 import { TransactionReviewCard } from "@/components/chat/TransactionReviewCard"
+import {
+  buildChatFileMessageContent,
+  buildChatFileUploadPath,
+  CHAT_FILE_INPUT_ACCEPT,
+  CHAT_MEDIA_BUCKET,
+  classifyChatFile,
+  displayFileNameFromStoragePath,
+  isMessageGenericAttachmentType,
+  isMessageImageType,
+  isMessageVideoType,
+  messageDisplayText,
+  parseChatFileMessageContent,
+  storedFileTypeForUpload,
+  validateChatAttachmentFile,
+} from "@/lib/chat-file-attachments"
 import { fetchMyTransactionReview, type TransactionReviewRow } from "@/lib/transaction-reviews"
 import { ALLOWED_EXTERNAL_TOOLS_SLASH } from "@/lib/allowed-external-tools"
 import { chatUi } from "@/lib/chat-ui"
@@ -100,10 +116,8 @@ function extractSupabaseErrorDetails(error: unknown): {
   }
 }
 
-const CHAT_MEDIA_BUCKET = "chat-media"
 /** Supabase Storage のバケット ID（必ず `dispute-evidence` と一致させる） */
 const DISPUTE_EVIDENCE_BUCKET = "dispute-evidence" as const
-const MAX_CHAT_FILE_BYTES = 10 * 1024 * 1024
 const MAX_DISPUTE_EVIDENCE_BYTES = 10 * 1024 * 1024
 
 /** LIKE やストレージで問題になりやすい文字を除き、encodeURIComponent で `%` が増えすぎないよう ASCII に寄せる */
@@ -178,10 +192,21 @@ type ChatMediaSignedProps = {
   /** ストレージオブジェクトキー（例: `18/filename.png`） */
   path: string
   fileType: string | null
+  fileName?: string
+  fileSizeBytes?: number | null
+  mine?: boolean
   onExpand?: (media: ExpandedMedia) => void
 }
 
-function ChatMediaSigned({ supabase, path, fileType, onExpand }: ChatMediaSignedProps) {
+function ChatMediaSigned({
+  supabase,
+  path,
+  fileType,
+  fileName,
+  fileSizeBytes,
+  mine,
+  onExpand,
+}: ChatMediaSignedProps) {
   const [signedUrl, setSignedUrl] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
 
@@ -227,6 +252,19 @@ function ChatMediaSigned({ supabase, path, fileType, onExpand }: ChatMediaSigned
           onClick={() => onExpand?.({ url: signedUrl, type: "video" })}
         />
       </div>
+    )
+  }
+
+  if (isMessageGenericAttachmentType(fileType, true)) {
+    return (
+      <ChatAttachmentFileCard
+        fileName={fileName ?? displayFileNameFromStoragePath(path)}
+        fileSizeBytes={fileSizeBytes ?? null}
+        downloadUrl={signedUrl}
+        failed={failed}
+        loading={!signedUrl && !failed}
+        mine={mine}
+      />
     )
   }
 
@@ -281,33 +319,6 @@ function formatMessageTime(iso: string): string {
   return `${hh}:${mm}`
 }
 
-function extensionFromMime(mime: string, fallback: string): string {
-  const map: Record<string, string> = {
-    "image/jpeg": "jpg",
-    "image/png": "png",
-    "image/gif": "gif",
-    "image/webp": "webp",
-    "video/mp4": "mp4",
-    "video/webm": "webm",
-    "video/quicktime": "mov",
-  }
-  return map[mime] ?? fallback
-}
-
-function isMessageVideoType(t: string | null | undefined): boolean {
-  return t === "video" || (typeof t === "string" && t.startsWith("video/"))
-}
-
-function fileKindFromFile(file: File): "image" | "video" | null {
-  if (file.type.startsWith("image/")) {
-    return "image"
-  }
-  if (file.type.startsWith("video/")) {
-    return "video"
-  }
-  return null
-}
-
 /** メディアのみ送信時のプレースホルダーは本文として重複表示しない */
 function shouldShowMessageText(m: MessageRow): boolean {
   if (m.file_type === CHAT_LINK_FILE_TYPE) {
@@ -319,17 +330,7 @@ function shouldShowMessageText(m: MessageRow): boolean {
   if (!m.file_url && extractYoutubeUrlFromPlainContent(m.content)) {
     return false
   }
-  const t = m.content?.trim() ?? ""
-  if (!t) {
-    return false
-  }
-  if (
-    m.file_url &&
-    (t === "[画像]" || t === "[動画]" || t === "[ファイル]")
-  ) {
-    return false
-  }
-  return true
+  return messageDisplayText(m).trim().length > 0
 }
 
 export default function ChatTransactionPage() {
@@ -996,12 +997,9 @@ export default function ChatTransactionPage() {
     if (!picked || !canSend || sending || linkSending || isClosed) {
       return
     }
-    if (picked.size > MAX_CHAT_FILE_BYTES) {
-      window.alert("ファイルサイズは10MB以下にしてください。")
-      return
-    }
-    if (!fileKindFromFile(picked)) {
-      window.alert("画像または動画のみ送信できます。")
+    const validation = validateChatAttachmentFile(picked)
+    if (!validation.ok) {
+      window.alert(validation.error)
       return
     }
     setSendError(null)
@@ -1028,20 +1026,16 @@ export default function ChatTransactionPage() {
     let fileUrl: string | null = null
     let mediaType: string | null = null
 
+    let messageContent = trimmed
+
     if (file) {
-      if (file.size > MAX_CHAT_FILE_BYTES) {
-        window.alert("ファイルサイズは10MB以下にしてください。")
+      const validation = validateChatAttachmentFile(file)
+      if (!validation.ok) {
+        window.alert(validation.error)
         setSending(false)
         return
       }
-      const kind = fileKindFromFile(file)
-      if (!kind) {
-        window.alert("画像または動画のみ送信できます。")
-        setSending(false)
-        return
-      }
-      const ext = extensionFromMime(file.type, file.name.split(".").pop() ?? "bin")
-      const path = `${transactionId}/${crypto.randomUUID()}.${ext}`
+      const path = buildChatFileUploadPath(String(transactionId), file)
       const { data: upData, error: upErr } = await supabase.storage.from(CHAT_MEDIA_BUCKET).upload(path, file, {
         contentType: file.type || undefined,
         upsert: false,
@@ -1052,11 +1046,12 @@ export default function ChatTransactionPage() {
         return
       }
       fileUrl = upData.path
-      mediaType = kind
+      mediaType = storedFileTypeForUpload(file, validation.kind)
+      messageContent = buildChatFileMessageContent(trimmed, { name: file.name, size: file.size })
     }
 
     const ok = await insertMessage({
-      content: trimmed,
+      content: messageContent,
       file_url: fileUrl,
       file_type: mediaType,
     })
@@ -1675,6 +1670,8 @@ export default function ChatTransactionPage() {
             const isYoutubeMessage =
               (linkPayload?.kind === "youtube") || Boolean(youtubeFromFileType) || Boolean(plainRichYoutubeUrl)
             const bubbleWidthClass = isYoutubeMessage ? "w-full max-w-[400px]" : "max-w-[85%]"
+            const fileMeta = m.file_url ? parseChatFileMessageContent(m.content).meta : null
+            const visibleText = messageDisplayText(m)
 
             const bubble = (
               <div
@@ -1710,13 +1707,14 @@ export default function ChatTransactionPage() {
                         supabase={supabase}
                         path={m.file_url}
                         fileType={m.file_type}
+                        fileName={fileMeta?.name}
+                        fileSizeBytes={fileMeta?.size ?? null}
+                        mine={mine}
                         onExpand={(media) => setExpandedMedia(media)}
                       />
                     ) : null}
-                    {m.content?.trim() ? (
-                      <p className="whitespace-pre-wrap break-words">{m.content}</p>
-                    ) : !m.file_url && shouldShowMessageText(m) ? (
-                      <p className="whitespace-pre-wrap break-words">{m.content}</p>
+                    {visibleText ? (
+                      <p className="whitespace-pre-wrap break-words">{visibleText}</p>
                     ) : null}
                   </div>
                 )}
@@ -1826,14 +1824,20 @@ export default function ChatTransactionPage() {
               >
                 <X className="h-4 w-4" />
               </Button>
-              <div className="flex min-h-[5rem] max-h-40 items-center justify-center overflow-hidden rounded-md bg-muted/60">
-                {previewUrl ? (
-                  file.type.startsWith("image/") ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- ローカルプレビュー用 blob URL
-                    <img src={previewUrl} alt="" className="max-h-40 w-full object-contain" />
-                  ) : (
-                    <video src={previewUrl} controls className="max-h-40 w-full object-contain" preload="metadata" />
-                  )
+              <div className="flex min-h-[5rem] max-h-48 items-center justify-center overflow-hidden rounded-md bg-muted/60 p-2">
+                {previewUrl && classifyChatFile(file) === "image" ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- ローカルプレビュー用 blob URL
+                  <img src={previewUrl} alt="" className="max-h-44 w-full object-contain" />
+                ) : previewUrl && classifyChatFile(file) === "video" ? (
+                  <video src={previewUrl} controls className="max-h-44 w-full object-contain" preload="metadata" />
+                ) : file ? (
+                  <ChatAttachmentFileCard
+                    fileName={file.name}
+                    fileSizeBytes={file.size}
+                    downloadUrl={null}
+                    pending
+                    className="border-0 bg-transparent"
+                  />
                 ) : (
                   <Loader2 className="h-6 w-6 animate-spin text-red-500" aria-hidden />
                 )}
@@ -1845,7 +1849,7 @@ export default function ChatTransactionPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*,video/*"
+              accept={CHAT_FILE_INPUT_ACCEPT}
               className="hidden"
               disabled={!canSend || sending || linkSending}
               onChange={handleFileSelect}
@@ -1856,7 +1860,7 @@ export default function ChatTransactionPage() {
               size="icon"
               disabled={!canSend || sending || linkSending}
               className="mb-0.5 shrink-0 border-border bg-background text-foreground hover:border-primary hover:bg-muted"
-              aria-label="画像または動画を添付"
+              aria-label="ファイルを添付"
               onClick={() => fileInputRef.current?.click()}
             >
               <Plus className="h-4 w-4" />
@@ -1900,8 +1904,9 @@ export default function ChatTransactionPage() {
               "利用停止中は進行中取引のチャット閲覧のみ可能です。"
             ) : (
               <>
-                ＋で画像や動画の選択ができます（1ファイル
-                <strong className="font-medium text-muted-foreground">10MB以下</strong>・画像または動画のみ）。
+                ＋でファイルを添付できます（1ファイル
+                <strong className="font-medium text-muted-foreground">50MB以下</strong>
+                ・画像・動画・PDF・Office・テキスト等。実行ファイルは不可）。
                 <br />
                 {isSeller
                   ? `リンクアイコンから外部ツール（${ALLOWED_EXTERNAL_TOOLS_SLASH}）連携ができます。`
