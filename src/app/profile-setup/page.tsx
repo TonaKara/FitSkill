@@ -40,6 +40,7 @@ import {
   markPostEmailConfirmLoginHelpDone,
 } from "@/lib/auth-email-flow"
 import { getSiteUrl } from "@/lib/site-seo"
+import { useTranslations } from "@/lib/i18n/useI18n"
 
 function revokeBlobUrl(url: string) {
   if (url.startsWith("blob:")) {
@@ -48,12 +49,14 @@ function revokeBlobUrl(url: string) {
 }
 
 const SAVE_SUCCESS_TOAST_MS = 1000
-const GENERIC_SAVE_FAILED = "保存に失敗しました。時間を置いて再度お試しください。"
 
 export default function ProfileSetupPage() {
   const router = useRouter()
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
   const avatarInputRef = useRef<HTMLInputElement>(null)
+  const t = useTranslations("profileSetup")
+  const tCommon = useTranslations("common")
+  const tToasts = useTranslations("profileSetupToasts")
   const [authLoading, setAuthLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
   const [profileLoading, setProfileLoading] = useState(true)
@@ -126,7 +129,7 @@ export default function ProfileSetupPage() {
 
     if (error) {
       setNotice(
-        toErrorNotice(error, isAdmin, { unknownErrorMessage: "プロフィールの読み込みに失敗しました。" }),
+        toErrorNotice(error, isAdmin, { unknownErrorMessage: tToasts("profileLoadFailed") }),
       )
       setProfileLoading(false)
       return
@@ -197,7 +200,7 @@ export default function ProfileSetupPage() {
       return
     }
     if (!file.type.startsWith("image/")) {
-      setNotice({ variant: "error", message: "画像ファイル（jpg/png/webp等）を選択してください。" })
+      setNotice({ variant: "error", message: tToasts("imageFileRequired") })
       event.target.value = ""
       return
     }
@@ -247,7 +250,7 @@ export default function ProfileSetupPage() {
     } = supabase.storage.from(AVATARS_STORAGE_BUCKET).getPublicUrl(objectKey)
 
     if (!publicUrl) {
-      throw new Error("アイコン画像の公開URL取得に失敗しました。")
+      throw new Error(tToasts("avatarPublicUrlFailed"))
     }
 
     return publicUrl
@@ -304,7 +307,7 @@ export default function ProfileSetupPage() {
     if (normalizedSavedCustomId.length > 0 && normalizedCustomId !== normalizedSavedCustomId) {
       setNotice({
         variant: "error",
-        message: "カスタムIDは一度設定すると変更できません。",
+        message: tToasts("customIdLocked"),
       })
       return
     }
@@ -313,14 +316,14 @@ export default function ProfileSetupPage() {
         setNotice({
           variant: "error",
           message:
-            "カスタムIDは英小文字で開始し、3〜30文字の英小文字・数字・_・-のみ使用できます。",
+            tToasts("customIdValidation"),
         })
         return
       }
       if (isReservedCustomId(normalizedCustomId)) {
         setNotice({
           variant: "error",
-          message: "そのカスタムIDは予約語のため利用できません。",
+          message: tToasts("customIdReserved"),
         })
         return
       }
@@ -393,7 +396,7 @@ export default function ProfileSetupPage() {
           ].filter((s): s is string => typeof s === "string" && s.trim().length > 0)
           setNotice({
             variant: "error",
-            message: parts.length > 0 ? parts.join(" — ") : GENERIC_SAVE_FAILED,
+            message: parts.length > 0 ? parts.join(" — ") : tToasts("genericSaveFailed"),
           })
         } else {
           const rawErr =
@@ -401,11 +404,11 @@ export default function ProfileSetupPage() {
               ? responsePayload.error.trim()
               : ""
           const allowedUserMessages = new Set([
-            GENERIC_SAVE_FAILED,
-            "保存に失敗しました。",
-            "このカスタムIDは既に使用されています。",
+            tToasts("genericSaveFailed"),
+            tToasts("saveFailed"),
+            tToasts("customIdTaken"),
           ])
-          const apiMsg = rawErr && allowedUserMessages.has(rawErr) ? rawErr : GENERIC_SAVE_FAILED
+          const apiMsg = rawErr && allowedUserMessages.has(rawErr) ? rawErr : tToasts("genericSaveFailed")
           setNotice({ variant: "error", message: apiMsg })
         }
         return
@@ -422,8 +425,8 @@ export default function ProfileSetupPage() {
         setNotice({
           variant: "success",
           message: isAdmin
-            ? "プロフィールの内容は保存しました。アイコン画像はサービス上の準備が整うまでアップロードできませんでした。"
-            : "プロフィールを保存しました。アイコン画像は保存できませんでした。しばらくしてから再度お試しください。",
+            ? tToasts("profileSavedAvatarPending")
+            : tToasts("profileSavedAvatarFailed"),
         })
         await loadProfile()
         router.refresh()
@@ -431,7 +434,7 @@ export default function ProfileSetupPage() {
         return
       }
 
-      setNotice({ variant: "success", message: "プロフィールを保存しました。" })
+      setNotice({ variant: "success", message: tToasts("profileSaved") })
       markPostEmailConfirmLoginHelpDone()
       window.setTimeout(() => {
         router.push("/")
@@ -445,7 +448,7 @@ export default function ProfileSetupPage() {
         const msg = fetchError instanceof Error ? fetchError.message : String(fetchError)
         setNotice({ variant: "error", message: `保存に失敗しました: ${msg}` })
       } else {
-        setNotice({ variant: "error", message: GENERIC_SAVE_FAILED })
+        setNotice({ variant: "error", message: tToasts("genericSaveFailed") })
       }
     } finally {
       setSaving(false)
@@ -456,7 +459,7 @@ export default function ProfileSetupPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
         <Loader2 className="mr-2 h-5 w-5 animate-spin text-primary" aria-hidden />
-        読み込み中...
+        {tCommon("loading")}
       </div>
     )
   }
@@ -471,31 +474,31 @@ export default function ProfileSetupPage() {
         isAdmin={isAdmin}
         cropShape="avatar"
         outputPixelSize={{ width: PROFILE_AVATAR_CROP_EXPORT_PX, height: PROFILE_AVATAR_CROP_EXPORT_PX }}
-        heading="プロフィールアイコン"
-        subheading="枠内が保存される範囲です。ドラッグで位置を、ホイールやピンチで拡大・縮小できます。"
+        heading={t("cropModalHeading")}
+        subheading={t("cropModalSubheading")}
       />
       {notice && <NotificationToast notice={notice} onClose={() => setNotice(null)} />}
       <div className="mx-auto max-w-2xl">
         <div className="mb-8 flex flex-wrap items-start justify-between gap-4 border-b border-border pb-6">
           <div>
-            <h1 className="text-2xl font-black tracking-wide text-foreground md:text-3xl">プロフィール設定</h1>
+            <h1 className="text-2xl font-black tracking-wide text-foreground md:text-3xl">{t("title")}</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              アイコン・自己紹介や興味のある分野を登録して、GritVib を始めましょう！
+              {t("subtitle")}
             </p>
           </div>
           <Link
             href="/"
             className="shrink-0 text-sm font-medium text-red-400 underline-offset-4 transition-colors hover:text-red-300 hover:underline"
           >
-            スキップしてホームへ
+            {t("skipToHome")}
           </Link>
         </div>
 
         <form ref={formRef} onSubmit={(e) => void handleSubmit(e)} className="space-y-8">
           <div className="overflow-hidden rounded-2xl border border-primary/25 bg-accent p-6 shadow-sm dark:border-red-500/25 dark:bg-zinc-950/80">
-            <p className="text-sm font-bold text-foreground">プロフィール画像</p>
+            <p className="text-sm font-bold text-foreground">{t("avatarHeading")}</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              プロフィールやチャットなどで表示されるアイコン画像を設定できます（任意）
+              {t("avatarHint")}
             </p>
             <Input
               ref={avatarInputRef}
@@ -508,7 +511,7 @@ export default function ProfileSetupPage() {
               <div className="relative h-28 w-28 shrink-0">
                 <ProfileAvatar
                   src={previewAvatarUrl}
-                  alt="アイコンプレビュー"
+                  alt={t("avatarPreviewAlt")}
                   className="h-28 w-28 border border-border"
                   sizes="112px"
                 />
@@ -517,7 +520,7 @@ export default function ProfileSetupPage() {
                     type="button"
                     onClick={clearAvatarSelection}
                     className="absolute right-1 top-1 inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background/90 text-foreground transition-colors hover:border-red-500 hover:text-red-300"
-                    aria-label="プロフィール画像を削除"
+                    aria-label={t("avatarRemoveAria")}
                   >
                     <X className="h-4 w-4" aria-hidden />
                   </button>
@@ -530,7 +533,7 @@ export default function ProfileSetupPage() {
                   className="h-10 w-full border-red-600 bg-red-600 text-white hover:border-red-500 hover:bg-red-500 sm:w-auto sm:self-start"
                   onClick={() => avatarInputRef.current?.click()}
                 >
-                  画像を選択
+                  {t("avatarSelect")}
                 </Button>
               </div>
             </div>
@@ -538,13 +541,13 @@ export default function ProfileSetupPage() {
 
           <div className="overflow-hidden rounded-2xl border border-primary/25 bg-accent p-6 shadow-sm dark:border-red-500/25 dark:bg-zinc-950/80">
             <label htmlFor="profile-setup-custom-id" className="text-sm font-bold text-foreground">
-              カスタムID（任意・設定推奨）
+              {t("customIdLabel")}
             </label>
             <Input
               id="profile-setup-custom-id"
               value={customId}
               onChange={(e) => setCustomId(normalizeCustomId(e.target.value))}
-              placeholder="例: taro_fit"
+              placeholder={t("customIdPlaceholder")}
               className={`mt-2 border-input placeholder:text-muted-foreground ${
                 customIdLocked
                   ? "cursor-not-allowed bg-muted text-muted-foreground opacity-100"
@@ -554,34 +557,34 @@ export default function ProfileSetupPage() {
               disabled={customIdLocked}
             />
             <p id="profile-setup-custom-id-hint" className="mt-2 text-xs leading-relaxed text-muted-foreground">
-              ストアURLを見やすくできます（例: 『taro_fit』とした場合、
-              {`${siteBaseUrl}/store/taro_fit`} のように表示されます）。英小文字で開始し、3〜30文字の英小文字・数字・アンダーバー・ハイフンが使えます。
-              一度設定したカスタムIDは変更できませんのでご注意ください。
+              {t("customIdHintBefore")}
+              {`${siteBaseUrl}/store/taro_fit`}
+              {t("customIdHintAfter")}
             </p>
             {customIdLocked ? (
               <p className="mt-1 text-xs font-semibold text-muted-foreground">
-                設定済みのため、カスタムIDは編集できません。
+                {t("customIdLocked")}
               </p>
             ) : null}
           </div>
 
           <div className="overflow-hidden rounded-2xl border border-primary/25 bg-accent p-6 shadow-sm dark:border-red-500/25 dark:bg-zinc-950/80">
             <label htmlFor="bio" className="text-sm font-bold text-foreground">
-              自己紹介
+              {t("bioLabel")}
             </label>
             <textarea
               id="bio"
               value={bio}
               onChange={(e) => setBio(e.target.value)}
               rows={5}
-              placeholder="自分の得意なことや経歴、克服したいことなど"
+              placeholder={t("bioPlaceholder")}
               className="mt-2 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
 
           <div className="overflow-hidden rounded-2xl border border-primary/25 bg-accent p-6 shadow-sm dark:border-red-500/25 dark:bg-zinc-950/80">
-            <p className="text-sm font-bold text-foreground">興味のある分野</p>
-            <p className="mt-1 text-xs text-muted-foreground">複数選択できます</p>
+            <p className="text-sm font-bold text-foreground">{t("interestsLabel")}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t("interestsHint")}</p>
             <div className="mt-4">
               <ProfileInterestCategoryPicker
                 selectedCategories={selectedCategories}
@@ -599,10 +602,10 @@ export default function ProfileSetupPage() {
             {saving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                保存中...
+                {t("submitting")}
               </>
             ) : (
-              "保存する"
+              t("submit")
             )}
           </Button>
         </form>
@@ -627,10 +630,10 @@ export default function ProfileSetupPage() {
                 id="profile-setup-custom-id-confirm-title"
                 className="text-base font-semibold leading-relaxed text-foreground"
               >
-                カスタムID設定の確認
+                {t("confirmTitle")}
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                このIDで設定すると、ストアURLは以下になります。
+                {t("confirmIntro")}
               </p>
               <div className="mt-3 min-w-0 w-full overflow-hidden rounded-lg border border-red-500/35 bg-muted px-3 py-2">
                 <p className="font-mono text-xs leading-relaxed break-all text-red-700 dark:text-red-200 [overflow-wrap:anywhere] sm:text-sm">
@@ -638,7 +641,7 @@ export default function ProfileSetupPage() {
                 </p>
               </div>
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                カスタムIDは一度設定すると変更できません。この内容で保存しますか？
+                {t("confirmWarning")}
               </p>
               <div className="mt-6 flex gap-3">
                 <Button
@@ -648,7 +651,7 @@ export default function ProfileSetupPage() {
                   onClick={handleCustomIdConfirmCancel}
                   disabled={saving}
                 >
-                  戻る
+                  {t("confirmCancel")}
                 </Button>
                 <Button
                   type="button"
@@ -656,7 +659,7 @@ export default function ProfileSetupPage() {
                   onClick={handleCustomIdConfirmProceed}
                   disabled={saving}
                 >
-                  このIDで保存する
+                  {t("confirmProceed")}
                 </Button>
               </div>
             </div>

@@ -9,12 +9,14 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { countUnreadNotifications } from "@/lib/transaction-notifications"
 import { GeneralNotificationsList } from "@/components/GeneralNotificationsList"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "@/lib/i18n/useI18n"
 
 type NotifTab = "ops" | "general"
 
 export function NotificationBell() {
   const router = useRouter()
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
+  const t = useTranslations("notifications.bell")
   const [userId, setUserId] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<NotifTab>("general")
@@ -105,7 +107,7 @@ export function NotificationBell() {
         className="relative hover:bg-secondary"
         onClick={onBellClick}
         aria-expanded={open}
-        aria-label="通知"
+        aria-label={t("ariaLabel")}
       >
         <Bell className="h-5 w-5" />
         {userId && unread > 0 ? (
@@ -114,7 +116,7 @@ export function NotificationBell() {
               className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-[var(--accent-color)] ring-2 ring-background"
               aria-hidden
             />
-            <span className="sr-only">{`未読${unread}件`}</span>
+            <span className="sr-only">{t("unreadCount", { count: unread })}</span>
           </>
         ) : null}
       </Button>
@@ -122,7 +124,7 @@ export function NotificationBell() {
         <div
           className="absolute right-0 top-full z-[100] mt-2 w-[min(100vw-2rem,20rem)] rounded-lg border border-border bg-background shadow-xl"
           role="dialog"
-          aria-label="通知"
+          aria-label={t("panelLabel")}
         >
           <div className="flex border-b border-border text-sm">
             <button
@@ -133,7 +135,7 @@ export function NotificationBell() {
                 tab === "ops" ? "border-b-2 border-primary text-foreground" : "text-muted-foreground hover:text-foreground",
               )}
             >
-              運営より
+              {t("tabs.ops")}
             </button>
             <button
               type="button"
@@ -143,7 +145,7 @@ export function NotificationBell() {
                 tab === "general" ? "border-b-2 border-primary text-foreground" : "text-muted-foreground hover:text-foreground",
               )}
             >
-              一般
+              {t("tabs.general")}
             </button>
           </div>
           <div className="py-1">

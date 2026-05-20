@@ -3,6 +3,7 @@
 import { Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { type ReactNode, useEffect, useRef, useState } from "react"
+import { useTranslations } from "@/lib/i18n/useI18n"
 
 const MD_BREAKPOINT_PX = 768
 /** この距離以上引いたら指を離したときに更新 */
@@ -19,6 +20,7 @@ type Props = { children: ReactNode }
  */
 export function MobilePullToRefreshMain({ children }: Props) {
   const router = useRouter()
+  const t = useTranslations("pullToRefresh")
   const mainRef = useRef<HTMLElement | null>(null)
   const [mobileLayout, setMobileLayout] = useState(false)
   const [pullVisual, setPullVisual] = useState(0)
@@ -142,12 +144,12 @@ export function MobilePullToRefreshMain({ children }: Props) {
             {refreshing ? (
               <>
                 <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" aria-hidden />
-                <span>更新中…</span>
+                <span>{t("refreshing")}</span>
               </>
             ) : releaseHint ? (
-              <span>離すと更新</span>
+              <span>{t("releaseToRefresh")}</span>
             ) : (
-              <span>引き下げて更新</span>
+              <span>{t("pullToRefresh")}</span>
             )}
           </div>
         </div>

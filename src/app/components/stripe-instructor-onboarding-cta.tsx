@@ -8,6 +8,7 @@ import {
 } from "@/actions/stripe"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { formatStripeOnboardingUrlErrorForUser } from "@/lib/stripe-payout-error-notice"
+import { useTranslations } from "@/lib/i18n/useI18n"
 import type { AppNotice } from "@/lib/notifications"
 
 type StripeInstructorOnboardingCtaProps = {
@@ -22,6 +23,7 @@ export function StripeInstructorOnboardingCta({
   className,
 }: StripeInstructorOnboardingCtaProps) {
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
+  const t = useTranslations("stripeInstructorOnboarding")
   const [busy, setBusy] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
 
@@ -62,7 +64,7 @@ export function StripeInstructorOnboardingCta({
           variant: "error",
           message: formatStripeOnboardingUrlErrorForUser(
             "not_authenticated",
-            "Stripe の画面を開けませんでした。時間を置いて再度お試しください。",
+            t("openFailedFallback"),
           ),
         })
         return
@@ -74,7 +76,7 @@ export function StripeInstructorOnboardingCta({
           variant: "error",
           message: formatStripeOnboardingUrlErrorForUser(
             result.error,
-            "Stripe の画面を開けませんでした。時間を置いて再度お試しください。",
+            t("openFailedFallback"),
           ),
         })
         return
@@ -88,11 +90,11 @@ export function StripeInstructorOnboardingCta({
         variant: "error",
         message: formatStripeOnboardingUrlErrorForUser(
           raw,
-          "Stripe の画面を開けませんでした。時間を置いて再度お試しください。",
+          t("openFailedFallback"),
         ),
       })
     }
-  }, [onNotice, resolveStripeAccessToken])
+  }, [onNotice, resolveStripeAccessToken, t])
 
   return (
     <>
@@ -106,10 +108,10 @@ export function StripeInstructorOnboardingCta({
           {busy ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-              発行中...
+              {t("issuing")}
             </>
           ) : (
-            "Stripeで講師登録を始める"
+            t("startRegistration")
           )}
         </Button>
       </div>
@@ -128,32 +130,30 @@ export function StripeInstructorOnboardingCta({
             onClick={(event) => event.stopPropagation()}
           >
             <h2 id="stripe-onboarding-confirm-title" className="text-lg font-bold text-foreground">
-              Stripe講師登録の確認
+              {t("confirmTitle")}
             </h2>
 
             <div className="mt-4 rounded-xl border border-border bg-muted/40 p-4">
               <p className="text-sm font-semibold text-foreground">
-                スムーズに登録を進めるため、Stripe上にはデフォルトで以下の内容が入力されます
+                {t("defaultsLead")}
               </p>
               <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-                <li>国: 日本</li>
-                <li>事業形態: 個人事業主</li>
-                <li>業種: 教育 &gt; その他</li>
-                <li>URL: https://gritvib.com</li>
-                <li>
-                  説明: 個人向けストアプラットフォーム「GritVib」において、オンライン相談、デジタルコンテンツの提供、または実面を伴う個人スキルの取引・レッスン等のサービスを提供します。
-                </li>
+                <li>{t("defaults.country")}</li>
+                <li>{t("defaults.businessType")}</li>
+                <li>{t("defaults.industry")}</li>
+                <li>{t("defaults.url")}</li>
+                <li>{t("defaults.description")}</li>
               </ul>
             </div>
 
             <div className="mt-4 rounded-xl border border-primary/30 bg-primary/10 p-4">
               <p className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
                 <ShieldAlert className="h-4 w-4 text-primary-readable" aria-hidden />
-                注意事項
+                {t("notesHeading")}
               </p>
               <ul className="mt-2 space-y-1.5 text-sm leading-relaxed text-muted-foreground">
-                <li>これらの情報は登録後、Stripeダッシュボードから変更可能です。</li>
-                <li>口座情報や個人情報はStripeが厳重に管理し、当サイトのデータベースには保存されません。</li>
+                <li>{t("notes.editable")}</li>
+                <li>{t("notes.privacy")}</li>
               </ul>
             </div>
 
@@ -164,7 +164,7 @@ export function StripeInstructorOnboardingCta({
                 onClick={handleCloseConfirm}
                 disabled={busy}
               >
-                キャンセル
+                {t("cancel")}
               </Button>
               <Button
                 type="button"
@@ -175,10 +175,10 @@ export function StripeInstructorOnboardingCta({
                 {busy ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                    Stripeへ進む...
+                    {t("proceeding")}
                   </>
                 ) : (
-                  "内容に同意してStripeへ進む"
+                  t("agreeProceed")
                 )}
               </Button>
             </div>
@@ -195,9 +195,9 @@ export function StripeInstructorOnboardingCta({
         >
           <Loader2 className="h-10 w-10 shrink-0 animate-spin text-primary" aria-hidden />
           <div className="max-w-md space-y-2">
-            <p className="text-base font-bold text-foreground">Stripe の画面を準備しています</p>
+            <p className="text-base font-bold text-foreground">{t("loadingTitle")}</p>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              しばらくすると Stripe のサイトへ移動します。この画面のままお待ちください。
+              {t("loadingBody")}
             </p>
           </div>
         </div>

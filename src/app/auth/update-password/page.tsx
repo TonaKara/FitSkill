@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { NotificationToast } from "@/components/ui/notification-toast"
 import { toErrorNotice, toSuccessNotice, type AppNotice } from "@/lib/notifications"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import { useTranslations } from "@/lib/i18n/useI18n"
 
 const PASSWORD_MIN_LENGTH = 8
 
@@ -30,6 +31,9 @@ function getPasswordRuleState(password: string) {
 
 export default function UpdatePasswordPage() {
   const router = useRouter()
+  const t = useTranslations("updatePassword")
+  const tLogin = useTranslations("login")
+  const tToasts = useTranslations("authToasts")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -47,7 +51,7 @@ export default function UpdatePasswordPage() {
     if (!passwordRuleState.isValid) {
       setNotice({
         variant: "error",
-        message: "パスワードは8文字以上で、大文字・小文字・数字をすべて含めてください。",
+        message: tToasts("passwordPolicy"),
       })
       return
     }
@@ -55,7 +59,7 @@ export default function UpdatePasswordPage() {
     if (!isConfirmMatched) {
       setNotice({
         variant: "error",
-        message: "パスワード（確認用）が一致していません。",
+        message: tToasts("passwordConfirmMismatch"),
       })
       return
     }
@@ -69,7 +73,7 @@ export default function UpdatePasswordPage() {
         throw error
       }
 
-      setNotice(toSuccessNotice("パスワードを更新しました。ダッシュボードへ移動します。"))
+      setNotice(toSuccessNotice(tToasts("passwordUpdated")))
       router.push("/")
       router.refresh()
     } catch (error) {
@@ -85,16 +89,16 @@ export default function UpdatePasswordPage() {
 
       <Card className="relative z-10 w-full max-w-md border-border bg-card shadow-lg dark:border-red-500/40 dark:bg-zinc-950/95 dark:shadow-[0_0_60px_rgba(230,74,25,0.25)]">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold tracking-wide text-foreground">パスワード更新</CardTitle>
+          <CardTitle className="text-2xl font-bold tracking-wide text-foreground">{t("title")}</CardTitle>
           <CardDescription className="mt-1 text-muted-foreground">
-            新しいパスワードを設定して、アカウントへログインしてください。
+            {t("subtitle")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground" htmlFor="new_password">
-                新しいパスワード
+                {t("newPassword")}
               </label>
               <div className="relative">
                 <Input
@@ -102,7 +106,7 @@ export default function UpdatePasswordPage() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  placeholder="8文字以上・大文字/小文字/数字を含める"
+                  placeholder={t("newPasswordPlaceholder")}
                   autoComplete="new-password"
                   className="border-input bg-background pr-11 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
                 />
@@ -110,22 +114,22 @@ export default function UpdatePasswordPage() {
                   type="button"
                   onClick={() => setShowPassword((previous) => !previous)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 transition-colors hover:text-red-300"
-                  aria-label={showPassword ? "パスワードを隠す" : "パスワードを表示"}
+                  aria-label={showPassword ? t("passwordToggleHide") : t("passwordToggleShow")}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
               <div className="space-y-1 text-xs">
-                {!passwordRuleState.hasMinLength && <p className="text-red-400">8文字以上で入力してください。</p>}
-                {!passwordRuleState.hasUppercase && <p className="text-red-400">英大文字が含まれていません。</p>}
-                {!passwordRuleState.hasLowercase && <p className="text-red-400">英小文字が含まれていません。</p>}
-                {!passwordRuleState.hasNumber && <p className="text-red-400">数字が含まれていません。</p>}
+                {!passwordRuleState.hasMinLength && <p className="text-red-400">{tLogin("passwordRuleMin")}</p>}
+                {!passwordRuleState.hasUppercase && <p className="text-red-400">{tLogin("passwordRuleUpper")}</p>}
+                {!passwordRuleState.hasLowercase && <p className="text-red-400">{tLogin("passwordRuleLower")}</p>}
+                {!passwordRuleState.hasNumber && <p className="text-red-400">{tLogin("passwordRuleNumber")}</p>}
               </div>
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground" htmlFor="confirm_password">
-                新しいパスワード（確認用）
+                {t("newPasswordConfirm")}
               </label>
               <div className="relative">
                 <Input
@@ -133,7 +137,7 @@ export default function UpdatePasswordPage() {
                   type={showConfirmPassword ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(event) => setConfirmPassword(event.target.value)}
-                  placeholder="確認のため同じパスワードを入力"
+                  placeholder={t("newPasswordConfirmPlaceholder")}
                   autoComplete="new-password"
                   className="border-input bg-background pr-11 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
                 />
@@ -141,13 +145,13 @@ export default function UpdatePasswordPage() {
                   type="button"
                   onClick={() => setShowConfirmPassword((previous) => !previous)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 transition-colors hover:text-red-300"
-                  aria-label={showConfirmPassword ? "確認用パスワードを隠す" : "確認用パスワードを表示"}
+                  aria-label={showConfirmPassword ? t("passwordConfirmToggleHide") : t("passwordConfirmToggleShow")}
                 >
                   {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
               {confirmPassword.length > 0 && !isConfirmMatched && (
-                <p className="text-xs text-red-400">パスワードが一致していません。</p>
+                <p className="text-xs text-red-400">{t("passwordMismatch")}</p>
               )}
             </div>
 
@@ -155,10 +159,10 @@ export default function UpdatePasswordPage() {
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  更新中...
+                  {t("submitting")}
                 </>
               ) : (
-                "パスワードを更新"
+                t("submit")
               )}
             </Button>
           </form>

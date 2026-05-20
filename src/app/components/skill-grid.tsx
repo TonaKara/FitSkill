@@ -6,6 +6,7 @@ import { SkillCard } from "@/components/skill-card"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { mapSkillRowToCardSkillFromJoin } from "@/lib/map-skill-to-card"
 import { matchesSkillCategoryFilter } from "@/lib/skill-categories"
+import { useTranslations } from "@/lib/i18n/useI18n"
 
 export const SKILL_SORT_OPTIONS = [
   { id: "popular", label: "人気順" },
@@ -270,14 +271,15 @@ export function SkillGrid({ filters, sortBy, searchKeyword }: SkillGridProps) {
   const [ongoingApplicationCountBySkill, setOngoingApplicationCountBySkill] = useState<Record<string, number>>({})
   const [favoriteCountBySkill, setFavoriteCountBySkill] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [errorKey, setErrorKey] = useState<"fetchFailed" | null>(null)
+  const tSkillGrid = useTranslations("skillGrid")
 
   useEffect(() => {
     let cancelled = false
 
     const run = async () => {
       setLoading(true)
-      setErrorMessage(null)
+      setErrorKey(null)
 
       const primaryQuery = await supabase
         .from("skills")
@@ -397,7 +399,7 @@ export function SkillGrid({ filters, sortBy, searchKeyword }: SkillGridProps) {
         setRows([])
         setOngoingApplicationCountBySkill({})
         setFavoriteCountBySkill({})
-        setErrorMessage("スキル一覧の取得に失敗しました。")
+        setErrorKey("fetchFailed")
         return
       }
 
@@ -520,16 +522,18 @@ export function SkillGrid({ filters, sortBy, searchKeyword }: SkillGridProps) {
     return (
       <div className="flex min-h-[160px] items-center justify-center rounded-lg border border-dashed border-border bg-muted/20">
         <Loader2 className="h-6 w-6 animate-spin text-primary-readable" aria-hidden />
-        <span className="ml-2 text-sm text-muted-foreground">スキル一覧を読み込み中...</span>
+        <span className="ml-2 text-sm text-muted-foreground">{tSkillGrid("loading")}</span>
       </div>
     )
   }
 
   return (
     <div className="space-y-4">
-      {errorMessage ? <p className="text-sm text-muted-foreground">{errorMessage}</p> : null}
+      {errorKey ? <p className="text-sm text-muted-foreground">{tSkillGrid(errorKey)}</p> : null}
       {!isDefaultFilterState ? (
-        <p className="text-sm text-muted-foreground">絞り込み結果: {filteredAndSortedItems.length}件</p>
+        <p className="text-sm text-muted-foreground">
+          {tSkillGrid("filterResult", { count: String(filteredAndSortedItems.length) })}
+        </p>
       ) : null}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {filteredAndSortedItems.map((item) => (

@@ -1,12 +1,17 @@
 import type { Metadata } from "next"
 import GuidePage from "@/guide/page"
+import { getDictionary, lookupMessage } from "@/lib/i18n/dictionaries"
+import { getServerLocale } from "@/lib/i18n/server-detect"
 
-export const metadata: Metadata = {
-  title: "ご利用ガイド",
-  description:
-    "出品者・購入者それぞれの流れ（Stripe連携、スキル出品、事前オファー、指導開始、完了申請など）を分かりやすくまとめたGritVibのご利用ガイドです。",
-  alternates: { canonical: "/guide" },
-  openGraph: { url: "/guide" },
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getServerLocale()
+  const dict = getDictionary(locale)
+  return {
+    title: lookupMessage(dict, "metadata.guide.title"),
+    description: lookupMessage(dict, "metadata.guide.description"),
+    alternates: { canonical: "/guide" },
+    openGraph: { url: "/guide" },
+  }
 }
 
 export default function Page() {

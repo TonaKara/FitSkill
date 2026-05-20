@@ -6,7 +6,9 @@ import {
   PARENT_CATEGORY_LABELS,
   PARENT_FITNESS_LABEL,
   getStoredCategoryFromPicker,
+  localizeStoredCategory,
 } from "@/lib/skill-categories"
+import { useLocale, useTranslations } from "@/lib/i18n/useI18n"
 
 type SkillCategoryPickerProps = {
   parentLabel: string
@@ -29,8 +31,8 @@ export function SkillCategoryPicker({
   onSubChange,
   parentSelectId = "skill-parent-category",
   subSelectId = "skill-sub-category",
-  parentLabelText = "カテゴリ",
-  subLabelText = "小カテゴリ",
+  parentLabelText,
+  subLabelText,
   selectClassName,
   requiredMark,
   showStoredHint = false,
@@ -38,6 +40,10 @@ export function SkillCategoryPicker({
   const isFitness = parentLabel === PARENT_FITNESS_LABEL
   const storedPreview =
     parentLabel.length > 0 ? getStoredCategoryFromPicker(parentLabel, subLabel) : ""
+  const locale = useLocale()
+  const tCategoriesUi = useTranslations("categoriesUi")
+  const resolvedParentLabelText = parentLabelText ?? tCategoriesUi("parentLabel")
+  const resolvedSubLabelText = subLabelText ?? tCategoriesUi("subLabel")
 
   const handleParentChange = (nextParent: string) => {
     onParentChange(nextParent)
@@ -52,7 +58,7 @@ export function SkillCategoryPicker({
     <div className="space-y-4">
       <div className="space-y-2">
         <label htmlFor={parentSelectId} className="text-sm font-semibold text-foreground">
-          {parentLabelText}
+          {resolvedParentLabelText}
           {requiredMark}
         </label>
         <select
@@ -61,10 +67,10 @@ export function SkillCategoryPicker({
           onChange={(event) => handleParentChange(event.target.value)}
           className={selectClassName}
         >
-          <option value="">選択してください</option>
+          <option value="">{tCategoriesUi("selectPlaceholder")}</option>
           {PARENT_CATEGORY_LABELS.map((label) => (
             <option key={label} value={label}>
-              {label}
+              {localizeStoredCategory(label, locale)}
             </option>
           ))}
         </select>
@@ -73,7 +79,7 @@ export function SkillCategoryPicker({
       {isFitness ? (
         <div className="space-y-2">
           <label htmlFor={subSelectId} className="text-sm font-semibold text-foreground">
-            {subLabelText}
+            {resolvedSubLabelText}
             {requiredMark}
           </label>
           <select
@@ -82,10 +88,10 @@ export function SkillCategoryPicker({
             onChange={(event) => onSubChange(event.target.value)}
             className={selectClassName}
           >
-            <option value="">選択してください</option>
+            <option value="">{tCategoriesUi("selectPlaceholder")}</option>
             {FITNESS_SUB_CATEGORY_LABELS.map((label) => (
               <option key={label} value={label}>
-                {label}
+                {localizeStoredCategory(label, locale)}
               </option>
             ))}
           </select>
@@ -94,7 +100,7 @@ export function SkillCategoryPicker({
 
       {showStoredHint && storedPreview ? (
         <p className="text-xs text-muted-foreground">
-          保存されるカテゴリ: <span className="font-medium text-foreground">{storedPreview}</span>
+          {tCategoriesUi("storedHint")} <span className="font-medium text-foreground">{localizeStoredCategory(storedPreview, locale)}</span>
         </p>
       ) : null}
     </div>

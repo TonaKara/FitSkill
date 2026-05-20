@@ -4,6 +4,7 @@ import Link from "next/link"
 import { Loader2 } from "lucide-react"
 import { ProfileAvatar } from "@/components/profile-avatar"
 import type { InquiryInboxListRow } from "@/lib/inquiry-messages"
+import { useTranslations } from "@/lib/i18n/useI18n"
 
 export type InquiryPeerProfile = {
   display_name: string | null
@@ -36,13 +37,16 @@ export function InquiryInboxList({
   loading,
   error,
   activePeerId,
-  emptyHint = "まだ相談メッセージはありません。スキル詳細から出品者に質問できます。",
+  emptyHint,
 }: InquiryInboxListProps) {
+  const tInquiry = useTranslations("inquiry")
+  const resolvedEmptyHint = emptyHint ?? tInquiry("inboxEmpty")
+
   if (loading) {
     return (
       <div className="flex items-center justify-center gap-2 py-12 text-sm text-zinc-400">
         <Loader2 className="h-5 w-5 animate-spin text-red-500" aria-hidden />
-        読み込み中...
+        {tInquiry("loading")}
       </div>
     )
   }
@@ -52,17 +56,17 @@ export function InquiryInboxList({
   }
 
   if (threads.length === 0) {
-    return <p className="py-8 text-center text-sm text-zinc-500">{emptyHint}</p>
+    return <p className="py-8 text-center text-sm text-zinc-500">{resolvedEmptyHint}</p>
   }
 
   return (
     <ul className="divide-y divide-zinc-800">
       {threads.map((t) => {
         const peer = peerProfiles[t.peer_id]
-        const name = peer?.display_name?.trim() || "ユーザー"
+        const name = peer?.display_name?.trim() || tInquiry("anonymousUser")
         const peerAvatarUrl = peer?.avatar_url ?? null
         const skillTitle =
-          skillTitles[t.last_origin_skill_id]?.trim() || `スキル #${t.last_origin_skill_id}`
+          skillTitles[t.last_origin_skill_id]?.trim() || tInquiry("skillFallback", { id: t.last_origin_skill_id })
         const active = activePeerId != null && activePeerId === t.peer_id
 
         return (

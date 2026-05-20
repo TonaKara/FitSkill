@@ -6,8 +6,10 @@ import {
   PARENT_CATEGORY_LABELS,
   PARENT_FITNESS_LABEL,
   formatSkillCategoryDisplay,
+  localizeStoredCategory,
   resolveSkillCategory,
 } from "@/lib/skill-categories"
+import { useLocale, useTranslations } from "@/lib/i18n/useI18n"
 import { cn } from "@/lib/utils"
 
 const parentCategories = [{ id: "all", label: "すべて", icon: "🔥" }].concat(
@@ -32,32 +34,39 @@ export function CategoryFilter({
   onSubChange,
 }: CategoryFilterProps) {
   const showSubFilter = activeParentCategory === PARENT_FITNESS_LABEL
+  const locale = useLocale()
+  const tCategories = useTranslations("categories")
+  const allLabel = tCategories("all")
 
   return (
     <div className="space-y-3">
       <div className="overflow-x-auto scrollbar-hide">
         <div className="flex gap-2 pb-2">
-          {parentCategories.map((category) => (
-            <button
-              key={category.id}
-              type="button"
-              onClick={() => {
-                onParentChange(category.id)
-                if (category.id !== PARENT_FITNESS_LABEL) {
-                  onSubChange("all")
-                }
-              }}
-              className={cn(
-                "flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all",
-                activeParentCategory === category.id
-                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25"
-                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-              )}
-            >
-              <span>{category.icon}</span>
-              <span>{category.label}</span>
-            </button>
-          ))}
+          {parentCategories.map((category) => {
+            const displayLabel =
+              category.id === "all" ? allLabel : localizeStoredCategory(category.id, locale)
+            return (
+              <button
+                key={category.id}
+                type="button"
+                onClick={() => {
+                  onParentChange(category.id)
+                  if (category.id !== PARENT_FITNESS_LABEL) {
+                    onSubChange("all")
+                  }
+                }}
+                className={cn(
+                  "flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-all",
+                  activeParentCategory === category.id
+                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25"
+                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+                )}
+              >
+                <span>{category.icon}</span>
+                <span>{displayLabel}</span>
+              </button>
+            )
+          })}
         </div>
       </div>
 
@@ -74,7 +83,7 @@ export function CategoryFilter({
                   : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
               )}
             >
-              すべて
+              {allLabel}
             </button>
             {FITNESS_SUB_CATEGORY_LABELS.map((sub) => (
               <button
@@ -88,7 +97,7 @@ export function CategoryFilter({
                     : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
                 )}
               >
-                {sub}
+                {localizeStoredCategory(sub, locale)}
               </button>
             ))}
           </div>

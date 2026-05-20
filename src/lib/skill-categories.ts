@@ -176,6 +176,96 @@ export function isSkillCategoryPickerComplete(parentLabel: string, subLabel: str
   return isParentCategoryLabel(parent)
 }
 
+/* -------------------------------------------------------------------------- */
+/* i18n 対応：表示ラベル（日本語 / 英語）を持つカテゴリ定義                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * 多言語表示用のカテゴリ項目。
+ * - `storedValue` は DB（`skills.category` 等）に保存される値で必ず日本語のまま。
+ * - `labelJa` / `labelEn` は表示用ラベル。`labelEn` 未定義の場合は `labelJa` をフォールバック。
+ * - `parentId` を持つ場合は子カテゴリ（フィットネス配下のサブカテゴリ等）。
+ *
+ * 新規言語を追加する場合は labelXx を増やす方針。
+ * 既存の `PARENT_CATEGORY_LABELS` / `FITNESS_SUB_CATEGORY_LABELS` は変更しない（後方互換）。
+ */
+export type SkillCategoryItem = {
+  id: string
+  storedValue: string
+  labelJa: string
+  labelEn: string
+  parentId?: string
+}
+
+export const SKILL_CATEGORY_PARENT_ITEMS: readonly SkillCategoryItem[] = [
+  { id: "fitness",  storedValue: PARENT_FITNESS_LABEL, labelJa: "フィットネス", labelEn: "Fitness" },
+  { id: "cooking",  storedValue: "料理",                labelJa: "料理",          labelEn: "Cooking" },
+  { id: "game",     storedValue: "ゲーム",              labelJa: "ゲーム",        labelEn: "Gaming" },
+  { id: "study",    storedValue: "勉強",                labelJa: "勉強",          labelEn: "Study" },
+  { id: "creation", storedValue: "創作",                labelJa: "創作",          labelEn: "Creation" },
+  { id: "art",      storedValue: "芸術",                labelJa: "芸術",          labelEn: "Art" },
+  { id: "other",    storedValue: CATEGORY_SONOTA,       labelJa: "その他",        labelEn: "Other" },
+]
+
+export const SKILL_CATEGORY_FITNESS_SUB_ITEMS: readonly SkillCategoryItem[] = [
+  { id: "soccer",            storedValue: "サッカー",     labelJa: "サッカー",     labelEn: "Soccer",            parentId: "fitness" },
+  { id: "stretch",           storedValue: "ストレッチ",   labelJa: "ストレッチ",   labelEn: "Stretching",        parentId: "fitness" },
+  { id: "diet",              storedValue: "ダイエット",   labelJa: "ダイエット",   labelEn: "Diet",              parentId: "fitness" },
+  { id: "dance",             storedValue: "ダンス",       labelJa: "ダンス",       labelEn: "Dance",             parentId: "fitness" },
+  { id: "basketball",        storedValue: "バスケ",       labelJa: "バスケ",       labelEn: "Basketball",        parentId: "fitness" },
+  { id: "badminton",         storedValue: "バドミントン", labelJa: "バドミントン", labelEn: "Badminton",         parentId: "fitness" },
+  { id: "pilates",           storedValue: "ピラティス",   labelJa: "ピラティス",   labelEn: "Pilates",           parentId: "fitness" },
+  { id: "yoga",              storedValue: "ヨガ",         labelJa: "ヨガ",         labelEn: "Yoga",              parentId: "fitness" },
+  { id: "running",           storedValue: "ランニング",   labelJa: "ランニング",   labelEn: "Running",           parentId: "fitness" },
+  { id: "martialArts",       storedValue: "格闘技",       labelJa: "格闘技",       labelEn: "Martial Arts",      parentId: "fitness" },
+  { id: "strengthTraining",  storedValue: "筋トレ",       labelJa: "筋トレ",       labelEn: "Strength Training", parentId: "fitness" },
+  { id: "fitnessOther",      storedValue: CATEGORY_SONOTA, labelJa: "その他",      labelEn: "Other",             parentId: "fitness" },
+]
+
+/** 全カテゴリ項目（親 + サブ） */
+export const SKILL_CATEGORY_ITEMS: readonly SkillCategoryItem[] = [
+  ...SKILL_CATEGORY_PARENT_ITEMS,
+  ...SKILL_CATEGORY_FITNESS_SUB_ITEMS,
+]
+
+/** locale に応じたラベルを返す */
+export function getCategoryLabel(
+  item: Pick<SkillCategoryItem, "labelJa" | "labelEn">,
+  locale: "ja" | "en",
+): string {
+  if (locale === "en" && item.labelEn) {
+    return item.labelEn
+  }
+  return item.labelJa
+}
+
+const STORED_VALUE_TO_ITEM = new Map<string, SkillCategoryItem>(
+  SKILL_CATEGORY_ITEMS.map((item) => [item.storedValue, item]),
+)
+
+/** DB 値（日本語）から多言語カテゴリ項目を引く */
+export function findCategoryItemByStoredValue(storedValue: string | null | undefined): SkillCategoryItem | null {
+  if (!storedValue) {
+    return null
+  }
+  return STORED_VALUE_TO_ITEM.get(storedValue.trim()) ?? null
+}
+
+/**
+ * DB 値（日本語）を locale に応じた表示文字列に変換する純粋関数。
+ * 親>子の階層を保ったままローカライズしたい場合は `formatSkillCategoryDisplay` の代替として使う。
+ */
+export function localizeStoredCategory(
+  storedValue: string | null | undefined,
+  locale: "ja" | "en",
+): string {
+  const item = findCategoryItemByStoredValue(storedValue)
+  if (item) {
+    return getCategoryLabel(item, locale)
+  }
+  return (storedValue ?? "").trim() || (locale === "en" ? "Other" : CATEGORY_SONOTA)
+}
+
 export function matchesSkillCategoryFilter(
   itemCategory: string,
   parentFilter: string,

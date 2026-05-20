@@ -12,14 +12,16 @@ import { toErrorNotice, type AppNotice } from "@/lib/notifications"
 import { getIsAdminFromProfile } from "@/lib/admin"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { CONTENT_PAGE_MAIN_CLASS } from "@/lib/content-page-layout"
+import { useTranslations } from "@/lib/i18n/useI18n"
 
+/** DB に保存される値は日本語固定（既存データとの互換のため）。表示のみ locale で切り替える。 */
 const CONTACT_CATEGORY_OPTIONS = [
-  "ご意見",
-  "不具合報告",
-  "ユーザー・商品のBAN",
-  "異議申し立てについて",
-  "ご質問",
-  "その他",
+  { value: "ご意見", labelKey: "feedback" },
+  { value: "不具合報告", labelKey: "bug" },
+  { value: "ユーザー・商品のBAN", labelKey: "ban" },
+  { value: "異議申し立てについて", labelKey: "dispute" },
+  { value: "ご質問", labelKey: "question" },
+  { value: "その他", labelKey: "other" },
 ] as const
 const SUBJECT_MAX_LENGTH = 40
 const CONTENT_MAX_LENGTH = 2000
@@ -59,6 +61,9 @@ function cleanStoragePath(path: string): string {
 export default function ContactPage() {
   const router = useRouter()
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
+  const tContact = useTranslations("contact")
+  const tErr = useTranslations("contact.errors")
+  const tCategory = useTranslations("contactCategories")
   const [form, setForm] = useState<ContactFormState>(DEFAULT_FORM)
   const [attachment, setAttachment] = useState<File | null>(null)
   const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null)
@@ -122,7 +127,7 @@ export default function ContactPage() {
       return
     }
     if (!file.type.startsWith("image/")) {
-      setNotice({ variant: "error", message: "添付ファイルは画像を選択してください。" })
+      setNotice({ variant: "error", message: tErr("imageOnly") })
       return
     }
     setNotice(null)
@@ -151,25 +156,25 @@ export default function ContactPage() {
     const content = form.content.trim()
 
     if (!name || !email || !category || !subject || !content) {
-      setNotice({ variant: "error", message: "必須項目をすべて入力してください。" })
+      setNotice({ variant: "error", message: tErr("requireAll") })
       return
     }
     if (!isValidEmail(email)) {
-      setNotice({ variant: "error", message: "メールアドレスの形式が正しくありません。" })
+      setNotice({ variant: "error", message: tErr("invalidEmail") })
       return
     }
     if (subject.length > SUBJECT_MAX_LENGTH) {
-      setNotice({ variant: "error", message: `件名は${SUBJECT_MAX_LENGTH}文字以内で入力してください。` })
+      setNotice({ variant: "error", message: tErr("subjectTooLong", { max: SUBJECT_MAX_LENGTH }) })
       return
     }
     if (content.length > CONTENT_MAX_LENGTH) {
-      setNotice({ variant: "error", message: `内容は${CONTENT_MAX_LENGTH}文字以内で入力してください。` })
+      setNotice({ variant: "error", message: tErr("contentTooLong", { max: CONTENT_MAX_LENGTH }) })
       return
     }
     if (transactionId.length > 0 && !isValidInt8LikeId(transactionId)) {
       setNotice({
         variant: "error",
-        message: `取引IDは数字のみ${TRANSACTION_ID_MAX_DIGITS}桁以内で入力してください。`,
+        message: tErr("invalidTransactionId", { max: TRANSACTION_ID_MAX_DIGITS }),
       })
       return
     }
@@ -193,7 +198,7 @@ export default function ContactPage() {
           })
 
         if (uploadError || !uploadData?.path) {
-          throw uploadError ?? new Error("添付ファイルのアップロードに失敗しました。")
+          throw uploadError ?? new Error(tErr("uploadFailed"))
         }
         // DB には `attachments/<fileName>` のフルパスを保存する
         uploadedAttachmentPath = cleanStoragePath(fullAttachmentPath)
@@ -240,7 +245,7 @@ export default function ContactPage() {
     } catch (error) {
       setNotice(
         toErrorNotice(error, isAdmin, {
-          unknownErrorMessage: "送信に失敗しました。時間をおいて再度お試しください。",
+          unknownErrorMessage: tErr("submitFailed"),
         }),
       )
     } finally {
@@ -253,7 +258,7 @@ export default function ContactPage() {
       {notice ? <NotificationToast notice={notice} onClose={() => setNotice(null)} /> : null}
       <div className="w-full min-w-0">
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-3xl font-black tracking-wide text-foreground">お問い合わせ</h1>
+          <h1 className="text-3xl font-black tracking-wide text-foreground">{tContact("title")}</h1>
           <Button
             asChild
             variant="outline"
@@ -262,7 +267,7 @@ export default function ContactPage() {
             <Link href="/">
               <span className="inline-flex items-center gap-2">
                 <ArrowLeft className="h-4 w-4" />
-                ホームに戻る
+                {tContact("backToHome")}
               </span>
             </Link>
           </Button>
@@ -270,13 +275,13 @@ export default function ContactPage() {
 
         <Card className="border-border bg-card">
           <CardHeader>
-            <CardTitle className="text-foreground">フォーム入力</CardTitle>
+            <CardTitle className="text-foreground">{tContact("formTitle")}</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
                 <label htmlFor="contact-name" className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
-                  名前<span className="text-xs font-medium text-red-400">必須</span>
+                  {tContact("labelName")}<span className="text-xs font-medium text-red-400">{tContact("required")}</span>
                 </label>
                 <Input
                   id="contact-name"
@@ -290,7 +295,7 @@ export default function ContactPage() {
 
               <div className="space-y-2">
                 <label htmlFor="contact-email" className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
-                  メールアドレス<span className="text-xs font-medium text-red-400">必須</span>
+                  {tContact("labelEmail")}<span className="text-xs font-medium text-red-400">{tContact("required")}</span>
                 </label>
                 <Input
                   id="contact-email"
@@ -304,7 +309,7 @@ export default function ContactPage() {
 
               <div className="space-y-2">
                 <label htmlFor="contact-category" className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
-                  カテゴリ<span className="text-xs font-medium text-red-400">必須</span>
+                  {tContact("labelCategory")}<span className="text-xs font-medium text-red-400">{tContact("required")}</span>
                 </label>
                 <select
                   id="contact-category"
@@ -313,10 +318,10 @@ export default function ContactPage() {
                   onChange={handleChange("category")}
                   className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-red-500"
                 >
-                  <option value="">選択してください</option>
+                  <option value="">{tContact("selectPlaceholder")}</option>
                   {CONTACT_CATEGORY_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
+                    <option key={option.value} value={option.value}>
+                      {tCategory(option.labelKey)}
                     </option>
                   ))}
                 </select>
@@ -324,7 +329,7 @@ export default function ContactPage() {
 
               <div className="space-y-2">
                 <label htmlFor="contact-subject" className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
-                  件名<span className="text-xs font-medium text-red-400">必須</span>
+                  {tContact("labelSubject")}<span className="text-xs font-medium text-red-400">{tContact("required")}</span>
                 </label>
                 <Input
                   id="contact-subject"
@@ -339,7 +344,7 @@ export default function ContactPage() {
 
               <div className="space-y-2">
                 <label htmlFor="contact-transaction-id" className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
-                  取引ID<span className="text-xs font-medium text-muted-foreground">任意</span>
+                  {tContact("labelTransactionId")}<span className="text-xs font-medium text-muted-foreground">{tContact("optional")}</span>
                 </label>
                 <Input
                   id="contact-transaction-id"
@@ -349,14 +354,13 @@ export default function ContactPage() {
                   className="focus-visible:ring-red-500"
                 />
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  取引に関するお問い合わせの場合は、マイページの「進行中の取引（受講中 / 対応中）」一覧に表示される
-                  「取引ID」をご記入ください。
+                  {tContact("transactionIdHelp")}
                 </p>
               </div>
 
               <div className="space-y-2">
                 <label htmlFor="contact-content" className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
-                  内容<span className="text-xs font-medium text-red-400">必須</span>
+                  {tContact("labelContent")}<span className="text-xs font-medium text-red-400">{tContact("required")}</span>
                 </label>
                 <textarea
                   id="contact-content"
@@ -374,7 +378,7 @@ export default function ContactPage() {
                   htmlFor="contact-attachment"
                   className="inline-flex items-center gap-2 text-sm font-semibold text-foreground"
                 >
-                  添付ファイル<span className="text-xs font-medium text-muted-foreground">任意</span>
+                  {tContact("labelAttachment")}<span className="text-xs font-medium text-muted-foreground">{tContact("optional")}</span>
                 </label>
                 <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
                   <input
@@ -393,10 +397,10 @@ export default function ContactPage() {
                     className="h-10 border-border bg-background text-foreground hover:border-red-500 hover:bg-muted"
                     onClick={() => attachmentInputRef.current?.click()}
                   >
-                    ファイルを選択
+                    {tContact("fileChoose")}
                   </Button>
                   <span className="min-h-5 break-all text-xs text-muted-foreground sm:text-sm">
-                    {attachment ? attachment.name : "選択されていません"}
+                    {attachment ? attachment.name : tContact("fileNotChosen")}
                   </span>
                 </div>
                 {attachmentPreviewUrl ? (
@@ -406,7 +410,7 @@ export default function ContactPage() {
                         {/* eslint-disable-next-line @next/next/no-img-element -- ローカル画像プレビュー */}
                         <img
                           src={attachmentPreviewUrl}
-                          alt="添付画像プレビュー"
+                          alt={tContact("filePreviewAlt")}
                           className="h-full w-full rounded object-contain"
                         />
                       </div>
@@ -418,7 +422,7 @@ export default function ContactPage() {
                         disabled={isSubmitting}
                         className="h-7 border border-border bg-background text-xs text-foreground hover:bg-muted"
                       >
-                        削除
+                        {tContact("fileRemove")}
                       </Button>
                     </div>
                   </div>
@@ -433,10 +437,10 @@ export default function ContactPage() {
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    送信中...
+                    {tContact("submitting")}
                   </>
                 ) : (
-                  "送信する"
+                  tContact("submit")
                 )}
               </Button>
             </form>

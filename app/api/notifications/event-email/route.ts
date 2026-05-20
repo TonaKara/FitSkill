@@ -79,6 +79,13 @@ export async function POST(req: Request) {
         lines: ["マイページの受講リクエストから内容を確認し、承認または拒否を選択してください。"],
         ctaLabel: "受講リクエストを確認",
         ctaUrl: `${appUrl}/mypage?tab=requests&mode=instructor`,
+        localizedKeys: {
+          subjectKey: "email.consultationOffer.subject",
+          headingKey: "email.consultationOffer.heading",
+          introKey: "email.consultationOffer.intro",
+          lineKeys: ["email.consultationOffer.line"],
+          ctaLabelKey: "email.consultationOffer.cta",
+        },
       })
       return Response.json({ ok: true })
     }
@@ -107,6 +114,21 @@ export async function POST(req: Request) {
             : "事前オファーが拒否されました。必要があれば内容を見直して再申請してください。",
         ctaLabel: "マイページを開く",
         ctaUrl: `${appUrl}/mypage?tab=requests&mode=student`,
+        localizedKeys: {
+          subjectKey:
+            decision === "accepted"
+              ? "email.consultationDecision.subjectAccepted"
+              : "email.consultationDecision.subjectRejected",
+          headingKey:
+            decision === "accepted"
+              ? "email.consultationDecision.headingAccepted"
+              : "email.consultationDecision.headingRejected",
+          introKey:
+            decision === "accepted"
+              ? "email.consultationDecision.introAccepted"
+              : "email.consultationDecision.introRejected",
+          ctaLabelKey: "email.consultationDecision.cta",
+        },
       })
       return Response.json({ ok: true })
     }
@@ -131,6 +153,12 @@ export async function POST(req: Request) {
         intro: "取引チャットに新しいメッセージが届いています。",
         ctaLabel: "チャットを開く",
         ctaUrl: `${appUrl}/chat/${encodeURIComponent(transactionId)}`,
+        localizedKeys: {
+          subjectKey: "email.transactionMessage.subject",
+          headingKey: "email.transactionMessage.heading",
+          introKey: "email.transactionMessage.intro",
+          ctaLabelKey: "email.transactionMessage.cta",
+        },
       })
       return Response.json({ ok: true })
     }
@@ -156,6 +184,12 @@ export async function POST(req: Request) {
           intro: "あなたのスキルが購入され、取引が開始されました。",
           ctaLabel: "取引チャットを開く",
           ctaUrl: chatUrl,
+          localizedKeys: {
+            subjectKey: "email.transactionEstablished.subject",
+            headingKey: "email.transactionEstablished.heading",
+            introKey: "email.transactionEstablished.introSeller",
+            ctaLabelKey: "email.transactionEstablished.cta",
+          },
         }),
         sendUserEventEmail({
           topic: "transaction_established",
@@ -165,6 +199,12 @@ export async function POST(req: Request) {
           intro: "購入手続きが完了し、取引が開始されました。",
           ctaLabel: "取引チャットを開く",
           ctaUrl: chatUrl,
+          localizedKeys: {
+            subjectKey: "email.transactionEstablished.subject",
+            headingKey: "email.transactionEstablished.heading",
+            introKey: "email.transactionEstablished.introBuyer",
+            ctaLabelKey: "email.transactionEstablished.cta",
+          },
         }),
       ])
       return Response.json({ ok: true })
@@ -188,6 +228,12 @@ export async function POST(req: Request) {
         intro: "出品者から取引完了申請が届きました。内容を確認して承認してください。",
         ctaLabel: "取引チャットを確認",
         ctaUrl: `${appUrl}/chat/${encodeURIComponent(transactionId)}`,
+        localizedKeys: {
+          subjectKey: "email.completionRequested.subject",
+          headingKey: "email.completionRequested.heading",
+          introKey: "email.completionRequested.intro",
+          ctaLabelKey: "email.completionRequested.cta",
+        },
       })
       return Response.json({ ok: true })
     }
@@ -216,6 +262,12 @@ export async function POST(req: Request) {
           intro: "対象の取引は完了しました。",
           ctaLabel: "取引チャットを開く",
           ctaUrl: chatUrl,
+          localizedKeys: {
+            subjectKey: "email.transactionCompleted.subject",
+            headingKey: "email.transactionCompleted.heading",
+            introKey: "email.transactionCompleted.intro",
+            ctaLabelKey: "email.transactionCompleted.cta",
+          },
         }),
         sendUserEventEmail({
           topic: "transaction_completed",
@@ -225,6 +277,12 @@ export async function POST(req: Request) {
           intro: "対象の取引は完了しました。",
           ctaLabel: "取引チャットを開く",
           ctaUrl: chatUrl,
+          localizedKeys: {
+            subjectKey: "email.transactionCompleted.subject",
+            headingKey: "email.transactionCompleted.heading",
+            introKey: "email.transactionCompleted.intro",
+            ctaLabelKey: "email.transactionCompleted.cta",
+          },
         }),
       ])
       return Response.json({ ok: true })
@@ -253,6 +311,18 @@ export async function POST(req: Request) {
         result === "approved"
           ? "異議申し立てが承認され、取引は再開されました。"
           : "異議申し立ては棄却され、取引は完了しました。"
+      const disputeLocalizedKeys = {
+        subjectKey:
+          result === "approved"
+            ? "email.disputeResult.subjectApproved"
+            : "email.disputeResult.subjectRejected",
+        headingKey: "email.disputeResult.heading",
+        introKey:
+          result === "approved"
+            ? "email.disputeResult.introApproved"
+            : "email.disputeResult.introRejected",
+        ctaLabelKey: "email.disputeResult.cta",
+      }
       await Promise.all([
         sendUserEventEmail({
           topic: "dispute_result",
@@ -262,6 +332,7 @@ export async function POST(req: Request) {
           intro,
           ctaLabel: "取引チャットを確認",
           ctaUrl: `${appUrl}/chat/${encodeURIComponent(transactionId)}`,
+          localizedKeys: disputeLocalizedKeys,
         }),
         sendUserEventEmail({
           topic: "dispute_result",
@@ -271,6 +342,7 @@ export async function POST(req: Request) {
           intro,
           ctaLabel: "取引チャットを確認",
           ctaUrl: `${appUrl}/chat/${encodeURIComponent(transactionId)}`,
+          localizedKeys: disputeLocalizedKeys,
         }),
       ])
       return Response.json({ ok: true })
@@ -291,6 +363,14 @@ export async function POST(req: Request) {
         lines: reason ? [`理由: ${reason}`] : [],
         ctaLabel: "お問い合わせ",
         ctaUrl: `${appUrl}/contact`,
+        localizedKeys: {
+          subjectKey: "email.userBanned.subject",
+          headingKey: "email.userBanned.heading",
+          introKey: "email.userBanned.intro",
+          lineKeys: reason ? ["email.userBanned.lineReason"] : [],
+          ctaLabelKey: "email.userBanned.cta",
+          values: reason ? { reason } : undefined,
+        },
       })
       return Response.json({ ok: true })
     }
@@ -307,15 +387,30 @@ export async function POST(req: Request) {
       const { data } = await supabaseAdmin.from("skills").select("id, user_id, title").eq("id", skillId).maybeSingle()
       const skill = data as { user_id?: string | null; title?: string | null; id?: string | number } | null
       if (!skill?.user_id) return Response.json({ error: "skill owner not found" }, { status: 404 })
+      const skillTitle = skill.title?.trim() || String(skill.id)
       await sendUserEventEmail({
         topic: "account_notice",
         userId: skill.user_id,
         subject: `【GritVib】商品が${action === "deleted" ? "削除" : "非公開"}されました`,
         heading: "商品モデレーション通知",
-        intro: `運営対応により商品「${skill.title?.trim() || String(skill.id)}」が${action === "deleted" ? "削除" : "非公開"}されました。`,
+        intro: `運営対応により商品「${skillTitle}」が${action === "deleted" ? "削除" : "非公開"}されました。`,
         lines: reason ? [`理由: ${reason}`] : [],
         ctaLabel: "マイページを開く",
         ctaUrl: `${appUrl}/mypage?section=listings`,
+        localizedKeys: {
+          subjectKey:
+            action === "deleted"
+              ? "email.skillModerated.subjectDeleted"
+              : "email.skillModerated.subjectUnpublished",
+          headingKey: "email.skillModerated.heading",
+          introKey:
+            action === "deleted"
+              ? "email.skillModerated.introDeleted"
+              : "email.skillModerated.introUnpublished",
+          lineKeys: reason ? ["email.skillModerated.lineReason"] : [],
+          ctaLabelKey: "email.skillModerated.cta",
+          values: { title: skillTitle, ...(reason ? { reason } : {}) },
+        },
       })
       return Response.json({ ok: true })
     }

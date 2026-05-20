@@ -6,6 +6,7 @@ import { Loader2, User } from "lucide-react"
 import { ProfileAvatar } from "@/components/profile-avatar"
 import { Button } from "@/components/ui/button"
 import { STORE_MENU_ITEMS, buildTradesAccountHref, storeMenuItemHref } from "@/lib/store-menu"
+import { useTranslations, useTranslationsWithFallback } from "@/lib/i18n/useI18n"
 import { cn } from "@/lib/utils"
 
 export type UserMenuProfileSummary = {
@@ -36,6 +37,12 @@ export function UserMenu({
   className,
 }: UserMenuProps) {
   const tradesHref = buildTradesAccountHref()
+  const t = useTranslations("userMenu")
+  const tMenuLabel = useTranslationsWithFallback("nav.itemLabels")
+  const fallbackName = t("fallbackName")
+  // header-auth-context は空文字を返すようになったため、ここで locale 別フォールバックに置き換え
+  const rawDisplayName = profileSummary?.displayName ?? ""
+  const resolvedDisplayName = rawDisplayName.length > 0 ? rawDisplayName : fallbackName
 
   return (
     <div ref={menuRef} className={cn("relative ml-2 min-w-0 md:ml-3", className)}>
@@ -45,7 +52,7 @@ export function UserMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls="header-user-menu"
-        aria-label="アカウントメニューを開く"
+        aria-label={t("openMenu")}
         disabled={isAuthLoading}
         onClick={() => onOpenChange(!open)}
         className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-foreground outline-none transition-colors hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
@@ -70,22 +77,22 @@ export function UserMenu({
                   <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs text-muted-foreground">読み込み中…</p>
+                  <p className="text-xs text-muted-foreground">{t("loading")}</p>
                 </div>
               </>
             ) : (
               <>
                 <ProfileAvatar
                   avatarUrl={profileSummary?.avatarUrl ?? null}
-                  alt={profileSummary?.displayName ?? "ユーザー"}
+                  alt={resolvedDisplayName}
                   className="h-10 w-10"
                   ringClassName="ring-2 ring-border"
                   sizes="40px"
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">ログイン中</p>
-                  <p className="truncate text-sm font-semibold text-foreground" title={profileSummary?.displayName ?? "ユーザー"}>
-                    {profileSummary?.displayName ?? "ユーザー"}
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t("loggedInLabel")}</p>
+                  <p className="truncate text-sm font-semibold text-foreground" title={resolvedDisplayName}>
+                    {resolvedDisplayName}
                   </p>
                 </div>
               </>
@@ -104,7 +111,7 @@ export function UserMenu({
                   onClick={() => onOpenChange(false)}
                 >
                   <Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-                  {item.label}
+                  {tMenuLabel(item.slug, item.label)}
                 </Link>
               )
             })}
@@ -116,7 +123,7 @@ export function UserMenu({
               className="w-full bg-primary font-semibold text-primary-foreground hover:bg-primary/90"
               onClick={onLogoutRequest}
             >
-              ログアウト
+              {t("logout")}
             </Button>
           </div>
         </div>

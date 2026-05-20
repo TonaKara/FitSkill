@@ -1,26 +1,26 @@
 import type { Metadata } from "next"
 import AccountSectionPage from "@/account/[section]/page"
+import { formatMessage, getDictionary, lookupMessage, lookupMessageOrUndefined } from "@/lib/i18n/dictionaries"
+import { getServerLocale } from "@/lib/i18n/server-detect"
 
 type PageProps = {
   params: Promise<{ section: string }>
 }
 
-const SECTION_TITLES: Record<string, string> = {
-  profile: "プロフィール設定",
-  sales: "売上の確認",
-  trades: "取引・メッセージ",
-  favorites: "お気に入り",
-  reviews: "評価",
-  settings: "設定",
-  listings: "出品管理",
-}
-
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { section } = await params
-  const title = SECTION_TITLES[section] ?? "アカウント"
+  const locale = await getServerLocale()
+  const dict = getDictionary(locale)
+  const sectionTitle = lookupMessageOrUndefined(dict, `metadata.account.sections.${section}`)
+  const fallbackTitle = lookupMessage(dict, "metadata.account.fallbackTitle")
+  const title = sectionTitle ?? fallbackTitle
+  const description = formatMessage(
+    lookupMessage(dict, "metadata.account.descriptionTemplate"),
+    { title },
+  )
   return {
     title,
-    description: `GritVibの${title}画面です。`,
+    description,
     alternates: { canonical: `/account/${section}` },
     openGraph: { url: `/account/${section}` },
     robots: { index: false, follow: false },

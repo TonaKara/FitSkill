@@ -1,6 +1,9 @@
 import { ALLOWED_EXTERNAL_TOOLS_LIST } from "@/lib/allowed-external-tools"
+import type { Locale } from "@/lib/i18n/locales"
 
 export type LegalSection = { title: string; body: string[] }
+
+const ALLOWED_EXTERNAL_TOOLS_LIST_EN = "Zoom, YouTube, Discord"
 
 export const TERMS_SECTIONS: readonly LegalSection[] = [
   {
@@ -219,4 +222,229 @@ export const PRIVACY_SECTIONS: readonly LegalSection[] = [
     ],
   },
 ] as const
+
+export const TERMS_SECTIONS_EN: readonly LegalSection[] = [
+  {
+    title: "Article 1 (Purpose and Applicability)",
+    body: [
+      "These Terms of Service (the \"Terms\") set forth the conditions for using the personal store platform \"GritVib\" and all related services (the \"Service\") provided by Sara Higashi (the \"Operator\"). Users must agree to these Terms to use the Service. If you do not agree, you may not use the Service.",
+    ],
+  },
+  {
+    title: "Article 2 (Definitions)",
+    body: [
+      "\"The Service\" refers to the platform that provides a marketplace for individuals to open a \"Store\" to sell their skills and digital content, matching \"Sellers\" with \"Buyers.\"",
+      "\"User\" refers to any individual or entity using the Service, including both Sellers and Buyers.",
+      "\"Transaction\" refers to the sales contract for skills or content established between a Seller and a Buyer through the Service.",
+    ],
+  },
+  {
+    title: "Article 3 (Nature of the Service)",
+    body: [
+      "The Service provides a \"venue\" for transactions between Users. The Operator is not a party to any transaction. The Operator does not guarantee the quality, legality, accuracy of the skills offered, or the background of any Seller. The transaction contract is established directly between the Seller and the Buyer.",
+    ],
+  },
+  {
+    title: "Article 4 (Eligibility)",
+    body: [
+      "Users under the age of 18 require parental or guardian consent to use the Service.",
+      "Users under the age of 18 are prohibited from listing or purchasing skills involving in-person instruction.",
+      "Use of the Service by members of anti-social forces or similar groups is strictly prohibited.",
+    ],
+  },
+  {
+    title: "Article 5 (Booking Requests and Transactions)",
+    body: [
+      "The Service features a \"Booking Request (Consultation Request)\" function, allowing Sellers to vet Buyers or confirm transaction details in advance.",
+      "If a Seller has enabled Booking Requests, the Buyer can only purchase the skill after receiving approval from the Seller.",
+      "The Operator shall not intervene in, nor be held responsible for, the approval process or any delays therein.",
+    ],
+  },
+  {
+    title: "Article 6 (Prohibited Acts)",
+    body: [
+      "Users shall not engage in the following:",
+      "Providing false information regarding background, achievements, or listing content.",
+      "Direct transactions outside the Service (circumvention) or soliciting such acts.",
+      `Inducing Users to use external services other than those designated by the Operator (${ALLOWED_EXTERNAL_TOOLS_LIST_EN}, etc.) for direct monetary exchange.`,
+      "Collecting payments through methods other than those provided by the Service.",
+      "Fraud, misrepresentation, or acts contrary to public order and morals.",
+      "Transactions or content that are sexual, obscene, or intended to incite sexual arousal.",
+      "Posting inappropriate images or videos involving excessive exposure or emphasizing body parts beyond instructional purposes.",
+      "Reverse engineering, disassembling, or analyzing the Service's systems or software.",
+      "Using the Service to develop a competing product or infringing on intellectual property rights.",
+      "Any other acts deemed inappropriate by the Operator.",
+    ],
+  },
+  {
+    title: "Article 7 (Use of External Tools)",
+    body: [
+      `Users may utilize external tools (${ALLOWED_EXTERNAL_TOOLS_LIST_EN}, etc.) to fulfill transactions. The Operator assumes no responsibility for any issues, including account suspension or connection failure, arising from the use of such tools.`,
+    ],
+  },
+  {
+    title: "Article 8 (In-Person Instruction and Self-Responsibility)",
+    body: [
+      "Any in-person instruction must take place in a safe, public location. Meetings in private or dangerous locations are strictly prohibited.",
+      "The Operator assumes no responsibility for accidents, injuries, or disputes arising from in-person instruction. All such matters must be resolved between the parties involved.",
+    ],
+  },
+  {
+    title: "Article 9 (Transaction Responsibility and Cancellation)",
+    body: [
+      "Delivery of skills/content and exchange of files must be performed in good faith between the parties.",
+      "Once a contract is established, cancellations or refund requests for user convenience are not permitted.",
+      "The payout process begins only after the Operator's system confirms the completion of the transaction. Sellers agree that funds will be held in their Stripe account until they become available for withdrawal.",
+    ],
+  },
+  {
+    title: "Article 10 (Intellectual Property and Posted Content)",
+    body: [
+      "All rights to the programs, software, trademarks (\"GritVib\"), logos, and designs of the Service belong to the Operator or authorized third parties.",
+      "Copyright of content posted by Users (videos, images, text, files, etc.) belongs to the respective User.",
+      "Users grant the Operator a non-exclusive, royalty-free license to use posted content for the operation and promotion of the Service.",
+      "The Operator may delete content that violates these Terms without prior notice.",
+      "To protect privacy and optimize system capacity, the Operator may automatically delete chat-based content (images, videos, files) after a certain period following transaction completion. Users are responsible for backing up their own data.",
+    ],
+  },
+  {
+    title: "Article 11 (Payment, Fees, and Identity Verification)",
+    body: [
+      "Payments are processed through Stripe Connect.",
+      "Transaction funds are paid directly to the Seller's Stripe Connect account. The Operator does not collect or hold transaction funds as a proxy.",
+      "[Identity Verification (KYC)] Sellers are obligated to submit identity verification documents as required by Stripe. Sellers acknowledge that failure to complete verification will result in the inability to withdraw funds and may lead to account restrictions.",
+      "A 15% platform fee is automatically deducted from the sales price at the time of transaction.",
+      "Payout schedules are governed by Stripe's terms and the Seller's individual settings. The Operator is not responsible for payout delays.",
+    ],
+  },
+  {
+    title: "Article 12 (Suspension and Termination)",
+    body: [
+      "The Operator may delete listings or suspend accounts without notice in the event of a breach of Terms, multiple reports from other users, or for safety reasons.",
+    ],
+  },
+  {
+    title: "Article 13 (Disclaimer and Health Warning)",
+    body: [
+      "THE OPERATOR IS NOT A PARTY TO TRANSACTIONS AND PROVIDES NO WARRANTY REGARDING THE QUALITY, RESULTS, OR LEGALITY OF THE SKILLS PROVIDED.",
+      "THE OPERATOR SHALL NOT BE LIABLE FOR ANY DAMAGES ARISING FROM THE USE OF THE SERVICE, EXCEPT IN CASES OF WILLFUL MISCONDUCT OR GROSS NEGLIGENCE BY THE OPERATOR.",
+      "THE OPERATOR IS NOT RESPONSIBLE FOR STRIPE SYSTEM FAILURES, AUTHENTICATION ERRORS, OR PAYOUT DELAYS.",
+      "USERS VOLUNTARILY ASSUME ALL RISKS RELATED TO PHYSICAL ACTIVITIES (FITNESS, ETC.) AND MUST CONSIDER THEIR OWN HEALTH CONDITIONS (PREGNANCY, INJURIES, ETC.) BEFORE USE.",
+    ],
+  },
+  {
+    title: "Article 14 (Changes to Service and Terms)",
+    body: [
+      "The Operator may suspend the Service for maintenance or updates without notice. The Operator may modify these Terms at any time, and such changes become effective upon being posted on the Service.",
+    ],
+  },
+  {
+    title: "Article 15 (Governing Law and Jurisdiction)",
+    body: [
+      "These Terms shall be governed by and construed in accordance with the laws of Japan. Any disputes shall be subject to the exclusive jurisdiction of the district court having jurisdiction over the Operator's location.",
+    ],
+  },
+  {
+    title: "Article 16 (Operator Information)",
+    body: [
+      "Operator: Sara Higashi",
+      "Address: 2F-C Shibuya Dogenzaka Tokyu Bldg., 1-10-8 Dogenzaka, Shibuya-ku, Tokyo, 150-0043, Japan",
+      "Contact: Please contact us via the inquiry form within the Service.",
+    ],
+  },
+] as const
+
+export const PRIVACY_SECTIONS_EN: readonly LegalSection[] = [
+  {
+    title: "1. Introduction",
+    body: [
+      "\"GritVib\" (the \"Service\") is a store platform providing the sale and transaction of personal skills and digital content. Sara Higashi (the \"Operator\") recognizes the protection of users' personal information as a vital responsibility and will manage and operate it appropriately based on the following policy.",
+    ],
+  },
+  {
+    title: "2. Information We Collect",
+    body: [
+      "The Service collects the following information during account registration, transactions, and service usage:",
+      "Account Information: Email address, legal name, display name (username), profile image, and date of birth.",
+      "Verification and Payment Data: To use selling and payment functions (Stripe Connect), Sellers provide bank account details and identity verification documents. Buyers provide credit card information during checkout. Note: All payment and bank data is collected and managed directly by Stripe, Inc. The Service does not store credit card numbers or bank PINs on its servers.",
+      "Usage Information: Answers to Booking Requests, messages (including images/videos), inquiry details, and activity history on the platform.",
+    ],
+  },
+  {
+    title: "3. Purpose of Use",
+    body: [
+      "We use the collected information for the following purposes:",
+      "Provision and operation of the Service (Store setup support, transaction venue, and chat system).",
+      "Identity verification and account management.",
+      "Execution of transactions and user support.",
+      "Responding to inquiries.",
+      "Enforcing terms of use, preventing fraud, and ensuring safety.",
+      "Service improvement and development of new features.",
+    ],
+  },
+  {
+    title: "4. Third-Party Disclosure and Sharing",
+    body: [
+      "We do not provide personal information to third parties without the user's consent, except in the following cases:",
+      "For Payment and Payout Processing: We utilize Stripe, Inc. (Stripe Connect) for processing payments and payouts. Necessary information is shared with or provided directly to Stripe by the user in accordance with Stripe's terms.",
+      "For Transaction Fulfillment: Information necessary for the safe execution of transactions (e.g., display name, message content, and legal name within a necessary scope) will be shared between the Seller and the Buyer.",
+      "Legal Requirements: When required by law or upon valid requests from public authorities such as the police.",
+    ],
+  },
+  {
+    title: "5. Security Measures",
+    body: [
+      "We implement appropriate technical and organizational measures to protect personal information and prevent unauthorized access, loss, destruction, or alteration.",
+    ],
+  },
+  {
+    title: "6. Data Retention and Deletion",
+    body: [
+      "We retain personal information for the period necessary to achieve the purposes of use or as required by law.",
+      "Automatic Deletion: To protect user privacy and optimize system storage, posted content (images, videos, files) in chats may be automatically deleted after a certain period following the completion of a transaction. Once deleted, content cannot be recovered.",
+      "Account Deletion: Even after a user closes their account, we may retain certain data for a limited period for fraud prevention, dispute resolution, or legal compliance.",
+    ],
+  },
+  {
+    title: "7. Your Rights",
+    body: [
+      "Users have the right to request access to, correction of, or deletion of their personal information. Please contact us via the inquiry form for any such requests.",
+    ],
+  },
+  {
+    title: "8. Use of Analytics and Cookies",
+    body: [
+      "Google Analytics: We may use tools like Google Analytics to analyze service usage. Data is collected anonymously via Cookies and does not identify individuals.",
+      "Cookies: We use Cookies to maintain login sessions and improve user experience. You can disable Cookies in your browser settings, though some features of the Service may become unavailable.",
+    ],
+  },
+  {
+    title: "9. International Data Transfers",
+    body: [
+      "As the Service is operated from Japan, your information may be transferred to and processed in Japan. By using the Service, you consent to this transfer.",
+    ],
+  },
+  {
+    title: "10. Contact Information",
+    body: [
+      "For inquiries regarding personal information, please contact the Operator via the inquiry form.",
+      "Operator Name: Sara Higashi",
+      "Address: 2F-C Shibuya Dogenzaka Tokyu Bldg., 1-10-8 Dogenzaka, Shibuya-ku, Tokyo, 150-0043, Japan",
+    ],
+  },
+  {
+    title: "11. Revisions",
+    body: [
+      "This policy may be revised at any time. Changes become effective once posted on the Service.",
+    ],
+  },
+] as const
+
+export function getTermsSections(locale: Locale): readonly LegalSection[] {
+  return locale === "en" ? TERMS_SECTIONS_EN : TERMS_SECTIONS
+}
+
+export function getPrivacySections(locale: Locale): readonly LegalSection[] {
+  return locale === "en" ? PRIVACY_SECTIONS_EN : PRIVACY_SECTIONS
+}
 

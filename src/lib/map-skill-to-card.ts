@@ -40,6 +40,12 @@ export function mapSkillRowToCardSkillWithInstructor(
   const rating = Number.isFinite(ratingAvgRaw) ? Math.max(0, ratingAvgRaw) : 0
   const reviewCount = Number.isFinite(reviewCountRaw) ? Math.max(0, Math.floor(reviewCountRaw)) : 0
 
+  // duration_minutes は数値列だが、稀に null/NaN が混入してもカード表示が "NaN分" にならないよう堅牢化。
+  const durationMinutesRaw = Number(row.duration_minutes)
+  const durationMinutes = Number.isFinite(durationMinutesRaw)
+    ? Math.max(0, Math.floor(durationMinutesRaw))
+    : 0
+
   return {
     id: row.id,
     title: row.title,
@@ -49,17 +55,23 @@ export function mapSkillRowToCardSkillWithInstructor(
     rating,
     reviewCount,
     price: row.price,
-    duration: `${row.duration_minutes}分`,
+    duration: `${durationMinutes}分`,
     students: row.max_capacity,
     image: resolveSkillThumbnailUrl(row.thumbnail_url),
     detailHref: `/skills/${row.id}`,
   }
 }
 
-/** skills + profiles 結合行（一覧グリッド用） */
+/** skills + profiles 結合行（一覧グリッド用）
+ *
+ * `instructor` は **DB の display_name を trim した値、または空文字** を返す。
+ * 空文字のときの表示文言（locale 別「講師 / Instructor」）は SkillCard 側で
+ * `tCard("instructorFallback")` を当てる責務とする。これにより EN ロケール
+ * 表示時に JA「講師」がリークすることを防ぐ。
+ */
 export function mapSkillRowToCardSkillFromJoin(row: SkillFromDbWithProfile) {
   const profile = normalizeProfile(row.profiles)
-  const instructor = profile?.display_name?.trim() || "講師"
+  const instructor = profile?.display_name?.trim() ?? ""
   return mapSkillRowToCardSkillWithInstructor(row, {
     name: instructor,
     avatarUrl: getProfileAvatarUrl(profile?.avatar_url ?? null),

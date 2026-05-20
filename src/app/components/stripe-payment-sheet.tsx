@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { loadStripe, type Stripe, type StripeElements } from "@stripe/stripe-js"
 import { Loader2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useTranslations } from "@/lib/i18n/useI18n"
 
 type StripePaymentSheetProps = {
   open: boolean
@@ -22,6 +23,8 @@ export function StripePaymentSheet({
   returnUrl,
   onPaid,
 }: StripePaymentSheetProps) {
+  const t = useTranslations("stripePaymentSheet")
+  const tAria = useTranslations("aria")
   const containerRef = useRef<HTMLDivElement>(null)
   const stripeRef = useRef<Stripe | null>(null)
   const elementsRef = useRef<StripeElements | null>(null)
@@ -49,7 +52,7 @@ export function StripePaymentSheet({
         const stripe = await loadStripe(publishableKey)
         if (cancelled || !stripe) {
           if (!cancelled) {
-            setErrorMessage("Stripe の読み込みに失敗しました。")
+            setErrorMessage(t("errors.stripeLoadFailed"))
           }
           return
         }
@@ -79,7 +82,7 @@ export function StripePaymentSheet({
         }
       } catch {
         if (!cancelled) {
-          setErrorMessage("決済フォームの初期化に失敗しました。")
+          setErrorMessage(t("errors.elementsInitFailed"))
         }
       }
     })()
@@ -92,7 +95,7 @@ export function StripePaymentSheet({
       elementsRef.current = null
       stripeRef.current = null
     }
-  }, [open, clientSecret, publishableKey])
+  }, [open, clientSecret, publishableKey, t])
 
   const handleConfirm = async () => {
     const stripe = stripeRef.current
@@ -109,7 +112,7 @@ export function StripePaymentSheet({
     })
     setBusy(false)
     if (error) {
-      setErrorMessage("決済を完了できませんでした。時間を置いて再度お試しください。")
+      setErrorMessage(t("errors.paymentFailed"))
       return
     }
     onPaid()
@@ -138,7 +141,7 @@ export function StripePaymentSheet({
       >
         <div className="flex items-start justify-between gap-3">
           <h2 id="stripe-payment-title" className="text-base font-semibold text-foreground">
-            お支払い
+            {t("title")}
           </h2>
           <button
             type="button"
@@ -148,12 +151,12 @@ export function StripePaymentSheet({
                 onClose()
               }
             }}
-            aria-label="閉じる"
+            aria-label={tAria("close")}
           >
             <X className="h-5 w-5" />
           </button>
         </div>
-        <p className="mt-1 text-xs text-muted-foreground">表示された方法でお支払いください。</p>
+        <p className="mt-1 text-xs text-muted-foreground">{t("description")}</p>
 
         <div ref={containerRef} className="mt-4 min-h-[200px]" />
 
@@ -171,7 +174,7 @@ export function StripePaymentSheet({
               }
             }}
           >
-            キャンセル
+            {t("cancel")}
           </Button>
           <Button
             type="button"
@@ -182,10 +185,10 @@ export function StripePaymentSheet({
             {busy ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                処理中...
+                {t("processing")}
               </>
             ) : (
-              "支払う"
+              t("pay")
             )}
           </Button>
         </div>

@@ -28,6 +28,7 @@ import { getIsAdminFromProfile } from "@/lib/admin"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { toErrorNotice, toSuccessNotice, type AppNotice } from "@/lib/notifications"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "@/lib/i18n/useI18n"
 
 type AuthMode = "login" | "signup" | "reset"
 
@@ -63,6 +64,8 @@ function getPasswordRuleState(password: string) {
 export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const t = useTranslations("login")
+  const tToasts = useTranslations("authToasts")
 
   const [mode, setMode] = useState<AuthMode>("login")
   const [email, setEmail] = useState("")
@@ -91,16 +94,16 @@ export default function LoginPage() {
   const isAwaitingSignupVerification = signupVerificationEmail !== null
   const title = useMemo(() => {
     if (isAwaitingSignupVerification) {
-      return isSignupVerificationRecovery ? "ログインへ進む" : "メール確認の案内"
+      return isSignupVerificationRecovery ? t("titleVerifyRecovery") : t("titleVerify")
     }
     if (isSignup) {
-      return "新規登録"
+      return t("titleSignup")
     }
     if (isReset) {
-      return "パスワード再設定"
+      return t("titleReset")
     }
-    return "ログイン"
-  }, [isAwaitingSignupVerification, isReset, isSignup])
+    return t("titleLogin")
+  }, [isAwaitingSignupVerification, isReset, isSignup, isSignupVerificationRecovery, t])
   const passwordRuleState = useMemo(() => getPasswordRuleState(password), [password])
   const normalizedEmail = email.trim().toLowerCase()
   const normalizedConfirmEmail = confirmEmail.trim().toLowerCase()
@@ -177,7 +180,7 @@ export default function LoginPage() {
     setMode("login")
     markSessionPostEmailConfirmLogin()
     peekToastShownRef.current = true
-    setNotice(toSuccessNotice("登録したメールアドレスとパスワードでログインすると、プロフィール設定に進めます。"))
+    setNotice(toSuccessNotice(tToasts("registeredCheckEmail")))
     setHasSignupVerificationResent(hasSignupVerificationBeenResent())
     router.replace("/login?signup_verified=1", { scroll: false })
   }, [searchParams, router])
@@ -195,7 +198,7 @@ export default function LoginPage() {
     markSessionPostEmailConfirmLogin()
     peekToastShownRef.current = true
     setVerificationPanelNotice(null)
-    setNotice(toSuccessNotice("登録したメールアドレスとパスワードでログインすると、プロフィール設定に進めます。"))
+    setNotice(toSuccessNotice(tToasts("registeredCheckEmail")))
     setHasSignupVerificationResent(hasSignupVerificationBeenResent())
     router.replace("/login?signup_verified=1", { scroll: false })
   }, [searchParams, router])
@@ -226,7 +229,7 @@ export default function LoginPage() {
               peekToastShownRef.current = true
               setNotice(
                 toSuccessNotice(
-                  "登録したメールアドレスとパスワードでログインすると、プロフィール設定に進めます。",
+                  tToasts("registeredCheckEmail"),
                 ),
               )
             }
@@ -297,7 +300,7 @@ export default function LoginPage() {
     if (!isLikelyEmail(normalizedResendEmail)) {
       setVerificationPanelNotice({
         variant: "error",
-        message: "再送先のメールアドレスを正しく入力してください。",
+        message: tToasts("resendInvalidEmail"),
       })
       return
     }
@@ -306,7 +309,7 @@ export default function LoginPage() {
       setVerificationPanelNotice({
         variant: "error",
         message:
-          "登録時と異なるメールアドレスには再送できません。下の「このメールアドレスで登録し直す」から新規登録をやり直してください。",
+          tToasts("resendMismatch"),
       })
       return
     }
@@ -325,12 +328,12 @@ export default function LoginPage() {
         setHasSignupVerificationResent(false)
         setVerificationPanelNotice({
           variant: "error",
-          message: body?.message ?? "確認メールの再送に失敗しました。時間を置いて再度お試しください。",
+          message: body?.message ?? tToasts("resendFailedFallback"),
         })
         return
       }
 
-      const successMessage = body?.message ?? "確認メールを再送しました。受信ボックスをご確認ください。"
+      const successMessage = body?.message ?? tToasts("resendSuccessFallback")
       const successNotice = toSuccessNotice(successMessage)
       markSignupVerificationResent()
       setHasSignupVerificationResent(true)
@@ -341,7 +344,7 @@ export default function LoginPage() {
       setHasSignupVerificationResent(false)
       setVerificationPanelNotice({
         variant: "error",
-        message: "確認メールの再送に失敗しました。時間を置いて再度お試しください。",
+        message: tToasts("resendFailedFallback"),
       })
     } finally {
       setIsResendingVerificationEmail(false)
@@ -377,12 +380,12 @@ export default function LoginPage() {
 
     try {
       if (!normalizedEmail) {
-        setNotice({ variant: "error", message: "メールアドレスを入力してください。" })
+        setNotice({ variant: "error", message: tToasts("emailRequired") })
         return
       }
 
       if (!isReset && !password) {
-        setNotice({ variant: "error", message: "メールアドレスとパスワードを入力してください。" })
+        setNotice({ variant: "error", message: tToasts("emailAndPasswordRequired") })
         return
       }
 
@@ -393,24 +396,24 @@ export default function LoginPage() {
           body: JSON.stringify({ email: normalizedEmail }),
         })
         if (!response.ok && response.status !== 429) {
-          throw new Error("パスワード再設定メールの送信に失敗しました。")
+          throw new Error(tToasts("passwordResetMailFailed"))
         }
 
         setNotice(
-          toSuccessNotice("パスワード再設定用のメールを送信しました。メール内のリンクをご確認ください。"),
+          toSuccessNotice(tToasts("passwordResetMailSent")),
         )
         return
       }
 
       if (isSignup && !trimmedDisplayName) {
-        setNotice({ variant: "error", message: "表示名を入力してください。" })
+        setNotice({ variant: "error", message: tToasts("displayNameRequired") })
         return
       }
 
       if (isSignup && !isEmailMatched) {
         setNotice({
           variant: "error",
-          message: "メールアドレス（確認用）が一致していません。",
+          message: tToasts("emailConfirmMismatch"),
         })
         return
       }
@@ -418,7 +421,7 @@ export default function LoginPage() {
       if (isSignup && !passwordRuleState.isValid) {
         setNotice({
           variant: "error",
-          message: "パスワードは8文字以上で、大文字・小文字・数字をすべて含めてください。",
+          message: tToasts("passwordPolicy"),
         })
         return
       }
@@ -426,7 +429,7 @@ export default function LoginPage() {
       if (isSignup && !isConfirmMatched) {
         setNotice({
           variant: "error",
-          message: "パスワード（確認用）が一致していません。",
+          message: tToasts("passwordConfirmMismatch"),
         })
         return
       }
@@ -435,11 +438,11 @@ export default function LoginPage() {
       if (isSignup) {
         const birthdayTrimmed = birthday.trim()
         if (!birthdayTrimmed) {
-          setNotice({ variant: "error", message: "誕生日を入力してください。" })
+          setNotice({ variant: "error", message: tToasts("birthdayRequired") })
           return
         }
         if (birthdayTrimmed > todayStr) {
-          setNotice({ variant: "error", message: "誕生日に未来の日付は選択できません。" })
+          setNotice({ variant: "error", message: tToasts("birthdayFuture") })
           return
         }
       }
@@ -459,7 +462,7 @@ export default function LoginPage() {
           clearSessionPostEmailConfirmLogin()
         }
 
-        setNotice(toSuccessNotice("ログインに成功しました。"))
+        setNotice(toSuccessNotice(tToasts("loginSuccess")))
         router.push(redirectToProfileSetup ? "/profile-setup" : "/")
         router.refresh()
         return
@@ -484,7 +487,7 @@ export default function LoginPage() {
 
       const signUpUser = signUpData.user
       if (!signUpUser?.id) {
-        throw new Error("ユーザー作成に失敗しました。")
+        throw new Error(tToasts("userCreateFailed"))
       }
 
       const identities = signUpUser.identities ?? []
@@ -492,7 +495,7 @@ export default function LoginPage() {
         setNotice({
           variant: "error",
           message:
-            "このメールアドレスは登録済みか、確認メール送信待ちの可能性があります。受信ボックスをご確認ください。",
+            tToasts("emailMaybeRegistered"),
         })
         return
       }
@@ -525,7 +528,7 @@ export default function LoginPage() {
         // Discord 通知失敗でサインアップ自体は失敗扱いにしない
       }
 
-      setNotice(toSuccessNotice("アカウントを作成しました。プロフィール設定に進みます。"))
+      setNotice(toSuccessNotice(tToasts("accountCreated")))
       router.push("/profile-setup")
       router.refresh()
     } catch (error) {
@@ -555,13 +558,13 @@ export default function LoginPage() {
             <CardDescription className="mt-1 text-muted-foreground">
               {isAwaitingSignupVerification
                 ? isSignupVerificationRecovery
-                  ? "ログインするとプロフィール設定に進めます。うまくいかないときの案内は下記をご覧ください。"
-                  : "確認メールのリンクを開いて認証を完了してください。認証後にプロフィール設定へ進みます。"
+                  ? t("descVerifyRecovery")
+                  : t("descVerify")
                 : isSignup
-                  ? "メールアドレスでアカウントを作成します。確認メールのリンクを開いたあと、プロフィール設定に進みます。"
+                  ? t("descSignup")
                   : isReset
-                    ? "登録済みメールアドレス宛に、再設定リンクを送信します。"
-                    : "登録済みのアカウントでGritVibにログインします。"}
+                    ? t("descReset")
+                    : t("descLogin")}
             </CardDescription>
           </div>
 
@@ -570,7 +573,7 @@ export default function LoginPage() {
             variant="outline"
             className="w-full border-border bg-muted text-foreground hover:border-primary hover:bg-muted/80 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:border-red-500 dark:hover:bg-zinc-800 dark:hover:text-white"
           >
-            <Link href="/">ホームに戻る</Link>
+            <Link href="/">{t("backToHome")}</Link>
           </Button>
 
           {!isAwaitingSignupVerification ? (
@@ -592,7 +595,7 @@ export default function LoginPage() {
                   : "text-muted-foreground hover:text-foreground dark:text-zinc-400 dark:hover:text-zinc-200",
               )}
             >
-              ログイン
+              {t("tabLogin")}
             </button>
             <button
               type="button"
@@ -611,7 +614,7 @@ export default function LoginPage() {
                   : "text-muted-foreground hover:text-foreground dark:text-zinc-400 dark:hover:text-zinc-200",
               )}
             >
-              新規登録
+              {t("tabSignup")}
             </button>
           </div>
           ) : null}
@@ -622,20 +625,16 @@ export default function LoginPage() {
             <div className="space-y-5">
               <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-4 text-sm leading-relaxed text-emerald-950 dark:text-emerald-100">
                 <p className="font-semibold text-emerald-800 dark:text-emerald-200">
-                  {isSignupVerificationRecovery
-                    ? "メールの確認は、リンクを開いたら完了していることがほとんどです"
-                    : "確認メールを送信しました。"}
+                  {isSignupVerificationRecovery ? t("verifyDoneLikely") : t("verifySent")}
                 </p>
                 <p className="mt-3 text-emerald-900/85 dark:text-emerald-100/90">
-                  {isSignupVerificationRecovery
-                    ? "登録したメールアドレスとパスワードでログインすると、プロフィール設定に進めます。"
-                    : "認証用メールを送信しました。メール内のリンクを開いて認証を完了してください。認証後にプロフィール設定へ進みます。"}
+                  {isSignupVerificationRecovery ? t("verifyRecoveryBody") : t("verifySentBody")}
                 </p>
               </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground" htmlFor="signup_verification_email">
-                  送信先メールアドレス
+                  {t("verifyEmailLabel")}
                 </label>
                 <Input
                   id="signup_verification_email"
@@ -649,14 +648,14 @@ export default function LoginPage() {
                   className="border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
                 />
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  再送前に宛先をご確認ください。
+                  {t("verifyEmailHint")}
                 </p>
                 {email.trim().length > 0 && !isLikelyEmail(normalizedResendEmail) ? (
-                  <p className="text-xs text-red-400">メールアドレスの形式が正しくありません。</p>
+                  <p className="text-xs text-red-400">{t("verifyEmailFormatError")}</p>
                 ) : null}
                 {resendEmailChangedFromRegistered ? (
                   <p className="text-xs text-amber-800 dark:text-amber-200">
-                    登録時のメールアドレス（{registeredSignupEmail}）と異なります。別アドレスで受け取るには登録し直してください。
+                    {t("verifyEmailChanged", { email: registeredSignupEmail })}
                   </p>
                 ) : null}
               </div>
@@ -676,40 +675,40 @@ export default function LoginPage() {
 
               {isSignupVerificationRecovery ? (
                 <div className="rounded-lg border border-border bg-muted px-4 py-4 text-sm text-muted-foreground">
-                  <p className="font-semibold text-foreground">ログインができない場合</p>
+                  <p className="font-semibold text-foreground">{t("verifyHelpRecoveryTitle")}</p>
                   <p className="mt-2 leading-relaxed text-muted-foreground">
-                    確認メールのリンクを開いているのにログインできないときは、次を順にお試しください。
+                    {t("verifyHelpRecoveryIntro")}
                   </p>
                   <ul className="mt-3 list-disc space-y-2 pl-5">
-                    <li>メールアドレスとパスワードの入力ミスがないかご確認ください。</li>
-                    <li>迷惑メールフォルダやプロモーションタブをご確認ください。</li>
+                    <li>{t("verifyHelpItemCredentials")}</li>
+                    <li>{t("verifyHelpItemSpam")}</li>
                     {hasSignupVerificationResent ? (
                       <>
-                        <li>確認メールの再送は1回までです。届かない場合はお問い合わせください。</li>
-                        <li>メールアドレスを間違えて登録した場合は、「このメールアドレスで登録し直す」をお試しください。</li>
+                        <li>{t("verifyHelpItemResentOnce")}</li>
+                        <li>{t("verifyHelpItemReRegisterRecovery")}</li>
                       </>
                     ) : (
                       <>
-                        <li>数分待ってから、宛先を確認のうえ「確認メールを再送する」をお試しください（1回まで）。</li>
-                        <li>メールアドレスを間違えて登録した場合は、入力欄を直して「このメールアドレスで登録し直す」をお試しください。</li>
+                        <li>{t("verifyHelpItemResendWait")}</li>
+                        <li>{t("verifyHelpItemReRegisterEditRecovery")}</li>
                       </>
                     )}
                   </ul>
                 </div>
               ) : (
                 <div className="rounded-lg border border-border bg-muted px-4 py-4 text-sm text-muted-foreground">
-                  <p className="font-semibold text-foreground">メールが届かない場合</p>
+                  <p className="font-semibold text-foreground">{t("verifyHelpInitialTitle")}</p>
                   <ul className="mt-3 list-disc space-y-2 pl-5">
-                    <li>迷惑メールフォルダやプロモーションタブをご確認ください。</li>
+                    <li>{t("verifyHelpItemSpam")}</li>
                     {hasSignupVerificationResent ? (
                       <>
-                        <li>確認メールの再送は1回までです。届かない場合はお問い合わせください。</li>
-                        <li>メールアドレスを間違えた場合は、「このメールアドレスで登録し直す」をお試しください。</li>
+                        <li>{t("verifyHelpItemResentOnce")}</li>
+                        <li>{t("verifyHelpItemReRegister")}</li>
                       </>
                     ) : (
                       <>
-                        <li>数分待ってから、宛先を確認して「確認メールを再送する」をお試しください（1回まで）。</li>
-                        <li>メールアドレスを間違えた場合は、入力欄を直して「このメールアドレスで登録し直す」をお試しください。</li>
+                        <li>{t("verifyHelpItemResendWaitInitial")}</li>
+                        <li>{t("verifyHelpItemReRegisterEdit")}</li>
                       </>
                     )}
                   </ul>
@@ -718,9 +717,9 @@ export default function LoginPage() {
 
               {hasSignupVerificationResent ? (
                 <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-4 text-sm leading-relaxed text-amber-950 dark:text-amber-100">
-                  <p className="font-semibold text-amber-800 dark:text-amber-200">確認メールは再送済みです</p>
+                  <p className="font-semibold text-amber-800 dark:text-amber-200">{t("verifyAlreadyResentTitle")}</p>
                   <p className="mt-3 text-amber-900/90 dark:text-amber-100/90">
-                    それでも届かない場合は、下の「お問い合わせ」からご連絡ください。
+                    {t("verifyAlreadyResentBody")}
                   </p>
                 </div>
               ) : null}
@@ -734,12 +733,12 @@ export default function LoginPage() {
                 {isResendingVerificationEmail ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    再送中...
+                    {t("verifyResending")}
                   </>
                 ) : hasSignupVerificationResent ? (
-                  "確認メールは再送済みです"
+                  t("verifyAlreadyResent")
                 ) : (
-                  "確認メールを再送する"
+                  t("verifyResend")
                 )}
               </Button>
 
@@ -750,7 +749,7 @@ export default function LoginPage() {
                   className="h-11 w-full border-amber-500/50 bg-muted text-amber-900 hover:bg-muted/80 dark:text-amber-100"
                   onClick={returnToSignupWithEditedEmail}
                 >
-                  このメールアドレスで登録し直す
+                  {t("verifyReRegisterButton")}
                 </Button>
               ) : null}
 
@@ -764,7 +763,7 @@ export default function LoginPage() {
                     : "h-11 w-full border-border bg-muted text-foreground hover:bg-muted/80"
                 }
               >
-                <Link href="/contact">お問い合わせ</Link>
+                <Link href="/contact">{t("verifyContactButton")}</Link>
               </Button>
 
               <Button
@@ -773,7 +772,7 @@ export default function LoginPage() {
                 className="h-11 w-full border-border bg-muted text-foreground hover:bg-muted/80"
                 onClick={returnToLoginFromSignupVerification}
               >
-                ログイン画面に戻る
+                {t("verifyBackToLogin")}
               </Button>
             </div>
           ) : (
@@ -781,18 +780,18 @@ export default function LoginPage() {
             {isSignup && (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground" htmlFor="full_name">
-                  氏名（本名）
+                  {t("fullName")}
                 </label>
                 <Input
                   id="full_name"
                   value={fullName}
                   onChange={(event) => setFullName(event.target.value)}
-                  placeholder="例: 山田 太郎"
+                  placeholder={t("fullNamePlaceholder")}
                   autoComplete="name"
                   className="border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
                 />
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  ※氏名は安全なコミュニティ運営のためにのみ使用され、他のユーザーには公開されません（表示名のみが公開されます）。ご本人確認と、健全な取引のためにご協力をお願いします。
+                  {t("fullNameHelp")}
                 </p>
               </div>
             )}
@@ -800,7 +799,7 @@ export default function LoginPage() {
             {isSignup && (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground" htmlFor="birthday">
-                  誕生日
+                  {t("birthday")}
                 </label>
                 <Input
                   id="birthday"
@@ -823,13 +822,13 @@ export default function LoginPage() {
             {isSignup && (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground" htmlFor="display_name">
-                  表示名
+                  {t("displayName")}
                 </label>
                 <Input
                   id="display_name"
                   value={displayName}
                   onChange={(event) => setDisplayName(event.target.value)}
-                  placeholder="例: Kenta Trainer"
+                  placeholder={t("displayNamePlaceholder")}
                   autoComplete="nickname"
                   className="border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
                 />
@@ -838,7 +837,7 @@ export default function LoginPage() {
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground" htmlFor="email">
-                メールアドレス
+                {t("email")}
               </label>
               <Input
                 id="email"
@@ -854,19 +853,19 @@ export default function LoginPage() {
             {isSignup && (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground" htmlFor="confirm_email">
-                  メールアドレス（確認用）
+                  {t("emailConfirm")}
                 </label>
                 <Input
                   id="confirm_email"
                   type="email"
                   value={confirmEmail}
                   onChange={(event) => setConfirmEmail(event.target.value)}
-                  placeholder="確認のため同じメールアドレスを入力"
+                  placeholder={t("emailConfirmPlaceholder")}
                   autoComplete="email"
                   className="border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
                 />
                 {confirmEmail.length > 0 && !isEmailMatched && (
-                  <p className="text-xs text-red-400">メールアドレスが一致していません。</p>
+                  <p className="text-xs text-red-400">{t("emailMismatch")}</p>
                 )}
               </div>
             )}
@@ -874,7 +873,7 @@ export default function LoginPage() {
             {!isReset && (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground" htmlFor="password">
-                  パスワード
+                  {t("password")}
                 </label>
                 <div className="relative">
                   <Input
@@ -882,7 +881,7 @@ export default function LoginPage() {
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    placeholder={isSignup ? "8文字以上・大文字/小文字/数字を含める" : "パスワードを入力"}
+                    placeholder={isSignup ? t("passwordPlaceholderSignup") : t("passwordPlaceholderLogin")}
                     autoComplete={isSignup ? "new-password" : "current-password"}
                     className="border-input bg-background pr-11 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
                   />
@@ -890,17 +889,17 @@ export default function LoginPage() {
                     type="button"
                     onClick={() => setShowPassword((previous) => !previous)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-primary"
-                    aria-label={showPassword ? "パスワードを隠す" : "パスワードを表示"}
+                    aria-label={showPassword ? t("passwordToggleHide") : t("passwordToggleShow")}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
                 {isSignup && (
                   <div className="space-y-1 text-xs">
-                    {!passwordRuleState.hasMinLength && <p className="text-red-400">8文字以上で入力してください。</p>}
-                    {!passwordRuleState.hasUppercase && <p className="text-red-400">英大文字が含まれていません。</p>}
-                    {!passwordRuleState.hasLowercase && <p className="text-red-400">英小文字が含まれていません。</p>}
-                    {!passwordRuleState.hasNumber && <p className="text-red-400">数字が含まれていません。</p>}
+                    {!passwordRuleState.hasMinLength && <p className="text-red-400">{t("passwordRuleMin")}</p>}
+                    {!passwordRuleState.hasUppercase && <p className="text-red-400">{t("passwordRuleUpper")}</p>}
+                    {!passwordRuleState.hasLowercase && <p className="text-red-400">{t("passwordRuleLower")}</p>}
+                    {!passwordRuleState.hasNumber && <p className="text-red-400">{t("passwordRuleNumber")}</p>}
                   </div>
                 )}
               </div>
@@ -909,7 +908,7 @@ export default function LoginPage() {
             {isSignup && (
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground" htmlFor="confirm_password">
-                  パスワード（確認用）
+                  {t("passwordConfirm")}
                 </label>
                 <div className="relative">
                   <Input
@@ -917,7 +916,7 @@ export default function LoginPage() {
                     type={showConfirmPassword ? "text" : "password"}
                     value={confirmPassword}
                     onChange={(event) => setConfirmPassword(event.target.value)}
-                    placeholder="確認のため同じパスワードを入力"
+                    placeholder={t("passwordConfirmPlaceholder")}
                     autoComplete="new-password"
                     className="border-input bg-background pr-11 text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
                   />
@@ -925,13 +924,13 @@ export default function LoginPage() {
                     type="button"
                     onClick={() => setShowConfirmPassword((previous) => !previous)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-primary"
-                    aria-label={showConfirmPassword ? "確認用パスワードを隠す" : "確認用パスワードを表示"}
+                    aria-label={showConfirmPassword ? t("passwordConfirmToggleHide") : t("passwordConfirmToggleShow")}
                   >
                     {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
                 {confirmPassword.length > 0 && !isConfirmMatched && (
-                  <p className="text-xs text-red-400">パスワードが一致していません。</p>
+                  <p className="text-xs text-red-400">{t("passwordMismatch")}</p>
                 )}
               </div>
             )}
@@ -940,7 +939,7 @@ export default function LoginPage() {
               <div className="flex items-start gap-2 rounded-md border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
                 <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
                 <p>
-                  表示名は30日に1回、変更できます。一度設定すると30日間は変更ができませんのでご注意ください。
+                  {t("displayNameNote")}
                 </p>
               </div>
             )}
@@ -949,16 +948,16 @@ export default function LoginPage() {
               <div className="space-y-3">
                 {canShowPostEmailLoginHelp ? (
                   <div className="rounded-lg border border-border bg-muted px-3 py-3 text-xs leading-relaxed text-muted-foreground">
-                    <p className="font-semibold text-foreground">ログインができない場合</p>
+                    <p className="font-semibold text-foreground">{t("loginHelpTitle")}</p>
                     <ul className="mt-2 list-disc space-y-1.5 pl-4">
-                      <li>メールアドレスとパスワードの入力ミスがないかご確認ください。</li>
-                      <li>パスワードを忘れた場合は、下の「パスワードを忘れた場合」から再設定できます。</li>
+                      <li>{t("loginHelpItemCredentials")}</li>
+                      <li>{t("loginHelpItemForgot")}</li>
                       <li>
-                        それでも解決しない場合は{" "}
+                        {t("loginHelpItemContactPrefix")}
                         <Link href="/contact" className="text-red-400 underline hover:text-red-300">
-                          お問い合わせ
+                          {t("loginHelpItemContactLink")}
                         </Link>
-                        からご連絡ください。
+                        {t("loginHelpItemContactSuffix")}
                       </li>
                     </ul>
                     <button
@@ -969,7 +968,7 @@ export default function LoginPage() {
                       }}
                       className="mt-3 w-full text-left text-xs text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
                     >
-                      この案内を表示しない
+                      {t("loginHelpHide")}
                     </button>
                   </div>
                 ) : null}
@@ -982,7 +981,7 @@ export default function LoginPage() {
                   }}
                   className="w-full text-right text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-red-300 hover:underline"
                 >
-                  パスワードを忘れた場合
+                  {t("forgotPassword")}
                 </button>
               </div>
             )}
@@ -996,7 +995,7 @@ export default function LoginPage() {
                 }}
                 className="w-full text-right text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-red-300 hover:underline"
               >
-                ログインに戻る
+                {t("returnToLogin")}
               </button>
             )}
 
@@ -1008,14 +1007,14 @@ export default function LoginPage() {
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  処理中...
+                  {t("submitting")}
                 </>
               ) : isSignup ? (
-                "アカウントを作成"
+                t("submitSignup")
               ) : isReset ? (
-                "再設定メールを送信"
+                t("submitReset")
               ) : (
-                "ログイン"
+                t("submitLogin")
               )}
             </Button>
           </form>

@@ -5,6 +5,7 @@ import { Video } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { chatUi } from "@/lib/chat-ui"
 import { extractYoutubeVideoId } from "@/lib/chat-link-payload"
+import { useTranslations } from "@/lib/i18n/useI18n"
 import { cn } from "@/lib/utils"
 
 const ReactPlayer = dynamic(() => import("react-player"), {
@@ -24,6 +25,7 @@ type Props = {
 /** 吹き出し内に収まる YouTube 埋め込み（コントロール表示） */
 export function ChatYoutubeRich({ url, mine }: Props) {
   const canEmbed = Boolean(extractYoutubeVideoId(url))
+  const t = useTranslations("chatRich.youtube")
 
   return (
     <div
@@ -33,7 +35,7 @@ export function ChatYoutubeRich({ url, mine }: Props) {
       )}
     >
       <p className="border-b border-border px-3 py-2 text-xs font-semibold text-red-600 dark:text-red-300">
-        YouTube動画
+        {t("label")}
       </p>
       {canEmbed ? (
         <div className="p-2">
@@ -57,7 +59,7 @@ export function ChatYoutubeRich({ url, mine }: Props) {
       ) : null}
       <div className="flex flex-col gap-2 p-3">
         {!canEmbed ? (
-          <p className="text-xs text-muted-foreground">プレビューを表示できないURLです。リンクから開いてください。</p>
+          <p className="text-xs text-muted-foreground">{t("previewUnavailable")}</p>
         ) : null}
         <Button
           asChild
@@ -73,7 +75,7 @@ export function ChatYoutubeRich({ url, mine }: Props) {
         >
           <a href={url} target="_blank" rel="noopener noreferrer">
             <Video className="h-3.5 w-3.5" />
-            YouTubeで開く
+            {t("openExternal")}
           </a>
         </Button>
       </div>

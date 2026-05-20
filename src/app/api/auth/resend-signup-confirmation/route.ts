@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import {
+  pickLocaleFromAcceptLanguage,
+  readLocaleCookieFromHeader,
+} from "@/lib/i18n/detect-locale"
+import {
   sendSignupConfirmationEmail,
   type SignupConfirmationResendFailureReason,
 } from "@/lib/signup-confirmation-resend"
@@ -103,7 +107,9 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const result = await sendSignupConfirmationEmail(email)
+  const cookieLocale = readLocaleCookieFromHeader(request.headers.get("cookie"))
+  const locale = cookieLocale ?? pickLocaleFromAcceptLanguage(request.headers.get("accept-language"))
+  const result = await sendSignupConfirmationEmail(email, locale)
   if (!result.ok) {
     console.error("[resend-signup-confirmation] delivery failed", { email, reason: result.reason })
     return NextResponse.json(

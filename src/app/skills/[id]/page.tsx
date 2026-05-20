@@ -26,8 +26,10 @@ import { buildStorePath } from "@/lib/profile-path"
 import { formatSkillCategoryDisplay } from "@/lib/skill-categories"
 import { resolveSkillThumbnailUrl, skillThumbnailContainerAspectStyle } from "@/lib/skill-thumbnail"
 import { getIsAdminFromProfile } from "@/lib/admin"
+import { lookupJaMessage } from "@/lib/i18n/ja-canonical"
 import { formatErrorMessageOnly } from "@/lib/notifications"
 import type { AppNotice } from "@/lib/notifications"
+import { translateToastMessage } from "@/lib/toast-i18n"
 import { createCheckoutSession, finalizeCheckoutSessionAfterSuccess, releaseCheckoutReservationAfterCancel } from "@/actions/checkout"
 import { isCheckoutCapacityFinalizeError } from "@/lib/checkout-fulfillment"
 import {
@@ -47,18 +49,20 @@ import {
   type ConsultationSettingsRow,
 } from "@/lib/consultation"
 import { cn } from "@/lib/utils"
+import { useLocale, useTranslations } from "@/lib/i18n/useI18n"
+import { localeToHtmlLang } from "@/lib/i18n/locales"
 
 /** `createCheckoutSession` の日本語エラーを `formatErrorMessageOnly` の汎用文に置き換えない */
-function displayCheckoutStartError(raw: string, isAdmin: boolean): string {
+function displayCheckoutStartError(raw: string, isAdmin: boolean, fallback: string): string {
   const trimmed = raw.trim()
   if (!trimmed) {
-    return "決済の準備に失敗しました。"
+    return fallback
   }
   if (/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/.test(trimmed)) {
     return trimmed
   }
   return formatErrorMessageOnly({ message: trimmed }, isAdmin, {
-    unknownErrorMessage: "決済の準備に失敗しました。",
+    unknownErrorMessage: fallback,
   })
 }
 
@@ -137,22 +141,28 @@ function normalizeProfile(profiles: SkillDetailRow["profiles"]): ProfileEmbed | 
   return Array.isArray(profiles) ? (profiles[0] ?? null) : profiles
 }
 
-function formatLessonFormat(format: SkillDetailRow["format"]): string {
+type FormatLabels = {
+  online: string
+  offline: string
+  prefectureFallback: string
+}
+
+function formatLessonFormat(format: SkillDetailRow["format"], labels: FormatLabels): string {
   if (format === "online") {
-    return "オンライン"
+    return labels.online
   }
   if (format === "onsite") {
-    return "対面"
+    return labels.offline
   }
   return String(format)
 }
 
-function formatLocation(row: SkillDetailRow): string {
+function formatLocation(row: SkillDetailRow, labels: FormatLabels): string {
   if (row.format === "online") {
-    return "オンライン"
+    return labels.online
   }
   const p = row.location_prefecture?.trim()
-  return p && p.length > 0 ? p : "都道府県未設定"
+  return p && p.length > 0 ? p : labels.prefectureFallback
 }
 
 export default function SkillDetailPage() {
@@ -162,6 +172,32 @@ export default function SkillDetailPage() {
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
   const skillId = typeof params.id === "string" ? params.id : Array.isArray(params.id) ? params.id[0] : ""
 
+  const t = useTranslations("skillDetail")
+  const tErr = useTranslations("skillDetail.errors")
+  const tProg = useTranslations("skillDetail.purchaseProgress")
+  const tSec = useTranslations("skillDetail.sections")
+  const tInstr = useTranslations("skillDetail.instructor")
+  const tCap = useTranslations("skillDetail.capacity")
+  const tDur = useTranslations("skillDetail.duration")
+  const tConsult = useTranslations("skillDetail.consultation")
+  const tAct = useTranslations("skillDetail.actions")
+  const tNotFound = useTranslations("skillDetail.notFound")
+  const tSucc = useTranslations("skillDetail.successes")
+  const tNoti = useTranslations("skillDetail.notifications")
+  const tFmt = useTranslations("skillDetail.format")
+  const tPrice = useTranslations("skillDetail.price")
+  const tConfirm = useTranslations("purchaseConfirmModal")
+  const locale = useLocale()
+  const htmlLang = localeToHtmlLang(locale)
+  const formatLabels = useMemo<FormatLabels>(
+    () => ({
+      online: tFmt("online"),
+      offline: tFmt("offline"),
+      prefectureFallback: tFmt("prefectureFallback"),
+    }),
+    [tFmt],
+  )
+
   const [loading, setLoading] = useState(true)
   /** Checkout キャンセル直後: 仮押さえ解放〜在庫再取得までフルスクリーンの読み込みを維持する */
   const [checkoutCancelSyncing, setCheckoutCancelSyncing] = useState(false)
@@ -169,7 +205,7 @@ export default function SkillDetailPage() {
   const [enrolledCount, setEnrolledCount] = useState(0)
   const [userId, setUserId] = useState<string | null>(null)
   const [purchasePending, setPurchasePending] = useState(false)
-  const [purchaseProgressLabel, setPurchaseProgressLabel] = useState("読み込み中...")
+  const [purchaseProgressLabel, setPurchaseProgressLabel] = useState<string | null>(null)
   const [purchaseError, setPurchaseError] = useState<string | null>(null)
   const [purchaseConfirmOpen, setPurchaseConfirmOpen] = useState(false)
   const [purchaseConfirmKey, setPurchaseConfirmKey] = useState(0)
@@ -268,11 +304,11 @@ export default function SkillDetailPage() {
 
   const startStripePaymentForTransaction = useCallback(
     async (targetSkillId: string): Promise<boolean> => {
-      setPurchaseProgressLabel("決済を準備中...")
+      setPurchaseProgressLabel(tProg("preparingCheckout"))
       try {
         const result = await createCheckoutSession(targetSkillId)
         if (!result.ok) {
-          setPurchaseError(displayCheckoutStartError(result.error, isAdmin))
+          setPurchaseError(displayCheckoutStartError(result.error, isAdmin, tErr("checkoutPrepareFailed")))
           console.error("[skills:startStripePaymentForTransaction] createCheckoutSession failed", {
             skillId: targetSkillId,
             error: result.error,
@@ -281,7 +317,7 @@ export default function SkillDetailPage() {
         }
         const { url, checkoutSessionId } = result
         if (!url) {
-          setPurchaseError("決済ページを作成できませんでした。")
+          setPurchaseError(tErr("checkoutPageCreateFailed"))
           return false
         }
         writePendingSkillCheckout({
@@ -292,8 +328,8 @@ export default function SkillDetailPage() {
         window.location.href = url
         return true
       } catch (e) {
-        const msg = e instanceof Error ? e.message : "決済の準備に失敗しました。"
-        setPurchaseError(displayCheckoutStartError(msg, isAdmin))
+        const msg = e instanceof Error ? e.message : tErr("checkoutPrepareFailed")
+        setPurchaseError(displayCheckoutStartError(msg, isAdmin, tErr("checkoutPrepareFailed")))
         console.error("[skills:startStripePaymentForTransaction] createCheckoutSession error", {
           skillId: targetSkillId,
           message: msg,
@@ -389,7 +425,7 @@ export default function SkillDetailPage() {
             if (isMissingColumn || isCapacityError || finalizeState.attempts >= 15) {
               finalizeState.stopped = true
               if (isMissingColumn) {
-                setPurchaseError("決済情報の反映に失敗しました。時間をおいて再度お試しください。")
+                setPurchaseError(tErr("checkoutReflectFailed"))
               } else if (isCapacityError) {
                 setPurchaseError(finalized.error)
               }
@@ -421,7 +457,7 @@ export default function SkillDetailPage() {
         await new Promise((r) => setTimeout(r, 2000))
       }
       if (!cancelled) {
-        setPurchaseError("決済後の取引反映に時間がかかっています。マイページからチャットを開いてください。")
+        setPurchaseError(tErr("checkoutSlow"))
         const n = await countActiveSlotsForSkillPurchaseDisplay(supabase, skillId, userId)
         if (n !== null) {
           setEnrolledCount(Number(n))
@@ -782,7 +818,7 @@ export default function SkillDetailPage() {
     return (
       <div className="flex min-h-[100svh] items-center justify-center bg-background text-muted-foreground md:min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-red-500" aria-hidden />
-        <span className="ml-2 text-sm">{checkoutCancelSyncing ? "申し込み人数を確認しています" : "読み込み中..."}</span>
+        <span className="ml-2 text-sm">{checkoutCancelSyncing ? t("checkoutCancelSyncing") : t("loading")}</span>
       </div>
     )
   }
@@ -790,11 +826,11 @@ export default function SkillDetailPage() {
   if (!skill) {
     return (
       <div className="min-h-[100svh] bg-background px-4 py-16 text-center text-muted-foreground md:min-h-screen">
-        <p className="text-lg font-semibold text-foreground">スキルが見つかりません</p>
-        <p className="mt-2 text-sm text-muted-foreground">URL をご確認ください。</p>
+        <p className="text-lg font-semibold text-foreground">{tNotFound("title")}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{tNotFound("subtitle")}</p>
         <Button asChild className="mt-8 bg-red-600 text-white hover:bg-red-500">
           <Link href="/" scroll={false}>
-            ホームへ戻る
+            {tNotFound("homeCta")}
           </Link>
         </Button>
       </div>
@@ -802,7 +838,7 @@ export default function SkillDetailPage() {
   }
 
   const profile = normalizeProfile(skill.profiles)
-  const instructorName = profile?.display_name?.trim() || "講師"
+  const instructorName = profile?.display_name?.trim() || t("instructorFallback")
   const hasInstructorRating =
     profile?.rating_avg != null &&
     Number.isFinite(Number(profile.rating_avg)) &&
@@ -857,7 +893,7 @@ export default function SkillDetailPage() {
       return
     }
     if (transactionStatusLoading) {
-      setPurchaseError("取引状態を確認中です。少し待ってから再度お試しください。")
+      setPurchaseError(tErr("checkConfirming"))
       return
     }
     if (hasActivePurchase && latestTransaction?.id != null) {
@@ -883,15 +919,15 @@ export default function SkillDetailPage() {
       return
     }
     setPurchasePending(true)
-    setPurchaseProgressLabel("決済ページへ移動中...")
+    setPurchaseProgressLabel(tProg("movingToCheckout"))
     try {
       // 二重遷移防止: 既にチャット可能な取引があるならそちらを優先
       const latestActive = await fetchLatestRelevantTransaction()
 
       if (latestActive === undefined) {
         setPurchaseError(
-          formatErrorMessageOnly({ message: "取引の確認に失敗しました。" }, isAdmin, {
-            unknownErrorMessage: "取引の確認に失敗しました。",
+          formatErrorMessageOnly({ message: tErr("txCheckFailed") }, isAdmin, {
+            unknownErrorMessage: tErr("txCheckFailed"),
           }),
         )
         return
@@ -903,7 +939,7 @@ export default function SkillDetailPage() {
         setTransactionRows([latestActiveRow])
         setTransactionStatus(latestStatus)
         setActiveTransaction(latestActiveRow)
-        setPurchaseProgressLabel("チャットへ移動中...")
+        setPurchaseProgressLabel(tProg("movingToChat"))
         router.push(`/chat/${String(latestActiveRow.id)}`)
         return
       }
@@ -920,13 +956,13 @@ export default function SkillDetailPage() {
       if (/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/.test(msg)) {
         setPurchaseError(msg)
       } else if (isAdmin) {
-        setPurchaseError(`決済の開始に失敗しました。（${msg}）`)
+        setPurchaseError(tErr("checkoutStartWithReason", { reason: msg }))
       } else {
-        setPurchaseError("決済の開始に失敗しました。ページを再読み込みしてからお試しください。")
+        setPurchaseError(tErr("checkoutStartGeneric"))
       }
     } finally {
       setPurchasePending(false)
-      setPurchaseProgressLabel("読み込み中...")
+      setPurchaseProgressLabel(t("loading"))
       setPurchaseConfirmOpen(false)
     }
   }
@@ -955,7 +991,7 @@ export default function SkillDetailPage() {
     }
     const skillIdNumber = toConsultationSkillId(skillId)
     if (skillIdNumber == null) {
-      setPurchaseError("スキルIDの形式が不正です。")
+      setPurchaseError(tErr("invalidSkillId"))
       return
     }
     const a1 = consultationForm.a1.trim()
@@ -968,7 +1004,7 @@ export default function SkillDetailPage() {
       (showConsultationQ3 && !a3) ||
       (showConsultationFree && !free)
     ) {
-      setPurchaseError("表示されている相談項目はすべて入力してください。")
+      setPurchaseError(tErr("consultationRequired"))
       return
     }
     setPurchaseError(null)
@@ -980,18 +1016,18 @@ export default function SkillDetailPage() {
       } = await supabase.auth.getUser()
       const authUserId = authUser?.id ?? null
       if (authError || !authUserId) {
-        setPurchaseError("ログイン情報を確認できませんでした。再ログインしてください。")
+        setPurchaseError(tErr("loginInfoCannotVerify"))
         return
       }
       if (authUserId !== userId) {
-        setPurchaseError("認証ユーザー情報が更新されました。ページを再読み込みしてから再度お試しください。")
+        setPurchaseError(tErr("authUserUpdated"))
         return
       }
       const existingAnswer = await fetchMyConsultationAnswer(supabase, skillIdNumber, authUserId)
       if (existingAnswer?.status === "pending") {
         setConsultationAnswer(existingAnswer)
         setConsultationFormOpen(false)
-        setPurchaseError("このスキルは承認待ちです。承認または拒否まで再送できません。")
+        setPurchaseError(tErr("skillPendingApproval"))
         return
       }
       const { data: sellerSkillRow, error: sellerSkillError } = await supabase
@@ -1004,7 +1040,7 @@ export default function SkillDetailPage() {
           ? sellerSkillRow.user_id
           : null
       if (!sellerId) {
-        setPurchaseError("講師情報を確認できませんでした。ページを再読み込みして再度お試しください。")
+        setPurchaseError(tErr("instructorInfoFailed"))
         return
       }
 
@@ -1042,7 +1078,7 @@ export default function SkillDetailPage() {
             },
           })
         }
-        setPurchaseError("相談リクエストの送信に失敗しました。")
+        setPurchaseError(tErr("consultationRequestFailed"))
         return
       }
       setConsultationAnswer((data as ConsultationAnswerRow) ?? {
@@ -1060,10 +1096,12 @@ export default function SkillDetailPage() {
       const { error: notifError } = await createGeneralNotification(supabase, {
         recipient_id: sellerId,
         sender_id: authUserId,
+        // DB には常に JA 正規形を保存（title は DB 由来の skill.title を優先、fallback も JA 固定）。
+        // 表示時は notification-content-i18n.ts で受信者ロケールに応じて差し替える。
         type: "consultation_request",
-        title: skill?.title?.trim() || "事前オファー",
+        title: skill?.title?.trim() || lookupJaMessage("mypage.notifications.consultationOfferTitleFallback"),
         reason: `skill_id:${skillIdNumber}`,
-        content: "事前オファーの申し込みが届いています。受講リクエストをご確認ください。",
+        content: lookupJaMessage("mypage.notifications.consultationOfferContent"),
       })
       if (notifError) {
         console.error("[consultation_request notification] failed", {
@@ -1084,7 +1122,7 @@ export default function SkillDetailPage() {
       })
       setNotice({
         variant: "success",
-        message: "リクエストを送信しました。講師の承認をお待ちください",
+        message: tSucc("consultationRequested"),
       })
     } finally {
       setIsSubmitting(false)
@@ -1102,7 +1140,7 @@ export default function SkillDetailPage() {
         >
           <Link href="/discover" scroll={false} className="inline-flex items-center gap-2">
             <ArrowLeft className="h-4 w-4" />
-            一覧へ戻る
+            {t("backToList")}
           </Link>
         </Button>
 
@@ -1128,7 +1166,7 @@ export default function SkillDetailPage() {
 
           <div className="space-y-8 p-6 md:p-8">
             <section>
-              <h2 className="mb-3 text-sm font-bold uppercase tracking-wider text-red-600 dark:text-red-400">講師</h2>
+              <h2 className="mb-3 text-sm font-bold uppercase tracking-wider text-red-600 dark:text-red-400">{tSec("instructor")}</h2>
               <Link
                 href={buildStorePath(skill.user_id, profile?.custom_id)}
                 className="flex items-center gap-4 rounded-xl border border-red-500/30 bg-muted/60 p-4 transition-colors hover:border-red-500/55 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
@@ -1152,10 +1190,10 @@ export default function SkillDetailPage() {
                           </span>
                         </span>
                         <span className="text-muted-foreground">·</span>
-                        <span>レビュー {profile?.review_count} 件</span>
+                        <span>{tInstr("reviewCount", { count: profile?.review_count ?? 0 })}</span>
                       </>
                     ) : (
-                      <span className="text-muted-foreground">評価なし</span>
+                      <span className="text-muted-foreground">{tInstr("noRating")}</span>
                     )}
                   </div>
                 </div>
@@ -1164,20 +1202,20 @@ export default function SkillDetailPage() {
             </section>
 
             <section className="space-y-2">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-red-600 dark:text-red-400">価格</h2>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-red-600 dark:text-red-400">{tSec("price")}</h2>
               <p className="text-3xl font-black text-foreground">
-                ¥{skill.price.toLocaleString()}
-                <span className="ml-2 text-base font-semibold text-muted-foreground">/ 回</span>
+                ¥{skill.price.toLocaleString(htmlLang)}
+                <span className="ml-2 text-base font-semibold text-muted-foreground">{tPrice("perSession")}</span>
               </p>
             </section>
 
             <section className="space-y-2">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-red-600 dark:text-red-400">説明</h2>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-red-600 dark:text-red-400">{tSec("description")}</h2>
               <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">{skill.description}</p>
             </section>
 
             <section className="space-y-2">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-red-600 dark:text-red-400">こんな人におすすめ</h2>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-red-600 dark:text-red-400">{tSec("forWhom")}</h2>
               <p className="text-sm leading-relaxed text-foreground">{skill.target_audience}</p>
             </section>
 
@@ -1185,15 +1223,15 @@ export default function SkillDetailPage() {
               <section className="flex gap-3 rounded-xl border border-border bg-muted/50 p-4">
                 <Monitor className="mt-0.5 h-5 w-5 shrink-0 text-red-500" aria-hidden />
                 <div>
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">形式</h2>
-                  <p className="mt-1 font-semibold text-foreground">{formatLessonFormat(skill.format)}</p>
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{tSec("format")}</h2>
+                  <p className="mt-1 font-semibold text-foreground">{formatLessonFormat(skill.format, formatLabels)}</p>
                 </div>
               </section>
               <section className="flex gap-3 rounded-xl border border-border bg-muted/50 p-4">
                 <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-red-500" aria-hidden />
                 <div>
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">場所</h2>
-                  <p className="mt-1 font-semibold text-foreground">{formatLocation(skill)}</p>
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{tSec("location")}</h2>
+                  <p className="mt-1 font-semibold text-foreground">{formatLocation(skill, formatLabels)}</p>
                 </div>
               </section>
             </div>
@@ -1203,14 +1241,28 @@ export default function SkillDetailPage() {
                 <Users className="mt-0.5 h-5 w-5 shrink-0 text-red-500" aria-hidden />
                 <div className="min-w-0 flex-1 space-y-3">
                   <div>
-                    <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">対応人数</h2>
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{tSec("capacity")}</h2>
                     <p className="mt-1 text-lg font-bold text-foreground">
-                      対応可能人数: <span className="text-red-600 dark:text-red-400">{maxCap}</span> 名
+                      {tCap("max", { max: `__MAX__` }).split("__MAX__").map((segment, idx, arr) => (
+                        <span key={idx}>
+                          {segment}
+                          {idx < arr.length - 1 ? (
+                            <span className="text-red-600 dark:text-red-400">{maxCap}</span>
+                          ) : null}
+                        </span>
+                      ))}
                     </p>
                   </div>
                   <div className="border-t border-border pt-3">
                     <p className="text-sm text-muted-foreground">
-                      現在の申し込み人数: <span className="font-semibold text-foreground">{enrolled}</span> 名
+                      {tCap("enrolled", { enrolled: `__ENR__` }).split("__ENR__").map((segment, idx, arr) => (
+                        <span key={idx}>
+                          {segment}
+                          {idx < arr.length - 1 ? (
+                            <span className="font-semibold text-foreground">{enrolled}</span>
+                          ) : null}
+                        </span>
+                      ))}
                     </p>
                   </div>
                 </div>
@@ -1219,7 +1271,7 @@ export default function SkillDetailPage() {
 
             <section className="space-y-1 text-sm text-muted-foreground">
               <p>
-                1回あたりの時間: <span className="font-medium text-foreground">{skill.duration_minutes}分</span>
+                {tDur("label")} <span className="font-medium text-foreground">{tDur("minutes", { minutes: skill.duration_minutes })}</span>
               </p>
             </section>
           </div>
@@ -1253,10 +1305,10 @@ export default function SkillDetailPage() {
                 >
                   <ClipboardList className="mr-2 h-5 w-5 shrink-0" aria-hidden />
                   {!userId
-                    ? "ログインして事前オファーを送る"
+                    ? tConsult("loginToSendOffer")
                     : consultationFormOpen
-                      ? "入力フォームを閉じる"
-                      : "事前オファーを送る"}
+                      ? tConsult("closeForm")
+                      : tConsult("openForm")}
                 </Button>
               ) : null}
               {showPreOfferFormExpanded ? (
@@ -1316,7 +1368,7 @@ export default function SkillDetailPage() {
                     onClick={() => void handleConsultationSubmit()}
                     className="h-10 w-full rounded-md bg-red-600 text-sm font-bold text-white hover:bg-red-500 sm:h-11 sm:text-base"
                   >
-                    {isSubmitting ? "送信中..." : "リクエストを送信"}
+                    {isSubmitting ? tConsult("submitting") : tConsult("submit")}
                   </Button>
                 </div>
               ) : null}
@@ -1338,7 +1390,7 @@ export default function SkillDetailPage() {
                     className="inline-flex w-full items-center justify-center gap-2"
                   >
                     <MessageCircle className="h-5 w-5 shrink-0" aria-hidden />
-                    出品者に質問する
+                    {tAct("askSeller")}
                   </Link>
                 </Button>
               ) : null}
@@ -1346,17 +1398,17 @@ export default function SkillDetailPage() {
           ) : null}
           {showAskSeller ? (
             <p className="mb-3 text-center text-[11px] text-muted-foreground">
-              購入前の質問は「出品者に質問する」から。お取引が始まったあとの連絡は取引チャットをご利用ください。
+              {tAct("askSellerHint")}
             </p>
           ) : null}
           {consultationEnabled ? (
             <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900 dark:border-red-500/40 dark:bg-red-950/30 dark:text-red-200">
-              こちらのスキルには事前オファーが設定されています。初回ご購入前に申し込みが必要です。
+              {tAct("consultationRequired")}
             </p>
           ) : null}
           {purchaseError ? (
             <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-center text-sm text-red-800 dark:border-red-500/40 dark:bg-red-950/40 dark:text-red-300">
-              {purchaseError}
+              {translateToastMessage(purchaseError, locale)}
             </p>
           ) : null}
           {isOwnSkill ? (
@@ -1365,7 +1417,7 @@ export default function SkillDetailPage() {
               disabled
               className="h-12 w-full rounded-md bg-muted text-base font-bold text-muted-foreground"
             >
-              自分のスキルです
+              {tAct("ownSkill")}
             </Button>
           ) : hasActivePurchase && latestTransaction ? (
             <Button
@@ -1377,7 +1429,7 @@ export default function SkillDetailPage() {
                 className="inline-flex w-full items-center justify-center"
               >
                 <MessageCircle className="mr-2 h-5 w-5 shrink-0" aria-hidden />
-                プログラムを確認する（チャットへ）
+                {tAct("openProgramChat")}
               </Link>
             </Button>
           ) : isFull ? (
@@ -1387,14 +1439,14 @@ export default function SkillDetailPage() {
                 disabled
                 className="h-12 w-full cursor-not-allowed rounded-md !bg-muted !text-muted-foreground hover:!bg-muted disabled:!opacity-100"
               >
-                満枠対応中
+                {tAct("soldOut")}
               </Button>
               <button
                 type="button"
                 onClick={() => setReportModalOpen(true)}
                 className="w-full text-center text-xs text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
               >
-                この商品を通報する
+                {tAct("reportProduct")}
               </button>
             </div>
           ) : shouldShowConsultationAction ? (
@@ -1405,18 +1457,18 @@ export default function SkillDetailPage() {
                   disabled
                   className="h-11 w-full rounded-md bg-muted text-base font-bold text-muted-foreground"
                 >
-                  承認待ち
+                  {tAct("approvalPending")}
                 </Button>
               ) : null}
               {consultationAnswer?.status === "rejected" ? (
-                <p className="text-sm text-amber-800 dark:text-amber-300">リクエストは拒否されました。</p>
+                <p className="text-sm text-amber-800 dark:text-amber-300">{tAct("rejected")}</p>
               ) : null}
               <button
                 type="button"
                 onClick={() => setReportModalOpen(true)}
                 className="w-full text-center text-xs text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
               >
-                この商品を通報する
+                {tAct("reportProduct")}
               </button>
             </div>
           ) : shouldShowPurchaseButton ? (
@@ -1433,17 +1485,17 @@ export default function SkillDetailPage() {
                 )}
               >
                 {isFull
-                  ? "満枠対応中"
+                  ? tAct("soldOut")
                   : purchasePending
-                    ? purchaseProgressLabel
-                    : "購入する"}
+                    ? (purchaseProgressLabel ?? t("loading"))
+                    : tAct("purchase")}
               </Button>
               <button
                 type="button"
                 onClick={() => setReportModalOpen(true)}
                 className="w-full text-center text-xs text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
               >
-                この商品を通報する
+                {tAct("reportProduct")}
               </button>
             </div>
           ) : consultationSettingsLoadError ? (
@@ -1452,7 +1504,7 @@ export default function SkillDetailPage() {
               disabled
               className="h-12 w-full rounded-md bg-muted text-base font-bold text-muted-foreground"
             >
-              購入条件を確認できませんでした
+              {tAct("checkoutConditionUnknown")}
             </Button>
           ) : transactionStatusLoading ? (
             <Button
@@ -1460,7 +1512,7 @@ export default function SkillDetailPage() {
               disabled
               className="h-12 w-full rounded-md bg-muted text-base font-bold text-muted-foreground"
             >
-              取引状態を確認中...
+              {tAct("txStatusLoading")}
             </Button>
           ) : (
             <Button
@@ -1468,7 +1520,7 @@ export default function SkillDetailPage() {
               disabled
               className="h-12 w-full rounded-md bg-muted text-base font-bold text-muted-foreground"
             >
-              取引状態を確認できませんでした
+              {tAct("txStatusFailed")}
             </Button>
           )}
         </div>
@@ -1484,7 +1536,7 @@ export default function SkillDetailPage() {
           }
           onPaid={async () => {
             setStripePaymentOpen(false)
-            setPurchaseProgressLabel("取引を確認中...")
+            setPurchaseProgressLabel(tProg("verifyingTransaction"))
             let refreshed: ActiveTransactionRow | null = null
             for (let i = 0; i < 20; i += 1) {
               const refreshedRows = await fetchActiveTransaction()
@@ -1502,9 +1554,7 @@ export default function SkillDetailPage() {
               await new Promise((resolve) => window.setTimeout(resolve, 250))
             }
             if (!refreshed || refreshed.id == null) {
-              setPurchaseError(
-                "支払いは完了した可能性があります。マイページの取引からチャットを開くか、しばらくしてから再度お試しください。",
-              )
+              setPurchaseError(tErr("paymentMaybeComplete"))
               return
             }
             setActiveTransaction(refreshed)
@@ -1540,17 +1590,17 @@ export default function SkillDetailPage() {
                 onClick={(e) => e.stopPropagation()}
               >
                 <h2 id="final-confirm-purchase-title" className="text-center text-base font-semibold text-foreground">
-                  最終確認
+                  {tConfirm("title")}
                 </h2>
-                <p className="mt-1 text-center text-xs text-muted-foreground">購入前の注意事項に同意して、取引を開始してください。</p>
+                <p className="mt-1 text-center text-xs text-muted-foreground">{tConfirm("subtitle")}</p>
                 <div className="mt-5">
                   <TradeFinalConfirmStep
                     variant="buyer"
                     resetKey={purchaseConfirmKey}
-                    actionLabel="購入する"
+                    actionLabel={tConfirm("actionLabel")}
                     isLoading={purchasePending}
                     showCancelButton
-                    cancelLabel="戻る"
+                    cancelLabel={tConfirm("cancelLabel")}
                     onCancel={() => {
                       if (!purchasePending) {
                         setPurchaseConfirmOpen(false)

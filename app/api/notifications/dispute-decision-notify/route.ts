@@ -109,6 +109,18 @@ export async function POST(req: Request) {
         result === "approved"
           ? "異議申し立てが承認され、取引は再開されました。"
           : "異議申し立ては棄却され、取引は完了しました。"
+      const disputeLocalizedKeys = {
+        subjectKey:
+          result === "approved"
+            ? "email.disputeResult.subjectApproved"
+            : "email.disputeResult.subjectRejected",
+        headingKey: "email.disputeResult.heading",
+        introKey:
+          result === "approved"
+            ? "email.disputeResult.introApproved"
+            : "email.disputeResult.introRejected",
+        ctaLabelKey: "email.disputeResult.cta",
+      }
       await Promise.all([
         sendUserEventEmail({
           topic: "dispute_result",
@@ -118,6 +130,7 @@ export async function POST(req: Request) {
           intro,
           ctaLabel: "取引チャットを確認",
           ctaUrl: chatUrl,
+          localizedKeys: disputeLocalizedKeys,
         }),
         sendUserEventEmail({
           topic: "dispute_result",
@@ -127,6 +140,7 @@ export async function POST(req: Request) {
           intro,
           ctaLabel: "取引チャットを確認",
           ctaUrl: chatUrl,
+          localizedKeys: disputeLocalizedKeys,
         }),
       ])
     }

@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo } from "react"
 import { cn } from "@/lib/utils"
 import {
   parseTradesPanel,
@@ -8,44 +9,7 @@ import {
   type TradesSide,
 } from "@/lib/mypage-trades"
 import type { MypageModePreference } from "@/lib/mypage-mode-preference"
-
-const MOBILE_TRADE_TABS: {
-  id: string
-  label: string
-  isActive: (side: TradesSide, panel: TradesPanel) => boolean
-  apply: (handlers: { onSideChange: (side: TradesSide) => void; onPanelChange: (panel: TradesPanel) => void }) => void
-}[] = [
-  {
-    id: "offers-buyer",
-    label: "事前オファー",
-    isActive: (side, panel) => panel === "offers" && side === "buyer",
-    apply: ({ onSideChange, onPanelChange }) => {
-      onSideChange("buyer")
-      onPanelChange("offers")
-    },
-  },
-  {
-    id: "active",
-    label: "進行中",
-    isActive: (_side, panel) => panel === "active",
-    apply: ({ onPanelChange }) => onPanelChange("active"),
-  },
-  {
-    id: "history",
-    label: "取引履歴",
-    isActive: (_side, panel) => panel === "history",
-    apply: ({ onPanelChange }) => onPanelChange("history"),
-  },
-  {
-    id: "offers-seller",
-    label: "受信リクエスト",
-    isActive: (side, panel) => panel === "offers" && side === "seller",
-    apply: ({ onSideChange, onPanelChange }) => {
-      onSideChange("seller")
-      onPanelChange("offers")
-    },
-  },
-]
+import { useTranslations } from "@/lib/i18n/useI18n"
 
 type MypageTradesHubProps = {
   mode: MypageModePreference
@@ -56,15 +20,59 @@ type MypageTradesHubProps = {
 }
 
 export function MypageTradesHub({ mode, side, panel, onSideChange, onPanelChange }: MypageTradesHubProps) {
+  const tMy = useTranslations("mypage")
   const resolvedSide = parseTradesSide(side, mode)
   const resolvedPanel = parseTradesPanel(panel)
+
+  const mobileTradeTabs = useMemo<
+    {
+      id: string
+      label: string
+      isActive: (side: TradesSide, panel: TradesPanel) => boolean
+      apply: (handlers: { onSideChange: (side: TradesSide) => void; onPanelChange: (panel: TradesPanel) => void }) => void
+    }[]
+  >(
+    () => [
+      {
+        id: "offers-buyer",
+        label: tMy("tabPreOffer"),
+        isActive: (side, panel) => panel === "offers" && side === "buyer",
+        apply: ({ onSideChange, onPanelChange }) => {
+          onSideChange("buyer")
+          onPanelChange("offers")
+        },
+      },
+      {
+        id: "active",
+        label: tMy("tabActive"),
+        isActive: (_side, panel) => panel === "active",
+        apply: ({ onPanelChange }) => onPanelChange("active"),
+      },
+      {
+        id: "history",
+        label: tMy("tabHistory"),
+        isActive: (_side, panel) => panel === "history",
+        apply: ({ onPanelChange }) => onPanelChange("history"),
+      },
+      {
+        id: "offers-seller",
+        label: tMy("tabIncomingRequests"),
+        isActive: (side, panel) => panel === "offers" && side === "seller",
+        apply: ({ onSideChange, onPanelChange }) => {
+          onSideChange("seller")
+          onPanelChange("offers")
+        },
+      },
+    ],
+    [tMy],
+  )
 
   return (
     <div className="mb-8 space-y-6">
       <header className="space-y-2 px-0.5">
-        <h1 className="text-2xl font-black tracking-wide text-foreground md:text-3xl">取引・メッセージ</h1>
+        <h1 className="text-2xl font-black tracking-wide text-foreground md:text-3xl">{tMy("tradesHubTitle")}</h1>
         <p className="text-sm leading-relaxed text-muted-foreground">
-          事前オファー・相談・進行中の取引・履歴を、買った商品と売った商品で切り替えて確認できます。
+          {tMy("tradesHubSubtitle")}
         </p>
       </header>
 
@@ -72,7 +80,7 @@ export function MypageTradesHub({ mode, side, panel, onSideChange, onPanelChange
         <div
           className="border-b border-border"
           role="tablist"
-          aria-label="買った商品・売った商品の切り替え"
+          aria-label={tMy("sideTabAria")}
         >
           <div className="flex w-full">
             <button
@@ -87,7 +95,7 @@ export function MypageTradesHub({ mode, side, panel, onSideChange, onPanelChange
                   : "text-muted-foreground hover:text-muted-foreground",
               )}
             >
-              買った商品
+              {tMy("sideBuyer")}
             </button>
             <button
               type="button"
@@ -101,7 +109,7 @@ export function MypageTradesHub({ mode, side, panel, onSideChange, onPanelChange
                   : "text-muted-foreground hover:text-muted-foreground",
               )}
             >
-              売った商品
+              {tMy("sideSeller")}
             </button>
           </div>
         </div>
@@ -109,10 +117,10 @@ export function MypageTradesHub({ mode, side, panel, onSideChange, onPanelChange
         <div
           className="-mx-0.5 overflow-x-auto px-0.5 pb-1 md:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           role="tablist"
-          aria-label="取引ステータスの切り替え"
+          aria-label={tMy("statusTabAria")}
         >
           <div className="flex flex-nowrap gap-2">
-            {MOBILE_TRADE_TABS.map((tab) => {
+            {mobileTradeTabs.map((tab) => {
               const active = tab.isActive(resolvedSide, resolvedPanel)
               return (
                 <button

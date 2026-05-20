@@ -3,9 +3,10 @@ import type { LegalSection } from "@/lib/legal-content"
 type LegalDocumentContentProps = {
   sections: readonly LegalSection[]
   className?: string
+  endLabel?: string
 }
 
-export function LegalDocumentContent({ sections, className }: LegalDocumentContentProps) {
+export function LegalDocumentContent({ sections, className, endLabel }: LegalDocumentContentProps) {
   return (
     <div className={className}>
       {sections.map((section) => (
@@ -18,7 +19,7 @@ export function LegalDocumentContent({ sections, className }: LegalDocumentConte
           </div>
         </article>
       ))}
-      <p className="pt-1 text-sm text-muted-foreground">以上</p>
+      {endLabel ? <p className="pt-1 text-sm text-muted-foreground">{endLabel}</p> : null}
     </div>
   )
 }

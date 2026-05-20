@@ -155,6 +155,18 @@ async function notifySkillOwnerModeration(params: {
         : "非公開"
 
   try {
+    const subjectKey =
+      params.emailAction === "deleted"
+        ? "email.skillModerated.subjectDeleted"
+        : params.emailAction === "published"
+          ? "email.skillModerated.subjectPublished"
+          : "email.skillModerated.subjectUnpublished"
+    const introKey =
+      params.emailAction === "deleted"
+        ? "email.skillModerated.introDeleted"
+        : params.emailAction === "published"
+          ? "email.skillModerated.introPublished"
+          : "email.skillModerated.introUnpublished"
     await sendUserEventEmail({
       topic: "account_notice",
       userId: recipientId,
@@ -164,6 +176,17 @@ async function notifySkillOwnerModeration(params: {
       lines: params.reason ? [`理由: ${params.reason}`] : [],
       ctaLabel: "マイページを開く",
       ctaUrl: `${appUrl}/mypage?section=listings`,
+      localizedKeys: {
+        subjectKey,
+        headingKey: "email.skillModerated.heading",
+        introKey,
+        lineKeys: params.reason ? ["email.skillModerated.lineReason"] : [],
+        ctaLabelKey: "email.skillModerated.cta",
+        values: {
+          title: displayTitle,
+          ...(params.reason ? { reason: params.reason } : {}),
+        },
+      },
     })
   } catch (emailError) {
     console.error("[admin/skills/moderate] sendUserEventEmail failed", emailError)

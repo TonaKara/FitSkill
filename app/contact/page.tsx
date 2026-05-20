@@ -1,12 +1,17 @@
 import type { Metadata } from "next"
 import ContactPage from "@/contact/page"
+import { getDictionary, lookupMessage } from "@/lib/i18n/dictionaries"
+import { getServerLocale } from "@/lib/i18n/server-detect"
 
-export const metadata: Metadata = {
-  title: "お問い合わせ",
-  description:
-    "GritVib（グリット・ヴィブ）へのご質問・不具合報告・取材などのお問い合わせはこちらから。運営チームが内容を確認します。",
-  alternates: { canonical: "/contact" },
-  openGraph: { url: "/contact" },
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getServerLocale()
+  const dict = getDictionary(locale)
+  return {
+    title: lookupMessage(dict, "metadata.contact.title"),
+    description: lookupMessage(dict, "metadata.contact.description"),
+    alternates: { canonical: "/contact" },
+    openGraph: { url: "/contact" },
+  }
 }
 
 export default function Page() {

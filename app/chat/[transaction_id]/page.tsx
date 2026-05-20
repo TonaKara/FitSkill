@@ -1,5 +1,7 @@
 import type { Metadata } from "next"
 import ChatPage from "@/chat/[transaction_id]/page"
+import { getDictionary, lookupMessage } from "@/lib/i18n/dictionaries"
+import { getServerLocale } from "@/lib/i18n/server-detect"
 
 type ChatPageProps = {
   params: Promise<{ transaction_id: string }>
@@ -12,10 +14,11 @@ export async function generateMetadata({
   params: Promise<{ transaction_id: string }>
 }): Promise<Metadata> {
   const { transaction_id } = await params
+  const locale = await getServerLocale()
+  const dict = getDictionary(locale)
   return {
-    title: "取引チャット",
-    description:
-      "GritVibの取引に関するメッセージ画面です。購入者と出品者がスキル提供の進行についてやり取りできます。",
+    title: lookupMessage(dict, "metadata.chat.title"),
+    description: lookupMessage(dict, "metadata.chat.description"),
     alternates: { canonical: `/chat/${transaction_id}` },
     robots: { index: false, follow: false },
   }

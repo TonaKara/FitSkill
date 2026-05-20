@@ -23,6 +23,8 @@ import {
   formatProfileInterestTagsForDisplay,
   loadProfileInterestCategories,
 } from "@/lib/profile-interest-categories"
+import { useLocale, useTranslations } from "@/lib/i18n/useI18n"
+import { localeToHtmlLang } from "@/lib/i18n/locales"
 
 type ProfileRow = {
   id: string
@@ -51,12 +53,12 @@ function createEmptyDistribution(): ProfileRatingDistribution {
   }
 }
 
-function formatRatingDate(isoDate: string): string {
+function formatRatingDate(isoDate: string, htmlLang: string): string {
   const date = new Date(isoDate)
   if (Number.isNaN(date.getTime())) {
     return ""
   }
-  return new Intl.DateTimeFormat("ja-JP", {
+  return new Intl.DateTimeFormat(htmlLang, {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -78,6 +80,9 @@ type PublicProfilePageProps = {
 export default function PublicProfilePage({ resolvedProfileId }: PublicProfilePageProps) {
   const params = useParams()
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
+  const t = useTranslations("publicProfile")
+  const locale = useLocale()
+  const htmlLang = useMemo(() => localeToHtmlLang(locale), [locale])
   const profileUserIdFromRoute =
     typeof params.user_id === "string" ? params.user_id : Array.isArray(params.user_id) ? params.user_id[0] : ""
   const profileUserId = resolvedProfileId?.trim() || profileUserIdFromRoute
@@ -135,14 +140,14 @@ export default function PublicProfilePage({ resolvedProfileId }: PublicProfilePa
 
     if (skillsResult.error) {
       setSkills([])
-      setSkillsError("出品スキルの取得に失敗しました。")
+      setSkillsError(t("skillsFetchFailed"))
     } else {
       setSkills((skillsResult.data ?? []) as SkillRowForCard[])
     }
     setRatingDistribution(ratingData.distribution)
     setRatingComments(ratingData.comments)
     setLoading(false)
-  }, [profileUserId, supabase])
+  }, [profileUserId, supabase, t])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -154,7 +159,7 @@ export default function PublicProfilePage({ resolvedProfileId }: PublicProfilePa
       <div className="min-h-screen bg-background">
         <div className="flex min-h-[50vh] items-center justify-center text-foreground">
           <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden />
-          <span className="ml-2 text-sm text-muted-foreground">読み込み中...</span>
+          <span className="ml-2 text-sm text-muted-foreground">{t("loading")}</span>
         </div>
       </div>
     )
@@ -164,16 +169,16 @@ export default function PublicProfilePage({ resolvedProfileId }: PublicProfilePa
     return (
       <div className="min-h-screen bg-background">
         <div className="mx-auto max-w-6xl px-4 py-16 text-center">
-          <p className="text-lg font-bold text-neutral-900 dark:text-foreground">ストアが見つかりません</p>
+          <p className="text-lg font-bold text-neutral-900 dark:text-foreground">{t("notFound")}</p>
           <Button asChild className="mt-8 bg-primary font-semibold text-primary-foreground shadow-sm hover:bg-primary/90">
-            <Link href="/">ホームへ戻る</Link>
+            <Link href="/">{t("backToHome")}</Link>
           </Button>
         </div>
       </div>
     )
   }
 
-  const name = profile.display_name?.trim() || "ユーザー"
+  const name = profile.display_name?.trim() || t("anonymousUser")
   const avatarUrl = profile.avatar_url
   const hasRating =
     profile.rating_avg != null &&
@@ -225,11 +230,11 @@ export default function PublicProfilePage({ resolvedProfileId }: PublicProfilePa
                       <span className="font-bold">{Number(profile.rating_avg).toFixed(1)}</span>
                       <span className="text-neutral-400">·</span>
                       <span className="text-sm text-neutral-500 dark:text-muted-foreground">
-                        レビュー {profile.review_count} 件
+                        {t("reviewCount", { count: String(profile.review_count) })}
                       </span>
                     </span>
                   ) : (
-                    <span className="text-sm text-neutral-400 dark:text-muted-foreground">評価なし</span>
+                    <span className="text-sm text-neutral-400 dark:text-muted-foreground">{t("noRating")}</span>
                   )}
                 </div>
                 {categoryTags.length > 0 ? (
@@ -247,14 +252,14 @@ export default function PublicProfilePage({ resolvedProfileId }: PublicProfilePa
                 ) : null}
 
                 <div className="mt-6 border-t border-primary/20 pt-6 text-left">
-                  <h2 className="text-xs font-semibold uppercase tracking-wider text-primary-readable">自己紹介</h2>
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-primary-readable">{t("bioHeading")}</h2>
                   {bioText ? (
                     <p className="mt-3 whitespace-pre-wrap text-sm font-normal leading-relaxed text-neutral-600 dark:text-muted-foreground">
                       {bioText}
                     </p>
                   ) : (
                     <p className="mt-3 text-sm font-normal text-neutral-400 dark:text-muted-foreground">
-                      プロフィール文はまだ登録されていません。
+                      {t("bioEmpty")}
                     </p>
                   )}
                 </div>
@@ -265,12 +270,12 @@ export default function PublicProfilePage({ resolvedProfileId }: PublicProfilePa
           {/* 右: スキル・評価 */}
           <div className="mt-10 space-y-12 md:col-span-2 md:mt-0">
             <section>
-              <h2 className="text-xl font-bold tracking-tight text-neutral-900 dark:text-foreground">出品中のスキル</h2>
+              <h2 className="text-xl font-bold tracking-tight text-neutral-900 dark:text-foreground">{t("skillsHeading")}</h2>
               <div className="mt-6">
                 {skillsError ? (
                   <p className="text-sm text-destructive">{skillsError}</p>
                 ) : cardSkills.length === 0 ? (
-                  <StoreEmptyPlaceholder>出品中の商品はまだありません。</StoreEmptyPlaceholder>
+                  <StoreEmptyPlaceholder>{t("skillsEmpty")}</StoreEmptyPlaceholder>
                 ) : (
                   <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                     {cardSkills.map((skill) => (
@@ -282,17 +287,17 @@ export default function PublicProfilePage({ resolvedProfileId }: PublicProfilePa
             </section>
 
             <section className="rounded-2xl border border-border bg-card p-6 md:p-8">
-              <h2 className="text-xl font-bold tracking-tight text-neutral-900 dark:text-foreground">評価</h2>
+              <h2 className="text-xl font-bold tracking-tight text-neutral-900 dark:text-foreground">{t("ratingHeading")}</h2>
               {graphDenominator > 0 ? (
                 <div className="mt-6 grid gap-8 md:grid-cols-[240px_1fr] md:items-center">
                   <div className="rounded-xl border border-border bg-muted/40 p-5 md:flex md:h-[176px] md:flex-col md:justify-center">
                     <p className="text-xs font-semibold tracking-wide text-neutral-400 dark:text-muted-foreground">
-                      平均評価
+                      {t("averageRating")}
                     </p>
                     <p className="mt-2 text-6xl font-black leading-none text-neutral-950 dark:text-foreground">
                       {averageRating}
                     </p>
-                    <div className="mt-3 flex items-center gap-1" aria-label={`平均評価 ${averageRating}`}>
+                    <div className="mt-3 flex items-center gap-1" aria-label={t("averageRatingAria", { value: averageRating })}>
                       {[1, 2, 3, 4, 5].map((star) => (
                         <Star
                           key={`avg-star-${star}`}
@@ -305,7 +310,7 @@ export default function PublicProfilePage({ resolvedProfileId }: PublicProfilePa
                         />
                       ))}
                     </div>
-                    <p className="mt-3 text-sm text-neutral-400 dark:text-muted-foreground">{reviewCount}件の評価</p>
+                    <p className="mt-3 text-sm text-neutral-400 dark:text-muted-foreground">{t("ratingsCount", { count: String(reviewCount) })}</p>
                   </div>
 
                   <div className="space-y-3 pt-1 md:flex md:h-[176px] md:flex-col md:justify-between md:space-y-0 md:pt-0">
@@ -316,7 +321,7 @@ export default function PublicProfilePage({ resolvedProfileId }: PublicProfilePa
                       const selected = selectedReviewStars === stars
                       return (
                         <div key={stars} className="flex items-center gap-3 text-sm">
-                          <div className="w-10 shrink-0 text-neutral-500 dark:text-muted-foreground">星{stars}</div>
+                          <div className="w-10 shrink-0 text-neutral-500 dark:text-muted-foreground">{t("starLabel", { count: String(stars) })}</div>
                           <div className="h-2.5 min-w-0 flex-1 overflow-hidden rounded-full bg-primary/15 md:h-3">
                             <div
                               className="h-full rounded-full transition-all"
@@ -334,7 +339,7 @@ export default function PublicProfilePage({ resolvedProfileId }: PublicProfilePa
                             }`}
                             aria-pressed={selected}
                           >
-                            {count}人
+                            {t("starCount", { count: String(count) })}
                           </button>
                         </div>
                       )
@@ -343,31 +348,31 @@ export default function PublicProfilePage({ resolvedProfileId }: PublicProfilePa
                 </div>
               ) : (
                 <div className="mt-6">
-                  <StoreEmptyPlaceholder>まだ評価はありません。</StoreEmptyPlaceholder>
+                  <StoreEmptyPlaceholder>{t("noRatingsYet")}</StoreEmptyPlaceholder>
                 </div>
               )}
 
               <div className="mt-8 border-t border-border pt-6">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="text-sm font-bold text-neutral-900 dark:text-foreground">評価コメント</h3>
+                  <h3 className="text-sm font-bold text-neutral-900 dark:text-foreground">{t("commentsHeading")}</h3>
                   {selectedReviewStars != null ? (
                     <button
                       type="button"
                       onClick={() => setSelectedReviewStars(null)}
                       className="text-xs text-neutral-400 underline-offset-4 hover:text-foreground hover:underline dark:text-muted-foreground"
                     >
-                      絞り込みを解除（星{selectedReviewStars}）
+                      {t("filterReset", { count: String(selectedReviewStars) })}
                     </button>
                   ) : null}
                 </div>
                 {filteredRatingComments.length === 0 ? (
                   <div className="mt-4">
-                    <StoreEmptyPlaceholder>コメント付きの評価はまだありません。</StoreEmptyPlaceholder>
+                    <StoreEmptyPlaceholder>{t("commentsEmpty")}</StoreEmptyPlaceholder>
                   </div>
                 ) : (
                   <div className="mt-4 max-h-96 w-full space-y-3 overflow-y-auto pr-1 md:max-h-none md:overflow-visible">
                     {filteredRatingComments.map((ratingComment) => {
-                      const displayDate = formatRatingDate(ratingComment.createdAt)
+                      const displayDate = formatRatingDate(ratingComment.createdAt, htmlLang)
                       return (
                         <article
                           key={ratingComment.id}
@@ -375,10 +380,12 @@ export default function PublicProfilePage({ resolvedProfileId }: PublicProfilePa
                         >
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <p className="text-sm font-semibold text-neutral-900 dark:text-foreground">
-                              {ratingComment.senderName}
+                              {ratingComment.senderName.length > 0
+                                ? ratingComment.senderName
+                                : t("unnamedReviewer")}
                             </p>
                             <div className="flex items-center gap-2">
-                              <div className="flex items-center gap-0.5" aria-label={`評価 ${ratingComment.rating}`}>
+                              <div className="flex items-center gap-0.5" aria-label={t("commentRatingAria", { value: String(ratingComment.rating) })}>
                                 {[1, 2, 3, 4, 5].map((star) => (
                                   <Star
                                     key={`${ratingComment.id}-${star}`}
@@ -413,7 +420,7 @@ export default function PublicProfilePage({ resolvedProfileId }: PublicProfilePa
                 onClick={() => setReportModalOpen(true)}
                 className="text-xs text-neutral-400 underline-offset-4 transition-colors hover:text-foreground hover:underline dark:text-muted-foreground"
               >
-                このユーザーを通報する
+                {t("reportUser")}
               </button>
             </div>
           </div>

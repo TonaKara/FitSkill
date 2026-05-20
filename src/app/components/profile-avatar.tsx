@@ -4,6 +4,7 @@ import Image from "next/image"
 import { User } from "lucide-react"
 import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
+import { useTranslations } from "@/lib/i18n/useI18n"
 import { getProfileAvatarUrl } from "@/lib/profile-avatar"
 
 export type ProfileAvatarProps = {
@@ -33,6 +34,7 @@ export function ProfileAvatar({
   unoptimized = true,
   sizes = "128px",
 }: ProfileAvatarProps) {
+  const tAria = useTranslations("aria")
   const imageSrc = src?.trim() || getProfileAvatarUrl(avatarUrl)
   const [imageFailed, setImageFailed] = useState(false)
 
@@ -46,7 +48,7 @@ export function ProfileAvatar({
     <div
       className={cn("relative shrink-0 overflow-hidden", roundedClassName, ringClassName, className)}
       role={showImage ? undefined : "img"}
-      aria-label={showImage ? undefined : alt || "プロフィール画像未設定"}
+      aria-label={showImage ? undefined : alt || tAria("profileImageUnset")}
     >
       {showImage ? (
         <Image

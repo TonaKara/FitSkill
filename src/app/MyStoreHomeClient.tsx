@@ -9,6 +9,7 @@ import { MyStoreDashboard } from "@/components/my-store-dashboard"
 import { Button } from "@/components/ui/button"
 import { NotificationToast } from "@/components/ui/notification-toast"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import { useTranslations } from "@/lib/i18n/useI18n"
 import { readMypageModePreference } from "@/lib/mypage-mode-preference"
 import { buildStorePath } from "@/lib/profile-path"
 import {
@@ -40,7 +41,7 @@ async function copyTextToClipboard(text: string): Promise<boolean> {
   }
 }
 
-async function fetchConnectBalanceSnapshot(): Promise<{
+async function fetchConnectBalanceSnapshot(fallbackErrorMessage: string): Promise<{
   stripe: ConnectBalanceSnapshot | null
   stripeError: string | null
 }> {
@@ -48,7 +49,7 @@ async function fetchConnectBalanceSnapshot(): Promise<{
     const response = await fetch("/api/stripe/connect-balance", { method: "GET" })
     const payload = (await response.json()) as ConnectBalanceSnapshot & { error?: string }
     if (!response.ok) {
-      return { stripe: null, stripeError: payload.error ?? "Stripe 残高の取得に失敗しました。" }
+      return { stripe: null, stripeError: payload.error ?? fallbackErrorMessage }
     }
     return {
       stripe: {
@@ -64,12 +65,15 @@ async function fetchConnectBalanceSnapshot(): Promise<{
       stripeError: null,
     }
   } catch {
-    return { stripe: null, stripeError: "Stripe 残高の取得に失敗しました。" }
+    return { stripe: null, stripeError: fallbackErrorMessage }
   }
 }
 
 export default function MyStoreHomeClient() {
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
+  const tCommon = useTranslations("common")
+  const tStore = useTranslations("store")
+  const tHeader = useTranslations("header")
   const [authLoading, setAuthLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
   const [savedCustomId, setSavedCustomId] = useState("")
@@ -131,7 +135,7 @@ export default function MyStoreHomeClient() {
         .eq("seller_id", userId)
         .eq("status", "completed"),
       supabase.from("skills").select("is_published").eq("user_id", userId),
-      fetchConnectBalanceSnapshot(),
+      fetchConnectBalanceSnapshot(tStore("stripeBalanceFetchFailed")),
       supabase
         .from("profiles")
         .select("stripe_connect_account_id, is_stripe_registered, stripe_connect_charges_enabled")
@@ -160,7 +164,7 @@ export default function MyStoreHomeClient() {
       stripeError: stripeResult.stripeError,
     })
     setStatsLoading(false)
-  }, [supabase, userId])
+  }, [supabase, userId, tStore])
 
   useEffect(() => {
     void loadDashboardStats()
@@ -185,17 +189,17 @@ export default function MyStoreHomeClient() {
 
   const handleCopyStoreUrl = useCallback(async () => {
     if (!userId || !storePath) {
-      setNotice({ variant: "error", message: "ストアURLの取得に失敗しました。" })
+      setNotice({ variant: "error", message: tStore("urlFetchFailed") })
       return
     }
     const url = `${window.location.origin}${storePath}`
     const copied = await copyTextToClipboard(url)
     if (!copied) {
-      setNotice({ variant: "error", message: "コピーに失敗しました。手動でコピーしてください。" })
+      setNotice({ variant: "error", message: tStore("copyFailed") })
       return
     }
-    setNotice({ variant: "success", message: "ストアURLをコピーしました。" })
-  }, [storePath, userId])
+    setNotice({ variant: "success", message: tStore("copied") })
+  }, [storePath, tStore, userId])
 
   return (
     <div className="min-w-0 w-full bg-background">
@@ -210,7 +214,7 @@ export default function MyStoreHomeClient() {
         {authLoading ? (
           <div className="flex items-center justify-center py-16 text-muted-foreground">
             <Loader2 className="mr-2 h-5 w-5 animate-spin text-primary" aria-hidden />
-            読み込み中...
+            {tCommon("loading")}
           </div>
         ) : userId ? (
           <MyStoreDashboard
@@ -230,13 +234,13 @@ export default function MyStoreHomeClient() {
         ) : (
           <section className="rounded-2xl border border-border bg-card p-6 text-center md:p-8">
             <Store className="mx-auto h-10 w-10 text-primary-readable" aria-hidden />
-            <h2 className="mt-4 text-lg font-bold text-foreground">マイストアをはじめる</h2>
+            <h2 className="mt-4 text-lg font-bold text-foreground">{tStore("notLoggedInTitle")}</h2>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              ログインすると、売上・出品・プロフィールの管理と URL の共有が使えます。
+              {tStore("notLoggedInDescription")}
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-3">
               <Button asChild className="bg-primary font-semibold text-primary-foreground hover:bg-primary/90">
-                <Link href="/login">ログイン</Link>
+                <Link href="/login">{tHeader("login")}</Link>
               </Button>
             </div>
           </section>

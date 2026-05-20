@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { useMobileHeaderMenu } from "@/components/mobile-header-menu-context"
 import { buildAccountSectionHref, buildTradesAccountHref } from "@/lib/store-menu"
+import { useTranslationsWithFallback } from "@/lib/i18n/useI18n"
 
 const navItems = [
   { id: "store", label: "マイストア", icon: Store },
@@ -72,6 +73,7 @@ function BottomNavInner() {
   const { isMobileMenuOpen } = useMobileHeaderMenu()
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
   const { beginIntent, isStale } = useNavIntentGuard()
+  const tNavItem = useTranslationsWithFallback("nav.itemLabels")
 
   const [isCreateChecking, setIsCreateChecking] = useState(false)
   const [isAuthNavChecking, setIsAuthNavChecking] = useState(false)
@@ -178,7 +180,7 @@ function BottomNavInner() {
                   isActive ? "text-primary-readable" : "text-muted-foreground",
                 )}
               >
-                {item.label}
+                {tNavItem(item.id, item.label)}
               </span>
             </button>
           )
@@ -194,7 +196,7 @@ function BottomNavInner() {
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary shadow-lg shadow-primary/30">
               <createItem.icon className="h-6 w-6 text-primary-foreground" />
             </div>
-            <span className="text-[10px] font-medium text-primary-readable">{createItem.label}</span>
+            <span className="text-[10px] font-medium text-primary-readable">{tNavItem(createItem.id, createItem.label)}</span>
           </button>
         ) : null}
         {rightItems.map((item) => {
@@ -229,7 +231,7 @@ function BottomNavInner() {
                   isActive ? "text-primary-readable" : "text-muted-foreground",
                 )}
               >
-                {item.label}
+                {tNavItem(item.id, item.label)}
               </span>
             </button>
           )

@@ -6,6 +6,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { fetchInquiryInboxList, type InquiryInboxListRow } from "@/lib/inquiry-messages"
 import { TRADES_HUB_PANEL_CARD, TRADES_HUB_PANEL_OUTER } from "@/lib/mypage-trades"
 import { normalizeSkillBigIntId, uniqueSkillBigIntIds } from "@/lib/skill-id-bigint"
+import { useTranslations } from "@/lib/i18n/useI18n"
 
 type MypageInquirySectionProps = {
   userId: string
@@ -14,6 +15,7 @@ type MypageInquirySectionProps = {
 
 export function MypageInquirySection({ userId, mode }: MypageInquirySectionProps) {
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
+  const tMy = useTranslations("mypage")
   const [threads, setThreads] = useState<InquiryInboxListRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -92,11 +94,7 @@ export function MypageInquirySection({ userId, mode }: MypageInquirySectionProps
           skillTitles={skillTitles}
           loading={loading}
           error={error}
-          emptyHint={
-            mode === "instructor"
-              ? "まだ相談メッセージはありません。購入希望者から相談を受けるとここに表示されます。"
-              : "まだ相談メッセージはありません。スキル詳細から出品者に質問できます。"
-          }
+          emptyHint={mode === "instructor" ? tMy("inquiryEmptyInstructor") : tMy("inquiryEmptyStudent")}
         />
       </div>
     </div>

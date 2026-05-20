@@ -30,8 +30,10 @@ import { SkillCategoryPicker } from "@/components/skill-category-picker"
 import { PREFECTURE_OPTIONS } from "@/lib/prefectures"
 import { fetchConsultationSettings, toConsultationSkillId } from "@/lib/consultation"
 import { computeSellerFeePreview, SELLER_FEE_RATE } from "@/lib/seller-fee-preview"
-import { ALLOWED_EXTERNAL_TOOLS_ETC } from "@/lib/allowed-external-tools"
+import { ALLOWED_EXTERNAL_TOOLS_ETC, ALLOWED_EXTERNAL_TOOLS_LIST } from "@/lib/allowed-external-tools"
 import { cn } from "@/lib/utils"
+import { useLocale, useTranslations } from "@/lib/i18n/useI18n"
+import { localeToHtmlLang } from "@/lib/i18n/locales"
 
 type LessonFormat = "onsite" | "online"
 
@@ -42,7 +44,7 @@ const MIN_DURATION_MINUTES = 1
 /** 最大対応人数の下限（人） */
 const MIN_MAX_CAPACITY = 1
 
-function getPriceHintMessage(priceInput: string): string {
+function getPriceHintMessage(priceInput: string, minMessage: string): string {
   const trimmed = priceInput.trim()
   if (!trimmed) {
     return ""
@@ -52,7 +54,7 @@ function getPriceHintMessage(priceInput: string): string {
     return ""
   }
   if (n < MIN_PRICE_YEN) {
-    return `最低金額は${MIN_PRICE_YEN}円です`
+    return minMessage
   }
   return ""
 }
@@ -74,13 +76,6 @@ const DEFAULT_CONSULTATION_LABELS = {
   q2: "",
   q3: "",
   free: "",
-}
-
-const CONSULTATION_LABEL_PLACEHOLDERS = {
-  q1: "例 : いま気になっていることを教えてください",
-  q2: "例 : 目指していることを教えてください",
-  q3: "例 : これまでの経験やレベルを教えてください",
-  free: "例 : その他、事前に伝えておきたいこと",
 }
 
 const createSkillUi = {
@@ -106,7 +101,8 @@ const createSkillUi = {
 } as const
 
 function RequiredFieldMark() {
-  return <span className="ml-1.5 text-xs font-medium text-red-500">必須</span>
+  const t = useTranslations("createSkill")
+  return <span className="ml-1.5 text-xs font-medium text-red-500">{t("required")}</span>
 }
 
 type SkillRow = {
@@ -155,6 +151,30 @@ function CreateSkillPageContent() {
   const editParam = searchParams.get("edit")
 
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
+  const t = useTranslations("createSkill")
+  const tSec = useTranslations("createSkill.sections")
+  const tField = useTranslations("createSkill.fields")
+  const tThumb = useTranslations("createSkill.thumbnail")
+  const tPre = useTranslations("createSkill.preOffer")
+  const tCon = useTranslations("createSkill.consultationChat")
+  const tVis = useTranslations("createSkill.visibility")
+  const tSub = useTranslations("createSkill.submit")
+  const tPubConf = useTranslations("createSkill.publishConfirm")
+  const tDelConf = useTranslations("createSkill.deleteConfirm")
+  const tFinal = useTranslations("createSkill.finalConfirm")
+  const tNotices = useTranslations("createSkill.notices")
+  const locale = useLocale()
+  const htmlLang = localeToHtmlLang(locale)
+  const externalToolsLabel = locale === "en" ? ALLOWED_EXTERNAL_TOOLS_LIST : ALLOWED_EXTERNAL_TOOLS_ETC
+  const consultationLabelPlaceholders = useMemo(
+    () => ({
+      q1: tPre("exampleQ1"),
+      q2: tPre("exampleQ2"),
+      q3: tPre("exampleQ3"),
+      free: tPre("exampleFree"),
+    }),
+    [tPre],
+  )
 
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
@@ -270,7 +290,7 @@ function CreateSkillPageContent() {
       }
 
       if (error || !data) {
-        setNotice({ variant: "error", message: "編集対象のスキルが見つかりません。" })
+        setNotice({ variant: "error", message: tNotices("editNotFound") })
         setEditSkillId(null)
         setEditLoadFinished(true)
         return
@@ -372,7 +392,7 @@ function CreateSkillPageContent() {
 
   const updateForm = (field: keyof typeof DEFAULT_FORM, value: string) => {
     if (field === "price") {
-      setPriceError(getPriceHintMessage(value))
+      setPriceError(getPriceHintMessage(value, tNotices("minPrice", { min: MIN_PRICE_YEN })))
     }
     setForm((previous) => ({ ...previous, [field]: value }))
   }
@@ -414,7 +434,7 @@ function CreateSkillPageContent() {
     }
 
     if (!file.type.startsWith("image/")) {
-      setNotice({ variant: "error", message: "画像ファイル（jpg/png/webp等）を選択してください。" })
+      setNotice({ variant: "error", message: tNotices("imageMustBeImage") })
       event.target.value = ""
       return
     }
@@ -430,7 +450,7 @@ function CreateSkillPageContent() {
 
   const uploadThumbnailToStorage = async (currentUserId: string) => {
     if (!thumbnailFile) {
-      throw new Error("サムネイル画像を選択してください。")
+      throw new Error(tNotices("thumbnailRequired"))
     }
 
     setIsUploadingImage(true)
@@ -453,7 +473,7 @@ function CreateSkillPageContent() {
     } = supabase.storage.from("skill-thumbnails").getPublicUrl(objectKey)
 
     if (!publicUrl) {
-      throw new Error("サムネイル画像の公開URL取得に失敗しました。")
+      throw new Error(tNotices("thumbnailUrlFailed"))
     }
 
     setThumbnailUrl(publicUrl)
@@ -474,7 +494,7 @@ function CreateSkillPageContent() {
 
     if (error) {
       setNotice(
-        toErrorNotice(error, isAdmin, { unknownErrorMessage: "出品の取り消しに失敗しました。" }),
+        toErrorNotice(error, isAdmin, { unknownErrorMessage: tNotices("deleteFailedFallback") }),
       )
       setShowDeleteConfirm(false)
       return
@@ -495,7 +515,7 @@ function CreateSkillPageContent() {
   }) => {
     const settingSkillId = toConsultationSkillId(skillId)
     if (settingSkillId == null) {
-      throw new Error("相談設定の保存に失敗しました（スキルID形式エラー）。")
+      throw new Error(tNotices("consultationSettingsSaveFailed"))
     }
     const { error: consultationError } = await supabase.from("consultation_settings").upsert(
       {
@@ -542,11 +562,11 @@ function CreateSkillPageContent() {
       !Number.isFinite(durationMinutes) ||
       !Number.isFinite(maxCapacity)
     ) {
-      setNotice({ variant: "error", message: "必須項目が入力されていません。" })
+      setNotice({ variant: "error", message: tNotices("requiredFieldsMissing") })
       return false
     }
 
-    const priceHint = getPriceHintMessage(priceTrimmed)
+    const priceHint = getPriceHintMessage(priceTrimmed, tNotices("minPrice", { min: MIN_PRICE_YEN }))
     if (priceHint) {
       setPriceError(priceHint)
       return false
@@ -555,7 +575,7 @@ function CreateSkillPageContent() {
     if (!Number.isInteger(durationMinutes) || durationMinutes < MIN_DURATION_MINUTES) {
       setNotice({
         variant: "error",
-        message: `1回あたりの時間は${MIN_DURATION_MINUTES}分以上の整数で入力してください。`,
+        message: tNotices("minDuration", { min: MIN_DURATION_MINUTES }),
       })
       return false
     }
@@ -563,17 +583,17 @@ function CreateSkillPageContent() {
     if (!Number.isInteger(maxCapacity) || maxCapacity < MIN_MAX_CAPACITY) {
       setNotice({
         variant: "error",
-        message: `最大対応人数は${MIN_MAX_CAPACITY}人以上の整数で入力してください。`,
+        message: tNotices("minCapacity", { min: MIN_MAX_CAPACITY }),
       })
       return false
     }
 
     if (form.format === "onsite" && !form.prefecture) {
-      setNotice({ variant: "error", message: "対面レッスンの場合は都道府県を選択してください。" })
+      setNotice({ variant: "error", message: tNotices("prefectureRequired") })
       return false
     }
     if (consultationEnabled && !q1) {
-      setNotice({ variant: "error", message: "事前オファーを有効にする場合、質問1は必須です。" })
+      setNotice({ variant: "error", message: tNotices("preOfferQ1Required") })
       return false
     }
     return true
@@ -591,7 +611,7 @@ function CreateSkillPageContent() {
       if (adminPublishLocked && isPublished) {
         setNotice({
           variant: "error",
-          message: "運営による非公開のため、ご自身で公開に戻すことはできません。",
+          message: tNotices("adminLockedPublish"),
         })
         return
       }
@@ -636,7 +656,7 @@ function CreateSkillPageContent() {
     if (!stripeChargeEnabled) {
       setNotice({
         variant: "error",
-        message: "出品には口座登録が必要です。売上・振込設定からStripe登録を完了してください。",
+        message: tNotices("stripeRequired"),
       })
       setShowFinalConfirm(false)
       router.replace("/account/sales")
@@ -733,7 +753,7 @@ function CreateSkillPageContent() {
           .single()
 
         if (error || !insertedSkill?.id) {
-          throw error ?? new Error("スキル作成に失敗しました。")
+          throw error ?? new Error(tNotices("createFailed"))
         }
 
         try {
@@ -757,7 +777,7 @@ function CreateSkillPageContent() {
           throw consultationError
         }
 
-        setNotice({ variant: "success", message: "出品が完了しました！" })
+        setNotice({ variant: "success", message: tNotices("createSuccess") })
         setPriceError("")
         setForm(DEFAULT_FORM)
         setThumbnailFile(null)
@@ -772,7 +792,7 @@ function CreateSkillPageContent() {
     } catch (error) {
       setNotice(
         toErrorNotice(error, isAdmin, {
-          unknownErrorMessage: "出品に失敗しました。時間を置いてお試しください",
+          unknownErrorMessage: tNotices("submitFallback"),
         }),
       )
     } finally {
@@ -787,14 +807,14 @@ function CreateSkillPageContent() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
         <Loader2 className="mr-2 h-5 w-5 animate-spin text-red-500" />
-        {isCheckingAuth ? "ログイン状態を確認しています..." : "スキル情報を読み込んでいます..."}
+        {isCheckingAuth ? t("authCheck") : t("skillLoading")}
       </div>
     )
   }
 
-  const pageTitle = editSkillId ? "スキルを編集" : "スキルを出品"
-  const formTitle = editSkillId ? "編集フォーム" : "出品フォーム"
-  const submitLabel = editSkillId ? "更新する" : "出品する"
+  const pageTitle = editSkillId ? t("pageTitle.edit") : t("pageTitle.create")
+  const formTitle = editSkillId ? t("formTitle.edit") : t("formTitle.create")
+  const submitLabel = editSkillId ? t("submitLabel.edit") : t("submitLabel.create")
 
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-background pb-14 pt-8 text-foreground">
@@ -806,7 +826,7 @@ function CreateSkillPageContent() {
         isAdmin={isAdmin}
         cropShape="skill"
         outputPixelSize={{ width: SKILL_THUMBNAIL_EXPORT_WIDTH, height: SKILL_THUMBNAIL_EXPORT_HEIGHT }}
-        subheading="枠は一覧サムネイルと同じ 16:10 の切り取りサイズです。ドラッグ・ピンチ・拡大スライダーで位置とズームを調整してください。"
+        subheading={t("cropSubheading")}
       />
       {notice && <NotificationToast notice={notice} onClose={() => setNotice(null)} />}
       <div className="w-full min-w-0 px-4 md:px-8 md:py-6">
@@ -817,7 +837,7 @@ function CreateSkillPageContent() {
             variant="outline"
             className="shrink-0 self-start border-border bg-muted text-foreground hover:border-primary hover:bg-muted/80 sm:self-auto"
           >
-            <Link href={editSkillId ? "/account/listings" : "/"}>戻る</Link>
+            <Link href={editSkillId ? "/account/listings" : "/"}>{t("back")}</Link>
           </Button>
         </div>
 
@@ -830,10 +850,10 @@ function CreateSkillPageContent() {
               <section className={createSkillUi.section}>
                 <div className="space-y-2">
                   <label htmlFor="thumbnail" className="text-sm font-semibold text-foreground">
-                    サムネイル画像
+                    {tThumb("title")}
                   </label>
                   {!editSkillId ? (
-                    <p className="text-xs text-muted-foreground">サムネイル画像は後から設定することも可能です。</p>
+                    <p className="text-xs text-muted-foreground">{tThumb("hint")}</p>
                   ) : null}
                   <Input
                     id="thumbnail"
@@ -851,10 +871,10 @@ function CreateSkillPageContent() {
                         className="h-10 w-full border-red-600 bg-red-600 text-white hover:border-red-500 hover:bg-red-500 sm:w-auto sm:px-5"
                         onClick={() => thumbnailInputRef.current?.click()}
                       >
-                        画像を選択
+                        {tThumb("select")}
                       </Button>
                       <span className="block min-h-5 break-all text-xs text-muted-foreground sm:text-sm">
-                        {thumbnailFile?.name ?? "未選択"}
+                        {thumbnailFile?.name ?? tThumb("unselected")}
                       </span>
                     </div>
                   </div>
@@ -874,7 +894,7 @@ function CreateSkillPageContent() {
                         type="button"
                         onClick={clearThumbnailSelection}
                         className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background/90 text-foreground shadow-sm transition-colors hover:border-primary hover:text-primary-readable"
-                        aria-label="サムネイル画像を削除"
+                        aria-label={tThumb("removeAria")}
                       >
                         <X className="h-4 w-4" aria-hidden />
                       </button>
@@ -884,38 +904,38 @@ function CreateSkillPageContent() {
               </section>
 
               <section className={createSkillUi.sectionLg}>
-                <h2 className="text-sm font-semibold text-foreground">基本情報</h2>
+                <h2 className="text-sm font-semibold text-foreground">{tSec("basic")}</h2>
                 <div className="space-y-2">
                   <label htmlFor="title" className="text-sm font-semibold text-foreground">
-                    題名
+                    {tField("title")}
                     <RequiredFieldMark />
                   </label>
                   <Input
                     id="title"
                     value={form.title}
                     onChange={(event) => updateForm("title", event.target.value)}
-                    placeholder="例: 初めての方向け・オンライン相談（30分）"
+                    placeholder={tField("titlePlaceholder")}
                     className="border-border bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-red-500"
                   />
                 </div>
 
                 <div className="space-y-2">
                   <label htmlFor="target_audience" className="text-sm font-semibold text-foreground">
-                    こんな人におすすめ
+                    {tField("audience")}
                     <RequiredFieldMark />
                   </label>
                   <Input
                     id="target_audience"
                     value={form.targetAudience}
                     onChange={(event) => updateForm("targetAudience", event.target.value)}
-                    placeholder="例：はじめて学ぶ方、時間を区切って相談したい方など"
+                    placeholder={tField("audiencePlaceholder")}
                     className="border-border bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-red-500"
                   />
                 </div>
 
                 <div className="space-y-2">
                   <label htmlFor="description" className="text-sm font-semibold text-foreground">
-                    説明
+                    {tField("description")}
                     <RequiredFieldMark />
                   </label>
                   <textarea
@@ -923,18 +943,18 @@ function CreateSkillPageContent() {
                     value={form.description}
                     onChange={(event) => updateForm("description", event.target.value)}
                     rows={7}
-                    placeholder={`あなたの強みや提供内容（${ALLOWED_EXTERNAL_TOOLS_ETC}を使う場合は連携方法も）、進め方・流れ、購入者に準備してほしいことを記載してください。`}
+                    placeholder={tField("descriptionPlaceholder", { tools: externalToolsLabel })}
                     className={createSkillUi.textarea}
                   />
                   <p className="flex min-w-0 items-start gap-1.5 text-xs text-muted-foreground">
                     <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-400" aria-hidden />
-                    外部ツール（{ALLOWED_EXTERNAL_TOOLS_ETC}）を利用する場合は、トラブル防止のため必ず説明欄に記載してください。
+                    {tField("descriptionHint", { tools: externalToolsLabel })}
                   </p>
                 </div>
               </section>
 
               <section className={createSkillUi.sectionLg}>
-                <h2 className="text-sm font-semibold text-foreground">提供方法</h2>
+                <h2 className="text-sm font-semibold text-foreground">{tSec("delivery")}</h2>
                 <div className="grid min-w-0 gap-4 md:grid-cols-2">
                   <div className="md:col-span-2">
                     <SkillCategoryPicker
@@ -965,7 +985,7 @@ function CreateSkillPageContent() {
 
                   <div className="space-y-2">
                     <label htmlFor="format" className="text-sm font-semibold text-foreground">
-                      形式
+                      {tField("format")}
                       <RequiredFieldMark />
                     </label>
                     <select
@@ -981,8 +1001,8 @@ function CreateSkillPageContent() {
                       }}
                       className={createSkillUi.select}
                     >
-                      <option value="online">オンライン</option>
-                      <option value="onsite">対面</option>
+                      <option value="online">{tField("formatOnline")}</option>
+                      <option value="onsite">{tField("formatOnsite")}</option>
                     </select>
                   </div>
                 </div>
@@ -990,7 +1010,7 @@ function CreateSkillPageContent() {
                 {form.format === "onsite" && (
                   <div className="space-y-2">
                     <label htmlFor="prefecture" className="text-sm font-semibold text-foreground">
-                      場所（都道府県）
+                      {tField("location")}
                       <RequiredFieldMark />
                     </label>
                     <div className="relative">
@@ -1001,7 +1021,7 @@ function CreateSkillPageContent() {
                         onChange={(event) => updateForm("prefecture", event.target.value)}
                         className={cn(createSkillUi.select, "pl-9")}
                       >
-                        <option value="">都道府県を選択してください</option>
+                        <option value="">{tField("locationPlaceholder")}</option>
                         {PREFECTURE_OPTIONS.map((prefecture) => (
                           <option key={prefecture} value={prefecture}>
                             {prefecture}
@@ -1014,11 +1034,11 @@ function CreateSkillPageContent() {
               </section>
 
               <section className={createSkillUi.sectionLg}>
-                <h2 className="text-sm font-semibold text-foreground">価格・提供条件</h2>
+                <h2 className="text-sm font-semibold text-foreground">{tSec("pricing")}</h2>
                 <div className="grid min-w-0 gap-4 md:grid-cols-3">
                   <div className="space-y-2">
                     <label htmlFor="price" className="text-sm font-semibold text-foreground">
-                      値段（円）
+                      {tField("price")}
                       <RequiredFieldMark />
                     </label>
                     <Input
@@ -1027,7 +1047,7 @@ function CreateSkillPageContent() {
                       min={MIN_PRICE_YEN}
                       value={form.price}
                       onChange={(event) => updateForm("price", event.target.value)}
-                      placeholder="例: 3500"
+                      placeholder={tField("pricePlaceholder")}
                       className="border-border bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-red-500"
                       aria-invalid={Boolean(priceError)}
                       aria-describedby={
@@ -1039,10 +1059,13 @@ function CreateSkillPageContent() {
                     {feePreview ? (
                       <div id="price-fee-preview" className="mt-2 space-y-1 text-sm text-muted-foreground">
                         <p>
-                          手数料（{Math.round(SELLER_FEE_RATE * 100)}%）: {feePreview.feeYen.toLocaleString("ja-JP")}円
+                          {tField("fee", {
+                            percent: Math.round(SELLER_FEE_RATE * 100),
+                            fee: feePreview.feeYen.toLocaleString(htmlLang),
+                          })}
                         </p>
                         <p className="font-medium text-foreground">
-                          受け取り予定額: {feePreview.receiveYen.toLocaleString("ja-JP")}円
+                          {tField("receive", { amount: feePreview.receiveYen.toLocaleString(htmlLang) })}
                         </p>
                       </div>
                     ) : null}
@@ -1054,7 +1077,7 @@ function CreateSkillPageContent() {
                   </div>
                   <div className="space-y-2">
                     <label htmlFor="duration" className="text-sm font-semibold text-foreground">
-                      1回あたりの時間（分）
+                      {tField("duration")}
                       <RequiredFieldMark />
                     </label>
                     <Input
@@ -1064,13 +1087,13 @@ function CreateSkillPageContent() {
                       step={1}
                       value={form.durationMinutes}
                       onChange={(event) => updateForm("durationMinutes", event.target.value)}
-                      placeholder="例: 60"
+                      placeholder={tField("durationPlaceholder")}
                       className="border-border bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-red-500"
                     />
                   </div>
                   <div className="space-y-2">
                     <label htmlFor="max-capacity" className="text-sm font-semibold text-foreground">
-                      最大対応人数
+                      {tField("capacity")}
                       <RequiredFieldMark />
                     </label>
                     <Input
@@ -1080,7 +1103,7 @@ function CreateSkillPageContent() {
                       step={1}
                       value={form.maxCapacity}
                       onChange={(event) => updateForm("maxCapacity", event.target.value)}
-                      placeholder="例: 5"
+                      placeholder={tField("capacityPlaceholder")}
                       className="border-border bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-red-500"
                     />
                   </div>
@@ -1088,7 +1111,7 @@ function CreateSkillPageContent() {
               </section>
 
               <fieldset className={createSkillUi.fieldset}>
-                <legend className="px-1 text-sm font-semibold text-foreground">事前オファー設定</legend>
+                <legend className="px-1 text-sm font-semibold text-foreground">{tSec("preOffer")}</legend>
                 <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-foreground">
                   <input
                     type="checkbox"
@@ -1096,15 +1119,15 @@ function CreateSkillPageContent() {
                     checked={consultationEnabled}
                     onChange={(event) => setConsultationEnabled(event.target.checked)}
                   />
-                  事前オファー（質問フォーム）を受け付ける
+                  {tPre("enable")}
                 </label>
                 <p className="text-xs text-muted-foreground">
-                  オンにすると、購入前に回答フォームと講師の承認が必要になります（質問ラベルを設定してください）。
+                  {tPre("hint")}
                 </p>
                 <div className="grid min-w-0 gap-3">
                   <div className="space-y-1">
                     <label htmlFor="consultation-q1" className="inline-flex items-center text-xs font-semibold text-muted-foreground">
-                      質問1
+                      {tPre("q1")}
                       {consultationEnabled ? <RequiredFieldMark /> : null}
                     </label>
                     <Input
@@ -1114,12 +1137,12 @@ function CreateSkillPageContent() {
                         setConsultationLabels((prev) => ({ ...prev, q1: event.target.value }))
                       }
                       className="border-border bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-red-500"
-                      placeholder={CONSULTATION_LABEL_PLACEHOLDERS.q1}
+                      placeholder={consultationLabelPlaceholders.q1}
                     />
                   </div>
                   <div className="space-y-1">
                     <label htmlFor="consultation-q2" className="text-xs font-semibold text-muted-foreground">
-                      質問2
+                      {tPre("q2")}
                     </label>
                     <Input
                       id="consultation-q2"
@@ -1128,12 +1151,12 @@ function CreateSkillPageContent() {
                         setConsultationLabels((prev) => ({ ...prev, q2: event.target.value }))
                       }
                       className="border-border bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-red-500"
-                      placeholder={CONSULTATION_LABEL_PLACEHOLDERS.q2}
+                      placeholder={consultationLabelPlaceholders.q2}
                     />
                   </div>
                   <div className="space-y-1">
                     <label htmlFor="consultation-q3" className="text-xs font-semibold text-muted-foreground">
-                      質問3
+                      {tPre("q3")}
                     </label>
                     <Input
                       id="consultation-q3"
@@ -1142,12 +1165,12 @@ function CreateSkillPageContent() {
                         setConsultationLabels((prev) => ({ ...prev, q3: event.target.value }))
                       }
                       className="border-border bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-red-500"
-                      placeholder={CONSULTATION_LABEL_PLACEHOLDERS.q3}
+                      placeholder={consultationLabelPlaceholders.q3}
                     />
                   </div>
                   <div className="space-y-1">
                     <label htmlFor="consultation-free" className="text-xs font-semibold text-muted-foreground">
-                      自由記述
+                      {tPre("free")}
                     </label>
                     <Input
                       id="consultation-free"
@@ -1156,14 +1179,14 @@ function CreateSkillPageContent() {
                         setConsultationLabels((prev) => ({ ...prev, free: event.target.value }))
                       }
                       className="border-border bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-red-500"
-                      placeholder={CONSULTATION_LABEL_PLACEHOLDERS.free}
+                      placeholder={consultationLabelPlaceholders.free}
                     />
                   </div>
                 </div>
               </fieldset>
 
               <fieldset className={createSkillUi.fieldset}>
-                <legend className="px-1 text-sm font-semibold text-foreground">事前相談（チャット）設定</legend>
+                <legend className="px-1 text-sm font-semibold text-foreground">{tSec("consultationChat")}</legend>
                 <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-foreground">
                   <input
                     type="checkbox"
@@ -1171,15 +1194,15 @@ function CreateSkillPageContent() {
                     checked={chatConsultationEnabled}
                     onChange={(event) => setChatConsultationEnabled(event.target.checked)}
                   />
-                  購入前のチャット相談を受け付ける
+                  {tCon("enable")}
                 </label>
                 <p className="text-xs text-muted-foreground">
-                  オンにすると、スキル詳細に「出品者に質問する」が表示され、取引前のメッセージのやり取りができます。
+                  {tCon("hint")}
                 </p>
               </fieldset>
 
               <fieldset className={createSkillUi.fieldset}>
-                <legend className="px-1 text-sm font-semibold text-foreground">公開設定</legend>
+                <legend className="px-1 text-sm font-semibold text-foreground">{tSec("visibility")}</legend>
                 <div className="flex flex-wrap gap-4">
                   <label
                     className={`flex items-center gap-2 text-sm text-foreground ${
@@ -1194,7 +1217,7 @@ function CreateSkillPageContent() {
                       disabled={adminPublishLocked}
                       onChange={() => setIsPublished(true)}
                     />
-                    公開中
+                    {tVis("public")}
                   </label>
                   <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
                     <input
@@ -1204,12 +1227,12 @@ function CreateSkillPageContent() {
                       checked={!isPublished}
                       onChange={() => setIsPublished(false)}
                     />
-                    非公開
+                    {tVis("private")}
                   </label>
                 </div>
                 {adminPublishLocked ? (
                   <p className="text-xs text-amber-800 dark:text-amber-200">
-                    運営により非公開のため、ご自身で公開に戻すことはできません。
+                    {tVis("adminLocked")}
                   </p>
                 ) : null}
               </fieldset>
@@ -1222,7 +1245,7 @@ function CreateSkillPageContent() {
                 {isSubmitting || isUploadingImage ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {isUploadingImage ? "画像アップロード中..." : "保存中..."}
+                    {isUploadingImage ? tSub("imageUploading") : tSub("saving")}
                   </>
                 ) : (
                   submitLabel
@@ -1239,9 +1262,9 @@ function CreateSkillPageContent() {
                   onClick={() => setShowDeleteConfirm(true)}
                   disabled={isSubmitting || isUploadingImage || isDeleting}
                 >
-                  出品を取り消す
+                  {tSub("deleteListing")}
                 </Button>
-                <p className="mt-2 text-center text-xs text-muted-foreground">取り消すとこの出品データは削除されます（元に戻せませんのでご注意ください）。</p>
+                <p className="mt-2 text-center text-xs text-muted-foreground">{tSub("deleteHint")}</p>
               </div>
             ) : null}
           </CardContent>
@@ -1267,12 +1290,10 @@ function CreateSkillPageContent() {
                 id="visibility-save-confirm-title"
                 className="text-center text-base font-semibold leading-relaxed text-foreground"
               >
-                {isPublished ? "このスキルを公開して保存しますか？" : "このスキルを非公開にして保存しますか？"}
+                {isPublished ? tPubConf("titlePublic") : tPubConf("titlePrivate")}
               </h2>
               <p className="mt-2 text-center text-sm text-muted-foreground">
-                {isPublished
-                  ? "保存するとスキル一覧に表示され、購入者が閲覧できる状態になります。"
-                  : "保存するとスキル一覧から非表示になります（すでに開始した取引には影響しません）。"}
+                {isPublished ? tPubConf("bodyPublic") : tPubConf("bodyPrivate")}
               </p>
               <div className="mt-6 flex gap-3">
                 <Button
@@ -1282,7 +1303,7 @@ function CreateSkillPageContent() {
                   onClick={handleVisibilitySaveCancel}
                   disabled={isSubmitting}
                 >
-                  キャンセル
+                  {tPubConf("cancel")}
                 </Button>
                 <Button
                   type="button"
@@ -1293,10 +1314,10 @@ function CreateSkillPageContent() {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                      保存中...
+                      {tPubConf("saving")}
                     </>
                   ) : (
-                    "保存する"
+                    tPubConf("save")
                   )}
                 </Button>
               </div>
@@ -1321,9 +1342,9 @@ function CreateSkillPageContent() {
               onClick={(e) => e.stopPropagation()}
             >
               <h2 id="delete-skill-title" className="text-center text-base font-semibold leading-relaxed text-foreground">
-                この出品を取り消しますか？
+                {tDelConf("title")}
               </h2>
-              <p className="mt-2 text-center text-sm text-muted-foreground">削除すると復元できません。</p>
+              <p className="mt-2 text-center text-sm text-muted-foreground">{tDelConf("body")}</p>
               <div className="mt-6 flex gap-3">
                 <Button
                   type="button"
@@ -1332,7 +1353,7 @@ function CreateSkillPageContent() {
                   onClick={handleDeleteCancel}
                   disabled={isDeleting}
                 >
-                  キャンセル
+                  {tDelConf("cancel")}
                 </Button>
                 <Button
                   type="button"
@@ -1343,10 +1364,10 @@ function CreateSkillPageContent() {
                   {isDeleting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                      削除中...
+                      {tDelConf("deleting")}
                     </>
                   ) : (
-                    "取り消す"
+                    tDelConf("delete")
                   )}
                 </Button>
               </div>
@@ -1375,23 +1396,23 @@ function CreateSkillPageContent() {
               onClick={(e) => e.stopPropagation()}
             >
               <h2 id="final-confirm-skill-title" className="text-center text-base font-semibold text-foreground">
-                最終確認
+                {tFinal("title")}
               </h2>
-              <p className="mt-1 text-center text-xs text-muted-foreground">内容をご確認のうえ、同意して手続きを完了してください。</p>
+              <p className="mt-1 text-center text-xs text-muted-foreground">{tFinal("subtitle")}</p>
               <p className="mt-4 rounded-lg border border-border bg-muted/40 px-3 py-2 text-center text-sm text-foreground">
-                公開設定:{" "}
+                {tFinal("visibilityLabel")}{" "}
                 <span className="font-semibold text-foreground">
-                  {isPublished ? "公開中（一覧に表示）" : "非公開（一覧には表示しません）"}
+                  {isPublished ? tFinal("visibilityPublic") : tFinal("visibilityPrivate")}
                 </span>
               </p>
               <div className="mt-5">
                 <TradeFinalConfirmStep
                   variant="seller"
                   resetKey={finalConfirmKey}
-                  actionLabel={editSkillId ? "更新する" : "出品する"}
+                  actionLabel={editSkillId ? t("submitLabel.edit") : t("submitLabel.create")}
                   isLoading={isSubmitting}
                   showCancelButton
-                  cancelLabel="戻る"
+                  cancelLabel={tFinal("cancel")}
                   onCancel={() => {
                     if (!isSubmitting) {
                       setShowFinalConfirm(false)
@@ -1408,16 +1429,19 @@ function CreateSkillPageContent() {
   )
 }
 
+function CreateSkillPageFallback() {
+  const t = useTranslations("createSkill")
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
+      <Loader2 className="mr-2 h-5 w-5 animate-spin text-red-500" />
+      {t("loading")}
+    </div>
+  )
+}
+
 export default function CreateSkillPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
-          <Loader2 className="mr-2 h-5 w-5 animate-spin text-red-500" />
-          読み込み中...
-        </div>
-      }
-    >
+    <Suspense fallback={<CreateSkillPageFallback />}>
       <CreateSkillPageContent />
     </Suspense>
   )

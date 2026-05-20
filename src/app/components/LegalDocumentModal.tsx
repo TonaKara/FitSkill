@@ -5,8 +5,9 @@ import { createPortal } from "react-dom"
 import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { LegalDocumentContent } from "@/components/LegalDocumentContent"
-import { PRIVACY_SECTIONS, TERMS_SECTIONS } from "@/lib/legal-content"
+import { getPrivacySections, getTermsSections } from "@/lib/legal-content"
 import { cn } from "@/lib/utils"
+import { useLocale, useTranslations } from "@/lib/i18n/useI18n"
 
 export type LegalDocumentKind = "terms" | "privacy"
 
@@ -18,12 +19,10 @@ type LegalDocumentModalProps = {
   zClassName?: string
 }
 
-const TITLES: Record<LegalDocumentKind, string> = {
-  terms: "GritVib 利用規約",
-  privacy: "GritVib プライバシーポリシー",
-}
-
 export function LegalDocumentModal({ open, kind, onClose, zClassName = "z-[10050]" }: LegalDocumentModalProps) {
+  const locale = useLocale()
+  const tLegal = useTranslations("legal")
+  const tCommon = useTranslations("common")
   useEffect(() => {
     if (!open) {
       return
@@ -46,8 +45,9 @@ export function LegalDocumentModal({ open, kind, onClose, zClassName = "z-[10050
     return null
   }
 
-  const sections = kind === "terms" ? TERMS_SECTIONS : PRIVACY_SECTIONS
-  const title = TITLES[kind]
+  const sections = kind === "terms" ? getTermsSections(locale) : getPrivacySections(locale)
+  const title = kind === "terms" ? tLegal("termsTitle") : tLegal("privacyTitle")
+  const endLabel = tLegal("documentEnd")
 
   return createPortal(
     <div
@@ -72,7 +72,7 @@ export function LegalDocumentModal({ open, kind, onClose, zClassName = "z-[10050
             size="icon"
             className="shrink-0 text-muted-foreground hover:bg-muted hover:text-foreground"
             onClick={onClose}
-            aria-label="閉じる"
+            aria-label={tCommon("close")}
           >
             <X className="h-5 w-5" />
           </Button>
@@ -81,6 +81,7 @@ export function LegalDocumentModal({ open, kind, onClose, zClassName = "z-[10050
           <LegalDocumentContent
             sections={sections}
             className="space-y-5 rounded-lg border border-border bg-muted/40 p-4 sm:p-5"
+            endLabel={endLabel}
           />
         </div>
       </div>

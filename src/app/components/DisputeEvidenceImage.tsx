@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Loader2, X } from "lucide-react"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import { useTranslations } from "@/lib/i18n/useI18n"
 import { cn } from "@/lib/utils"
 
 const DISPUTE_EVIDENCE_BUCKET = "dispute-evidence" as const
@@ -25,11 +26,14 @@ type DisputeEvidenceImageProps = {
  */
 export function DisputeEvidenceImage({
   pathOrUrl,
-  alt = "証拠画像",
+  alt,
   className,
   chatThumbnail = false,
 }: DisputeEvidenceImageProps) {
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
+  const t = useTranslations("disputeEvidence")
+  const tAria = useTranslations("aria")
+  const resolvedAlt = alt ?? t("defaultAlt")
   const [src, setSrc] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -91,7 +95,7 @@ export function DisputeEvidenceImage({
             message: signError?.message,
             error: signError,
           })
-          setError("画像を読み込めませんでした")
+          setError(t("loadFailed"))
           setSrc(null)
         } else {
           setSrc(data.signedUrl)
@@ -102,7 +106,7 @@ export function DisputeEvidenceImage({
     return () => {
       cancelled = true
     }
-  }, [pathOrUrl, supabase])
+  }, [pathOrUrl, supabase, t])
 
   const trimmed = pathOrUrl?.trim() ?? ""
   if (!trimmed) {
@@ -118,7 +122,7 @@ export function DisputeEvidenceImage({
           className,
         )}
         aria-busy="true"
-        aria-label="証拠画像を読み込み中"
+        aria-label={t("loadingAria")}
       >
         {chatThumbnail ? (
           <Loader2 className="h-6 w-6 animate-spin text-red-500" />
@@ -135,7 +139,7 @@ export function DisputeEvidenceImage({
   if (error || !src) {
     return (
       <p className={cn("text-sm text-amber-300", className)} role="alert">
-        {error ?? "画像を表示できません"}
+        {error ?? t("cannotDisplay")}
       </p>
     )
   }
@@ -150,12 +154,12 @@ export function DisputeEvidenceImage({
             "inline-block overflow-hidden rounded-lg border border-zinc-600 bg-zinc-900/80 p-0 text-left shadow-sm ring-offset-2 ring-offset-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500",
             className,
           )}
-          aria-label={`${alt}を拡大表示`}
+          aria-label={t("zoomAria", { alt: resolvedAlt })}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={src}
-            alt={alt}
+            alt={resolvedAlt}
             className="block max-h-[120px] max-w-[120px] cursor-pointer rounded-[8px] object-cover"
           />
         </button>
@@ -166,13 +170,13 @@ export function DisputeEvidenceImage({
             onClick={closeLightbox}
             role="dialog"
             aria-modal="true"
-            aria-label="証拠画像の拡大表示"
+            aria-label={t("expandedAria")}
           >
             <button
               type="button"
               onClick={closeLightbox}
               className="absolute right-4 top-4 rounded-full border border-zinc-600 bg-zinc-900 p-2 text-zinc-200 transition-colors hover:bg-zinc-800 hover:text-white"
-              aria-label="閉じる"
+              aria-label={tAria("close")}
             >
               <X className="h-5 w-5" />
             </button>
@@ -183,7 +187,7 @@ export function DisputeEvidenceImage({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={src}
-                alt={alt}
+                alt={resolvedAlt}
                 className="max-h-[80vh] max-w-[90vw] object-contain"
               />
             </div>
@@ -198,7 +202,7 @@ export function DisputeEvidenceImage({
       {/* eslint-disable-next-line @next/next/no-img-element -- 署名付き URL の動的表示 */}
       <img
         src={src}
-        alt={alt}
+        alt={resolvedAlt}
         className="mx-auto block max-h-[300px] w-full max-w-full object-contain"
       />
     </div>

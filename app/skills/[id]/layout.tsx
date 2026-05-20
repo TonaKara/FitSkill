@@ -1,5 +1,7 @@
 import type { Metadata } from "next"
 import { createClient } from "@supabase/supabase-js"
+import { getDictionary, lookupMessage } from "@/lib/i18n/dictionaries"
+import { getServerLocale, localeToOgLocale } from "@/lib/i18n/server-detect"
 import { getSiteUrl } from "@/lib/site-seo"
 
 type SkillLayoutProps = {
@@ -7,9 +9,13 @@ type SkillLayoutProps = {
   params: Promise<{ id: string }>
 }
 
-function truncateDescription(raw: string | null | undefined, max = 160): string {
+function truncateDescription(
+  raw: string | null | undefined,
+  fallback: string,
+  max = 160,
+): string {
   if (raw == null || raw.trim().length === 0) {
-    return "GritVibで提供中のスキルです。"
+    return fallback
   }
   const t = raw.replace(/\s+/g, " ").trim()
   return t.length <= max ? t : `${t.slice(0, max - 1)}…`
@@ -28,25 +34,32 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   /** og:image は同一オリジンのプロキシのみ参照（Discord 等が Storage URL を取りに行けない対策）。画像バイトは /api/og/skill/[id] が DB の thumbnail_url から取得 */
   const ogImageUrl = `${siteBase}/api/og/skill/${encodeURIComponent(id)}`
 
+  const locale = await getServerLocale()
+  const dict = getDictionary(locale)
+  const fallbackTitle = lookupMessage(dict, "metadata.skillsLayout.fallbackTitle")
+  const fallbackDescription = lookupMessage(dict, "metadata.skillsLayout.fallbackDescription")
+  const siteName = lookupMessage(dict, "metadata.siteName")
+  const ogLocale = localeToOgLocale(locale)
+
   if (!supabaseUrl || !dbKey) {
     return {
-      title: "スキル",
-      description: "GritVibで提供中のスキルです。",
+      title: fallbackTitle,
+      description: fallbackDescription,
       alternates: { canonical: absolutePageUrl },
       robots: { index: false, follow: true },
       openGraph: {
-        title: "スキル",
-        description: "GritVibで提供中のスキルです。",
+        title: fallbackTitle,
+        description: fallbackDescription,
         url: absolutePageUrl,
         type: "website",
-        locale: "ja_JP",
-        siteName: "GritVib",
+        locale: ogLocale,
+        siteName,
         images: [{ url: ogImageUrl, alt: "GritVib Skill OGP" }],
       },
       twitter: {
         card: "summary_large_image",
-        title: "スキル",
-        description: "GritVibで提供中のスキルです。",
+        title: fallbackTitle,
+        description: fallbackDescription,
         images: [ogImageUrl],
       },
     }
@@ -62,30 +75,34 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   /** DB エラー・該当なし・未公開はクローラ向けにプレースホルダ（ページ本体は所有者のみ未公開を閲覧可）。画像は API がデフォルト PNG を返す */
   if (error || !data || data.is_published === false) {
     return {
-      title: "スキル",
-      description: "GritVibで提供中のスキルです。",
+      title: fallbackTitle,
+      description: fallbackDescription,
       alternates: { canonical: absolutePageUrl },
       robots: { index: false, follow: true },
       openGraph: {
-        title: "スキル",
-        description: "GritVibで提供中のスキルです。",
+        title: fallbackTitle,
+        description: fallbackDescription,
         url: absolutePageUrl,
         type: "website",
-        locale: "ja_JP",
-        siteName: "GritVib",
+        locale: ogLocale,
+        siteName,
         images: [{ url: ogImageUrl, alt: "GritVib Skill OGP" }],
       },
       twitter: {
         card: "summary_large_image",
-        title: "スキル",
-        description: "GritVibで提供中のスキルです。",
+        title: fallbackTitle,
+        description: fallbackDescription,
         images: [ogImageUrl],
       },
     }
   }
 
-  const title = typeof data.title === "string" && data.title.trim().length > 0 ? data.title.trim() : "スキル"
-  const description = truncateDescription(typeof data.description === "string" ? data.description : null)
+  const title =
+    typeof data.title === "string" && data.title.trim().length > 0 ? data.title.trim() : fallbackTitle
+  const description = truncateDescription(
+    typeof data.description === "string" ? data.description : null,
+    fallbackDescription,
+  )
 
   return {
     title,
@@ -96,8 +113,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
       description,
       url: absolutePageUrl,
       type: "website",
-      locale: "ja_JP",
-      siteName: "GritVib",
+      locale: ogLocale,
+      siteName,
       images: [{ url: ogImageUrl, alt: title }],
     },
     twitter: {

@@ -82,6 +82,9 @@ import {
   pathnameToMypageSection,
   type MypageSectionKey,
 } from "@/lib/store-menu"
+import { useLocale, useTranslations, useTranslationsWithFallback } from "@/lib/i18n/useI18n"
+import { localeToHtmlLang } from "@/lib/i18n/locales"
+import { lookupJaMessage } from "@/lib/i18n/ja-canonical"
 
 type MypageSection =
   | "profile"
@@ -98,19 +101,19 @@ type MypageSection =
   | "account"
 
 type MypageMode = "student" | "instructor"
-type MenuItem = { id: MypageSection; label: string }
+type MenuItem = { id: MypageSection; labelKey: string }
 
 const STUDENT_PRIMARY_MENU: MenuItem[] = [
-  { id: "trades", label: "取引・メッセージ" },
-  { id: "favorites", label: "お気に入り" },
+  { id: "trades", labelKey: "tradesMessages" },
+  { id: "favorites", labelKey: "favorites" },
 ]
 
-const INSTRUCTOR_PRIMARY_MENU: MenuItem[] = [{ id: "trades", label: "取引・メッセージ" }]
+const INSTRUCTOR_PRIMARY_MENU: MenuItem[] = [{ id: "trades", labelKey: "tradesMessages" }]
 
 const SETTINGS_MENU: MenuItem[] = [
-  { id: "profile", label: "プロフィール" },
-  { id: "reviews", label: "評価" },
-  { id: "account", label: "アカウント設定" },
+  { id: "profile", labelKey: "profile" },
+  { id: "reviews", labelKey: "reviews" },
+  { id: "account", labelKey: "account" },
 ]
 
 const ALL_MENU: MenuItem[] = [...INSTRUCTOR_PRIMARY_MENU, ...STUDENT_PRIMARY_MENU, ...SETTINGS_MENU]
@@ -128,12 +131,12 @@ function createEmptyDistribution(): ProfileRatingDistribution {
   }
 }
 
-function formatRatingDate(isoDate: string): string {
+function formatRatingDate(isoDate: string, htmlLang: string): string {
   const date = new Date(isoDate)
   if (Number.isNaN(date.getTime())) {
     return ""
   }
-  return new Intl.DateTimeFormat("ja-JP", {
+  return new Intl.DateTimeFormat(htmlLang, {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -290,34 +293,45 @@ function extractRejectionReasonFromContent(content: string | null): string {
   return text.slice(idx + marker.length).trim()
 }
 
-function historyStatusLabel(status: string): string {
-  if (status === "canceled" || status === "refunded") {
-    return "取引完了（返金/キャンセル済み）"
+type HistoryStatusTranslator = (status: string) => string
+type HistoryCompletedAtFormatter = (completedAt: string | null, createdAt: string | null) => string
+type TransactionStartedAtFormatter = (createdAt: string | null) => string
+
+function createHistoryStatusLabel(t: (key: string) => string): HistoryStatusTranslator {
+  return (status: string) => {
+    if (status === "canceled" || status === "refunded") {
+      return t("statusCanceledOrRefunded")
+    }
+    if (status === "completed") {
+      return t("statusCompleted")
+    }
+    return status
   }
-  if (status === "completed") {
-    return "取引完了"
-  }
-  return status
 }
 
-function formatHistoryCompletedAtLabel(completedAt: string | null, createdAt: string | null): string {
-  const raw = completedAt ?? createdAt
-  if (!raw) {
-    return "完了日時: -"
+function createHistoryCompletedAtFormatter(
+  t: (key: string, vars?: Record<string, string>) => string,
+  htmlLang: string,
+): HistoryCompletedAtFormatter {
+  return (completedAt: string | null, createdAt: string | null) => {
+    const raw = completedAt ?? createdAt
+    if (!raw) {
+      return t("completedAtPlaceholder")
+    }
+    const d = new Date(raw)
+    if (Number.isNaN(d.getTime())) {
+      return t("completedAtPlaceholder")
+    }
+    const text = new Intl.DateTimeFormat(htmlLang, {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(d)
+    return t("completedAtLabel", { date: text })
   }
-  const d = new Date(raw)
-  if (Number.isNaN(d.getTime())) {
-    return "完了日時: -"
-  }
-  const text = new Intl.DateTimeFormat("ja-JP", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(d)
-  return `完了日時: ${text}`
 }
 
 function revokeBlobUrl(url: string) {
@@ -326,20 +340,25 @@ function revokeBlobUrl(url: string) {
   }
 }
 
-function formatTransactionStartedAtLabel(createdAt: string | null): string {
-  if (!createdAt) {
-    return "取引開始日: -"
+function createTransactionStartedAtFormatter(
+  t: (key: string, vars?: Record<string, string>) => string,
+  htmlLang: string,
+): TransactionStartedAtFormatter {
+  return (createdAt: string | null) => {
+    if (!createdAt) {
+      return t("startedAtPlaceholder")
+    }
+    const d = new Date(createdAt)
+    if (Number.isNaN(d.getTime())) {
+      return t("startedAtPlaceholder")
+    }
+    const text = new Intl.DateTimeFormat(htmlLang, {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(d)
+    return t("startedAtLabel", { date: text })
   }
-  const d = new Date(createdAt)
-  if (Number.isNaN(d.getTime())) {
-    return "取引開始日: -"
-  }
-  const text = new Intl.DateTimeFormat("ja-JP", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(d)
-  return `取引開始日: ${text}`
 }
 
 export default function MypageClient() {
@@ -348,6 +367,35 @@ export default function MypageClient() {
   const searchParams = useSearchParams()
   const { theme, resolvedTheme, setTheme } = useTheme()
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
+
+  const locale = useLocale()
+  const htmlLang = useMemo(() => localeToHtmlLang(locale), [locale])
+  const tCommon = useTranslations("common")
+  const tMenu = useTranslations("mypage.menu")
+  const tProfile = useTranslations("mypage.profile")
+  const tListings = useTranslations("mypage.listings")
+  const tRequests = useTranslations("mypage.requests")
+  const tFavoritesNs = useTranslations("mypage.favorites")
+  const tReviewsNs = useTranslations("mypage.reviews")
+  const tTrades = useTranslations("mypage.trades")
+  const tHistory = useTranslations("mypage.history")
+  const tPayout = useTranslations("mypage.payout")
+  const tStripeConfirm = useTranslations("mypage.stripeConfirm")
+  const tPayoutBusy = useTranslations("mypage.payoutBusy")
+  const tAccount = useTranslations("mypage.account")
+  const tAccentColors = useTranslationsWithFallback("accentColors")
+  const tToasts = useTranslations("mypageToasts")
+  const tLogoutConfirm = useTranslations("mypage.logoutConfirm")
+  const tCustomIdConfirm = useTranslations("mypage.customIdConfirm")
+  const formatTradeStartedAtLabel = useMemo(
+    () => createTransactionStartedAtFormatter(tTrades, htmlLang),
+    [tTrades, htmlLang],
+  )
+  const formatTradeHistoryCompletedAtLabel = useMemo(
+    () => createHistoryCompletedAtFormatter(tTrades, htmlLang),
+    [tTrades, htmlLang],
+  )
+  const historyStatusLabelFn = useMemo(() => createHistoryStatusLabel(tHistory), [tHistory])
 
   const [authLoading, setAuthLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
@@ -558,7 +606,7 @@ export default function MypageClient() {
 
   const handleCopyStoreUrl = useCallback(async () => {
     if (!userId) {
-      setNotice({ variant: "error", message: "ストアURLの取得に失敗しました。" })
+      setNotice({ variant: "error", message: tToasts("storeUrlFetchFailed") })
       return
     }
     if (typeof window === "undefined") {
@@ -567,7 +615,7 @@ export default function MypageClient() {
     const profileUrl = `${window.location.origin}${buildStorePath(userId, savedCustomId)}`
     try {
       await navigator.clipboard.writeText(profileUrl)
-      setNotice({ variant: "success", message: "ストアURLをコピーしました。" })
+      setNotice({ variant: "success", message: tToasts("storeUrlCopied") })
     } catch {
       const textarea = document.createElement("textarea")
       textarea.value = profileUrl
@@ -579,10 +627,10 @@ export default function MypageClient() {
       const copied = document.execCommand("copy")
       document.body.removeChild(textarea)
       if (!copied) {
-        setNotice({ variant: "error", message: "コピーに失敗しました。手動でコピーしてください。" })
+        setNotice({ variant: "error", message: tToasts("copyFailedManual") })
         return
       }
-      setNotice({ variant: "success", message: "ストアURLをコピーしました。" })
+      setNotice({ variant: "success", message: tToasts("storeUrlCopied") })
     }
   }, [savedCustomId, userId])
 
@@ -639,7 +687,7 @@ export default function MypageClient() {
       return
     }
     if (!file.type.startsWith("image/")) {
-      setNotice({ variant: "error", message: "画像ファイル（jpg/png/webp等）を選択してください。" })
+      setNotice({ variant: "error", message: tToasts("imageFileRequired") })
       event.target.value = ""
       return
     }
@@ -689,7 +737,7 @@ export default function MypageClient() {
     } = supabase.storage.from(AVATARS_STORAGE_BUCKET).getPublicUrl(objectKey)
 
     if (!publicUrl) {
-      throw new Error("アイコン画像の公開URL取得に失敗しました。")
+      throw new Error(tToasts("avatarPublicUrlFailed"))
     }
 
     return publicUrl
@@ -784,7 +832,7 @@ export default function MypageClient() {
     if (error) {
       profileHydratedUserIdRef.current = null
       setNotice(
-        toErrorNotice(error, isAdmin, { unknownErrorMessage: "プロフィールの読み込みに失敗しました。" }),
+        toErrorNotice(error, isAdmin, { unknownErrorMessage: tToasts("profileLoadFailed") }),
       )
       setProfileLoading(false)
       return
@@ -846,7 +894,7 @@ export default function MypageClient() {
       setEmailNotificationSaving(false)
       if (error) {
         setNotice(
-          toErrorNotice(error, isAdmin, { unknownErrorMessage: "メール通知設定の保存に失敗しました。" }),
+          toErrorNotice(error, isAdmin, { unknownErrorMessage: tToasts("emailPrefsSaveFailed") }),
         )
         void loadProfile()
       }
@@ -924,14 +972,14 @@ export default function MypageClient() {
         }
         if (!response.ok) {
           setConnectBalance(null)
-          setConnectBalanceError(payload.error ?? "残高の取得に失敗しました。")
+          setConnectBalanceError(payload.error ?? tToasts("balanceFetchFailed"))
           return
         }
         setConnectBalance(payload)
       } catch {
         if (!cancelled) {
           setConnectBalance(null)
-          setConnectBalanceError("残高の取得に失敗しました。")
+          setConnectBalanceError(tToasts("balanceFetchFailed"))
         }
       } finally {
         if (!cancelled) {
@@ -967,6 +1015,7 @@ export default function MypageClient() {
     let cancelled = false
     const finalizeStripeStatus = async () => {
       let finalizedSuccessfully = false
+      const stripeStatusFallback = tToasts("stripeStatusCheckFailed")
       try {
         const accessToken = await resolveStripeAccessToken()
         if (!accessToken) {
@@ -975,7 +1024,7 @@ export default function MypageClient() {
               variant: "error",
               message: formatStripePayoutOperationErrorMessage(
                 "not_authenticated",
-                "Stripe連携状態の確認に失敗しました。時間を置いて再度お試しください。",
+                stripeStatusFallback,
               ),
             })
           }
@@ -988,7 +1037,7 @@ export default function MypageClient() {
               variant: "error",
               message: formatStripePayoutOperationErrorMessage(
                 result.error,
-                "Stripe連携状態の確認に失敗しました。時間を置いて再度お試しください。",
+                stripeStatusFallback,
               ),
             })
           }
@@ -1000,10 +1049,7 @@ export default function MypageClient() {
           const raw = error instanceof Error ? error.message : String(error)
           setNotice({
             variant: "error",
-            message: formatStripePayoutOperationErrorMessage(
-              raw,
-              "Stripe連携状態の確認に失敗しました。時間を置いて再度お試しください。",
-            ),
+            message: formatStripePayoutOperationErrorMessage(raw, stripeStatusFallback),
           })
         }
         return
@@ -1015,7 +1061,7 @@ export default function MypageClient() {
         return
       }
       if (finalizedSuccessfully) {
-        setNotice({ variant: "success", message: "Stripe連携が完了しました。" })
+        setNotice({ variant: "success", message: tToasts("stripeLinked") })
       }
       router.replace(buildAccountSectionHref("payout", { mode: "instructor" }))
     }
@@ -1030,7 +1076,7 @@ export default function MypageClient() {
     if (updatedParam !== "1") {
       return
     }
-    setNotice({ variant: "success", message: "更新しました。" })
+    setNotice({ variant: "success", message: tToasts("updated") })
     const params = new URLSearchParams(searchParams.toString())
     params.delete("updated")
     const query = params.toString()
@@ -1038,6 +1084,7 @@ export default function MypageClient() {
   }, [updatedParam, searchParams, router, pathname])
 
   const handleStripeLinkOpen = useCallback(async () => {
+    const onboardingFallback = tToasts("stripeOnboardingOpenFailed")
     setPayoutLinkBusy(true)
     try {
       const accessToken = await resolveStripeAccessToken()
@@ -1047,7 +1094,7 @@ export default function MypageClient() {
           variant: "error",
           message: formatStripeOnboardingUrlErrorForUser(
             "not_authenticated",
-            "Stripe の画面を開けませんでした。時間を置いて再度お試しください。",
+            onboardingFallback,
           ),
         })
         return
@@ -1061,10 +1108,7 @@ export default function MypageClient() {
         })
         setNotice({
           variant: "error",
-          message: formatStripeOnboardingUrlErrorForUser(
-            result.error,
-            "Stripe の画面を開けませんでした。時間を置いて再度お試しください。",
-          ),
+          message: formatStripeOnboardingUrlErrorForUser(result.error, onboardingFallback),
         })
         return
       }
@@ -1081,19 +1125,17 @@ export default function MypageClient() {
       })
       setNotice({
         variant: "error",
-        message: formatStripeOnboardingUrlErrorForUser(
-          raw,
-          "Stripe の画面を開けませんでした。時間を置いて再度お試しください。",
-        ),
+        message: formatStripeOnboardingUrlErrorForUser(raw, onboardingFallback),
       })
     }
-  }, [resolveStripeAccessToken])
+  }, [resolveStripeAccessToken, tToasts])
 
   /** 登録済み: 講師登録確認モーダルを出さずダッシュボードへ */
   const handleStripeDashboardOpen = useCallback(async () => {
     if (payoutLinkBusy || profileLoading) {
       return
     }
+    const dashboardFallback = tToasts("stripeDashboardOpenFailed")
     setPayoutLinkBusy(true)
     try {
       const accessToken = await resolveStripeAccessToken()
@@ -1103,7 +1145,7 @@ export default function MypageClient() {
           variant: "error",
           message: formatStripePayoutOperationErrorMessage(
             "not_authenticated",
-            "Stripe ダッシュボードを開けませんでした。時間を置いて再度お試しください。",
+            dashboardFallback,
           ),
         })
         return
@@ -1113,10 +1155,7 @@ export default function MypageClient() {
         setPayoutLinkBusy(false)
         setNotice({
           variant: "error",
-          message: formatStripePayoutOperationErrorMessage(
-            result.error,
-            "Stripe ダッシュボードを開けませんでした。時間を置いて再度お試しください。",
-          ),
+          message: formatStripePayoutOperationErrorMessage(result.error, dashboardFallback),
         })
         return
       }
@@ -1126,13 +1165,10 @@ export default function MypageClient() {
       const raw = err instanceof Error ? err.message : String(err)
       setNotice({
         variant: "error",
-        message: formatStripePayoutOperationErrorMessage(
-          raw,
-          "Stripe ダッシュボードを開けませんでした。時間を置いて再度お試しください。",
-        ),
+        message: formatStripePayoutOperationErrorMessage(raw, dashboardFallback),
       })
     }
-  }, [payoutLinkBusy, profileLoading, resolveStripeAccessToken])
+  }, [payoutLinkBusy, profileLoading, resolveStripeAccessToken, tToasts])
 
   const handleOpenStripeOnboardingConfirm = useCallback(() => {
     if (payoutLinkBusy || profileLoading) {
@@ -1162,7 +1198,7 @@ export default function MypageClient() {
 
     if (error) {
       setListings([])
-      setListingsError("出品スキルの取得に失敗しました。")
+      setListingsError(tToasts("listingsFetchFailed"))
     } else {
       setListings((data ?? []) as ListedSkill[])
     }
@@ -1179,7 +1215,7 @@ export default function MypageClient() {
       setListingPublishConfirmId(null)
       setNotice({
         variant: "error",
-        message: "運営による非公開のため、ご自身で公開に戻すことはできません。",
+        message: tToasts("adminLockedHide"),
       })
       return
     }
@@ -1193,14 +1229,14 @@ export default function MypageClient() {
     setListingPublishConfirmId(null)
 
     if (error) {
-      setNotice(toErrorNotice(error, isAdmin, { unknownErrorMessage: "スキルの公開に失敗しました。" }))
+      setNotice(toErrorNotice(error, isAdmin, { unknownErrorMessage: tToasts("skillPublishFailed") }))
       return
     }
 
     setListings((prev) =>
       prev.map((item) => (item.id === skillId ? { ...item, is_published: true } : item)),
     )
-    setNotice({ variant: "success", message: "スキルを公開しました。" })
+    setNotice({ variant: "success", message: tToasts("skillPublished") })
   }, [supabase, userId, publishingListingId, isAdmin, listingPublishConfirmId, listings])
 
   useEffect(() => {
@@ -1222,7 +1258,7 @@ export default function MypageClient() {
         .eq("user_id", userId)
       if (mySkillsError) {
         setConsultationRequests([])
-        setConsultationRequestsError("受講リクエストの取得に失敗しました。")
+        setConsultationRequestsError(tToasts("consultationFetchFailed"))
         return
       }
       const skillRows = (mySkills ?? []) as Array<{ id: string | number; title: string | null }>
@@ -1249,7 +1285,7 @@ export default function MypageClient() {
 
       if (answersResult.error || settingsResult.error) {
         setConsultationRequests([])
-        setConsultationRequestsError("受講リクエストの取得に失敗しました。")
+        setConsultationRequestsError(tToasts("consultationFetchFailed"))
         return
       }
 
@@ -1279,7 +1315,7 @@ export default function MypageClient() {
 
       if (buyersError) {
         setConsultationRequests([])
-        setConsultationRequestsError("受講リクエストの取得に失敗しました。")
+        setConsultationRequestsError(tToasts("consultationFetchFailed"))
         return
       }
 
@@ -1289,7 +1325,7 @@ export default function MypageClient() {
         if (!Number.isFinite(n)) {
           continue
         }
-        skillTitleById.set(Math.trunc(n), row.title?.trim() || "スキル")
+        skillTitleById.set(Math.trunc(n), row.title?.trim() || tToasts("skillFallback"))
       }
 
       const settingsBySkillId = new Map<number, (typeof settingRows)[number]>()
@@ -1321,11 +1357,11 @@ export default function MypageClient() {
       const mapped: ConsultationRequestItem[] = answerRows.map((row) => {
         const setting = settingsBySkillId.get(row.skill_id)
         const buyer = buyerById.get(row.buyer_id)
-        const buyerName = buyer?.display_name?.trim() || "名前未設定"
+        const buyerName = buyer?.display_name?.trim() || tToasts("nameUnset")
         return {
           id: row.id,
           skillId: row.skill_id,
-          skillTitle: skillTitleById.get(row.skill_id) ?? "スキル",
+          skillTitle: skillTitleById.get(row.skill_id) ?? tToasts("skillFallback"),
           buyerId: row.buyer_id,
           sellerId: row.seller_id,
           buyerDisplayName: buyerName,
@@ -1381,7 +1417,7 @@ export default function MypageClient() {
 
         if (answersWithoutReason.error) {
           setSentConsultationRequests([])
-          setSentConsultationRequestsError("送信済みリクエストの取得に失敗しました。")
+          setSentConsultationRequestsError(tToasts("sentRequestsFetchFailed"))
           return
         }
         answerRows = (answersWithoutReason.data ?? []) as AnswerRow[]
@@ -1417,7 +1453,7 @@ export default function MypageClient() {
 
       if (skillsResult.error || sellersResult.error || rejectedNotificationsResult.error) {
         setSentConsultationRequests([])
-        setSentConsultationRequestsError("送信済みリクエストの取得に失敗しました。")
+        setSentConsultationRequestsError(tToasts("sentRequestsFetchFailed"))
         return
       }
 
@@ -1430,7 +1466,7 @@ export default function MypageClient() {
 
       if (transactionsResult.error) {
         setSentConsultationRequests([])
-        setSentConsultationRequestsError("送信済みリクエストの取得に失敗しました。")
+        setSentConsultationRequestsError(tToasts("sentRequestsFetchFailed"))
         return
       }
 
@@ -1440,7 +1476,7 @@ export default function MypageClient() {
         if (!Number.isFinite(n)) {
           continue
         }
-        skillTitleById.set(Math.trunc(n), row.title?.trim() || "スキル")
+        skillTitleById.set(Math.trunc(n), row.title?.trim() || tToasts("skillFallback"))
       }
 
       const sellerById = new Map<string, { display_name: string | null; custom_id: string | null; avatar_url: string | null }>()
@@ -1484,14 +1520,14 @@ export default function MypageClient() {
 
       const mapped: SentConsultationRequestItem[] = answerRows.map((row) => {
         const seller = sellerById.get(row.seller_id)
-        const sellerName = seller?.display_name?.trim() || "講師"
+        const sellerName = seller?.display_name?.trim() || tToasts("instructorFallback")
         const dbReason = row.rejection_reason?.trim() || ""
         const fallbackReason = rejectionReasonBySkillId.get(row.skill_id) || ""
         const transactionId = transactionIdBySkillSeller.get(`${row.skill_id}:${row.seller_id}`) ?? null
         return {
           id: row.id,
           skillId: row.skill_id,
-          skillTitle: skillTitleById.get(row.skill_id) ?? "スキル",
+          skillTitle: skillTitleById.get(row.skill_id) ?? tToasts("skillFallback"),
           sellerId: row.seller_id,
           sellerDisplayName: sellerName,
           sellerAvatarUrl: seller?.avatar_url ?? null,
@@ -1540,7 +1576,7 @@ export default function MypageClient() {
 
     if (error) {
       setFavoriteSkills([])
-      setFavoritesError("お気に入りの取得に失敗しました。")
+      setFavoritesError(tToasts("favoritesFetchFailed"))
       setFavoritesLoading(false)
       return
     }
@@ -1606,7 +1642,7 @@ export default function MypageClient() {
       if (!cancelled) {
         setReviewDistribution(createEmptyDistribution())
         setReviewComments([])
-        setReviewsError("評価データの取得に失敗しました。")
+        setReviewsError(tToasts("reviewsFetchFailed"))
         setReviewsLoading(false)
       }
     })
@@ -1647,7 +1683,7 @@ export default function MypageClient() {
 
         if (txError) {
           setTransactionItems([])
-          setTransactionsError("取引一覧の取得に失敗しました。")
+          setTransactionsError(tToasts("transactionsFetchFailed"))
           return
         }
 
@@ -1671,7 +1707,7 @@ export default function MypageClient() {
 
         if (profileError) {
           setTransactionItems([])
-          setTransactionsError("相手プロフィールの取得に失敗しました。")
+          setTransactionsError(tToasts("peerProfileFetchFailed"))
           return
         }
 
@@ -1690,11 +1726,11 @@ export default function MypageClient() {
           items.push({
             transactionId: row.id,
             skillId: skill?.id ?? "",
-            skillTitle: skill?.title?.trim() ? skill.title : "スキル",
+            skillTitle: skill?.title?.trim() ? skill.title : tToasts("skillFallback"),
             skillImageUrl: resolveSkillThumbnailUrl(skill?.thumbnail_url ?? null),
-            peerDisplayName: name.length > 0 ? name : "名前未設定",
+            peerDisplayName: name.length > 0 ? name : tToasts("nameUnset"),
             peerAvatarUrl: prof?.avatar_url ?? null,
-            startedAtLabel: formatTransactionStartedAtLabel(row.created_at),
+            startedAtLabel: formatTradeStartedAtLabel(row.created_at),
           })
         }
 
@@ -1711,7 +1747,7 @@ export default function MypageClient() {
     return () => {
       cancelled = true
     }
-  }, [userId, activeContentSection, supabase])
+  }, [userId, activeContentSection, supabase, formatTradeStartedAtLabel])
 
   useEffect(() => {
     if (!userId || activeContentSection !== "transactions") {
@@ -1739,7 +1775,7 @@ export default function MypageClient() {
 
         if (txError) {
           setHistoryTransactionItems([])
-          setHistoryTransactionsError("取引履歴の取得に失敗しました。")
+          setHistoryTransactionsError(tToasts("transactionsHistoryFetchFailed"))
           return
         }
 
@@ -1763,7 +1799,7 @@ export default function MypageClient() {
 
         if (profileError) {
           setHistoryTransactionItems([])
-          setHistoryTransactionsError("相手プロフィールの取得に失敗しました。")
+          setHistoryTransactionsError(tToasts("peerProfileFetchFailed"))
           return
         }
 
@@ -1782,13 +1818,13 @@ export default function MypageClient() {
           items.push({
             transactionId: row.id,
             skillId: skill?.id ?? "",
-            skillTitle: skill?.title?.trim() ? skill.title : "スキル",
+            skillTitle: skill?.title?.trim() ? skill.title : tToasts("skillFallback"),
             skillImageUrl: resolveSkillThumbnailUrl(skill?.thumbnail_url ?? null),
-            peerDisplayName: name.length > 0 ? name : "名前未設定",
+            peerDisplayName: name.length > 0 ? name : tToasts("nameUnset"),
             peerAvatarUrl: prof?.avatar_url ?? null,
-            startedAtLabel: formatTransactionStartedAtLabel(row.created_at),
-            statusLabel: historyStatusLabel(row.status),
-            completedAtLabel: formatHistoryCompletedAtLabel(row.completed_at, row.created_at),
+            startedAtLabel: formatTradeStartedAtLabel(row.created_at),
+            statusLabel: historyStatusLabelFn(row.status),
+            completedAtLabel: formatTradeHistoryCompletedAtLabel(row.completed_at, row.created_at),
           })
         }
 
@@ -1805,7 +1841,15 @@ export default function MypageClient() {
     return () => {
       cancelled = true
     }
-  }, [userId, activeContentSection, supabase, tradeViewAsSeller])
+  }, [
+    userId,
+    activeContentSection,
+    supabase,
+    tradeViewAsSeller,
+    formatTradeStartedAtLabel,
+    historyStatusLabelFn,
+    formatTradeHistoryCompletedAtLabel,
+  ])
 
   const handleUnfavorite = async (favoriteId: string) => {
     if (!userId) {
@@ -1817,7 +1861,7 @@ export default function MypageClient() {
 
     if (error) {
       setNotice(
-        toErrorNotice(error, isAdmin, { unknownErrorMessage: "お気に入りの解除に失敗しました。" }),
+        toErrorNotice(error, isAdmin, { unknownErrorMessage: tToasts("favoritesRemoveFailed") }),
       )
       void loadFavoriteSkills()
     }
@@ -1833,7 +1877,7 @@ export default function MypageClient() {
       .eq("id", item.id)
     setConsultationActionBusyId(null)
     if (error) {
-      setNotice(toErrorNotice(error, isAdmin, { unknownErrorMessage: "承認に失敗しました。" }))
+      setNotice(toErrorNotice(error, isAdmin, { unknownErrorMessage: tToasts("consultationApproveFailed") }))
       return
     }
     const { error: notifError } = await createGeneralNotification(supabase, {
@@ -1842,7 +1886,8 @@ export default function MypageClient() {
       type: "consultation_accepted",
       title: item.skillTitle,
       reason: `skill_id:${item.skillId}`,
-      content: "事前オファーの申し込みが承認されました。購入手続きを進められます。",
+      // DB には常に JA 正規形を保存。表示時翻訳で受信者ロケールに応じて差し替える。
+      content: lookupJaMessage("mypageToasts.consultationApprovedSystemContent"),
     })
     if (notifError) {
       // 通知失敗は本処理をブロックしない
@@ -1859,7 +1904,7 @@ export default function MypageClient() {
       // メール通知失敗で承認処理を失敗扱いにしない
     })
     await loadConsultationRequests()
-    setNotice({ variant: "success", message: "受講リクエストを承認しました。" })
+    setNotice({ variant: "success", message: tToasts("consultationApproved") })
   }
 
   const handleRejectConsultation = async (item: ConsultationRequestItem, reason: string) => {
@@ -1874,7 +1919,7 @@ export default function MypageClient() {
       .eq("id", item.id)
     setConsultationActionBusyId(null)
     if (error) {
-      setNotice(toErrorNotice(error, isAdmin, { unknownErrorMessage: "拒否に失敗しました。" }))
+      setNotice(toErrorNotice(error, isAdmin, { unknownErrorMessage: tToasts("consultationRejectFailed") }))
       return
     }
     const { error: notifError } = await createGeneralNotification(supabase, {
@@ -1883,10 +1928,11 @@ export default function MypageClient() {
       type: "consultation_rejected",
       title: item.skillTitle,
       reason: `skill_id:${item.skillId}`,
+      // DB には常に JA 正規形を保存。理由文字列は admin 入力扱いで翻訳しない。
       content:
         reasonText.length > 0
           ? `事前オファーが見送られました。理由: ${reasonText}`
-          : "事前オファーが見送られました。",
+          : lookupJaMessage("mypageToasts.consultationDeclinedNoReason"),
     })
     if (notifError) {
       // 通知失敗は本処理をブロックしない
@@ -1905,7 +1951,7 @@ export default function MypageClient() {
     setRejectConfirmTargetId(null)
     setRejectOptionalReason("")
     await loadConsultationRequests()
-    setNotice({ variant: "success", message: "受講リクエストを拒否しました。" })
+    setNotice({ variant: "success", message: tToasts("consultationRejected") })
   }
 
   const handleProfileSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -1929,7 +1975,7 @@ export default function MypageClient() {
     if (normalizedSavedCustomId.length > 0 && normalizedCustomId !== normalizedSavedCustomId) {
       setNotice({
         variant: "error",
-        message: "カスタムIDは一度設定すると変更できません。",
+        message: tToasts("customIdLocked"),
       })
       return
     }
@@ -1938,14 +1984,14 @@ export default function MypageClient() {
         setNotice({
           variant: "error",
           message:
-            "カスタムIDは英小文字で開始し、3〜30文字の英小文字・数字・_・-のみ使用できます。",
+            tToasts("customIdValidation"),
         })
         return
       }
       if (isReservedCustomId(normalizedCustomId)) {
         setNotice({
           variant: "error",
-          message: "そのカスタムIDは予約語のため利用できません。",
+          message: tToasts("customIdReserved"),
         })
         return
       }
@@ -1964,7 +2010,7 @@ export default function MypageClient() {
         } else {
           setProfileSaving(false)
           setNotice(
-            toErrorNotice(uploadErr, isAdmin, { unknownErrorMessage: "アイコン画像のアップロードに失敗しました。" }),
+            toErrorNotice(uploadErr, isAdmin, { unknownErrorMessage: tToasts("avatarUploadFailed") }),
           )
           return
         }
@@ -2003,10 +2049,10 @@ export default function MypageClient() {
           await removeAvatarObjectAtPublicUrl(supabase, userId, uploadedNewUrl)
         }
         if ((error as { code?: string } | null)?.code === "23505") {
-          setNotice({ variant: "error", message: "このカスタムIDは既に使用されています。" })
+          setNotice({ variant: "error", message: tToasts("customIdTaken") })
           return
         }
-        setNotice(toErrorNotice(error, isAdmin, { unknownErrorMessage: "保存に失敗しました。" }))
+        setNotice(toErrorNotice(error, isAdmin, { unknownErrorMessage: tToasts("saveFailed") }))
         return
       }
 
@@ -2021,11 +2067,11 @@ export default function MypageClient() {
       setNotice({
         variant: "error",
         message: [
-          "名前の変更は30日に1回のみ可能です。表示名以外の内容を保存しました。",
+          tToasts("displayNameLockedSaved"),
           avatarSkippedDueToMissingBucket
             ? isAdmin
-              ? " アイコン画像はサービス上の準備が整うまで保存できませんでした。"
-              : " アイコン画像は保存できませんでした。"
+              ? tToasts("avatarSavedAdminPending")
+              : tToasts("avatarSaveFailedSuffix")
             : "",
         ].join(""),
       })
@@ -2052,10 +2098,10 @@ export default function MypageClient() {
         await removeAvatarObjectAtPublicUrl(supabase, userId, uploadedNewUrl)
       }
       if ((error as { code?: string } | null)?.code === "23505") {
-        setNotice({ variant: "error", message: "このカスタムIDは既に使用されています。" })
+        setNotice({ variant: "error", message: tToasts("customIdTaken") })
         return
       }
-      setNotice(toErrorNotice(error, isAdmin, { unknownErrorMessage: "保存に失敗しました。" }))
+      setNotice(toErrorNotice(error, isAdmin, { unknownErrorMessage: tToasts("saveFailed") }))
       return
     }
 
@@ -2070,9 +2116,9 @@ export default function MypageClient() {
       variant: "success",
       message: avatarSkippedDueToMissingBucket
         ? isAdmin
-          ? "プロフィールを保存しました。アイコン画像はサービス上の準備が整うまで保存できませんでした。"
-          : "プロフィールを保存しました。アイコン画像は保存できませんでした。しばらくしてから再度お試しください。"
-        : "プロフィールを保存しました。",
+          ? tToasts("profileSavedAvatarPending")
+          : tToasts("profileSavedAvatarFailed")
+        : tToasts("profileSaved"),
     })
     await loadProfile()
     router.refresh()
@@ -2115,7 +2161,7 @@ export default function MypageClient() {
       return
     }
     setAccountLogoutBusy(false)
-    setNotice({ variant: "error", message: "ログアウトに失敗しました。もう一度お試しください。" })
+    setNotice({ variant: "error", message: tToasts("logoutFailed") })
   }, [accountLogoutBusy, supabase])
 
   const canChangeDisplayNameNow = canChangeDisplayNameAfterCooldown(lastNameChange)
@@ -2185,7 +2231,7 @@ export default function MypageClient() {
     return baseMenu.filter((item) => item.id !== "listings" && item.id !== "payout")
   }, [currentMode, isBannedUser])
 
-  const accountLabel = SETTINGS_MENU.find((item) => item.id === "account")?.label ?? "アカウント設定"
+  const accountLabel = tMenu("account")
 
   useEffect(() => {
     if (!isBannedUser) {
@@ -2203,7 +2249,7 @@ export default function MypageClient() {
     return (
       <div className={`flex min-h-[100svh] items-center justify-center md:min-h-screen ${isDarkMode ? "bg-zinc-950 text-zinc-200" : "bg-background text-foreground"}`}>
         <Loader2 className="mr-2 h-5 w-5 animate-spin text-red-500" aria-hidden />
-        読み込み中...
+        {tCommon("loading")}
       </div>
     )
   }
@@ -2222,8 +2268,8 @@ export default function MypageClient() {
         isAdmin={isAdmin}
         cropShape="avatar"
         outputPixelSize={{ width: PROFILE_AVATAR_CROP_EXPORT_PX, height: PROFILE_AVATAR_CROP_EXPORT_PX }}
-        heading="プロフィールアイコン"
-        subheading="枠内が保存される範囲です。ドラッグで位置を、ホイールやピンチで拡大・縮小できます。"
+        heading={tProfile("cropHeading")}
+        subheading={tProfile("cropSubheading")}
       />
       {notice && <NotificationToast notice={notice} onClose={() => setNotice(null)} />}
       <div
@@ -2235,7 +2281,7 @@ export default function MypageClient() {
       >
         {!isAccountLayout ? (
         <nav
-          aria-label="マイページメニュー"
+          aria-label={tMenu("menuAria")}
           className="hidden md:block md:static md:w-56 md:shrink-0 md:border-r md:border-zinc-800 md:bg-zinc-950 md:pt-6"
         >
           <div className="flex flex-col gap-4 overflow-visible px-4 py-2 md:py-0">
@@ -2249,7 +2295,7 @@ export default function MypageClient() {
                     : "text-zinc-700 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-100"
                 }`}
               >
-                受講生として利用
+                {tMenu("studentMode")}
               </button>
               <button
                 type="button"
@@ -2260,7 +2306,7 @@ export default function MypageClient() {
                     : "text-zinc-700 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-100"
                 }`}
               >
-                講師として利用
+                {tMenu("instructorMode")}
               </button>
             </div>
 
@@ -2279,7 +2325,7 @@ export default function MypageClient() {
                     }`}
                     aria-current={active ? "page" : undefined}
                   >
-                    {item.label}
+                    {tMenu(item.labelKey)}
                   </button>
                 )
               })}
@@ -2287,7 +2333,7 @@ export default function MypageClient() {
 
             <div className="border-t border-zinc-800 pt-3">
               <p className="px-3 pb-2 text-[11px] font-semibold tracking-widest text-zinc-600 dark:text-zinc-500">
-                設定
+                {tMenu("settingsHeading")}
               </p>
               {SETTINGS_MENU.map((item) => {
                 const active = section === item.id
@@ -2303,7 +2349,7 @@ export default function MypageClient() {
                     }`}
                     aria-current={active ? "page" : undefined}
                   >
-                    {item.label}
+                    {tMenu(item.labelKey)}
                   </button>
                 )
               })}
@@ -2314,7 +2360,7 @@ export default function MypageClient() {
                 asChild
                 className="mt-2 shrink-0 bg-red-600 text-xs font-bold text-white hover:bg-red-500 md:w-full"
               >
-                <Link href="/admin">管理者ページへ</Link>
+                <Link href="/admin">{tMenu("adminPage")}</Link>
               </Button>
             ) : null}
           </div>
@@ -2325,7 +2371,7 @@ export default function MypageClient() {
           {isAdmin ? (
             <div className="mb-4 md:hidden">
               <Button asChild className="w-full bg-red-600 text-xs font-bold text-white hover:bg-red-500">
-                <Link href="/admin">管理者ページへ</Link>
+                <Link href="/admin">{tMenu("adminPage")}</Link>
               </Button>
             </div>
           ) : null}
@@ -2336,7 +2382,7 @@ export default function MypageClient() {
                 variant="outline"
                 className="border-border bg-muted text-foreground hover:border-primary hover:bg-muted/80"
               >
-                <Link href="/">マイストアへ</Link>
+                <Link href="/">{tMenu("toMyStore")}</Link>
               </Button>
             </div>
           )}
@@ -2344,9 +2390,9 @@ export default function MypageClient() {
             <div className="mx-auto max-w-2xl">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <h1 className="text-2xl font-black tracking-wide text-foreground md:text-3xl">プロフィール設定</h1>
+                  <h1 className="text-2xl font-black tracking-wide text-foreground md:text-3xl">{tProfile("title")}</h1>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    アイコン・表示名・自己紹介・興味のある分野を管理します。
+                    {tProfile("subtitle")}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -2358,7 +2404,7 @@ export default function MypageClient() {
                       className="border-border bg-background text-foreground hover:border-primary hover:bg-muted"
                     >
                       <Link href={profilePreviewPath} target="_blank" rel="noreferrer">
-                        プレビューを見る
+                        {tProfile("previewLink")}
                       </Link>
                     </Button>
                   ) : null}
@@ -2369,16 +2415,16 @@ export default function MypageClient() {
                     className="border-primary/45 bg-accent text-primary-readable hover:border-primary hover:bg-primary/15"
                   >
                     <Copy className="mr-2 h-4 w-4" aria-hidden />
-                    自分のストアURLをコピーする
+                    {tProfile("copyStoreUrl")}
                   </Button>
                 </div>
               </div>
 
               <form ref={profileFormRef} onSubmit={(e) => void handleProfileSubmit(e)} className="mt-8 space-y-8">
                 <div className="overflow-hidden rounded-2xl border border-primary/25 bg-accent p-6 shadow-sm dark:border-red-500/25 dark:bg-zinc-900/80">
-                  <p className="text-sm font-bold text-foreground">プロフィール画像</p>
+                  <p className="text-sm font-bold text-foreground">{tProfile("imageHeading")}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    プロフィールやチャットなどで表示されるアイコン画像を設定できます（任意）
+                    {tProfile("imageHint")}
                   </p>
                   <Input
                     ref={avatarInputRef}
@@ -2391,7 +2437,7 @@ export default function MypageClient() {
                     <div className="relative h-28 w-28 shrink-0">
                       <ProfileAvatar
                         src={profileAvatarPreviewUrl}
-                        alt="アイコンプレビュー"
+                        alt={tProfile("imagePreviewAlt")}
                         className="h-28 w-28 border border-border"
                         sizes="112px"
                       />
@@ -2400,7 +2446,7 @@ export default function MypageClient() {
                           type="button"
                           onClick={clearAvatarSelection}
                           className="absolute right-1 top-1 inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background/90 text-foreground transition-colors hover:border-primary hover:text-primary"
-                          aria-label="プロフィール画像を削除または選択を解除"
+                          aria-label={tProfile("imageRemoveAria")}
                         >
                           <X className="h-4 w-4" aria-hidden />
                         </button>
@@ -2413,7 +2459,7 @@ export default function MypageClient() {
                         className="h-10 w-full border-red-600 bg-red-600 text-white hover:border-red-500 hover:bg-red-500 sm:w-auto sm:self-start"
                         onClick={() => avatarInputRef.current?.click()}
                       >
-                        画像を選択
+                        {tProfile("imageSelect")}
                       </Button>
                     </div>
                   </div>
@@ -2421,33 +2467,33 @@ export default function MypageClient() {
 
                 <div className="overflow-hidden rounded-2xl border border-primary/25 bg-accent p-6 shadow-sm dark:border-red-500/25 dark:bg-zinc-900/80">
                   <label htmlFor="mypage-display-name" className="text-sm font-bold text-foreground">
-                    表示名
+                    {tProfile("displayNameLabel")}
                   </label>
                   <Input
                     id="mypage-display-name"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="ニックネームや本名など"
+                    placeholder={tProfile("displayNamePlaceholder")}
                     className="mt-2 border-input bg-background text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
                     aria-describedby="mypage-display-name-hint"
                   />
                   <p id="mypage-display-name-hint" className="mt-2 space-y-1 text-xs leading-relaxed text-muted-foreground">
-                    <span className="block">※表示名の変更は30日に1回のみ可能です</span>
+                    <span className="block">{tProfile("displayNameNote")}</span>
                     {showNextChangeDate && nextEligibleAt ? (
                       <span className="block text-muted-foreground">
-                        次回変更可能日: {formatDateYmdSlashes(nextEligibleAt)}
+                        {tProfile("displayNameNextChangeable", { date: formatDateYmdSlashes(nextEligibleAt) })}
                       </span>
                     ) : null}
                   </p>
 
                   <label htmlFor="mypage-custom-id" className="mt-5 block text-sm font-bold text-foreground">
-                    カスタムID（任意・設定推奨）
+                    {tProfile("customIdLabel")}
                   </label>
                   <Input
                     id="mypage-custom-id"
                     value={customId}
                     onChange={(e) => setCustomId(normalizeCustomId(e.target.value))}
-                    placeholder="例: taro_fit"
+                    placeholder={tProfile("customIdPlaceholder")}
                     className={`mt-2 border-input placeholder:text-muted-foreground ${
                       customIdLocked
                         ? "cursor-not-allowed bg-muted text-muted-foreground opacity-100"
@@ -2457,33 +2503,32 @@ export default function MypageClient() {
                     disabled={customIdLocked}
                   />
                   <p id="mypage-custom-id-hint" className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                    ストアURLを見やすくできます（例: 『taro_fit』とした場合、https://gritvib.com/store/taro_fit のように表示されます）。英小文字で開始し、3〜30文字の英小文字・数字・アンダーバー・ハイフンが使えます。
-                    一度設定したカスタムIDは変更できませんのでご注意ください。
+                    {tProfile("customIdHint")}
                   </p>
                   {customIdLocked ? (
                     <p className="mt-1 text-xs font-semibold text-zinc-400">
-                      設定済みのため、カスタムIDは編集できません。
+                      {tProfile("customIdLocked")}
                     </p>
                   ) : null}
                 </div>
 
                 <div className="overflow-hidden rounded-2xl border border-primary/25 bg-accent p-6 shadow-sm dark:border-red-500/25 dark:bg-zinc-900/80">
                   <label htmlFor="mypage-bio" className="text-sm font-bold text-foreground">
-                    自己紹介
+                    {tProfile("bioLabel")}
                   </label>
                   <textarea
                     id="mypage-bio"
                     value={bio}
                     onChange={(e) => setBio(e.target.value)}
                     rows={5}
-                    placeholder="自分の得意なことや経歴、克服したいことなど"
+                    placeholder={tProfile("bioPlaceholder")}
                     className="mt-2 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
                   />
                 </div>
 
                 <div className="overflow-hidden rounded-2xl border border-primary/25 bg-accent p-6 shadow-sm dark:border-red-500/25 dark:bg-zinc-900/80">
-                  <p className="text-sm font-bold text-foreground">興味のある分野</p>
-                  <p className="mt-1 text-xs text-muted-foreground">複数選択できます</p>
+                  <p className="text-sm font-bold text-foreground">{tProfile("interestsLabel")}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{tProfile("interestsHint")}</p>
                   <div className="mt-4">
                     <ProfileInterestCategoryPicker
                       selectedCategories={selectedCategories}
@@ -2501,10 +2546,10 @@ export default function MypageClient() {
                   {profileSaving ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                      保存中...
+                      {tProfile("submitting")}
                     </>
                   ) : (
-                    "保存する"
+                    tProfile("submit")
                   )}
                 </Button>
               </form>
@@ -2513,22 +2558,22 @@ export default function MypageClient() {
 
           {section === "listings" && (
             <div className="mx-auto max-w-3xl">
-              <h1 className="text-2xl font-black tracking-wide text-foreground md:text-3xl">出品商品管理</h1>
-              <p className="mt-1 text-sm text-zinc-400">出品したスキルの一覧です。</p>
+              <h1 className="text-2xl font-black tracking-wide text-foreground md:text-3xl">{tListings("title")}</h1>
+              <p className="mt-1 text-sm text-zinc-400">{tListings("subtitle")}</p>
 
               <div className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 md:p-6">
                 {listingsLoading ? (
                   <div className="flex items-center justify-center py-12 text-zinc-400">
                     <Loader2 className="mr-2 h-5 w-5 animate-spin text-red-500" aria-hidden />
-                    読み込み中...
+                    {tCommon("loading")}
                   </div>
                 ) : listingsError ? (
                   <p className="py-8 text-center text-sm text-red-400">{listingsError}</p>
                 ) : listings.length === 0 ? (
                   <p className="py-8 text-center text-sm text-zinc-500">
-                    まだ出品したスキルがありません。{" "}
+                    {tListings("empty")}{" "}
                     <Link href="/create-skill" className="font-medium text-red-400 underline-offset-4 hover:underline">
-                      出品する
+                      {tListings("emptyLink")}
                     </Link>
                   </p>
                 ) : (
@@ -2548,17 +2593,17 @@ export default function MypageClient() {
                                   : "bg-emerald-900/40 text-emerald-300"
                               }`}
                             >
-                              {skill.is_published === false ? "非公開" : "公開中"}
+                              {skill.is_published === false ? tListings("statusPrivate") : tListings("statusPublic")}
                             </span>
                             {skill.admin_publish_locked ? (
                               <span className="inline-flex rounded-full bg-amber-900/40 px-2.5 py-0.5 text-xs font-semibold text-amber-200">
-                                運営により非公開
+                                {tListings("statusAdminLocked")}
                               </span>
                             ) : null}
                           </div>
                           <p className="mt-1 text-sm text-zinc-400">
-                            {skill.category ?? "未分類"} · {Number(skill.price).toLocaleString("ja-JP")}
-                            円
+                            {skill.category ?? tListings("uncategorized")} ·{" "}
+                            {tFavoritesNs("priceYen", { amount: Number(skill.price).toLocaleString(htmlLang) })}
                           </p>
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
@@ -2573,10 +2618,10 @@ export default function MypageClient() {
                               {publishingListingId === skill.id ? (
                                 <>
                                   <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden />
-                                  公開中...
+                                  {tListings("publishing")}
                                 </>
                               ) : (
-                                "公開する"
+                                tListings("publish")
                               )}
                             </Button>
                           ) : null}
@@ -2588,7 +2633,7 @@ export default function MypageClient() {
                           >
                             <Link href={`/create-skill?edit=${encodeURIComponent(skill.id)}`}>
                               <Pencil className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-                              編集
+                              {tListings("edit")}
                             </Link>
                           </Button>
                         </div>
@@ -2622,12 +2667,10 @@ export default function MypageClient() {
               {section !== "trades" ? (
                 <>
                   <h1 className="text-2xl font-black tracking-wide text-foreground md:text-3xl">
-                    {tradeViewAsSeller ? "受信リクエスト" : "送信済みリクエスト"}
+                    {tradeViewAsSeller ? tRequests("titleIncoming") : tRequests("titleSent")}
                   </h1>
                   <p className="mt-1 text-sm text-zinc-400">
-                    {tradeViewAsSeller
-                      ? "購入者から届いた事前オファーを確認し、承認または拒否できます。"
-                      : "自分が送信した事前オファーの進捗を確認できます。"}
+                    {tradeViewAsSeller ? tRequests("descriptionIncoming") : tRequests("descriptionSent")}
                   </p>
                 </>
               ) : null}
@@ -2641,7 +2684,7 @@ export default function MypageClient() {
                 >
                   <div className={section === "trades" ? TRADES_HUB_PANEL_CARD_BODY : undefined}>
                   {section !== "trades" ? (
-                    <h2 className="text-sm font-semibold text-zinc-200">受信リクエスト</h2>
+                    <h2 className="text-sm font-semibold text-zinc-200">{tRequests("titleIncoming")}</h2>
                   ) : null}
                   <div className="mb-4 flex flex-wrap gap-2">
                     <Button
@@ -2655,7 +2698,7 @@ export default function MypageClient() {
                           : "border-border bg-muted text-foreground hover:border-primary hover:bg-muted/80"
                       }
                     >
-                      未対応
+                      {tRequests("filterPending")}
                     </Button>
                     <Button
                       type="button"
@@ -2668,7 +2711,7 @@ export default function MypageClient() {
                           : "border-border bg-muted text-foreground hover:border-primary hover:bg-muted/80"
                       }
                     >
-                      対応済み
+                      {tRequests("filterHandled")}
                     </Button>
                     <Button
                       type="button"
@@ -2681,23 +2724,23 @@ export default function MypageClient() {
                           : "border-border bg-muted text-foreground hover:border-primary hover:bg-muted/80"
                       }
                     >
-                      すべて
+                      {tRequests("filterAll")}
                     </Button>
                   </div>
                   {consultationRequestsLoading ? (
                     <div className="flex items-center justify-center py-12 text-zinc-400">
                       <Loader2 className="mr-2 h-5 w-5 animate-spin text-red-500" aria-hidden />
-                      読み込み中...
+                      {tCommon("loading")}
                     </div>
                   ) : consultationRequestsError ? (
                     <p className="py-8 text-center text-sm text-red-400">{consultationRequestsError}</p>
                   ) : filteredConsultationRequests.length === 0 ? (
                     <p className="py-8 text-center text-sm text-zinc-500">
                       {consultationRequestViewFilter === "pending"
-                        ? "未対応の受講リクエストはありません。"
+                        ? tRequests("emptyPending")
                         : consultationRequestViewFilter === "handled"
-                          ? "対応済みの受講リクエストはありません。"
-                          : "受講リクエストはまだありません。"}
+                          ? tRequests("emptyHandled")
+                          : tRequests("emptyAll")}
                     </p>
                   ) : (
                     <ul className="space-y-4">
@@ -2733,29 +2776,33 @@ export default function MypageClient() {
                                       : "bg-rose-900/40 text-rose-300"
                                 }`}
                               >
-                                {item.status === "pending" ? "承認待ち" : item.status === "accepted" ? "承認済み" : "拒否済み"}
+                                {item.status === "pending"
+                                  ? tRequests("statusPending")
+                                  : item.status === "accepted"
+                                    ? tRequests("statusAccepted")
+                                    : tRequests("statusRejected")}
                               </span>
                             </div>
 
                             <div className="mt-4 space-y-2 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3 text-sm">
                               {item.q1Label ? (
                                 <p className="text-zinc-300">
-                                  <span className="font-semibold text-zinc-200">{item.q1Label}:</span> {item.a1Text || "未入力"}
+                                  <span className="font-semibold text-zinc-200">{item.q1Label}:</span> {item.a1Text || tRequests("notInput")}
                                 </p>
                               ) : null}
                               {item.q2Label ? (
                                 <p className="text-zinc-300">
-                                  <span className="font-semibold text-zinc-200">{item.q2Label}:</span> {item.a2Text || "未入力"}
+                                  <span className="font-semibold text-zinc-200">{item.q2Label}:</span> {item.a2Text || tRequests("notInput")}
                                 </p>
                               ) : null}
                               {item.q3Label ? (
                                 <p className="text-zinc-300">
-                                  <span className="font-semibold text-zinc-200">{item.q3Label}:</span> {item.a3Text || "未入力"}
+                                  <span className="font-semibold text-zinc-200">{item.q3Label}:</span> {item.a3Text || tRequests("notInput")}
                                 </p>
                               ) : null}
                               {item.freeLabel ? (
                                 <p className="text-zinc-300">
-                                  <span className="font-semibold text-zinc-200">{item.freeLabel}:</span> {item.freeText || "未入力"}
+                                  <span className="font-semibold text-zinc-200">{item.freeLabel}:</span> {item.freeText || tRequests("notInput")}
                                 </p>
                               ) : null}
                             </div>
@@ -2773,7 +2820,7 @@ export default function MypageClient() {
                                     }}
                                     className="h-10 flex-1 bg-emerald-600 text-white hover:bg-emerald-500"
                                   >
-                                    承認
+                                    {tRequests("approve")}
                                   </Button>
                                   <Button
                                     type="button"
@@ -2784,18 +2831,18 @@ export default function MypageClient() {
                                     }}
                                     className="h-10 flex-1 bg-rose-600 text-white hover:bg-rose-500"
                                   >
-                                    拒否
+                                    {tRequests("reject")}
                                   </Button>
                                 </div>
                                 {rejectConfirmTargetId === item.id ? (
                                   <div className="space-y-3 rounded-lg border border-zinc-700 bg-zinc-900/70 p-3">
                                     <div className="space-y-1">
-                                      <p className="text-xs font-semibold text-zinc-300">拒否理由（任意）</p>
+                                      <p className="text-xs font-semibold text-zinc-300">{tRequests("rejectReasonLabel")}</p>
                                       <textarea
                                         rows={3}
                                         value={rejectOptionalReason}
                                         onChange={(event) => setRejectOptionalReason(event.target.value)}
-                                        placeholder="任意です。未入力でも拒否できます。"
+                                        placeholder={tRequests("rejectReasonPlaceholder")}
                                         className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-500"
                                       />
                                     </div>
@@ -2810,7 +2857,7 @@ export default function MypageClient() {
                                         }}
                                         className="h-9 flex-1 border-zinc-600 bg-zinc-900 text-zinc-100 hover:border-zinc-500 hover:bg-zinc-800"
                                       >
-                                        キャンセル
+                                        {tRequests("cancel")}
                                       </Button>
                                       <Button
                                         type="button"
@@ -2818,7 +2865,7 @@ export default function MypageClient() {
                                         onClick={() => void handleRejectConsultation(item, rejectOptionalReason)}
                                         className="h-9 flex-1 bg-rose-600 text-white hover:bg-rose-500"
                                       >
-                                        この内容で拒否する
+                                        {tRequests("confirmReject")}
                                       </Button>
                                     </div>
                                   </div>
@@ -2842,19 +2889,19 @@ export default function MypageClient() {
                   <div className={section === "trades" ? TRADES_HUB_PANEL_CARD_BODY : undefined}>
                   {section !== "trades" ? (
                     <>
-                      <h2 className="text-sm font-semibold text-zinc-200">送信済みリクエスト</h2>
-                      <p className="mt-1 text-xs text-zinc-500">自分が送った事前オファーの状況を確認できます。</p>
+                      <h2 className="text-sm font-semibold text-zinc-200">{tRequests("titleSent")}</h2>
+                      <p className="mt-1 text-xs text-zinc-500">{tRequests("sentSecondaryDescription")}</p>
                     </>
                   ) : null}
                   {sentConsultationRequestsLoading ? (
                     <div className="flex items-center justify-center py-12 text-zinc-400">
                       <Loader2 className="mr-2 h-5 w-5 animate-spin text-red-500" aria-hidden />
-                      読み込み中...
+                      {tCommon("loading")}
                     </div>
                   ) : sentConsultationRequestsError ? (
                     <p className="py-8 text-center text-sm text-red-400">{sentConsultationRequestsError}</p>
                   ) : sentConsultationRequests.length === 0 ? (
-                    <p className="py-8 text-center text-sm text-zinc-500">送信済みの受講リクエストはありません。</p>
+                    <p className="py-8 text-center text-sm text-zinc-500">{tRequests("emptySent")}</p>
                   ) : (
                     <ul className="mt-4 space-y-4">
                       {sentConsultationRequests.map((item) => (
@@ -2897,17 +2944,17 @@ export default function MypageClient() {
                               }`}
                             >
                               {item.status === "pending"
-                                ? "未対応"
+                                ? tRequests("statusPendingShort")
                                 : item.status === "accepted"
-                                  ? "承認済み"
-                                  : "拒否済み"}
+                                  ? tRequests("statusAccepted")
+                                  : tRequests("statusRejected")}
                             </span>
                           </div>
                           {item.status === "rejected" ? (
                             <div className="mt-3 rounded-lg border border-rose-900/50 bg-rose-950/20 p-3 text-sm text-rose-100">
-                              <p className="font-semibold">拒否理由</p>
+                              <p className="font-semibold">{tRequests("rejectionReasonHeading")}</p>
                               <p className="mt-1 whitespace-pre-wrap text-rose-100/90">
-                                {item.rejectionReason || "（理由は入力されていません）"}
+                                {item.rejectionReason || tRequests("rejectionReasonEmpty")}
                               </p>
                             </div>
                           ) : null}
@@ -2923,20 +2970,20 @@ export default function MypageClient() {
 
           {section === "favorites" && (
             <div className="mx-auto max-w-3xl">
-              <h1 className="text-2xl font-black tracking-wide text-foreground md:text-3xl">お気に入り</h1>
-              <p className="mt-1 text-sm text-zinc-400">保存したスキルの一覧です。</p>
+              <h1 className="text-2xl font-black tracking-wide text-foreground md:text-3xl">{tFavoritesNs("title")}</h1>
+              <p className="mt-1 text-sm text-zinc-400">{tFavoritesNs("subtitle")}</p>
 
               <div className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 md:p-6">
                 {favoritesLoading ? (
                   <div className="flex items-center justify-center py-12 text-zinc-400">
                     <Loader2 className="mr-2 h-5 w-5 animate-spin text-red-500" aria-hidden />
-                    読み込み中...
+                    {tCommon("loading")}
                   </div>
                 ) : favoritesError ? (
                   <p className="py-8 text-center text-sm text-red-400">{favoritesError}</p>
                 ) : favoriteSkills.length === 0 ? (
                   <p className="py-8 text-center text-sm leading-relaxed text-zinc-500">
-                    まだお気に入り登録されたスキルはありません。
+                    {tFavoritesNs("empty")}
                   </p>
                 ) : (
                   <ul className="divide-y divide-zinc-800">
@@ -2960,8 +3007,7 @@ export default function MypageClient() {
                               {skill.title}
                             </Link>
                             <p className="mt-1 text-sm text-zinc-400">
-                              {Number(skill.price).toLocaleString("ja-JP")}
-                              円
+                              {tFavoritesNs("priceYen", { amount: Number(skill.price).toLocaleString(htmlLang) })}
                             </p>
                           </div>
                         </div>
@@ -2971,10 +3017,10 @@ export default function MypageClient() {
                           size="sm"
                           className="shrink-0 border-zinc-600 bg-zinc-950 text-zinc-100 hover:border-red-500 hover:bg-zinc-900"
                           onClick={() => void handleUnfavorite(skill.favoriteId)}
-                          aria-label="お気に入りを解除"
+                          aria-label={tFavoritesNs("removeAria")}
                         >
                           <Heart className="mr-1.5 h-3.5 w-3.5 fill-red-500 text-red-500" aria-hidden />
-                          お気に入り解除
+                          {tFavoritesNs("remove")}
                         </Button>
                       </li>
                     ))}
@@ -2986,14 +3032,14 @@ export default function MypageClient() {
 
           {section === "reviews" && (
             <div className="w-full">
-              <h1 className="text-2xl font-black tracking-wide text-foreground md:text-3xl">評価</h1>
-              <p className="mt-1 text-sm text-zinc-400">あなたに届いた評価とコメントを確認できます。</p>
+              <h1 className="text-2xl font-black tracking-wide text-foreground md:text-3xl">{tReviewsNs("title")}</h1>
+              <p className="mt-1 text-sm text-zinc-400">{tReviewsNs("subtitle")}</p>
 
               <div className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4 md:p-6">
                 {reviewsLoading ? (
                   <div className="flex items-center justify-center py-12 text-zinc-400">
                     <Loader2 className="mr-2 h-5 w-5 animate-spin text-red-500" aria-hidden />
-                    読み込み中...
+                    {tCommon("loading")}
                   </div>
                 ) : reviewsError ? (
                   <p className="py-8 text-center text-sm text-red-400">{reviewsError}</p>
@@ -3006,7 +3052,7 @@ export default function MypageClient() {
                         const percentage = profileReviewCount > 0 ? Math.round((count / denominator) * 100) : 0
                         return (
                           <div key={stars} className="flex items-center gap-3 text-sm">
-                            <div className="w-10 shrink-0 text-zinc-300 md:w-12">星{stars}</div>
+                            <div className="w-10 shrink-0 text-zinc-300 md:w-12">{tReviewsNs("starLabel", { count: String(stars) })}</div>
                             <div className="h-3 min-w-0 flex-1 overflow-hidden rounded-full bg-zinc-800">
                               <div
                                 className="h-full rounded-full bg-red-500 transition-all"
@@ -3023,7 +3069,7 @@ export default function MypageClient() {
                                   : "text-zinc-400 hover:text-zinc-200"
                               }`}
                             >
-                              {count}人
+                              {tReviewsNs("starCount", { count: String(count) })}
                             </button>
                           </div>
                         )
@@ -3031,38 +3077,41 @@ export default function MypageClient() {
                     </div>
 
                     <p className="mt-5 text-sm text-zinc-300">
-                      平均：<span className="font-bold text-white">{Number(profileRatingAvg ?? 0).toFixed(1)}</span> (
-                      {profileReviewCount}件の評価)
+                      {tReviewsNs("averagePrefix")}<span className="font-bold text-white">{Number(profileRatingAvg ?? 0).toFixed(1)}</span> {tReviewsNs("reviewCountSuffix", { count: String(profileReviewCount) })}
                     </p>
 
                     <div className="mt-8 border-t border-zinc-800 pt-6">
                       <div className="flex items-center justify-between gap-3">
-                        <h3 className="text-sm font-bold uppercase tracking-wider text-red-400">評価コメント</h3>
+                        <h3 className="text-sm font-bold uppercase tracking-wider text-red-400">{tReviewsNs("commentsHeading")}</h3>
                         {selectedReviewStars != null ? (
                           <button
                             type="button"
                             onClick={() => setSelectedReviewStars(null)}
                             className="text-xs text-zinc-400 underline-offset-4 hover:text-zinc-200 hover:underline"
                           >
-                            星{selectedReviewStars}のみ表示中（解除）
+                            {tReviewsNs("filterCurrent", { count: String(selectedReviewStars) })}
                           </button>
                         ) : null}
                       </div>
                       {filteredReviewComments.length === 0 ? (
-                        <p className="mt-3 text-sm text-zinc-500">コメント付きの評価はまだありません。</p>
+                        <p className="mt-3 text-sm text-zinc-500">{tReviewsNs("emptyComments")}</p>
                       ) : (
                         <div className="mt-4 max-h-96 w-full space-y-3 overflow-y-auto pr-1 md:max-h-none md:overflow-visible">
                           {filteredReviewComments.map((reviewComment) => {
-                            const displayDate = formatRatingDate(reviewComment.createdAt)
+                            const displayDate = formatRatingDate(reviewComment.createdAt, htmlLang)
                             return (
                               <article
                                 key={reviewComment.id}
                                 className="w-full rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 md:p-5"
                               >
                                 <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <p className="text-sm font-semibold text-white">{reviewComment.senderName}</p>
+                                  <p className="text-sm font-semibold text-white">
+                                    {reviewComment.senderName.length > 0
+                                      ? reviewComment.senderName
+                                      : tReviewsNs("unnamedReviewer")}
+                                  </p>
                                   <div className="flex items-center gap-2">
-                                    <div className="flex items-center gap-0.5" aria-label={`評価 ${reviewComment.rating}`}>
+                                    <div className="flex items-center gap-0.5" aria-label={tReviewsNs("commentRatingAria", { value: String(reviewComment.rating) })}>
                                       {[1, 2, 3, 4, 5].map((star) => (
                                         <Star
                                           key={`${reviewComment.id}-${star}`}
@@ -3098,12 +3147,10 @@ export default function MypageClient() {
               {section !== "trades" ? (
                 <>
                   <h1 className="text-2xl font-black tracking-wide text-foreground md:text-3xl">
-                    {activeContentSection === "learning" ? "受講中" : "対応中"}
+                    {activeContentSection === "learning" ? tTrades("titleLearning") : tTrades("titleTeaching")}
                   </h1>
                   <p className="mt-1 text-sm text-zinc-400">
-                    {activeContentSection === "learning"
-                      ? "購入して進行中の商品です。チャットで出品者とやり取りできます。"
-                      : "あなたのストアで進行中の取引です。チャットで購入者とやり取りできます。"}
+                    {activeContentSection === "learning" ? tTrades("descriptionLearning") : tTrades("descriptionTeaching")}
                   </p>
                 </>
               ) : null}
@@ -3117,15 +3164,13 @@ export default function MypageClient() {
                 {transactionsLoading ? (
                   <div className="flex items-center justify-center py-12 text-zinc-400">
                     <Loader2 className="mr-2 h-5 w-5 animate-spin text-red-500" aria-hidden />
-                    読み込み中...
+                    {tCommon("loading")}
                   </div>
                 ) : transactionsError ? (
                   <p className="py-8 text-center text-sm text-red-400">{transactionsError}</p>
                 ) : transactionItems.length === 0 ? (
                   <p className="py-8 text-center text-sm text-zinc-500">
-                    {activeContentSection === "learning"
-                      ? "進行中の購入取引はありません。"
-                      : "進行中の受注はありません。"}
+                    {activeContentSection === "learning" ? tTrades("emptyLearning") : tTrades("emptyTeaching")}
                   </p>
                 ) : (
                   <div className={section === "trades" ? TRADES_HUB_PANEL_CARD_BODY : undefined}>
@@ -3163,16 +3208,16 @@ export default function MypageClient() {
                             )}
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-base font-bold text-white md:text-lg">{item.skillTitle}</p>
-                              <p className="mt-1 text-sm text-zinc-400">講師: {item.peerDisplayName}</p>
+                              <p className="mt-1 text-sm text-zinc-400">{tTrades("peerInstructor")}: {item.peerDisplayName}</p>
                               <p className="mt-1 text-xs text-zinc-500">{item.startedAtLabel}</p>
-                              <p className="mt-1 text-[11px] text-zinc-500">取引ID: {item.transactionId}</p>
+                              <p className="mt-1 text-[11px] text-zinc-500">{tTrades("transactionIdLabel", { id: item.transactionId })}</p>
                             </div>
                           </div>
                           <Button
                             asChild
                             className="h-10 w-full shrink-0 bg-red-600 text-sm font-semibold text-white hover:bg-red-500 sm:w-auto sm:px-5"
                           >
-                            <Link href={`/chat/${encodeURIComponent(item.transactionId)}`}>チャットへ</Link>
+                            <Link href={`/chat/${encodeURIComponent(item.transactionId)}`}>{tTrades("toChat")}</Link>
                           </Button>
                         </div>
                       </li>
@@ -3189,12 +3234,10 @@ export default function MypageClient() {
               {section !== "trades" ? (
                 <>
                   <h1 className="text-2xl font-black tracking-wide text-foreground md:text-3xl">
-                    取引履歴（{tradeViewAsSeller ? "売った商品" : "買った商品"}）
+                    {tradeViewAsSeller ? tHistory("titleSeller") : tHistory("titleBuyer")}
                   </h1>
                   <p className="mt-1 text-sm text-zinc-400">
-                    {tradeViewAsSeller
-                      ? "ストアでの販売・対応の履歴です。完了・返金・キャンセル済みの案件を確認できます。"
-                      : "購入した取引の履歴です。完了・返金・キャンセル済みの案件を確認できます。"}
+                    {tradeViewAsSeller ? tHistory("descriptionSeller") : tHistory("descriptionBuyer")}
                   </p>
                 </>
               ) : null}
@@ -3208,15 +3251,13 @@ export default function MypageClient() {
                 {historyTransactionsLoading ? (
                   <div className="flex items-center justify-center py-12 text-zinc-400">
                     <Loader2 className="mr-2 h-5 w-5 animate-spin text-red-500" aria-hidden />
-                    読み込み中...
+                    {tCommon("loading")}
                   </div>
                 ) : historyTransactionsError ? (
                   <p className="py-8 text-center text-sm text-red-400">{historyTransactionsError}</p>
                 ) : historyTransactionItems.length === 0 ? (
                   <p className="py-8 text-center text-sm text-zinc-500">
-                    {tradeViewAsSeller
-                      ? "売った商品の履歴はまだありません。"
-                      : "買った商品の履歴はまだありません。"}
+                    {tradeViewAsSeller ? tHistory("emptySeller") : tHistory("emptyBuyer")}
                   </p>
                 ) : (
                   <div className={section === "trades" ? TRADES_HUB_PANEL_CARD_BODY : undefined}>
@@ -3256,7 +3297,7 @@ export default function MypageClient() {
                               <div className="min-w-0 flex-1">
                                 <p className="truncate text-base font-bold text-white md:text-lg">{item.skillTitle}</p>
                                 <p className="mt-1 text-sm text-zinc-400">
-                                  {tradeViewAsSeller ? "購入者" : "出品者"}: {item.peerDisplayName}
+                                  {tradeViewAsSeller ? tTrades("peerBuyer") : tTrades("peerSeller")}: {item.peerDisplayName}
                                 </p>
                                 <p className="mt-1 text-xs text-zinc-500">{item.startedAtLabel}</p>
                               </div>
@@ -3270,7 +3311,7 @@ export default function MypageClient() {
                                 asChild
                                 className="h-10 w-full bg-red-600 text-sm font-semibold text-white hover:bg-red-500 sm:w-auto sm:px-5"
                               >
-                                <Link href={`/chat/${encodeURIComponent(item.transactionId)}`}>チャットへ</Link>
+                                <Link href={`/chat/${encodeURIComponent(item.transactionId)}`}>{tTrades("toChat")}</Link>
                               </Button>
                             </div>
                           </div>
@@ -3279,8 +3320,11 @@ export default function MypageClient() {
                     </ul>
                     <div className="mt-4 flex flex-col gap-3 border-t border-zinc-800 pt-4 sm:flex-row sm:items-center sm:justify-between">
                       <p className="text-xs text-zinc-500">
-                        {historyTransactionItems.length.toLocaleString("ja-JP")}件中 {historyRangeStart}-
-                        {historyRangeEnd}件を表示
+                        {tHistory("summary", {
+                          total: historyTransactionItems.length.toLocaleString(htmlLang),
+                          start: String(historyRangeStart),
+                          end: String(historyRangeEnd),
+                        })}
                       </p>
                       <div className="flex items-center justify-end gap-2">
                         <Button
@@ -3291,7 +3335,7 @@ export default function MypageClient() {
                           onClick={() => setHistoryPage((prev) => Math.max(1, prev - 1))}
                           className="border-border bg-muted text-foreground hover:border-primary hover:bg-muted/80 disabled:opacity-50"
                         >
-                          前へ
+                          {tHistory("prev")}
                         </Button>
                         <span className="min-w-16 text-center text-xs text-zinc-400">
                           {historyPage} / {historyTotalPages}
@@ -3304,7 +3348,7 @@ export default function MypageClient() {
                           onClick={() => setHistoryPage((prev) => Math.min(historyTotalPages, prev + 1))}
                           className="border-border bg-muted text-foreground hover:border-primary hover:bg-muted/80 disabled:opacity-50"
                         >
-                          次へ
+                          {tHistory("next")}
                         </Button>
                       </div>
                     </div>
@@ -3317,10 +3361,10 @@ export default function MypageClient() {
 
           {section === "payout" && (
             <div className="mx-auto max-w-2xl rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6 text-left sm:p-8">
-              <h1 className="text-xl font-bold text-foreground">売上・振込設定</h1>
+              <h1 className="text-xl font-bold text-foreground">{tPayout("title")}</h1>
               {!isStripeSetupComplete ? (
                 <div className="mt-6 rounded-xl border border-border bg-card/60 p-4">
-                  <p className="text-sm text-zinc-400">未登録です。下のボタンからStripe登録を開始してください。</p>
+                  <p className="text-sm text-zinc-400">{tPayout("notRegisteredHint")}</p>
                   <div className="mt-4">
                     <Button
                       type="button"
@@ -3331,17 +3375,17 @@ export default function MypageClient() {
                       {payoutLinkBusy ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                          発行中...
+                          {tPayout("issuing")}
                         </>
                       ) : (
-                        "Stripeで講師登録を始める"
+                        tPayout("startStripe")
                       )}
                     </Button>
                   </div>
                 </div>
               ) : (
                 <>
-                  <p className="mt-2 text-sm text-muted-foreground">登録済みです。Stripeダッシュボードへ移動できます。</p>
+                  <p className="mt-2 text-sm text-muted-foreground">{tPayout("registeredHint")}</p>
                   <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
                     <Button
                       type="button"
@@ -3352,10 +3396,10 @@ export default function MypageClient() {
                       {payoutLinkBusy ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                          発行中...
+                          {tPayout("issuing")}
                         </>
                       ) : (
-                        "Stripeダッシュボードで詳細を確認する"
+                        tPayout("openDashboard")
                       )}
                     </Button>
                   </div>
@@ -3364,32 +3408,23 @@ export default function MypageClient() {
 
               {isStripeSetupComplete ? (
                 <div className="mt-6 rounded-xl border border-border bg-card/60 p-4">
-                  <h2 className="text-sm font-semibold text-zinc-200">Stripe Connect 残高</h2>
+                  <h2 className="text-sm font-semibold text-zinc-200">{tPayout("balanceHeading")}</h2>
                   {connectBalanceLoading ? (
                     <div className="mt-3 flex items-center text-sm text-zinc-400">
                       <Loader2 className="mr-2 h-4 w-4 animate-spin text-red-500" aria-hidden />
-                      残高を取得中...
+                      {tPayout("balanceLoading")}
                     </div>
                   ) : connectBalanceError ? (
                     <p className="mt-3 text-sm text-red-400">{connectBalanceError}</p>
                   ) : (
                     <div className="mt-3 text-sm text-zinc-300">
                       <div className="flex flex-col gap-6">
-                        <p>
-                          売上金（合計残高）: {(connectBalance?.total ?? 0).toLocaleString("ja-JP")}
-                          円
-                        </p>
-                        <p>
-                          保留金額 : {(connectBalance?.pending ?? 0).toLocaleString("ja-JP")}
-                          円
-                        </p>
-                        <p>
-                          振込可能残高 : {(connectBalance?.available ?? 0).toLocaleString("ja-JP")}
-                          円
-                        </p>
+                        <p>{tPayout("balanceTotal", { amount: (connectBalance?.total ?? 0).toLocaleString(htmlLang) })}</p>
+                        <p>{tPayout("balancePending", { amount: (connectBalance?.pending ?? 0).toLocaleString(htmlLang) })}</p>
+                        <p>{tPayout("balanceAvailable", { amount: (connectBalance?.available ?? 0).toLocaleString(htmlLang) })}</p>
                       </div>
                       <p className="mt-4 text-xs leading-relaxed text-zinc-500">
-                        売上金は、Stripeの決済処理およびセキュリティ審査を経て、数日後に振込可能残高に反映されます。
+                        {tPayout("balanceNote")}
                       </p>
                     </div>
                   )}
@@ -3397,7 +3432,7 @@ export default function MypageClient() {
               ) : null}
 
               <p className="mt-6 text-xs text-zinc-500">
-                ※決済情報や本人確認の管理は、すべて決済代行会社Stripeのシステム上で行われます。当サイトでクレジットカード情報等を保持することはありません。
+                {tPayout("disclaimer")}
               </p>
             </div>
           )}
@@ -3406,41 +3441,41 @@ export default function MypageClient() {
             <div className="mx-auto max-w-2xl space-y-8">
               <div>
                 <h1 className="text-2xl font-black tracking-wide text-foreground md:text-3xl">{accountLabel}</h1>
-                <p className="mt-1 text-sm text-zinc-400">アカウントの確認やログアウトはこちらから行えます。</p>
+                <p className="mt-1 text-sm text-zinc-400">{tAccount("subtitle")}</p>
               </div>
 
               <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 text-left shadow-[0_0_40px_rgba(0,0,0,0.25)] md:p-8">
                 <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center sm:gap-6">
                   <ProfileAvatar
                     avatarUrl={profileAvatarUrl}
-                    alt={displayName || "ユーザー"}
+                    alt={displayName || tAccount("anonymousUser")}
                     className="h-20 w-20"
                     ringClassName="border border-zinc-700 ring-2 ring-red-500/25"
                     sizes="80px"
                   />
                   <div className="min-w-0 flex-1 text-center sm:text-left">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">表示名</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{tAccount("displayNameHeading")}</p>
                     <p className="mt-1 max-w-full truncate text-xl font-bold text-foreground">
-                      {profileLoading ? "読み込み中..." : displayName || "未設定"}
+                      {profileLoading ? tCommon("loading") : displayName || tAccount("notSet")}
                     </p>
-                    <p className="mt-2 text-xs text-zinc-500">プロフィールの編集は「プロフィール」から行えます。</p>
+                    <p className="mt-2 text-xs text-zinc-500">{tAccount("profileEditHint")}</p>
                   </div>
                 </div>
 
                 <div className="mt-8 border-t border-zinc-800 pt-8">
-                  <h2 className="text-sm font-semibold text-zinc-200">表示テーマ</h2>
+                  <h2 className="text-sm font-semibold text-zinc-200">{tAccount("themeHeading")}</h2>
                   <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-                    オフのときはライト表示、オンにするとダークモードになります。
+                    {tAccount("themeHint")}
                   </p>
                   <div className="mt-4 flex items-center justify-between rounded-xl border border-zinc-700 bg-zinc-950/60 px-4 py-3">
                     <span className="text-sm font-medium text-zinc-200">
-                      {!themeReady ? "読み込み中..." : "ダークモード"}
+                      {!themeReady ? tCommon("loading") : tAccount("themeDarkLabel")}
                     </span>
                     <button
                       type="button"
                       role="switch"
                       aria-checked={themeReady && isDarkMode}
-                      aria-label="ダークモードを切り替える"
+                      aria-label={tAccount("themeToggleAria")}
                       disabled={!themeReady}
                       onClick={handleThemeToggle}
                       className={`flex h-8 w-14 items-center rounded-full px-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 disabled:opacity-60 ${
@@ -3459,13 +3494,13 @@ export default function MypageClient() {
                 </div>
 
                 <div className="mt-8 border-t border-zinc-800 pt-8">
-                  <h2 className="text-sm font-semibold text-zinc-200">アクセントカラー</h2>
+                  <h2 className="text-sm font-semibold text-zinc-200">{tAccount("accentHeading")}</h2>
                   <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-                    サイト全体の強調色（ロゴ・主要ボタンなど）を選択できます。
+                    {tAccount("accentHint")}
                   </p>
                   <div className="mt-4 max-w-xs">
                     <label htmlFor="account-accent-color" className="sr-only">
-                      アクセントカラー
+                      {tAccount("accentAria")}
                     </label>
                     <select
                       id="account-accent-color"
@@ -3475,7 +3510,7 @@ export default function MypageClient() {
                     >
                       {ACCENT_COLOR_OPTIONS.map((option) => (
                         <option key={option.id} value={option.value}>
-                          {option.label}
+                          {tAccentColors(option.id, option.label)}
                         </option>
                       ))}
                     </select>
@@ -3483,19 +3518,19 @@ export default function MypageClient() {
                 </div>
 
                 <div className="mt-8 border-t border-zinc-800 pt-8">
-                  <h2 className="text-sm font-semibold text-zinc-200">メール通知</h2>
+                  <h2 className="text-sm font-semibold text-zinc-200">{tAccount("emailHeading")}</h2>
                   <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-                    登録メール宛の通知の受信設定です。初期状態はすべてオンです。オフにした項目はメールを送りません。
-                    ヘッダーの通知やマイページのお知らせなど<strong className="font-semibold text-zinc-300">アプリ内通知は、ここがオンでもオフでも常に届きます</strong>
-                    。「メール通知」をオフにするとメールはすべて止まり、種類のトグルもオフ表示になります。
+                    {tAccount("emailIntro1")}
+                    {tAccount("emailIntro2")}<strong className="font-semibold text-zinc-300">{tAccount("emailInAppBold")}</strong>
+                    {tAccount("emailIntro3")}
                   </p>
                   <div className="mt-4 flex items-center justify-between rounded-xl border border-zinc-700 bg-zinc-950/60 px-4 py-3">
-                    <span className="text-sm font-medium text-zinc-200">メール通知</span>
+                    <span className="text-sm font-medium text-zinc-200">{tAccount("emailMaster")}</span>
                     <button
                       type="button"
                       role="switch"
                       aria-checked={emailNotificationSettings.master}
-                      aria-label="メール通知を受け取る"
+                      aria-label={tAccount("emailMasterAria")}
                       disabled={profileLoading || emailNotificationSaving}
                       onClick={() => void handleEmailNotificationMasterChange(!emailNotificationSettings.master)}
                       className={`flex h-8 w-14 shrink-0 items-center rounded-full px-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 disabled:opacity-60 ${
@@ -3533,7 +3568,7 @@ export default function MypageClient() {
                             type="button"
                             role="switch"
                             aria-checked={checked}
-                            aria-label={`${item.label}のメールを受け取る`}
+                            aria-label={tAccount("emailItemAria", { label: item.label })}
                             disabled={disabled}
                             onClick={() => void handleEmailNotificationTopicChange(item.key, !checked)}
                             className={`mt-0.5 flex h-8 w-14 shrink-0 items-center rounded-full px-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 disabled:opacity-60 ${
@@ -3553,9 +3588,9 @@ export default function MypageClient() {
                 </div>
 
                 <div className="mt-8 border-t border-zinc-800 pt-8">
-                  <h2 className="text-sm font-semibold text-zinc-200">ログイン状態</h2>
+                  <h2 className="text-sm font-semibold text-zinc-200">{tAccount("loginHeading")}</h2>
                   <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-                    ログアウトすると、このブラウザでのログイン状態が解除されます。
+                    {tAccount("loginHint")}
                   </p>
                   <Button
                     type="button"
@@ -3563,7 +3598,7 @@ export default function MypageClient() {
                     onClick={handleAccountLogoutRequest}
                     disabled={accountLogoutBusy}
                   >
-                    ログアウト
+                    {tAccount("logoutButton")}
                   </Button>
                 </div>
               </div>
@@ -3586,32 +3621,30 @@ export default function MypageClient() {
             onClick={(event) => event.stopPropagation()}
           >
             <h2 id="stripe-onboarding-confirm-title" className="text-lg font-bold text-white">
-              Stripe講師登録の確認
+              {tStripeConfirm("title")}
             </h2>
 
             <div className="mt-4 rounded-xl border border-border bg-muted p-4">
               <p className="text-sm font-semibold text-zinc-200">
-                スムーズに登録を進めるため、Stripe上にはデフォルトで以下の内容が入力されます
+                {tStripeConfirm("defaultsHeading")}
               </p>
               <ul className="mt-2 space-y-1 text-sm text-zinc-300">
-                <li>国: 日本</li>
-                <li>事業形態: 個人事業主</li>
-                <li>業種: 教育 &gt; その他</li>
-                <li>URL: https://gritvib.com</li>
-                <li>
-                  説明: 個人向けストアプラットフォーム「GritVib」において、オンライン相談、デジタルコンテンツの提供、または実面を伴う個人スキルの取引・レッスン等のサービスを提供します。
-                </li>
+                <li>{tStripeConfirm("country")}</li>
+                <li>{tStripeConfirm("business")}</li>
+                <li>{tStripeConfirm("industry")}</li>
+                <li>{tStripeConfirm("url")}</li>
+                <li>{tStripeConfirm("description")}</li>
               </ul>
             </div>
 
             <div className="mt-4 rounded-xl border border-red-500/30 bg-red-950/20 p-4">
               <p className="inline-flex items-center gap-2 text-sm font-semibold text-red-200">
                 <ShieldAlert className="h-4 w-4" />
-                注意事項
+                {tStripeConfirm("cautionHeading")}
               </p>
               <ul className="mt-2 space-y-1.5 text-sm leading-relaxed text-zinc-200">
-                <li>これらの情報は登録後、Stripeダッシュボードから変更可能です。</li>
-                <li>口座情報や個人情報はStripeが厳重に管理し、当サイトのデータベースには保存されません。</li>
+                <li>{tStripeConfirm("caution1")}</li>
+                <li>{tStripeConfirm("caution2")}</li>
               </ul>
             </div>
 
@@ -3623,7 +3656,7 @@ export default function MypageClient() {
                 onClick={handleCloseStripeOnboardingConfirm}
                 disabled={payoutLinkBusy}
               >
-                キャンセル
+                {tStripeConfirm("cancel")}
               </Button>
               <Button
                 type="button"
@@ -3634,10 +3667,10 @@ export default function MypageClient() {
                 {payoutLinkBusy ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                    Stripeへ進む...
+                    {tStripeConfirm("proceedBusy")}
                   </>
                 ) : (
-                  "内容に同意してStripeへ進む"
+                  tStripeConfirm("proceed")
                 )}
               </Button>
             </div>
@@ -3654,9 +3687,9 @@ export default function MypageClient() {
         >
           <Loader2 className="h-10 w-10 shrink-0 animate-spin text-red-500" aria-hidden />
           <div className="max-w-md space-y-2">
-            <p className="text-base font-bold text-white">Stripe の画面を準備しています</p>
+            <p className="text-base font-bold text-white">{tPayoutBusy("title")}</p>
             <p className="text-sm leading-relaxed text-zinc-300">
-              しばらくすると Stripe のサイトへ移動します。この画面のままお待ちください。
+              {tPayoutBusy("body")}
             </p>
           </div>
         </div>
@@ -3678,10 +3711,10 @@ export default function MypageClient() {
               onClick={(event) => event.stopPropagation()}
             >
               <h2 id="custom-id-confirm-title" className="text-base font-semibold leading-relaxed text-zinc-100">
-                カスタムID設定の確認
+                {tCustomIdConfirm("title")}
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-zinc-300">
-                このIDで設定すると、ストアURLは以下になります。
+                {tCustomIdConfirm("intro")}
               </p>
               <div className="mt-3 min-w-0 w-full overflow-hidden rounded-lg border border-red-500/35 bg-zinc-900 px-3 py-2">
                 <p className="font-mono text-xs leading-relaxed break-all text-red-200 [overflow-wrap:anywhere] sm:text-sm">
@@ -3689,7 +3722,7 @@ export default function MypageClient() {
                 </p>
               </div>
               <p className="mt-3 text-sm leading-relaxed text-zinc-300">
-                カスタムIDは一度設定すると変更できません。この内容で保存しますか？
+                {tCustomIdConfirm("warning")}
               </p>
               <div className="mt-6 flex gap-3">
                 <Button
@@ -3699,7 +3732,7 @@ export default function MypageClient() {
                   onClick={handleCustomIdConfirmCancel}
                   disabled={profileSaving}
                 >
-                  戻る
+                  {tCustomIdConfirm("back")}
                 </Button>
                 <Button
                   type="button"
@@ -3707,7 +3740,7 @@ export default function MypageClient() {
                   onClick={handleCustomIdConfirmProceed}
                   disabled={profileSaving}
                 >
-                  このIDで保存する
+                  {tCustomIdConfirm("proceed")}
                 </Button>
               </div>
             </div>
@@ -3738,12 +3771,13 @@ export default function MypageClient() {
                 id="listing-publish-confirm-title"
                 className="text-center text-base font-semibold leading-relaxed text-zinc-100"
               >
-                このスキルを公開しますか？
+                {tListings("confirmTitle")}
               </h2>
               <p className="mt-2 text-center text-sm text-zinc-400">
-                「
-                {listings.find((item) => item.id === listingPublishConfirmId)?.title ?? "このスキル"}
-                」を一覧に表示する状態で保存されます。
+                {tListings("confirmBody", {
+                  title:
+                    listings.find((item) => item.id === listingPublishConfirmId)?.title ?? tListings("fallbackSkill"),
+                })}
               </p>
               <div className="mt-6 flex gap-3">
                 <Button
@@ -3753,7 +3787,7 @@ export default function MypageClient() {
                   onClick={() => setListingPublishConfirmId(null)}
                   disabled={Boolean(publishingListingId)}
                 >
-                  キャンセル
+                  {tListings("cancel")}
                 </Button>
                 <Button
                   type="button"
@@ -3764,10 +3798,10 @@ export default function MypageClient() {
                   {publishingListingId ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                      公開中...
+                      {tListings("publishing")}
                     </>
                   ) : (
-                    "公開する"
+                    tListings("publish")
                   )}
                 </Button>
               </div>
@@ -3792,7 +3826,7 @@ export default function MypageClient() {
               onClick={(event) => event.stopPropagation()}
             >
               <h2 id="account-logout-confirm-title" className="text-center text-base font-medium leading-relaxed text-zinc-100">
-                ログアウトしてもよろしいですか？
+                {tLogoutConfirm("title")}
               </h2>
               <div className="mt-6 flex gap-3">
                 <Button
@@ -3802,7 +3836,7 @@ export default function MypageClient() {
                   onClick={handleAccountLogoutCancel}
                   disabled={accountLogoutBusy}
                 >
-                  キャンセル
+                  {tLogoutConfirm("cancel")}
                 </Button>
                 <Button
                   type="button"
@@ -3813,10 +3847,10 @@ export default function MypageClient() {
                   {accountLogoutBusy ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                      処理中...
+                      {tLogoutConfirm("busy")}
                     </>
                   ) : (
-                    "ログアウト"
+                    tLogoutConfirm("confirm")
                   )}
                 </Button>
               </div>

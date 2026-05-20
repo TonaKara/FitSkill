@@ -8,10 +8,11 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { SkillCardFavorite } from "@/components/skill-card-favorite"
 import { ProfileAvatar } from "@/components/profile-avatar"
-import { formatSkillCategoryBadgeLabel } from "@/lib/skill-categories"
+import { formatSkillCategoryBadgeLabel, localizeStoredCategory } from "@/lib/skill-categories"
 import { SkillThumbnailSurface } from "@/components/skill-thumbnail-surface"
 import { saveHomeListScrollPosition } from "@/lib/home-list-scroll"
 import { skillThumbnailContainerAspectStyle } from "@/lib/skill-thumbnail"
+import { useLocale, useTranslations } from "@/lib/i18n/useI18n"
 
 interface SkillCardProps {
   /** DB のスキル UUID のときのみ指定。お気に入り・件数のリアルタイム更新を有効にする */
@@ -40,6 +41,23 @@ interface SkillCardProps {
 export function SkillCard({ skill, favoriteSkillId, initialFavoriteCount }: SkillCardProps) {
   const router = useRouter()
   const canOpenDetail = Boolean(skill.detailHref)
+  const locale = useLocale()
+  const tCard = useTranslations("skillCard")
+  const badgeLabel = formatSkillCategoryBadgeLabel(skill.category)
+  const localizedBadgeLabel = localizeStoredCategory(badgeLabel, locale)
+  // 表示上の duration を locale に応じて整える。
+  // map-skill-to-card.ts は "30分" 形式で生成しているため、英語版では末尾の単位（分・min など）
+  // を取り除いて数値のみを表示する。アイコン (Clock) がコンテキストを補う。
+  const durationMinutesMatch = skill.duration.match(/(\d+)/)
+  const durationNumeric = durationMinutesMatch?.[1] ?? skill.duration
+  const displayDuration =
+    locale === "en"
+      ? tCard("durationFormat", { minutes: durationNumeric })
+      : skill.duration
+  // map-skill-to-card.ts は instructor を「DB の display_name または空文字」で返すため、
+  // 空のときに locale 別フォールバック「講師 / Instructor」をここで当てる。
+  const displayInstructor =
+    skill.instructor.length > 0 ? skill.instructor : tCard("instructorFallback")
 
   const handleCardClick = () => {
     if (!skill.detailHref) {
@@ -63,7 +81,7 @@ export function SkillCard({ skill, favoriteSkillId, initialFavoriteCount }: Skil
       }}
       role={canOpenDetail ? "link" : undefined}
       tabIndex={canOpenDetail ? 0 : undefined}
-      aria-label={canOpenDetail ? `${skill.title}の詳細を開く` : undefined}
+      aria-label={canOpenDetail ? tCard("openDetailAria", { title: skill.title }) : undefined}
       className="group overflow-hidden border-border bg-card transition-all duration-300 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 data-[clickable=true]:cursor-pointer"
       data-clickable={canOpenDetail}
     >
@@ -76,12 +94,12 @@ export function SkillCard({ skill, favoriteSkillId, initialFavoriteCount }: Skil
         <div className="absolute left-3 top-3 flex gap-2">
           {skill.isPopular && (
             <Badge className="bg-primary text-primary-foreground font-semibold">
-              人気
+              {tCard("popular")}
             </Badge>
           )}
           {skill.isNew && (
             <Badge variant="secondary" className="bg-secondary text-secondary-foreground font-semibold">
-              NEW
+              {tCard("new")}
             </Badge>
           )}
         </div>
@@ -113,7 +131,7 @@ export function SkillCard({ skill, favoriteSkillId, initialFavoriteCount }: Skil
             variant="outline"
             className="border-primary/45 bg-primary/20 px-2.5 py-0.5 text-xs font-semibold text-primary-readable shadow-sm shadow-primary/10 backdrop-blur-md dark:border-red-400/50 dark:bg-red-950/70 dark:text-red-50 dark:shadow-black/30"
           >
-            {formatSkillCategoryBadgeLabel(skill.category)}
+            {localizedBadgeLabel}
           </Badge>
         </div>
       </div>
@@ -134,7 +152,7 @@ export function SkillCard({ skill, favoriteSkillId, initialFavoriteCount }: Skil
             sizes="24px"
             iconClassName="min-h-2.5 min-w-2.5 max-h-4 max-w-4"
           />
-          <span className="text-sm text-muted-foreground">{skill.instructor}</span>
+          <span className="text-sm text-muted-foreground">{displayInstructor}</span>
         </div>
 
         {/* Stats */}
@@ -142,15 +160,15 @@ export function SkillCard({ skill, favoriteSkillId, initialFavoriteCount }: Skil
           <div className="flex items-center gap-1">
             <Star className="h-3.5 w-3.5 fill-primary-readable text-primary-readable" />
             <span className="font-medium text-foreground">{Number(skill.rating).toFixed(1)}</span>
-            <span>({skill.reviewCount}件)</span>
+            <span>{tCard("reviewsCount", { count: String(skill.reviewCount) })}</span>
           </div>
           <div className="flex items-center gap-1">
             <Clock className="h-3.5 w-3.5" />
-            <span>{skill.duration}</span>
+            <span>{displayDuration}</span>
           </div>
           <div className="flex items-center gap-1">
             <Users className="h-3.5 w-3.5" />
-            <span>{skill.students}人</span>
+            <span>{tCard("studentsCount", { count: String(skill.students) })}</span>
           </div>
         </div>
 
@@ -160,7 +178,7 @@ export function SkillCard({ skill, favoriteSkillId, initialFavoriteCount }: Skil
             <span className="text-lg font-bold text-primary-readable">
               ¥{skill.price.toLocaleString()}
             </span>
-            <span className="text-xs text-muted-foreground">/回</span>
+            <span className="text-xs text-muted-foreground">{tCard("perSession")}</span>
           </div>
           {skill.detailHref ? (
             <Button size="sm" asChild className="bg-primary hover:bg-primary/90 font-semibold text-primary-foreground">
@@ -171,7 +189,7 @@ export function SkillCard({ skill, favoriteSkillId, initialFavoriteCount }: Skil
                   e.stopPropagation()
                 }}
               >
-                詳細を見る
+                {tCard("viewDetail")}
               </Link>
             </Button>
           ) : (
@@ -181,9 +199,9 @@ export function SkillCard({ skill, favoriteSkillId, initialFavoriteCount }: Skil
               className="h-auto max-w-[11.5rem] whitespace-normal px-2 py-1 text-[11px] leading-tight text-center cursor-not-allowed bg-zinc-700 font-semibold text-zinc-300 opacity-100 hover:bg-zinc-700"
             >
               <span>
-                参考データのため、
+                {tCard("referenceOnlyLine1")}
                 <br />
-                ご購入いただけません
+                {tCard("referenceOnlyLine2")}
               </span>
             </Button>
           )}

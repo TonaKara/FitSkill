@@ -23,6 +23,8 @@ import {
 import { resolveSkillThumbnailUrl } from "@/lib/skill-thumbnail"
 import { normalizeSkillBigIntId, uniqueSkillBigIntIds } from "@/lib/skill-id-bigint"
 import { fetchConsultationChatEnabled } from "@/lib/consultation"
+import { useLocale, useTranslations } from "@/lib/i18n/useI18n"
+import { localeToHtmlLang } from "@/lib/i18n/locales"
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -129,6 +131,9 @@ function InquirySkillContextBlock({
   userId: string | null
   source: "thread" | "nav_pending"
 }) {
+  const t = useTranslations("inquiry")
+  const locale = useLocale()
+  const htmlLang = localeToHtmlLang(locale)
   const thumb = detail ? resolveSkillThumbnailUrl(detail.thumbnail_url) : resolveSkillThumbnailUrl(null)
   const purchaseHref =
     detail != null && userId != null && detail.user_id !== userId
@@ -136,7 +141,7 @@ function InquirySkillContextBlock({
       : null
 
   return (
-    <li className="list-none" aria-label="相談スキル">
+    <li className="list-none" aria-label={t("contextLabelDefault")}>
       <div
         className={`mx-auto max-w-lg rounded-xl border px-3 py-3 ${
           source === "nav_pending"
@@ -145,12 +150,12 @@ function InquirySkillContextBlock({
         }`}
       >
         <p className="mb-2 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {source === "nav_pending" ? "こちらのスキルについて相談" : "相談スキル"}
+          {source === "nav_pending" ? t("contextLabelPending") : t("contextLabelDefault")}
         </p>
         {!detail ? (
           <div className="flex items-center justify-center gap-2 py-2 text-xs text-muted-foreground">
             <Loader2 className="h-4 w-4 shrink-0 animate-spin text-red-500" aria-hidden />
-            スキル情報を読み込み中…
+            {t("skillInfoLoading")}
           </div>
         ) : (
           <div className="flex gap-3">
@@ -163,7 +168,7 @@ function InquirySkillContextBlock({
               </span>
               <p className="mt-1 line-clamp-2 text-sm font-semibold text-white">{detail.title}</p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                ¥{Number(detail.price ?? 0).toLocaleString()} / 回
+                {t("priceLine", { amount: Number(detail.price ?? 0).toLocaleString(htmlLang) })}
               </p>
               {purchaseHref ? (
                 <Button
@@ -171,7 +176,7 @@ function InquirySkillContextBlock({
                   size="sm"
                   className="mt-2 h-8 bg-red-600 text-xs font-bold text-white hover:bg-red-500"
                 >
-                  <Link href={purchaseHref}>このスキルで取引を始める（購入ページへ）</Link>
+                  <Link href={purchaseHref}>{t("openPurchaseCta")}</Link>
                 </Button>
               ) : null}
             </div>
@@ -179,7 +184,7 @@ function InquirySkillContextBlock({
         )}
         {source === "nav_pending" ? (
           <p className="mt-2 text-center text-[10px] text-muted-foreground">
-            下の送信欄から送るメッセージは、このスキルについての相談として届きます。
+            {t("pendingContextHint")}
           </p>
         ) : null}
       </div>
@@ -198,6 +203,9 @@ export function InquiryChatClient() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
+  const t = useTranslations("inquiry")
+  const locale = useLocale()
+  const htmlLang = localeToHtmlLang(locale)
 
   const peerRaw =
     typeof params.recipient_id === "string" ? params.recipient_id : params.recipient_id?.[0] ?? ""
@@ -327,7 +335,7 @@ export function InquiryChatClient() {
     const { error: readErr } = await markInquiryThreadRead(supabase, userId, peerId)
     if (readErr) {
       console.warn("[inquiry] mark read", readErr)
-      setReadStatusError(`既読更新に失敗しました: ${readErr}`)
+      setReadStatusError(t("readUpdateFailed", { reason: readErr }))
       return
     }
     setReadStatusError(null)
@@ -336,7 +344,7 @@ export function InquiryChatClient() {
         m.recipient_id === userId && m.sender_id === peerId && !m.is_read ? { ...m, is_read: true } : m,
       ),
     )
-  }, [supabase, userId, peerId])
+  }, [supabase, userId, peerId, t])
 
   useEffect(() => {
     let mounted = true
@@ -575,7 +583,7 @@ export function InquiryChatClient() {
   }, [preChatGuardPending, messagesLoading, inquiryTimeline.length, skillIdsLoadKey, skillIdFromQuery, peerId])
 
   const peerProfile = peerProfiles[peerId]
-  const peerName = peerProfile?.display_name?.trim() || "ユーザー"
+  const peerName = peerProfile?.display_name?.trim() || t("anonymousUser")
 
   useEffect(() => {
     if (!peerId || !isUuid(peerId) || peerProfile) {
@@ -665,7 +673,7 @@ export function InquiryChatClient() {
       return
     }
     if (effectiveOriginSkillId == null) {
-      setSendError("相談対象のスキルを特定できません。スキルページから「出品者に質問する」で開き直してください。")
+      setSendError(t("missingSkillError"))
       return
     }
 
@@ -679,7 +687,7 @@ export function InquiryChatClient() {
     })
     setSending(false)
     if (error || !row) {
-      setSendError(error ?? "送信に失敗しました。")
+      setSendError(error ?? t("sendFailedFallback"))
       return
     }
     setText("")
@@ -709,13 +717,13 @@ export function InquiryChatClient() {
     const full = qs ? `${path}?${qs}` : path
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-4 text-foreground">
-        <p className="text-center text-sm text-muted-foreground">相談チャットを開くにはログインが必要です。</p>
+        <p className="text-center text-sm text-muted-foreground">{t("loginToOpenChat")}</p>
         <Button
           type="button"
           className="bg-red-600 text-white hover:bg-red-500"
           onClick={() => router.replace(`/login?redirect=${encodeURIComponent(full)}`)}
         >
-          ログインへ
+          {t("loginCta")}
         </Button>
       </div>
     )
@@ -724,9 +732,9 @@ export function InquiryChatClient() {
   if (!isUuid(peerId)) {
     return (
       <div className="min-h-screen bg-background px-4 py-16 text-center text-muted-foreground">
-        <p className="text-sm text-muted-foreground">URL が不正です。</p>
+        <p className="text-sm text-muted-foreground">{t("invalidUrl")}</p>
         <Button asChild className="mt-6 bg-red-600 text-white hover:bg-red-500">
-          <Link href="/inquiry/list">一覧へ</Link>
+          <Link href="/inquiry/list">{t("listLink")}</Link>
         </Button>
       </div>
     )
@@ -735,9 +743,9 @@ export function InquiryChatClient() {
   if (peerId === userId) {
     return (
       <div className="min-h-screen bg-background px-4 py-16 text-center text-muted-foreground">
-        <p className="text-sm text-muted-foreground">自分自身とはチャットできません。</p>
+        <p className="text-sm text-muted-foreground">{t("selfChatForbidden")}</p>
         <Button asChild className="mt-6 bg-red-600 text-white hover:bg-red-500">
-          <Link href="/inquiry/list">一覧へ</Link>
+          <Link href="/inquiry/list">{t("listLink")}</Link>
         </Button>
       </div>
     )
@@ -747,7 +755,7 @@ export function InquiryChatClient() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background text-muted-foreground">
         <Loader2 className="h-8 w-8 animate-spin text-red-500" aria-hidden />
-        <p className="text-sm text-muted-foreground">相談設定を確認しています…</p>
+        <p className="text-sm text-muted-foreground">{t("preChatChecking")}</p>
       </div>
     )
   }
@@ -757,7 +765,7 @@ export function InquiryChatClient() {
       <div className="mx-auto flex max-h-[calc(100dvh-4rem)] min-h-[calc(100dvh-4rem)] max-w-6xl flex-col md:flex-row md:border-x md:border-border">
         <aside className="hidden w-full max-w-sm shrink-0 flex-col border-border md:flex md:border-r">
           <div className="border-b border-border px-4 py-3">
-            <h2 className="text-sm font-bold text-foreground">相談一覧</h2>
+            <h2 className="text-sm font-bold text-foreground">{t("inboxHeading")}</h2>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
             <InquiryInboxList
@@ -779,7 +787,7 @@ export function InquiryChatClient() {
               size="icon"
               className="md:hidden"
               onClick={() => router.push("/inquiry/list")}
-              aria-label="一覧へ戻る"
+              aria-label={t("backToListAria")}
             >
               <ArrowLeft className="h-5 w-5 text-muted-foreground" />
             </Button>
@@ -790,7 +798,7 @@ export function InquiryChatClient() {
               sizes="40px"
             />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs text-muted-foreground">相手</p>
+              <p className="truncate text-xs text-muted-foreground">{t("peerLabel")}</p>
               <p className="truncate text-sm font-semibold text-white">{peerName}</p>
             </div>
           </div>
@@ -804,7 +812,7 @@ export function InquiryChatClient() {
               <p className="text-center text-sm text-red-400">{messagesError}</p>
             ) : inquiryTimeline.length === 0 ? (
               <p className="text-center text-sm text-muted-foreground">
-                メッセージはまだありません。スキル詳細の「出品者に質問する」から開くか、下の欄から送信してください。
+                {t("noMessagesWithCta")}
               </p>
             ) : (
               <>
@@ -826,10 +834,10 @@ export function InquiryChatClient() {
                     const senderProfile = senderProfiles[m.sender_id]
                     const isPeerSender = m.sender_id === peerId
                     const label = mine
-                      ? "自分"
+                      ? t("selfLabel")
                       : isPeerSender
                         ? peerName
-                        : senderProfile?.display_name?.trim() || "ユーザー"
+                        : senderProfile?.display_name?.trim() || t("anonymousUser")
                     const messageAvatarUrl = mine
                       ? myProfile?.avatar_url ?? null
                       : isPeerSender
@@ -845,13 +853,13 @@ export function InquiryChatClient() {
                               <div className="rounded-2xl bg-red-900/50 px-3 py-2 text-sm leading-relaxed text-red-50">
                                 <p className="whitespace-pre-wrap break-words">{m.content}</p>
                                 <p className="mt-1 text-[10px] opacity-70">
-                                  {new Date(m.created_at).toLocaleString("ja-JP", {
+                                  {new Date(m.created_at).toLocaleString(htmlLang, {
                                     month: "short",
                                     day: "numeric",
                                     hour: "2-digit",
                                     minute: "2-digit",
                                   })}
-                                  {m.is_read ? " · 既読" : " · 未読"}
+                                  {m.is_read ? t("readMarkSeparator") : t("unreadMarkSeparator")}
                                 </p>
                               </div>
                             </div>
@@ -861,7 +869,7 @@ export function InquiryChatClient() {
                             <Link
                               href={senderProfilePath}
                               className="shrink-0"
-                              aria-label={`${label}のプロフィールへ`}
+                              aria-label={t("viewProfileAria", { name: label })}
                             >
                               <ProfileAvatar
                                 avatarUrl={messageAvatarUrl}
@@ -875,7 +883,7 @@ export function InquiryChatClient() {
                               <div className="rounded-2xl bg-muted px-3 py-2 text-sm leading-relaxed text-foreground">
                                 <p className="whitespace-pre-wrap break-words">{m.content}</p>
                                 <p className="mt-1 text-[10px] opacity-70">
-                                  {new Date(m.created_at).toLocaleString("ja-JP", {
+                                  {new Date(m.created_at).toLocaleString(htmlLang, {
                                     month: "short",
                                     day: "numeric",
                                     hour: "2-digit",
@@ -892,7 +900,7 @@ export function InquiryChatClient() {
                 </ul>
                 {messages.length === 0 ? (
                   <p className="mt-4 text-center text-sm text-muted-foreground">
-                    メッセージはまだありません。下の欄から送信してください。
+                    {t("noMessagesSimple")}
                   </p>
                 ) : null}
                 <div ref={messagesEndRef} />
@@ -907,7 +915,7 @@ export function InquiryChatClient() {
               <ChatComposerTextarea
                 value={text}
                 onChange={setText}
-                placeholder="メッセージを入力..."
+                placeholder={t("composerPlaceholder")}
                 disabled={sending || effectiveOriginSkillId == null}
                 onSubmit={() => void handleSend()}
                 className="focus:border-red-500 focus:ring-red-500/25"
@@ -918,14 +926,14 @@ export function InquiryChatClient() {
                 onClick={() => void handleSend()}
                 className="mb-0.5 h-auto shrink-0 bg-red-600 px-4 font-bold text-white hover:bg-red-500 disabled:opacity-50"
               >
-                {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : "送信"}
+                {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("sendButton")}
               </Button>
             </div>
             <p className="mt-2 text-center text-[10px] leading-relaxed text-muted-foreground">
-              取引成立後のやり取りはスキル購入後に生成される専用の取引チャットをご利用ください。
+              {t("purchaseChatNote")}
               <span className="hidden md:inline">
                 <br />
-                PCでは Enter で送信、Shift+Enter で改行できます。
+                {t("keyboardHint")}
               </span>
             </p>
           </div>

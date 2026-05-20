@@ -1,0 +1,1798 @@
+{
+  "common": {
+    "appName": "GritVib",
+    "loading": "読み込み中...",
+    "save": "保存",
+    "saving": "保存中...",
+    "cancel": "キャンセル",
+    "delete": "削除",
+    "deleting": "削除中...",
+    "edit": "編集",
+    "close": "閉じる",
+    "submit": "送信",
+    "submitting": "送信中...",
+    "back": "戻る",
+    "next": "次へ",
+    "search": "検索",
+    "yes": "はい",
+    "no": "いいえ",
+    "confirm": "確認",
+    "more": "もっと見る",
+    "retry": "再試行"
+  },
+  "language": {
+    "label": "言語",
+    "ja": "日本語",
+    "en": "English",
+    "switchToJa": "日本語に切り替える",
+    "switchToEn": "Switch to English"
+  },
+  "header": {
+    "searchPlaceholder": "スキルを検索...",
+    "teach": "教える",
+    "createStore": "無料でお店をつくる",
+    "guide": "使い方",
+    "menuOpen": "メニューを開く",
+    "menuClose": "メニューを閉じる",
+    "menu": "メニュー",
+    "login": "ログイン",
+    "logout": "ログアウト",
+    "logoutConfirm": "ログアウトしてもよろしいですか？",
+    "guest": "ゲスト",
+    "user": "ユーザー",
+    "loggedIn": "ログイン中"
+  },
+  "auth": {
+    "loginTitle": "ログイン",
+    "signupTitle": "新規登録",
+    "email": "メールアドレス",
+    "password": "パスワード",
+    "loginButton": "ログイン",
+    "signupButton": "新規登録",
+    "logoutButton": "ログアウト"
+  },
+  "nav": {
+    "home": "ホーム",
+    "discover": "見つける",
+    "mypage": "マイページ",
+    "messages": "メッセージ",
+    "notifications": "通知",
+    "settings": "設定",
+    "help": "ヘルプ",
+    "sectionMenu": "メニュー",
+    "sectionAccount": "アカウント",
+    "ariaMenu": "メニュー",
+    "ariaMainMenu": "メインメニュー",
+    "adminPage": "管理者ページ",
+    "itemLabels": {
+      "store": "マイストア",
+      "discover": "スキルを探す",
+      "create": "出品",
+      "listings": "出品中の商品管理",
+      "profile": "プロフィール設定",
+      "sales": "売上の確認",
+      "trades": "取引・メッセージ",
+      "favorites": "お気に入り",
+      "reviews": "評価",
+      "settings": "設定"
+    },
+    "tradesMenu": "取引・メッセージ",
+    "tradesSubmenu": {
+      "offers": "事前オファー",
+      "inquiry": "相談・メッセージ",
+      "active": "進行中の取引",
+      "history": "取引履歴"
+    }
+  },
+  "categoriesUi": {
+    "parentLabel": "カテゴリ",
+    "subLabel": "小カテゴリ",
+    "selectPlaceholder": "選択してください",
+    "storedHint": "保存されるカテゴリ:"
+  },
+  "categories": {
+    "all": "すべて",
+    "fitness": "フィットネス",
+    "cooking": "料理",
+    "game": "ゲーム",
+    "study": "勉強",
+    "creation": "創作",
+    "art": "芸術",
+    "other": "その他",
+    "fitnessSub": {
+      "soccer": "サッカー",
+      "stretch": "ストレッチ",
+      "diet": "ダイエット",
+      "dance": "ダンス",
+      "basketball": "バスケ",
+      "badminton": "バドミントン",
+      "pilates": "ピラティス",
+      "yoga": "ヨガ",
+      "running": "ランニング",
+      "martialArts": "格闘技",
+      "strengthTraining": "筋トレ",
+      "other": "その他"
+    }
+  },
+  "accentColors": {
+    "orange": "オレンジ（デフォルト）",
+    "yellow": "黄",
+    "blue": "青",
+    "green": "緑"
+  },
+  "contactCategories": {
+    "feedback": "ご意見",
+    "bug": "不具合報告",
+    "ban": "ユーザー・商品のBAN",
+    "dispute": "異議申し立てについて",
+    "question": "ご質問",
+    "other": "その他"
+  },
+  "aria": {
+    "closeNotification": "通知を閉じる",
+    "addFavorite": "お気に入りに追加",
+    "removeFavorite": "お気に入りから外す",
+    "profileImageUnset": "プロフィール画像未設定",
+    "mainMenu": "メインメニュー",
+    "close": "閉じる"
+  },
+  "banned": {
+    "title": "アカウント停止のお知らせ",
+    "body": "規約違反が確認されたため、現在このアカウントはご利用いただけません。",
+    "contactPrefix": "詳細は",
+    "contactLink": "お問い合わせ",
+    "contactSuffix": "からご連絡ください。",
+    "backToTop": "トップページへ"
+  },
+  "pullToRefresh": {
+    "refreshing": "更新中…",
+    "releaseToRefresh": "離すと更新",
+    "pullToRefresh": "引き下げて更新"
+  },
+  "userMenu": {
+    "openMenu": "アカウントメニューを開く",
+    "loading": "読み込み中…",
+    "fallbackName": "ユーザー",
+    "loggedInLabel": "ログイン中",
+    "logout": "ログアウト"
+  },
+  "authToasts": {
+    "registeredCheckEmail": "登録したメールアドレスとパスワードでログインすると、プロフィール設定に進めます。",
+    "resendInvalidEmail": "再送先のメールアドレスを正しく入力してください。",
+    "resendMismatch": "登録時と異なるメールアドレスには再送できません。下の「このメールアドレスで登録し直す」から新規登録をやり直してください。",
+    "resendFailedFallback": "確認メールの再送に失敗しました。時間を置いて再度お試しください。",
+    "resendSuccessFallback": "確認メールを再送しました。受信ボックスをご確認ください。",
+    "emailRequired": "メールアドレスを入力してください。",
+    "emailAndPasswordRequired": "メールアドレスとパスワードを入力してください。",
+    "passwordResetMailFailed": "パスワード再設定メールの送信に失敗しました。",
+    "passwordResetMailSent": "パスワード再設定用のメールを送信しました。メール内のリンクをご確認ください。",
+    "displayNameRequired": "表示名を入力してください。",
+    "emailConfirmMismatch": "メールアドレス（確認用）が一致していません。",
+    "passwordPolicy": "パスワードは8文字以上で、大文字・小文字・数字をすべて含めてください。",
+    "passwordConfirmMismatch": "パスワード（確認用）が一致していません。",
+    "birthdayRequired": "誕生日を入力してください。",
+    "birthdayFuture": "誕生日に未来の日付は選択できません。",
+    "loginSuccess": "ログインに成功しました。",
+    "userCreateFailed": "ユーザー作成に失敗しました。",
+    "emailMaybeRegistered": "このメールアドレスは登録済みか、確認メール送信待ちの可能性があります。受信ボックスをご確認ください。",
+    "accountCreated": "アカウントを作成しました。プロフィール設定に進みます。",
+    "passwordUpdated": "パスワードを更新しました。ダッシュボードへ移動します。"
+  },
+  "profileSetupToasts": {
+    "genericSaveFailed": "保存に失敗しました。時間を置いて再度お試しください。",
+    "profileLoadFailed": "プロフィールの読み込みに失敗しました。",
+    "imageFileRequired": "画像ファイル（jpg/png/webp等）を選択してください。",
+    "avatarPublicUrlFailed": "アイコン画像の公開URL取得に失敗しました。",
+    "customIdLocked": "カスタムIDは一度設定すると変更できません。",
+    "customIdValidation": "カスタムIDは英小文字で開始し、3〜30文字の英小文字・数字・_・-のみ使用できます。",
+    "customIdReserved": "そのカスタムIDは予約語のため利用できません。",
+    "saveFailed": "保存に失敗しました。",
+    "customIdTaken": "このカスタムIDは既に使用されています。",
+    "profileSavedAvatarPending": "プロフィールの内容は保存しました。アイコン画像はサービス上の準備が整うまでアップロードできませんでした。",
+    "profileSavedAvatarFailed": "プロフィールを保存しました。アイコン画像は保存できませんでした。しばらくしてから再度お試しください。",
+    "profileSaved": "プロフィールを保存しました。"
+  },
+  "mypageToasts": {
+    "storeUrlFetchFailed": "ストアURLの取得に失敗しました。",
+    "storeUrlCopied": "ストアURLをコピーしました。",
+    "copyFailedManual": "コピーに失敗しました。手動でコピーしてください。",
+    "imageFileRequired": "画像ファイル（jpg/png/webp等）を選択してください。",
+    "stripeLinked": "Stripe連携が完了しました。",
+    "updated": "更新しました。",
+    "adminLockedHide": "運営による非公開のため、ご自身で公開に戻すことはできません。",
+    "skillPublished": "スキルを公開しました。",
+    "consultationApproved": "受講リクエストを承認しました。",
+    "consultationRejected": "受講リクエストを拒否しました。",
+    "customIdLocked": "カスタムIDは一度設定すると変更できません。",
+    "customIdReserved": "そのカスタムIDは予約語のため利用できません。",
+    "customIdTaken": "このカスタムIDは既に使用されています。",
+    "logoutFailed": "ログアウトに失敗しました。もう一度お試しください。",
+    "avatarPublicUrlFailed": "アイコン画像の公開URL取得に失敗しました。",
+    "profileLoadFailed": "プロフィールの読み込みに失敗しました。",
+    "emailPrefsSaveFailed": "メール通知設定の保存に失敗しました。",
+    "balanceFetchFailed": "残高の取得に失敗しました。",
+    "skillPublishFailed": "スキルの公開に失敗しました。",
+    "listingsFetchFailed": "出品スキルの取得に失敗しました。",
+    "consultationFetchFailed": "受講リクエストの取得に失敗しました。",
+    "consultationApproveFailed": "承認に失敗しました。",
+    "consultationRejectFailed": "拒否に失敗しました。",
+    "sentRequestsFetchFailed": "送信済みリクエストの取得に失敗しました。",
+    "favoritesFetchFailed": "お気に入りの取得に失敗しました。",
+    "favoritesRemoveFailed": "お気に入りの解除に失敗しました。",
+    "reviewsFetchFailed": "評価データの取得に失敗しました。",
+    "transactionsFetchFailed": "取引一覧の取得に失敗しました。",
+    "transactionsHistoryFetchFailed": "取引履歴の取得に失敗しました。",
+    "peerProfileFetchFailed": "相手プロフィールの取得に失敗しました。",
+    "skillFallback": "スキル",
+    "nameUnset": "名前未設定",
+    "instructorFallback": "講師",
+    "avatarUploadFailed": "アイコン画像のアップロードに失敗しました。",
+    "saveFailed": "保存に失敗しました。",
+    "customIdValidation": "カスタムIDは英小文字で開始し、3〜30文字の英小文字・数字・_・-のみ使用できます。",
+    "displayNameLockedSaved": "名前の変更は30日に1回のみ可能です。表示名以外の内容を保存しました。",
+    "profileSavedAvatarPending": "プロフィールを保存しました。アイコン画像はサービス上の準備が整うまで保存できませんでした。",
+    "profileSavedAvatarFailed": "プロフィールを保存しました。アイコン画像は保存できませんでした。しばらくしてから再度お試しください。",
+    "profileSaved": "プロフィールを保存しました。",
+    "consultationApprovedSystemContent": "事前オファーの申し込みが承認されました。購入手続きを進められます。",
+    "consultationDeclinedNoReason": "事前オファーが見送られました。",
+    "stripeStatusCheckFailed": "Stripe連携状態の確認に失敗しました。時間を置いて再度お試しください。",
+    "stripeOnboardingOpenFailed": "Stripe の画面を開けませんでした。時間を置いて再度お試しください。",
+    "stripeDashboardOpenFailed": "Stripe ダッシュボードを開けませんでした。時間を置いて再度お試しください。",
+    "avatarSavedAdminPending": " アイコン画像はサービス上の準備が整うまで保存できませんでした。",
+    "avatarSaveFailedSuffix": " アイコン画像は保存できませんでした。"
+  },
+  "chatLink": {
+    "discordServerInviteNotice": "このチャットから直接サーバーに招待する行為は禁止です。",
+    "zoom": {
+      "title": "Zoom会議招待",
+      "meetingId": "ミーティングID",
+      "passcode": "パスコード",
+      "joinLink": "参加リンク",
+      "copyId": "IDをコピー",
+      "copyPasscode": "パスコードをコピー",
+      "noPasscode": "パスコードが設定されていません",
+      "joinMeeting": "会議に参加"
+    },
+    "discord": {
+      "title": "Discord",
+      "usernameLabel": "ユーザー名（ID）",
+      "copyId": "IDをコピー"
+    },
+    "copied": "コピーしました！",
+    "modal": {
+      "pickTitle": "外部ツール連携",
+      "zoomTitle": "Zoom連携",
+      "youtubeTitle": "YouTube連携",
+      "discordTitle": "Discord連携",
+      "pickDescription": "連携するサービスを選んでください。",
+      "back": "戻る",
+      "send": "送信",
+      "zoom": {
+        "meetingIdLabel": "ミーティングID",
+        "meetingIdPlaceholder": "000 0000 0000",
+        "passcodeLabel": "パスコード",
+        "passcodePlaceholder": "000000",
+        "joinLinkLabel": "参加リンク",
+        "joinLinkPlaceholder": "https://zoom.us/j/..."
+      },
+      "discord": {
+        "userIdLabel": "Discord ユーザー名（ID）",
+        "userIdPlaceholder": "例: gritvib_user",
+        "userIdHint": "フレンド追加用のユーザー名を共有してください。サーバー招待リンクの送信はできません。"
+      },
+      "youtube": {
+        "urlLabel": "動画 URL",
+        "urlPlaceholder": "https://www.youtube.com/watch?v=..."
+      },
+      "errors": {
+        "meetingIdRequired": "ミーティングIDを入力してください。",
+        "linkRequired": "リンクを入力してください。",
+        "linkInvalid": "リンクは有効な URL 形式で入力してください。",
+        "youtubeUrlRequired": "動画の URL を入力してください。",
+        "urlInvalid": "URL の形式が正しくありません。",
+        "discordUserIdRequired": "Discord のユーザー名（ID）を入力してください。",
+        "discordUserIdInvalid": "ユーザー名（ID）の形式が正しくありません。"
+      }
+    }
+  },
+  "transactionReview": {
+    "loadingState": "評価の状態を確認しています…",
+    "completedNotice": "取引が終了しました。{peerNoun}を評価してください。",
+    "rateButton": "評価する",
+    "doneTemplate": "評価済み：星{stars}{commentSuffix}",
+    "commentSeparator": " — ",
+    "modal": {
+      "title": "{peerNoun}を評価",
+      "description": "5段階の星とコメント（任意）を入力できます。",
+      "starAria": "{n}点",
+      "starsScore": "{stars} / 5",
+      "starsUnselected": "未選択",
+      "commentPlaceholder": "コメント（任意）",
+      "cancel": "キャンセル",
+      "submit": "送信"
+    },
+    "errors": {
+      "selectStars": "星を1〜5で選んでください。",
+      "duplicate": "この取引にはすでに評価を送信済みです。",
+      "submitFailed": "評価の送信に失敗しました。時間を置いて再度お試しください。"
+    }
+  },
+  "cmsPublic": {
+    "loadingFooter": "特商法情報を読み込み中...",
+    "loadingDetails": "情報を読み込み中...",
+    "operator": "運営: {name}",
+    "contact": "連絡先: {email}",
+    "unset": "未設定",
+    "viewLink": "特定商取引法に基づく表記を見る",
+    "labels": {
+      "siteName": "販売事業者名",
+      "address": "所在地",
+      "email": "メールアドレス",
+      "phone": "電話番号",
+      "priceInfo": "販売価格",
+      "paymentMethod": "支払方法・支払時期",
+      "deliveryInfo": "提供役務の提供時期・引き渡し時期",
+      "returnPolicy": "返品について",
+      "refundPolicy": "返金・キャンセルについて",
+      "serviceTerms": "その他の販売条件"
+    }
+  },
+  "reportModal": {
+    "title": "通報する",
+    "reasonLabel": "通報理由",
+    "selectPlaceholder": "選択してください",
+    "contentLabel": "詳細内容",
+    "contentPlaceholder": "通報内容を入力してください",
+    "cancel": "キャンセル",
+    "submitting": "送信中...",
+    "submit": "通報を送信",
+    "errors": {
+      "reasonRequired": "通報理由を選択してください。",
+      "contentRequired": "詳細内容を入力してください。",
+      "submitFailed": "通報の送信に失敗しました。時間を置いて再度お試しください。",
+      "submitFailedFallback": "通報の送信に失敗しました。"
+    },
+    "success": "通報を受け付けました",
+    "reasons": {
+      "inappropriateName": "不適切な名前",
+      "termsViolation": "規約違反",
+      "inappropriateContent": "不適切な表現・内容",
+      "other": "その他"
+    }
+  },
+  "stripeInstructorOnboarding": {
+    "issuing": "発行中...",
+    "startRegistration": "Stripeで講師登録を始める",
+    "confirmTitle": "Stripe講師登録の確認",
+    "defaultsLead": "スムーズに登録を進めるため、Stripe上にはデフォルトで以下の内容が入力されます",
+    "defaults": {
+      "country": "国: 日本",
+      "businessType": "事業形態: 個人事業主",
+      "industry": "業種: 教育 > その他",
+      "url": "URL: https://gritvib.com",
+      "description": "説明: 個人向けストアプラットフォーム「GritVib」において、オンライン相談、デジタルコンテンツの提供、または実面を伴う個人スキルの取引・レッスン等のサービスを提供します。"
+    },
+    "notesHeading": "注意事項",
+    "notes": {
+      "editable": "これらの情報は登録後、Stripeダッシュボードから変更可能です。",
+      "privacy": "口座情報や個人情報はStripeが厳重に管理し、当サイトのデータベースには保存されません。"
+    },
+    "cancel": "キャンセル",
+    "proceeding": "Stripeへ進む...",
+    "agreeProceed": "内容に同意してStripeへ進む",
+    "loadingTitle": "Stripe の画面を準備しています",
+    "loadingBody": "しばらくすると Stripe のサイトへ移動します。この画面のままお待ちください。",
+    "openFailedFallback": "Stripe の画面を開けませんでした。時間を置いて再度お試しください。"
+  },
+  "stripePaymentSheet": {
+    "title": "お支払い",
+    "description": "表示された方法でお支払いください。",
+    "cancel": "キャンセル",
+    "processing": "処理中...",
+    "pay": "支払う",
+    "errors": {
+      "stripeLoadFailed": "Stripe の読み込みに失敗しました。",
+      "elementsInitFailed": "決済フォームの初期化に失敗しました。",
+      "paymentFailed": "決済を完了できませんでした。時間を置いて再度お試しください。"
+    }
+  },
+  "thumbnailCropModal": {
+    "headingDefault": "サムネイルの切り抜き",
+    "subheadingDefault": "枠内が保存される範囲です。ドラッグで位置を、ホイールやピンチで拡大・縮小できます。",
+    "altCropTarget": "切り抜き対象",
+    "zoomLabel": "拡大",
+    "cancel": "キャンセル",
+    "processing": "処理中...",
+    "confirm": "この範囲で決定",
+    "errors": {
+      "imageNotReady": "画像の読み込みが完了していません。",
+      "genericFailure": "画像の処理に失敗しました。"
+    }
+  },
+  "disputeEvidence": {
+    "defaultAlt": "証拠画像",
+    "loadFailed": "画像を読み込めませんでした",
+    "cannotDisplay": "画像を表示できません",
+    "loadingAria": "証拠画像を読み込み中",
+    "expandedAria": "証拠画像の拡大表示",
+    "zoomAria": "{alt}を拡大表示"
+  },
+  "chatRich": {
+    "youtube": {
+      "label": "YouTube動画",
+      "previewUnavailable": "プレビューを表示できないURLです。リンクから開いてください。",
+      "openExternal": "YouTubeで開く"
+    },
+    "file": {
+      "loadFailed": "ファイルを読み込めませんでした。",
+      "preparing": "ファイルを準備しています…",
+      "save": "保存"
+    }
+  },
+  "storeListings": {
+    "title": "出品中の商品",
+    "newSkill": "新規出品",
+    "filter": {
+      "published": "公開中",
+      "draft": "下書き・非公開",
+      "all": "すべて"
+    },
+    "badge": {
+      "private": "非公開",
+      "public": "公開中",
+      "adminLocked": "運営により非公開"
+    },
+    "loading": "読み込み中...",
+    "empty": {
+      "published": "公開中の商品はまだありません。",
+      "draft": "下書き・非公開の商品はありません。",
+      "all": "まだ出品した商品がありません。"
+    },
+    "cta": {
+      "firstListing": "最初の商品を出品する"
+    },
+    "uncategorized": "未分類",
+    "priceFormat": "{price}円",
+    "thumbnailAlt": "{title}のサムネイル",
+    "actions": {
+      "view": "表示",
+      "publish": "公開する",
+      "publishing": "公開中...",
+      "edit": "編集"
+    },
+    "publishModal": {
+      "title": "この商品を公開しますか？",
+      "description": "「{title}」をストアに表示する状態になります。",
+      "cancel": "キャンセル",
+      "confirm": "公開する",
+      "confirming": "公開中..."
+    },
+    "notice": {
+      "adminLocked": "運営による非公開のため、ご自身で公開に戻すことはできません。",
+      "publishFailed": "商品の公開に失敗しました。",
+      "published": "商品を公開しました。"
+    }
+  },
+  "notifications": {
+    "bell": {
+      "ariaLabel": "通知",
+      "panelLabel": "通知",
+      "unreadCount": "未読{count}件",
+      "tabs": {
+        "ops": "運営より",
+        "general": "一般"
+      },
+      "empty": {
+        "ops": "運営からの通知はまだありません",
+        "general": "通知はまだありません"
+      },
+      "loading": "読み込み中…",
+      "emptyContent": "（内容なし）",
+      "bodySectionLabel": "詳細",
+      "updating": "更新中",
+      "subject": {
+        "purchase": "取引の開始",
+        "message": "新着メッセージ",
+        "completion_request": "完了承認の依頼",
+        "completion_approved": "取引完了",
+        "review": "レビュー",
+        "dispute": "異議申し立て",
+        "consultation_request": "事前オファー申込",
+        "consultation_accepted": "事前オファー承認",
+        "consultation_rejected": "事前オファー見送り",
+        "announcement": "お知らせ",
+        "admin_product_deleted": "運営により出品商品が削除されました",
+        "admin_product_visibility": "運営により商品の公開状態が変更されました",
+        "default": "通知"
+      },
+      "adminCategory": {
+        "transactionChat": "取引・チャット",
+        "announcement": "お知らせ",
+        "adminProductDeleted": "商品の削除",
+        "adminProductVisibility": "公開状態の変更",
+        "default": "運営からの連絡"
+      },
+      "adminHeadline": {
+        "announcementFallback": "運営よりお知らせ",
+        "default": "運営からの連絡"
+      },
+      "adminBracketPrefix": "運営",
+      "announcementReason": {
+        "tosViolation": "利用規約違反",
+        "inappropriateImage": "不適切な画像",
+        "importantNotice": "重要なお知らせ",
+        "maintenance": "運営メンテナンス",
+        "adminDecision": "運営判断"
+      }
+    }
+  },
+  "tradeFinalConfirm": {
+    "noticeAccordion": "取引に関する重要な注意事項（必ずお読みください）",
+    "physicalSafetyHeading": "【身体の安全に関する重要事項】",
+    "physicalSafetyNotice": "怪我、既往歴、妊娠中など、体調に不安がある方は必ず医師の指示に従い、自己責任で受講してください。受講中の怪我や事故について、当サービスおよび講師は一切の責任を負いません。",
+    "agreePrefix": "上記の注意事項、および",
+    "agreeTermsLink": "利用規約",
+    "agreeSeparator": "・",
+    "agreePrivacyLink": "プライバシーポリシー",
+    "agreeSuffix": "に同意する",
+    "cancelDefault": "戻る",
+    "processing": "処理中..."
+  },
+  "purchaseConfirmModal": {
+    "title": "最終確認",
+    "subtitle": "購入前の注意事項に同意して、取引を開始してください。",
+    "actionLabel": "購入する",
+    "cancelLabel": "戻る"
+  },
+  "createSkill": {
+    "loading": "読み込み中...",
+    "authCheck": "ログイン状態を確認しています...",
+    "skillLoading": "スキル情報を読み込んでいます...",
+    "pageTitle": {
+      "create": "スキルを出品",
+      "edit": "スキルを編集"
+    },
+    "formTitle": {
+      "create": "出品フォーム",
+      "edit": "編集フォーム"
+    },
+    "submitLabel": {
+      "create": "出品する",
+      "edit": "更新する"
+    },
+    "back": "戻る",
+    "required": "必須",
+    "cropHeading": "サムネイルを切り抜く",
+    "cropSubheading": "枠は一覧サムネイルと同じ 16:10 の切り取りサイズです。ドラッグ・ピンチ・拡大スライダーで位置とズームを調整してください。",
+    "thumbnail": {
+      "title": "サムネイル画像",
+      "hint": "サムネイル画像は後から設定することも可能です。",
+      "select": "画像を選択",
+      "unselected": "未選択",
+      "removeAria": "サムネイル画像を削除"
+    },
+    "sections": {
+      "basic": "基本情報",
+      "delivery": "提供方法",
+      "pricing": "価格・提供条件",
+      "preOffer": "事前オファー設定",
+      "consultationChat": "事前相談（チャット）設定",
+      "visibility": "公開設定"
+    },
+    "fields": {
+      "title": "題名",
+      "titlePlaceholder": "例: 初めての方向け・オンライン相談（30分）",
+      "audience": "こんな人におすすめ",
+      "audiencePlaceholder": "例：はじめて学ぶ方、時間を区切って相談したい方など",
+      "description": "説明",
+      "descriptionPlaceholder": "あなたの強みや提供内容（{tools}を使う場合は連携方法も）、進め方・流れ、購入者に準備してほしいことを記載してください。",
+      "descriptionHint": "外部ツール（{tools}）を利用する場合は、トラブル防止のため必ず説明欄に記載してください。",
+      "format": "形式",
+      "formatOnline": "オンライン",
+      "formatOnsite": "対面",
+      "location": "場所（都道府県）",
+      "locationPlaceholder": "都道府県を選択してください",
+      "price": "値段（円）",
+      "pricePlaceholder": "例: 3500",
+      "fee": "手数料（{percent}%）: {fee}円",
+      "receive": "受け取り予定額: {amount}円",
+      "duration": "1回あたりの時間（分）",
+      "durationPlaceholder": "例: 60",
+      "capacity": "最大対応人数",
+      "capacityPlaceholder": "例: 5"
+    },
+    "preOffer": {
+      "enable": "事前オファー（質問フォーム）を受け付ける",
+      "hint": "オンにすると、購入前に回答フォームと講師の承認が必要になります（質問ラベルを設定してください）。",
+      "q1": "質問1",
+      "q2": "質問2",
+      "q3": "質問3",
+      "free": "自由記述",
+      "exampleQ1": "例 : いま気になっていることを教えてください",
+      "exampleQ2": "例 : 目指していることを教えてください",
+      "exampleQ3": "例 : これまでの経験やレベルを教えてください",
+      "exampleFree": "例 : その他、事前に伝えておきたいこと"
+    },
+    "consultationChat": {
+      "enable": "購入前のチャット相談を受け付ける",
+      "hint": "オンにすると、スキル詳細に「出品者に質問する」が表示され、取引前のメッセージのやり取りができます。"
+    },
+    "visibility": {
+      "public": "公開中",
+      "private": "非公開",
+      "adminLocked": "運営により非公開のため、ご自身で公開に戻すことはできません。"
+    },
+    "submit": {
+      "imageUploading": "画像アップロード中...",
+      "saving": "保存中...",
+      "deleteListing": "出品を取り消す",
+      "deleteHint": "取り消すとこの出品データは削除されます（元に戻せませんのでご注意ください）。"
+    },
+    "publishConfirm": {
+      "titlePublic": "このスキルを公開して保存しますか？",
+      "titlePrivate": "このスキルを非公開にして保存しますか？",
+      "bodyPublic": "保存するとスキル一覧に表示され、購入者が閲覧できる状態になります。",
+      "bodyPrivate": "保存するとスキル一覧から非表示になります（すでに開始した取引には影響しません）。",
+      "cancel": "キャンセル",
+      "saving": "保存中...",
+      "save": "保存する"
+    },
+    "deleteConfirm": {
+      "title": "この出品を取り消しますか？",
+      "body": "削除すると復元できません。",
+      "cancel": "キャンセル",
+      "deleting": "削除中...",
+      "delete": "取り消す"
+    },
+    "finalConfirm": {
+      "title": "最終確認",
+      "subtitle": "内容をご確認のうえ、同意して手続きを完了してください。",
+      "visibilityLabel": "公開設定:",
+      "visibilityPublic": "公開中（一覧に表示）",
+      "visibilityPrivate": "非公開（一覧には表示しません）",
+      "cancel": "戻る"
+    },
+    "notices": {
+      "editNotFound": "編集対象のスキルが見つかりません。",
+      "imageMustBeImage": "画像ファイル（jpg/png/webp等）を選択してください。",
+      "thumbnailRequired": "サムネイル画像を選択してください。",
+      "thumbnailUrlFailed": "サムネイル画像の公開URL取得に失敗しました。",
+      "deleteFailedFallback": "出品の取り消しに失敗しました。",
+      "consultationSettingsSaveFailed": "相談設定の保存に失敗しました（スキルID形式エラー）。",
+      "requiredFieldsMissing": "必須項目が入力されていません。",
+      "minDuration": "1回あたりの時間は{min}分以上の整数で入力してください。",
+      "minCapacity": "最大対応人数は{min}人以上の整数で入力してください。",
+      "minPrice": "最低金額は{min}円です",
+      "prefectureRequired": "対面レッスンの場合は都道府県を選択してください。",
+      "preOfferQ1Required": "事前オファーを有効にする場合、質問1は必須です。",
+      "adminLockedPublish": "運営による非公開のため、ご自身で公開に戻すことはできません。",
+      "stripeRequired": "出品には口座登録が必要です。売上・振込設定からStripe登録を完了してください。",
+      "createFailed": "スキル作成に失敗しました。",
+      "createSuccess": "出品が完了しました！",
+      "submitFallback": "出品に失敗しました。時間を置いてお試しください"
+    }
+  },
+  "skillDetail": {
+    "format": {
+      "online": "オンライン",
+      "offline": "対面",
+      "prefectureFallback": "都道府県未設定"
+    },
+    "loading": "読み込み中...",
+    "checkoutCancelSyncing": "申し込み人数を確認しています",
+    "notFound": {
+      "title": "スキルが見つかりません",
+      "subtitle": "URL をご確認ください。",
+      "homeCta": "ホームへ戻る"
+    },
+    "instructorFallback": "講師",
+    "purchaseProgress": {
+      "preparingCheckout": "決済を準備中...",
+      "movingToCheckout": "決済ページへ移動中...",
+      "movingToChat": "チャットへ移動中...",
+      "verifyingTransaction": "取引を確認中..."
+    },
+    "errors": {
+      "checkoutPrepareFailed": "決済の準備に失敗しました。",
+      "checkoutPageCreateFailed": "決済ページを作成できませんでした。",
+      "checkoutReflectFailed": "決済情報の反映に失敗しました。時間をおいて再度お試しください。",
+      "checkoutSlow": "決済後の取引反映に時間がかかっています。マイページからチャットを開いてください。",
+      "checkConfirming": "取引状態を確認中です。少し待ってから再度お試しください。",
+      "txCheckFailed": "取引の確認に失敗しました。",
+      "checkoutStartGeneric": "決済の開始に失敗しました。ページを再読み込みしてからお試しください。",
+      "checkoutStartWithReason": "決済の開始に失敗しました。（{reason}）",
+      "invalidSkillId": "スキルIDの形式が不正です。",
+      "consultationRequired": "表示されている相談項目はすべて入力してください。",
+      "loginInfoCannotVerify": "ログイン情報を確認できませんでした。再ログインしてください。",
+      "authUserUpdated": "認証ユーザー情報が更新されました。ページを再読み込みしてから再度お試しください。",
+      "skillPendingApproval": "このスキルは承認待ちです。承認または拒否まで再送できません。",
+      "instructorInfoFailed": "講師情報を確認できませんでした。ページを再読み込みして再度お試しください。",
+      "consultationRequestFailed": "相談リクエストの送信に失敗しました。",
+      "paymentMaybeComplete": "支払いは完了した可能性があります。マイページの取引からチャットを開くか、しばらくしてから再度お試しください。"
+    },
+    "successes": {
+      "consultationRequested": "リクエストを送信しました。講師の承認をお待ちください"
+    },
+    "notifications": {
+      "consultationOfferTitleFallback": "事前オファー",
+      "consultationOfferContent": "事前オファーの申し込みが届いています。受講リクエストをご確認ください。"
+    },
+    "backToList": "一覧へ戻る",
+    "sections": {
+      "instructor": "講師",
+      "price": "価格",
+      "description": "説明",
+      "forWhom": "こんな人におすすめ",
+      "format": "形式",
+      "location": "場所",
+      "capacity": "対応人数"
+    },
+    "instructor": {
+      "reviewCount": "レビュー {count} 件",
+      "noRating": "評価なし"
+    },
+    "price": {
+      "perSession": "/ 回"
+    },
+    "capacity": {
+      "max": "対応可能人数: {max} 名",
+      "enrolled": "現在の申し込み人数: {enrolled} 名"
+    },
+    "duration": {
+      "label": "1回あたりの時間:",
+      "minutes": "{minutes}分"
+    },
+    "consultation": {
+      "loginToSendOffer": "ログインして事前オファーを送る",
+      "closeForm": "入力フォームを閉じる",
+      "openForm": "事前オファーを送る",
+      "submitting": "送信中...",
+      "submit": "リクエストを送信"
+    },
+    "actions": {
+      "askSeller": "出品者に質問する",
+      "askSellerHint": "購入前の質問は「出品者に質問する」から。お取引が始まったあとの連絡は取引チャットをご利用ください。",
+      "consultationRequired": "こちらのスキルには事前オファーが設定されています。初回ご購入前に申し込みが必要です。",
+      "ownSkill": "自分のスキルです",
+      "openProgramChat": "プログラムを確認する（チャットへ）",
+      "approvalPending": "承認待ち",
+      "rejected": "リクエストは拒否されました。",
+      "reportProduct": "この商品を通報する",
+      "checkoutConditionUnknown": "購入条件を確認できませんでした",
+      "txStatusLoading": "取引状態を確認中...",
+      "txStatusFailed": "取引状態を確認できませんでした",
+      "purchase": "購入する",
+      "soldOut": "満枠対応中"
+    }
+  },
+  "chat": {
+    "loginRequired": "この取引チャットを開くにはログインが必要です。",
+    "loginCta": "ログインへ",
+    "txLoading": "取引を読み込み中...",
+    "backLabel": "戻る",
+    "openFailedFallback": "取引を開けませんでした。",
+    "header": {
+      "txChat": "取引チャット",
+      "backAria": "戻る"
+    },
+    "media": {
+      "loadFailed": "メディアを読み込めませんでした。"
+    },
+    "errors": {
+      "imageFetchFailed": "画像の取得に失敗しました。",
+      "imageSaveFailed": "画像の保存に失敗しました。",
+      "txNotFound": "取引が見つかりません。",
+      "txAccessForbidden": "この取引にアクセスできません。",
+      "peerProfileFailed": "相手のプロフィールを読み込めませんでした。",
+      "fileUploadFailed": "ファイルのアップロードに失敗しました。",
+      "messageSendFailed": "メッセージの送信に失敗しました。",
+      "sendFailedFallback": "送信に失敗しました。",
+      "linkSendFailed": "連携情報の送信に失敗しました。",
+      "evidenceMustBeImage": "証拠写真は画像ファイルのみアップロードできます。",
+      "evidenceTooLarge": "証拠写真は10MB以下にしてください。",
+      "evidenceUploadFailed": "写真のアップロードに失敗しました。",
+      "evidenceUploadFailedTxNote": "写真アップロードに失敗したため、取引情報は更新されませんでした。",
+      "disputeSubmitFailed": "異議申し立ての送信に失敗しました。",
+      "disputeRecordedNoticeMissing": "異議申し立ては記録されましたが、お知らせの作成に失敗しました。時間をおいてから通知を確認してください。",
+      "txUpdateFailed": "取引情報の更新に失敗しました。時間を置いて再度お試しください。",
+      "completeChatFileFetchFailed": "チャットのファイル情報の取得に失敗しました。ストレージの削除はスキップされました。",
+      "approveGenericFailed": "取引の承認に失敗しました。時間を置いて再度お試しください。",
+      "loginInfoMissing": "ログイン情報を確認できません。",
+      "sessionExpired": "ログインの有効期限が切れました。再度ログインしてください。",
+      "disputeReasonRequired": "異議申し立て理由を選択してください。",
+      "waitEvidenceUpload": "写真のアップロード完了後に送信してください。",
+      "fileTooLarge": "ファイルサイズは50MB以下にしてください。",
+      "fileBlocked": "セキュリティのため、この形式のファイルは送信できません。",
+      "fileUnsupported": "このファイル形式には対応していません。画像・動画・PDF・Office・テキスト等を選択してください。"
+    },
+    "successes": {
+      "alreadyCompleted": "この取引はすでに完了済みです",
+      "applyRequested": "申請が完了しました",
+      "reviewSent": "評価を送信しました。"
+    },
+    "notifications": {
+      "newMessage": "新しいメッセージが届いています。",
+      "applyForApproval": "取引の完了申請が届いています。承認をお願いします。"
+    },
+    "peer": {
+      "fallback": "相手"
+    },
+    "actions": {
+      "processing": "処理中...",
+      "applyPending": "相手の承認をお待ちください",
+      "applyCanceled": "取引はキャンセルまたは返金により終了しました",
+      "applyClosed": "この取引は終了しています",
+      "applyCta": "完了申請を送る",
+      "approveCompletion": "取引完了",
+      "openDispute": "異議申し立て"
+    },
+    "approvalPending": {
+      "intro": "完了申請が届いています。問題がなければ承認、問題があれば異議申し立てを行ってください。",
+      "autoComplete": "{deadline} までに操作がない場合は自動的に完了します。"
+    },
+    "banner": {
+      "banned": "このアカウントは現在利用停止中のため、進行中取引のメッセージ閲覧のみ可能です。新規送信はできません。",
+      "canceled": "取引はキャンセルまたは返金により終了しています。メッセージの送信はできません。",
+      "closed": "この取引は終了しています。メッセージの送信はできません。",
+      "disputedBuyer": "この取引は異議申し立て中です。運営の確認が入るまで完了しません。",
+      "disputedSeller": "異議申し立てが行われました。運営の確認をお待ちください。"
+    },
+    "dispute": {
+      "submission": {
+        "reasonLabel": "理由:",
+        "detailLabel": "詳細:",
+        "evidenceAlt": "異議申し立ての証拠写真"
+      },
+      "form": {
+        "title": "異議申し立て",
+        "closeAria": "閉じる",
+        "intro": "内容を確認のうえ送信してください。運営が内容を確認します。",
+        "reasonLabel": "理由",
+        "detailLabel": "詳細（任意）",
+        "detailPlaceholder": "状況を具体的にご記入ください",
+        "evidenceLabel": "証拠写真（任意）",
+        "selectImage": "写真を選択",
+        "clearImage": "取り消し",
+        "imageNote": "画像のみ・10MB以下",
+        "cancel": "キャンセル",
+        "submit": "異議を送信",
+        "submitting": "送信中..."
+      },
+      "reasons": {
+        "different": "提供内容が事前説明と異なる",
+        "noContact": "講師と連絡が取れない",
+        "defective": "納品物や対応に不備がある",
+        "other": "その他"
+      }
+    },
+    "list": {
+      "empty": "まだメッセージがありません。挨拶を送ってみましょう。"
+    },
+    "message": {
+      "selfLabel": "自分",
+      "anonymousUser": "ユーザー",
+      "readMark": "既読",
+      "unreadMark": "未読",
+      "linkLoadFailed": "リンク情報を読み取れませんでした。",
+      "youtubeLoadFailed": "YouTube の URL を読み取れませんでした。",
+      "viewProfileAria": "{name}のプロフィールへ",
+      "peerNounSeller": "出品者",
+      "peerNounBuyer": "購入者"
+    },
+    "composer": {
+      "removeAttachment": "添付を取り消し",
+      "attachFile": "ファイルを添付",
+      "externalToolSeller": "外部ツール連携（{tools}）",
+      "externalToolBuyer": "外部ツール連携（YouTube）",
+      "placeholder": "メッセージを入力...",
+      "disabledPlaceholder": "送信できません",
+      "sendAria": "送信",
+      "bannedNote": "利用停止中は進行中取引のチャット閲覧のみ可能です。",
+      "filePart1": "＋でファイルを添付できます（1ファイル",
+      "fileLimit": "50MB以下",
+      "filePart2": "・画像・動画・PDF・Office・テキスト等。実行ファイルは不可）。",
+      "linkSeller": "リンクアイコンから外部ツール（{tools}）連携ができます。",
+      "linkBuyer": "リンクアイコンから外部ツール（YouTube）連携ができます。",
+      "linkGeneric": "リンクアイコンから外部ツール連携ができます。",
+      "keyboardHint": "PCでは Enter で送信、Shift+Enter で改行できます。"
+    },
+    "requestAgreement": {
+      "title": "【取引完了申請に関する重要事項】",
+      "body1": "生徒が取引完了ボタンを押すと、写真・動画データはサーバーから完全に削除され、復元できなくなります。",
+      "body2": "生徒からの承認がない場合でも、申請から3日経過すると自動的に取引完了となり、報酬が確定します。",
+      "body3": "生徒から「異議申し立て」が行われた場合、運営による調査が入ります。その間、報酬の確定・振込は一時停止されます。調査には数日〜1週間程度かかる場合があります。",
+      "confirm": "上記の内容を理解し、取引完了申請を行いますか？",
+      "cancel": "キャンセル",
+      "submit": "同意して申請する",
+      "submitting": "処理中..."
+    },
+    "approveAgreement": {
+      "title": "【取引完了の最終確認】",
+      "body1": "この操作を行うと、チャット内の写真・動画データはサーバーから完全に削除され、復元できなくなります。",
+      "body2": "取引完了を承認すると、講師への支払いが確定し、キャンセルはできなくなります。",
+      "body3": "もし指導内容に不備がある場合は、「異議申し立て」を行ってください。その際、証拠となる画像やチャットログが必要となります。",
+      "body4": "運営の確認作業には時間がかかる場合がありますのでご了承ください。",
+      "confirm": "取引を完了し、データを削除しますか？",
+      "cancel": "キャンセル",
+      "submit": "取引を完了する",
+      "submitting": "処理中..."
+    },
+    "viewer": {
+      "save": "保存",
+      "closeAria": "閉じる"
+    }
+  },
+  "inquiry": {
+    "loginRequired": "相談一覧を表示するにはログインが必要です。",
+    "loginToOpenChat": "相談チャットを開くにはログインが必要です。",
+    "loginCta": "ログインへ",
+    "title": "購入前の相談",
+    "subtitle": "相手を選ぶとチャットが開きます。",
+    "homeLink": "ホームへ",
+    "listLink": "一覧へ",
+    "loading": "読み込み中...",
+    "inboxEmpty": "まだ相談メッセージはありません。スキル詳細から出品者に質問できます。",
+    "anonymousUser": "ユーザー",
+    "skillFallback": "スキル #{id}",
+    "contextLabelDefault": "相談スキル",
+    "contextLabelPending": "こちらのスキルについて相談",
+    "skillInfoLoading": "スキル情報を読み込み中…",
+    "priceLine": "¥{amount} / 回",
+    "openPurchaseCta": "このスキルで取引を始める（購入ページへ）",
+    "pendingContextHint": "下の送信欄から送るメッセージは、このスキルについての相談として届きます。",
+    "readUpdateFailed": "既読更新に失敗しました: {reason}",
+    "invalidUrl": "URL が不正です。",
+    "selfChatForbidden": "自分自身とはチャットできません。",
+    "preChatChecking": "相談設定を確認しています…",
+    "inboxHeading": "相談一覧",
+    "backToListAria": "一覧へ戻る",
+    "peerLabel": "相手",
+    "noMessagesWithCta": "メッセージはまだありません。スキル詳細の「出品者に質問する」から開くか、下の欄から送信してください。",
+    "noMessagesSimple": "メッセージはまだありません。下の欄から送信してください。",
+    "selfLabel": "自分",
+    "readMark": "既読",
+    "unreadMark": "未読",
+    "readMarkSeparator": " · 既読",
+    "unreadMarkSeparator": " · 未読",
+    "viewProfileAria": "{name}のプロフィールへ",
+    "composerPlaceholder": "メッセージを入力...",
+    "sendButton": "送信",
+    "purchaseChatNote": "取引成立後のやり取りはスキル購入後に生成される専用の取引チャットをご利用ください。",
+    "keyboardHint": "PCでは Enter で送信、Shift+Enter で改行できます。",
+    "missingSkillError": "相談対象のスキルを特定できません。スキルページから「出品者に質問する」で開き直してください。",
+    "sendFailedFallback": "送信に失敗しました。"
+  },
+  "mypage": {
+    "tradesHubTitle": "取引・メッセージ",
+    "tradesHubSubtitle": "事前オファー・相談・進行中の取引・履歴を、買った商品と売った商品で切り替えて確認できます。",
+    "sideTabAria": "買った商品・売った商品の切り替え",
+    "statusTabAria": "取引ステータスの切り替え",
+    "sideBuyer": "買った商品",
+    "sideSeller": "売った商品",
+    "tabPreOffer": "事前オファー",
+    "tabActive": "進行中",
+    "tabHistory": "取引履歴",
+    "tabIncomingRequests": "受信リクエスト",
+    "inquiryEmptyInstructor": "まだ相談メッセージはありません。購入希望者から相談を受けるとここに表示されます。",
+    "inquiryEmptyStudent": "まだ相談メッセージはありません。スキル詳細から出品者に質問できます。",
+    "menu": {
+      "tradesMessages": "取引・メッセージ",
+      "favorites": "お気に入り",
+      "profile": "プロフィール",
+      "reviews": "評価",
+      "account": "アカウント設定",
+      "studentMode": "受講生として利用",
+      "instructorMode": "講師として利用",
+      "settingsHeading": "設定",
+      "adminPage": "管理者ページへ",
+      "toMyStore": "マイストアへ",
+      "menuAria": "マイページメニュー"
+    },
+    "profile": {
+      "title": "プロフィール設定",
+      "subtitle": "アイコン・表示名・自己紹介・興味のある分野を管理します。",
+      "previewLink": "プレビューを見る",
+      "copyStoreUrl": "自分のストアURLをコピーする",
+      "imageHeading": "プロフィール画像",
+      "imageHint": "プロフィールやチャットなどで表示されるアイコン画像を設定できます（任意）",
+      "imagePreviewAlt": "アイコンプレビュー",
+      "imageRemoveAria": "プロフィール画像を削除または選択を解除",
+      "imageSelect": "画像を選択",
+      "cropHeading": "プロフィールアイコン",
+      "cropSubheading": "枠内が保存される範囲です。ドラッグで位置を、ホイールやピンチで拡大・縮小できます。",
+      "displayNameLabel": "表示名",
+      "displayNamePlaceholder": "ニックネームや本名など",
+      "displayNameNote": "※表示名の変更は30日に1回のみ可能です",
+      "displayNameNextChangeable": "次回変更可能日: {date}",
+      "customIdLabel": "カスタムID（任意・設定推奨）",
+      "customIdPlaceholder": "例: taro_fit",
+      "customIdHint": "ストアURLを見やすくできます（例: 『taro_fit』とした場合、https://gritvib.com/store/taro_fit のように表示されます）。英小文字で開始し、3〜30文字の英小文字・数字・アンダーバー・ハイフンが使えます。一度設定したカスタムIDは変更できませんのでご注意ください。",
+      "customIdLocked": "設定済みのため、カスタムIDは編集できません。",
+      "bioLabel": "自己紹介",
+      "bioPlaceholder": "自分の得意なことや経歴、克服したいことなど",
+      "interestsLabel": "興味のある分野",
+      "interestsHint": "複数選択できます",
+      "submit": "保存する",
+      "submitting": "保存中..."
+    },
+    "listings": {
+      "title": "出品商品管理",
+      "subtitle": "出品したスキルの一覧です。",
+      "empty": "まだ出品したスキルがありません。",
+      "emptyLink": "出品する",
+      "statusPrivate": "非公開",
+      "statusPublic": "公開中",
+      "statusAdminLocked": "運営により非公開",
+      "uncategorized": "未分類",
+      "publish": "公開する",
+      "publishing": "公開中...",
+      "edit": "編集",
+      "fallbackSkill": "このスキル",
+      "confirmTitle": "このスキルを公開しますか？",
+      "confirmBody": "「{title}」を一覧に表示する状態で保存されます。",
+      "cancel": "キャンセル"
+    },
+    "requests": {
+      "titleIncoming": "受信リクエスト",
+      "titleSent": "送信済みリクエスト",
+      "descriptionIncoming": "購入者から届いた事前オファーを確認し、承認または拒否できます。",
+      "descriptionSent": "自分が送信した事前オファーの進捗を確認できます。",
+      "sentSecondaryDescription": "自分が送った事前オファーの状況を確認できます。",
+      "filterPending": "未対応",
+      "filterHandled": "対応済み",
+      "filterAll": "すべて",
+      "emptyPending": "未対応の受講リクエストはありません。",
+      "emptyHandled": "対応済みの受講リクエストはありません。",
+      "emptyAll": "受講リクエストはまだありません。",
+      "emptySent": "送信済みの受講リクエストはありません。",
+      "notInput": "未入力",
+      "statusPending": "承認待ち",
+      "statusAccepted": "承認済み",
+      "statusRejected": "拒否済み",
+      "statusPendingShort": "未対応",
+      "approve": "承認",
+      "reject": "拒否",
+      "rejectReasonLabel": "拒否理由（任意）",
+      "rejectReasonPlaceholder": "任意です。未入力でも拒否できます。",
+      "cancel": "キャンセル",
+      "confirmReject": "この内容で拒否する",
+      "rejectionReasonHeading": "拒否理由",
+      "rejectionReasonEmpty": "（理由は入力されていません）"
+    },
+    "favorites": {
+      "title": "お気に入り",
+      "subtitle": "保存したスキルの一覧です。",
+      "empty": "まだお気に入り登録されたスキルはありません。",
+      "removeAria": "お気に入りを解除",
+      "remove": "お気に入り解除",
+      "priceYen": "{amount}円"
+    },
+    "reviews": {
+      "title": "評価",
+      "subtitle": "あなたに届いた評価とコメントを確認できます。",
+      "starLabel": "星{count}",
+      "starCount": "{count}人",
+      "averagePrefix": "平均：",
+      "reviewCountSuffix": "({count}件の評価)",
+      "commentsHeading": "評価コメント",
+      "filterCurrent": "星{count}のみ表示中（解除）",
+      "emptyComments": "コメント付きの評価はまだありません。",
+      "commentRatingAria": "評価 {value}",
+      "unnamedReviewer": "ユーザー"
+    },
+    "trades": {
+      "titleLearning": "受講中",
+      "titleTeaching": "対応中",
+      "descriptionLearning": "購入して進行中の商品です。チャットで出品者とやり取りできます。",
+      "descriptionTeaching": "あなたのストアで進行中の取引です。チャットで購入者とやり取りできます。",
+      "emptyLearning": "進行中の購入取引はありません。",
+      "emptyTeaching": "進行中の受注はありません。",
+      "peerInstructor": "講師",
+      "peerBuyer": "購入者",
+      "peerSeller": "出品者",
+      "transactionIdLabel": "取引ID: {id}",
+      "startedAtLabel": "取引開始日: {date}",
+      "startedAtPlaceholder": "取引開始日: -",
+      "completedAtLabel": "完了日時: {date}",
+      "completedAtPlaceholder": "完了日時: -",
+      "toChat": "チャットへ"
+    },
+    "history": {
+      "titleSeller": "取引履歴（売った商品）",
+      "titleBuyer": "取引履歴（買った商品）",
+      "descriptionSeller": "ストアでの販売・対応の履歴です。完了・返金・キャンセル済みの案件を確認できます。",
+      "descriptionBuyer": "購入した取引の履歴です。完了・返金・キャンセル済みの案件を確認できます。",
+      "emptySeller": "売った商品の履歴はまだありません。",
+      "emptyBuyer": "買った商品の履歴はまだありません。",
+      "summary": "{total}件中 {start}-{end}件を表示",
+      "prev": "前へ",
+      "next": "次へ",
+      "statusCanceledOrRefunded": "取引完了（返金/キャンセル済み）",
+      "statusCompleted": "取引完了"
+    },
+    "payout": {
+      "title": "売上・振込設定",
+      "notRegisteredHint": "未登録です。下のボタンからStripe登録を開始してください。",
+      "registeredHint": "登録済みです。Stripeダッシュボードへ移動できます。",
+      "startStripe": "Stripeで講師登録を始める",
+      "openDashboard": "Stripeダッシュボードで詳細を確認する",
+      "issuing": "発行中...",
+      "balanceHeading": "Stripe Connect 残高",
+      "balanceLoading": "残高を取得中...",
+      "balanceTotal": "売上金（合計残高）: {amount}円",
+      "balancePending": "保留金額 : {amount}円",
+      "balanceAvailable": "振込可能残高 : {amount}円",
+      "balanceNote": "売上金は、Stripeの決済処理およびセキュリティ審査を経て、数日後に振込可能残高に反映されます。",
+      "disclaimer": "※決済情報や本人確認の管理は、すべて決済代行会社Stripeのシステム上で行われます。当サイトでクレジットカード情報等を保持することはありません。"
+    },
+    "stripeConfirm": {
+      "title": "Stripe講師登録の確認",
+      "defaultsHeading": "スムーズに登録を進めるため、Stripe上にはデフォルトで以下の内容が入力されます",
+      "country": "国: 日本",
+      "business": "事業形態: 個人事業主",
+      "industry": "業種: 教育 > その他",
+      "url": "URL: https://gritvib.com",
+      "description": "説明: 個人向けストアプラットフォーム「GritVib」において、オンライン相談、デジタルコンテンツの提供、または実面を伴う個人スキルの取引・レッスン等のサービスを提供します。",
+      "cautionHeading": "注意事項",
+      "caution1": "これらの情報は登録後、Stripeダッシュボードから変更可能です。",
+      "caution2": "口座情報や個人情報はStripeが厳重に管理し、当サイトのデータベースには保存されません。",
+      "cancel": "キャンセル",
+      "proceed": "内容に同意してStripeへ進む",
+      "proceedBusy": "Stripeへ進む..."
+    },
+    "payoutBusy": {
+      "title": "Stripe の画面を準備しています",
+      "body": "しばらくすると Stripe のサイトへ移動します。この画面のままお待ちください。"
+    },
+    "account": {
+      "subtitle": "アカウントの確認やログアウトはこちらから行えます。",
+      "displayNameHeading": "表示名",
+      "notSet": "未設定",
+      "anonymousUser": "ユーザー",
+      "profileEditHint": "プロフィールの編集は「プロフィール」から行えます。",
+      "themeHeading": "表示テーマ",
+      "themeHint": "オフのときはライト表示、オンにするとダークモードになります。",
+      "themeDarkLabel": "ダークモード",
+      "themeToggleAria": "ダークモードを切り替える",
+      "accentHeading": "アクセントカラー",
+      "accentHint": "サイト全体の強調色（ロゴ・主要ボタンなど）を選択できます。",
+      "accentAria": "アクセントカラー",
+      "emailHeading": "メール通知",
+      "emailIntro1": "登録メール宛の通知の受信設定です。初期状態はすべてオンです。オフにした項目はメールを送りません。",
+      "emailIntro2": "ヘッダーの通知やマイページのお知らせなど",
+      "emailInAppBold": "アプリ内通知は、ここがオンでもオフでも常に届きます",
+      "emailIntro3": "。「メール通知」をオフにするとメールはすべて止まり、種類のトグルもオフ表示になります。",
+      "emailMaster": "メール通知",
+      "emailMasterAria": "メール通知を受け取る",
+      "emailItemAria": "{label}のメールを受け取る",
+      "loginHeading": "ログイン状態",
+      "loginHint": "ログアウトすると、このブラウザでのログイン状態が解除されます。",
+      "logoutButton": "ログアウト"
+    },
+    "logoutConfirm": {
+      "title": "ログアウトしてもよろしいですか？",
+      "cancel": "キャンセル",
+      "confirm": "ログアウト",
+      "busy": "処理中..."
+    },
+    "customIdConfirm": {
+      "title": "カスタムID設定の確認",
+      "intro": "このIDで設定すると、ストアURLは以下になります。",
+      "warning": "カスタムIDは一度設定すると変更できません。この内容で保存しますか？",
+      "back": "戻る",
+      "proceed": "このIDで保存する"
+    }
+  },
+  "publicProfile": {
+    "loading": "読み込み中...",
+    "notFound": "ストアが見つかりません",
+    "backToHome": "ホームへ戻る",
+    "anonymousUser": "ユーザー",
+    "reviewCount": "レビュー {count} 件",
+    "noRating": "評価なし",
+    "bioHeading": "自己紹介",
+    "bioEmpty": "プロフィール文はまだ登録されていません。",
+    "skillsHeading": "出品中のスキル",
+    "skillsFetchFailed": "出品スキルの取得に失敗しました。",
+    "skillsEmpty": "出品中の商品はまだありません。",
+    "ratingHeading": "評価",
+    "averageRating": "平均評価",
+    "averageRatingAria": "平均評価 {value}",
+    "ratingsCount": "{count}件の評価",
+    "starLabel": "星{count}",
+    "starCount": "{count}人",
+    "noRatingsYet": "まだ評価はありません。",
+    "commentsHeading": "評価コメント",
+    "filterReset": "絞り込みを解除（星{count}）",
+    "commentsEmpty": "コメント付きの評価はまだありません。",
+    "commentRatingAria": "評価 {value}",
+    "reportUser": "このユーザーを通報する",
+    "unnamedReviewer": "ユーザー"
+  },
+  "brandLogo": {
+    "pageTitle": "ブランドロゴ",
+    "backToHome": "トップページに戻る",
+    "intentHeading": "GritVibのロゴに込めた想い",
+    "intent": "「GritVib（グリット・ヴィブ）」という名前に込めたのは、折れない心と共鳴です。GritVibは、単なるスキルの売り買いの場ではありません。「Grit（やり抜く力・気概）」を持つ人たちが、その熱量を「Vibe（共鳴）」させ、新しい挑戦を後押しする場所として誕生しました。",
+    "introHeading": "1. イントロダクション",
+    "intro1": "GritVibは、努力の途中にいる人の熱量を価値に変え、次の挑戦者へつなぐためのコミュニティです。",
+    "intro2": "このロゴには、「挑戦を始める瞬間」と「積み重ねる時間」を、ひとつのシンボルとして表現したいという意思を込めています。",
+    "symbolHeading": "2. シンボル：隠されたストーリー",
+    "symbol1Title": "GOAT（Greatest of All Time）への敬意",
+    "symbol1Body": "ロゴを構成する三角形のパーツは、山岳地帯を力強く登り続ける「ヤギ（GOAT）」の蹄跡（ひづめのあと）をモチーフにしています。",
+    "symbol2Title": "頂点を目指す「Grit」",
+    "symbol2Body": "隠された三角形は、目標に向かって一歩ずつ着実に進むステップを表現しており、全体でヤギの角（ホーン）のシルエットを形成しています。",
+    "conceptHeading": "3. コンセプト：経歴よりも、今の情熱を",
+    "conceptTagline": "「誰でも教えられる。誰でも挑戦できる。」",
+    "concept1": "このロゴには、「完成されたプロ」だけでなく、「今まさに努力している人」を肯定したいという想いを込めました。",
+    "concept2": "豪華な経歴がなくても、あなたの持つ独自の視点や「好き」への情熱が、誰かの「一歩」を支える力になります。",
+    "concept3": "私たちは、この小さな蹄跡（ロゴ）のように、一人ひとりの挑戦が積み重なり、大きな山を登り切るための力となれるようなコミュニティを目指しています。"
+  },
+  "maintenance": {
+    "title": "メンテナンス中",
+    "message": "現在システムメンテナンスを実施しています。ご不便をおかけしますが、しばらくしてから再度アクセスしてください。"
+  },
+  "profileSetup": {
+    "title": "プロフィール設定",
+    "subtitle": "アイコン・自己紹介や興味のある分野を登録して、GritVib を始めましょう！",
+    "skipToHome": "スキップしてホームへ",
+    "avatarHeading": "プロフィール画像",
+    "avatarHint": "プロフィールやチャットなどで表示されるアイコン画像を設定できます（任意）",
+    "avatarPreviewAlt": "アイコンプレビュー",
+    "avatarRemoveAria": "プロフィール画像を削除",
+    "avatarSelect": "画像を選択",
+    "cropModalHeading": "プロフィールアイコン",
+    "cropModalSubheading": "枠内が保存される範囲です。ドラッグで位置を、ホイールやピンチで拡大・縮小できます。",
+    "customIdLabel": "カスタムID（任意・設定推奨）",
+    "customIdPlaceholder": "例: taro_fit",
+    "customIdHintBefore": "ストアURLを見やすくできます（例: 『taro_fit』とした場合、",
+    "customIdHintAfter": "のように表示されます）。英小文字で開始し、3〜30文字の英小文字・数字・アンダーバー・ハイフンが使えます。一度設定したカスタムIDは変更できませんのでご注意ください。",
+    "customIdLocked": "設定済みのため、カスタムIDは編集できません。",
+    "bioLabel": "自己紹介",
+    "bioPlaceholder": "自分の得意なことや経歴、克服したいことなど",
+    "interestsLabel": "興味のある分野",
+    "interestsHint": "複数選択できます",
+    "submit": "保存する",
+    "submitting": "保存中...",
+    "confirmTitle": "カスタムID設定の確認",
+    "confirmIntro": "このIDで設定すると、ストアURLは以下になります。",
+    "confirmWarning": "カスタムIDは一度設定すると変更できません。この内容で保存しますか？",
+    "confirmCancel": "戻る",
+    "confirmProceed": "このIDで保存する"
+  },
+  "about": {
+    "title": "GritVibについて",
+    "backToHome": "トップページに戻る",
+    "lead": "GritVib（グリットヴィブ）は、個人の「好き」や「得意」を価値に変え、自分だけの独立したお店を開設できる個人ストアプラットフォームです。",
+    "conceptHeading": "GritVibが大切にしていること（コンセプト）",
+    "conceptPoint1": "私たちは、誰かに何かを教えたり提供したりする際に、型にはまった「肩書」や「資格の有無」よりも、「これまでの経験、工夫、そして楽しむ心」にこそ、何よりの価値があると信じています。",
+    "conceptPoint2": "特別な資格や、業界での長い経歴がなくても、積み重ねてきた独自のノウハウや個性が、誰かの課題を解決し、目標達成を力強く後押しするかもしれません。",
+    "conceptPoint3": "GritVibは、スキルを、そして「好き」を、SNSのフォロワーや必要としている人々に直接届けられる個人ストアを提供します。",
+    "featuresHeading": "GritVibの特徴",
+    "feature1Title": "相談から始まる安心の取引",
+    "feature1Body": "いきなり商品が購入されるのではなく、まずは購入希望者から「購入リクエスト」を受け取り、出品者と購入者の双方が納得してから取引をスタートできる「事前オファー制」を採用しています。これにより、お互いにミスマッチのない誠実な取引が可能です。",
+    "feature2Title": "あなたらしいスキルを自由に販売",
+    "feature2Body": "提供するジャンルに縛りはありません。テキストによるオンライン相談、動画やデジタルコンテンツの提供、通話によるマンツーマンサポート、あるいは対面での指導など、あなたの強みや「好き」を活かして自由にメニュー（商品）を作成してください。",
+    "feature3Title": "手数料",
+    "feature3Body": "プラットフォームの利用手数料は、取引成立時の販売価格の15%です。複雑な追加費用はなく、努力と成果を最大限に手元へ還元することを目指しています。",
+    "safetyHeading": "安全への取り組み",
+    "safetyIntro": "私たちは、個人が安心してビジネスを営み、購入者が心地よくサービスを受け取れるクリーンな環境を徹底しています。",
+    "safety1Title": "不適切な文脈の徹底排除",
+    "safety1Body": "スキルの売り買いという健全な目的を尊重し、コミュニティの安全を脅かす公序良俗に反する行為や、不適切なコンテンツの投稿はシステムと規約に基づき厳正に対処します。",
+    "safety2Title": "安心の世界基準決済システム",
+    "safety2Body": "世界中で利用されている最高峰の決済インフラ「Stripe（Stripe Connect）」を標準搭載。出品者・購入者ともに、お金のやり取りに一切の不安なく安全に取引が完了します。",
+    "operatorHeading": "運営者からの一言",
+    "operatorParagraph1": "GritVibは、私自身が「「好き」を通じて誰かとつながり、価値を生み出したい」という想いから立ち上げたプラットフォームです。",
+    "operatorParagraph2": "まだ小さなサービスですが、ここからたくさんの挑戦の輪が広がることを心から願っています。ぜひ気軽に「好き」を共有してみてください！"
+  },
+  "legal": {
+    "termsTitle": "GritVib 利用規約",
+    "privacyTitle": "GritVib プライバシーポリシー",
+    "commercialTitle": "特定商取引法に基づく表記",
+    "backToHome": "トップページに戻る",
+    "documentEnd": "以上"
+  },
+  "footer": {
+    "aboutTitle": "サービスについて",
+    "about": "GritVibについて",
+    "brandLogo": "ブランドロゴ",
+    "terms": "利用規約",
+    "privacy": "プライバシーポリシー",
+    "commercial": "特定商取引法に基づく表記",
+    "helpTitle": "ヘルプ＆ガイド",
+    "guide": "使い方ガイド",
+    "contact": "お問い合わせ",
+    "socialTitle": "公式SNS",
+    "officialX": "GritVib公式X",
+    "officialInstagram": "GritVib公式Instagram",
+    "copyright": "© 2026 GritVib"
+  },
+  "store": {
+    "notLoggedInTitle": "マイストアをはじめる",
+    "notLoggedInDescription": "ログインすると、売上・出品・プロフィールの管理と URL の共有が使えます。",
+    "urlFetchFailed": "ストアURLの取得に失敗しました。",
+    "copyFailed": "コピーに失敗しました。手動でコピーしてください。",
+    "copied": "ストアURLをコピーしました。",
+    "stripeBalanceFetchFailed": "Stripe 残高の取得に失敗しました。",
+    "dashboard": {
+      "kicker": "マイストア",
+      "title": "ダッシュボード",
+      "lifetimeSales": "総売上（累計）",
+      "salesOnboarding": "売上の確認",
+      "afterFeeNote": "手数料（15%）差引後の受取額",
+      "salesLoading": "売上を読み込み中...",
+      "stripeOnboardingPrompt": "売上は、Stripeで口座登録や本人確認を済ませるとご確認いただけます。",
+      "details": "詳細",
+      "completedTrades": "完了取引",
+      "publishedListings": "出品中",
+      "available": "振込可能",
+      "pending": "入金予定",
+      "countSuffix": "件",
+      "monthlyChart": "直近6ヶ月の受取推移",
+      "shortcuts": "ショートカット",
+      "open": "開く"
+    },
+    "urlPanel": {
+      "title": "ストアURL",
+      "subtitle": "ストアへの導線をワンタップで共有",
+      "customIdPrefix": "カスタムIDは",
+      "customIdLink": "プロフィール設定",
+      "customIdSuffix": "から設定できます。",
+      "copyUrl": "URLをコピー",
+      "preview": "プレビュー"
+    },
+    "menuDescriptions": {
+      "profile": "表示名・アイコン・自己紹介",
+      "sales": "振込設定・Stripe 残高",
+      "listings": "公開・非公開・編集",
+      "trades": "購入・受注・相談・チャット",
+      "favorites": "気になるストアや商品",
+      "reviews": "レビューと評価の確認",
+      "settings": "アカウント・通知"
+    }
+  },
+  "discover": {
+    "title": "スキル一覧",
+    "subtitle": "公開中のスキルを探して購入できます",
+    "filtersButton": "フィルター",
+    "sortAria": "並べ替え",
+    "modalTitle": "フィルター",
+    "parentCategoryLabel": "大カテゴリ",
+    "subCategoryLabel": "小カテゴリ",
+    "preOfferLabel": "事前オファー",
+    "preOfferEnabled": "あり",
+    "preOfferDisabled": "なし",
+    "formatLabel": "実施形式",
+    "formatOnline": "オンライン",
+    "formatOnsite": "対面",
+    "locationLabel": "実施場所",
+    "locationPlaceholder": "都道府県を選択",
+    "availabilityLabel": "対応状況",
+    "availabilityAvailable": "対応可能",
+    "availabilityFull": "満員対応中",
+    "durationLabel": "1回あたりの時間",
+    "minDurationPlaceholder": "最小時間（分）",
+    "maxDurationPlaceholder": "最大時間（分）",
+    "priceLabel": "価格（円）",
+    "minPricePlaceholder": "最低価格",
+    "maxPricePlaceholder": "最高価格",
+    "reset": "リセット",
+    "applyAndClose": "適用して閉じる",
+    "durationValidation": "最小時間は最大時間以下で入力してください。",
+    "priceValidation": "最低価格は最高価格以下で入力してください。"
+  },
+  "hero": {
+    "line1": "挑戦するすべての人に、",
+    "line2Prefix": "「好き」を",
+    "line2Emphasis": "価値",
+    "line2Suffix": "にする選択肢を。",
+    "subtitle": "好きなこと・得意なことを商品に。自分のスキルを販売してみよう！"
+  },
+  "guide": {
+    "title": "GritVib 使い方ガイド",
+    "backToHome": "トップページに戻る",
+    "intro": "出品者・購入者のどちらでも、安心してスムーズに取引できるように、開始から完了までの流れをまとめました。",
+    "seller": {
+      "heading": "1. 出品者の方へ：あなたの「スキル」を販売する",
+      "intro": "あなたの得意なこと、専門知識、デジタルコンテンツを必要としている人へ届けましょう。",
+      "step1Title": "マイページで準備",
+      "step1Body": "「マイページ」からStripe連携を行い、本人確認・口座設定を完了させます（売上を受け取るために必須となります）。",
+      "step2Title": "スキルを出品",
+      "step2Body": "「新しく出品する」ボタンから、あなたが提供できるサービスの内容（テキスト相談、オンライン通話、動画提供、対面指導など）や価格を設定して公開します。",
+      "step3Title": "事前オファー（相談）の設定",
+      "step3Body": "購入前の確認質問（最大3つ）を設定できます。購入者の目的や現状を事前に把握することで、お互いのミスマッチを防ぐことができます。",
+      "step4Title": "オファーの確認と承認",
+      "step4Body": "購入希望者から届いたオファー内容を確認し、「承認」または「拒否」を選択します。承認されると、購入者が決済（購入）できるようになります。",
+      "step5Title": "取引・提供開始",
+      "step5Body": "決済が完了すると専用のチャット画面が開放されます。チャット内でメッセージのやり取りをしたり、{tools}を使ってスキルを提供します。",
+      "step6Title": "完了申請",
+      "step6Body": "すべてのサービスの提供が終了したら、チャット画面等から「完了申請」を送信してください。購入者側の承認をもって取引が正式に完了します。"
+    },
+    "buyer": {
+      "heading": "2. 購入者の方へ：スキル・コンテンツを購入する",
+      "intro": "クリエイターや専門家から、自分にぴったりのスキルやサポートを受けましょう。",
+      "step1Title": "事前オファー（相談）に回答",
+      "step1Body": "購入を希望するスキルの詳細ページから、出品者の質問に対する回答を入力して送信します。",
+      "step2Title": "購入（決済）とチャットの開始",
+      "step2Body": "出品者からオファーが承認されると、決済が可能になります。支払いが完了するとすぐに専用のチャット画面へ案内されます。",
+      "step3Title": "スキルの受け取り・やり取り",
+      "step3Body": "チャット画面を使って出品者とコミュニケーションを取り、メッセージでの相談や、共有された外部ツール（{tools}）を通じてサービスを受け取ります。",
+      "step4Title": "取引完了の承認",
+      "step4Body": "出品者から「完了申請」が届いたら内容を確認し、サービスの提供がしっかりと行われていれば「承認」してください。",
+      "step5Title": "評価",
+      "step5Body": "最後に、取引の感想を込めてお互いを評価し、すべて完了となります。"
+    },
+    "support": {
+      "heading": "3. 安心・安全への取り組み（運営サポート）",
+      "intro": "GritVibでは、すべての利用者が快適に取引を行えるよう、運営がバックアップします。",
+      "disputeTitle": "異議申し立てについて",
+      "disputeBody": "万が一、「代金を支払ったのにサービスが一切提供されない」「連絡が途絶えてしまった」などのトラブルが発生した場合は、運営へ「異議申し立て」を行うことができます。運営が事実確認を行い、取引の進行サポートや取引の強制終了（返金等）の対応を行います。",
+      "contactTitle": "お問い合わせについて",
+      "contactBody": "ご不明な点やシステム上の不具合がございましたら、フッターにある「お問い合わせ」よりいつでもお気軽にご連絡ください。"
+    }
+  },
+  "contact": {
+    "title": "お問い合わせ",
+    "backToHome": "ホームに戻る",
+    "formTitle": "フォーム入力",
+    "labelName": "名前",
+    "labelEmail": "メールアドレス",
+    "labelCategory": "カテゴリ",
+    "labelSubject": "件名",
+    "labelTransactionId": "取引ID",
+    "labelContent": "内容",
+    "labelAttachment": "添付ファイル",
+    "required": "必須",
+    "optional": "任意",
+    "selectPlaceholder": "選択してください",
+    "transactionIdHelp": "取引に関するお問い合わせの場合は、マイページの「進行中の取引（受講中 / 対応中）」一覧に表示される「取引ID」をご記入ください。",
+    "fileChoose": "ファイルを選択",
+    "fileNotChosen": "選択されていません",
+    "fileRemove": "削除",
+    "filePreviewAlt": "添付画像プレビュー",
+    "submit": "送信する",
+    "submitting": "送信中...",
+    "errors": {
+      "imageOnly": "添付ファイルは画像を選択してください。",
+      "requireAll": "必須項目をすべて入力してください。",
+      "invalidEmail": "メールアドレスの形式が正しくありません。",
+      "subjectTooLong": "件名は{max}文字以内で入力してください。",
+      "contentTooLong": "内容は{max}文字以内で入力してください。",
+      "invalidTransactionId": "取引IDは数字のみ{max}桁以内で入力してください。",
+      "uploadFailed": "添付ファイルのアップロードに失敗しました。",
+      "submitFailed": "送信に失敗しました。時間をおいて再度お試しください。"
+    }
+  },
+  "errors": {
+    "generic": "エラーが発生しました。",
+    "network": "通信エラーが発生しました。時間を置いて再度お試しください。",
+    "unauthorized": "ログインが必要です。",
+    "forbidden": "この操作には権限が必要です。",
+    "notFound": "見つかりませんでした。"
+  },
+  "toast": {
+    "logoutSuccess": "ログアウトしました"
+  },
+  "sortOptions": {
+    "popular": "人気順",
+    "newest": "新しい順",
+    "oldest": "古い順",
+    "price_asc": "価格が低い順",
+    "price_desc": "価格が高い順",
+    "rating_desc": "講師の評価が高い順",
+    "rating_asc": "講師の評価が低い順",
+    "review_count_desc": "講師の評価件数が多い順",
+    "review_count_asc": "講師の評価件数が少ない順",
+    "duration_asc": "1回あたりの時間が短い順",
+    "duration_desc": "1回あたりの時間が長い順"
+  },
+  "skillGrid": {
+    "loading": "スキル一覧を読み込み中...",
+    "fetchFailed": "スキル一覧の取得に失敗しました。",
+    "filterResult": "絞り込み結果: {count}件"
+  },
+  "skillCard": {
+    "popular": "人気",
+    "new": "NEW",
+    "reviewsCount": "({count}件)",
+    "studentsCount": "{count}人",
+    "durationFormat": "{minutes}分",
+    "perSession": "/回",
+    "viewDetail": "詳細を見る",
+    "referenceOnlyLine1": "参考データのため、",
+    "referenceOnlyLine2": "ご購入いただけません",
+    "openDetailAria": "{title}の詳細を開く",
+    "instructorFallback": "講師"
+  },
+  "login": {
+    "titleLogin": "ログイン",
+    "titleSignup": "新規登録",
+    "titleReset": "パスワード再設定",
+    "titleVerify": "メール確認の案内",
+    "titleVerifyRecovery": "ログインへ進む",
+    "descLogin": "登録済みのアカウントでGritVibにログインします。",
+    "descSignup": "メールアドレスでアカウントを作成します。確認メールのリンクを開いたあと、プロフィール設定に進みます。",
+    "descReset": "登録済みメールアドレス宛に、再設定リンクを送信します。",
+    "descVerify": "確認メールのリンクを開いて認証を完了してください。認証後にプロフィール設定へ進みます。",
+    "descVerifyRecovery": "ログインするとプロフィール設定に進めます。うまくいかないときの案内は下記をご覧ください。",
+    "backToHome": "ホームに戻る",
+    "tabLogin": "ログイン",
+    "tabSignup": "新規登録",
+    "fullName": "氏名（本名）",
+    "fullNamePlaceholder": "例: 山田 太郎",
+    "fullNameHelp": "※氏名は安全なコミュニティ運営のためにのみ使用され、他のユーザーには公開されません（表示名のみが公開されます）。ご本人確認と、健全な取引のためにご協力をお願いします。",
+    "birthday": "誕生日",
+    "displayName": "表示名",
+    "displayNamePlaceholder": "例: Kenta Trainer",
+    "email": "メールアドレス",
+    "emailPlaceholder": "you@example.com",
+    "emailConfirm": "メールアドレス（確認用）",
+    "emailConfirmPlaceholder": "確認のため同じメールアドレスを入力",
+    "emailMismatch": "メールアドレスが一致していません。",
+    "password": "パスワード",
+    "passwordPlaceholderLogin": "パスワードを入力",
+    "passwordPlaceholderSignup": "8文字以上・大文字/小文字/数字を含める",
+    "passwordToggleShow": "パスワードを表示",
+    "passwordToggleHide": "パスワードを隠す",
+    "passwordConfirm": "パスワード（確認用）",
+    "passwordConfirmPlaceholder": "確認のため同じパスワードを入力",
+    "passwordConfirmToggleShow": "確認用パスワードを表示",
+    "passwordConfirmToggleHide": "確認用パスワードを隠す",
+    "passwordMismatch": "パスワードが一致していません。",
+    "passwordRuleMin": "8文字以上で入力してください。",
+    "passwordRuleUpper": "英大文字が含まれていません。",
+    "passwordRuleLower": "英小文字が含まれていません。",
+    "passwordRuleNumber": "数字が含まれていません。",
+    "displayNameNote": "表示名は30日に1回、変更できます。一度設定すると30日間は変更ができませんのでご注意ください。",
+    "forgotPassword": "パスワードを忘れた場合",
+    "returnToLogin": "ログインに戻る",
+    "submitting": "処理中...",
+    "submitLogin": "ログイン",
+    "submitSignup": "アカウントを作成",
+    "submitReset": "再設定メールを送信",
+    "verifySent": "確認メールを送信しました。",
+    "verifyDoneLikely": "メールの確認は、リンクを開いたら完了していることがほとんどです",
+    "verifySentBody": "認証用メールを送信しました。メール内のリンクを開いて認証を完了してください。認証後にプロフィール設定へ進みます。",
+    "verifyRecoveryBody": "登録したメールアドレスとパスワードでログインすると、プロフィール設定に進めます。",
+    "verifyEmailLabel": "送信先メールアドレス",
+    "verifyEmailHint": "再送前に宛先をご確認ください。",
+    "verifyEmailFormatError": "メールアドレスの形式が正しくありません。",
+    "verifyEmailChanged": "登録時のメールアドレス（{email}）と異なります。別アドレスで受け取るには登録し直してください。",
+    "verifyHelpRecoveryTitle": "ログインができない場合",
+    "verifyHelpRecoveryIntro": "確認メールのリンクを開いているのにログインできないときは、次を順にお試しください。",
+    "verifyHelpItemCredentials": "メールアドレスとパスワードの入力ミスがないかご確認ください。",
+    "verifyHelpItemSpam": "迷惑メールフォルダやプロモーションタブをご確認ください。",
+    "verifyHelpItemResentOnce": "確認メールの再送は1回までです。届かない場合はお問い合わせください。",
+    "verifyHelpItemReRegisterRecovery": "メールアドレスを間違えて登録した場合は、「このメールアドレスで登録し直す」をお試しください。",
+    "verifyHelpItemResendWait": "数分待ってから、宛先を確認のうえ「確認メールを再送する」をお試しください（1回まで）。",
+    "verifyHelpItemReRegisterEditRecovery": "メールアドレスを間違えて登録した場合は、入力欄を直して「このメールアドレスで登録し直す」をお試しください。",
+    "verifyHelpInitialTitle": "メールが届かない場合",
+    "verifyHelpItemReRegister": "メールアドレスを間違えた場合は、「このメールアドレスで登録し直す」をお試しください。",
+    "verifyHelpItemResendWaitInitial": "数分待ってから、宛先を確認して「確認メールを再送する」をお試しください（1回まで）。",
+    "verifyHelpItemReRegisterEdit": "メールアドレスを間違えた場合は、入力欄を直して「このメールアドレスで登録し直す」をお試しください。",
+    "verifyAlreadyResentTitle": "確認メールは再送済みです",
+    "verifyAlreadyResentBody": "それでも届かない場合は、下の「お問い合わせ」からご連絡ください。",
+    "verifyResending": "再送中...",
+    "verifyAlreadyResent": "確認メールは再送済みです",
+    "verifyResend": "確認メールを再送する",
+    "verifyReRegisterButton": "このメールアドレスで登録し直す",
+    "verifyContactButton": "お問い合わせ",
+    "verifyBackToLogin": "ログイン画面に戻る",
+    "loginHelpTitle": "ログインができない場合",
+    "loginHelpItemCredentials": "メールアドレスとパスワードの入力ミスがないかご確認ください。",
+    "loginHelpItemForgot": "パスワードを忘れた場合は、下の「パスワードを忘れた場合」から再設定できます。",
+    "loginHelpItemContactPrefix": "それでも解決しない場合は ",
+    "loginHelpItemContactLink": "お問い合わせ",
+    "loginHelpItemContactSuffix": " からご連絡ください。",
+    "loginHelpHide": "この案内を表示しない"
+  },
+  "contactSuccess": {
+    "title": "送信が完了しました",
+    "thanks": "お問い合わせいただきありがとうございます。",
+    "selectiveReply": "運営が必要だと判断したものにのみ返信させていただきます。",
+    "replyMayTake": "ご返信までお時間をいただく場合がございます（数日かかる場合があります）。",
+    "acknowledge": "あらかじめご了承ください。",
+    "backToHome": "トップページに戻る"
+  },
+  "updatePassword": {
+    "title": "パスワード更新",
+    "subtitle": "新しいパスワードを設定して、アカウントへログインしてください。",
+    "newPassword": "新しいパスワード",
+    "newPasswordPlaceholder": "8文字以上・大文字/小文字/数字を含める",
+    "newPasswordConfirm": "新しいパスワード（確認用）",
+    "newPasswordConfirmPlaceholder": "確認のため同じパスワードを入力",
+    "passwordToggleShow": "パスワードを表示",
+    "passwordToggleHide": "パスワードを隠す",
+    "passwordConfirmToggleShow": "確認用パスワードを表示",
+    "passwordConfirmToggleHide": "確認用パスワードを隠す",
+    "passwordMismatch": "パスワードが一致していません。",
+    "submit": "パスワードを更新",
+    "submitting": "更新中..."
+  },
+  "authCallback": {
+    "errorMessage": "認証処理中にエラーが発生しました。",
+    "loadingMessage": "メール認証を確認しています…"
+  },
+  "metadata": {
+    "siteName": "GritVib",
+    "layoutTitleDefault": "GritVib | 挑戦するすべての人に、「好き」を価値にする選択肢を。",
+    "layoutDescription": "GritVib（グリット・ヴィブ）は、誰でも自分のスキルを売るためのストアを無料で簡単に作れるサービスです。特別な資格がなくても、あなたの日々の積み重ねや「好き」の経験が誰かの価値になります。SNSから手軽に始めて、あなたの「好き」をもっと大切にする副業に。",
+    "homeTitle": "GritVib | 挑戦するすべての人に、「好き」を価値にする選択肢を。",
+    "homeDescription": "GritVib（グリット・ヴィブ）は、誰でも自分のスキルを売るためのストアを無料で簡単に作れるサービスです。特別な資格がなくても、あなたの日々の積み重ねや「好き」の経験が誰かの価値になります。SNSから手軽に始めて、あなたの「好き」をもっと大切にする副業に。",
+    "about": {
+      "title": "GritVibについて",
+      "description": "個人の「好き」や「得意」を価値に変える個人ストアプラットフォーム・GritVib（グリットヴィブ）のコンセプト、特徴、安全への取り組みをご紹介します。"
+    },
+    "guide": {
+      "title": "ご利用ガイド",
+      "description": "出品者・購入者それぞれの流れ（Stripe連携、スキル出品、事前オファー、指導開始、完了申請など）を分かりやすくまとめたGritVibのご利用ガイドです。"
+    },
+    "discover": {
+      "title": "スキルを探す",
+      "description": "公開中のスキル・サービスを検索・一覧から探せます。"
+    },
+    "terms": {
+      "title": "利用規約",
+      "description": "GritVib（グリット・ヴィブ）個人ストアプラットフォームの利用条件、禁止事項、取引、決済、免責などを定める利用規約です。"
+    },
+    "privacy": {
+      "title": "プライバシーポリシー",
+      "description": "GritVib（グリットヴィブ）における個人情報の取扱い、利用目的、第三者提供、Cookieの利用などを定めたプライバシーポリシーです。"
+    },
+    "specifiedCommercialTransactions": {
+      "title": "特定商取引法に基づく表記",
+      "description": "GritVib（グリットヴィブ）の特定商取引法に基づく表記。事業者情報、価格、支払方法、返品・キャンセル方針などを掲載しています。"
+    },
+    "contact": {
+      "title": "お問い合わせ",
+      "description": "GritVib（グリット・ヴィブ）へのご質問・不具合報告・取材などのお問い合わせはこちらから。運営チームが内容を確認します。",
+      "successTitle": "お問い合わせを受け付けました",
+      "successDescription": "GritVibへのお問い合わせを受け付けました。内容を確認のうえ、必要に応じてご返信します。"
+    },
+    "login": {
+      "title": "ログイン",
+      "description": "GritVib（グリット・ヴィブ）へのログイン。ストアの開設やスキルの出品・購入は、アカウント作成またはログインのうえでご利用ください。"
+    },
+    "mypage": {
+      "title": "マイページ",
+      "description": "GritVibのマイページ。出品スキル、取引、Stripe連携、通知など、アカウントに関する操作はこちらから行えます。"
+    },
+    "chat": {
+      "title": "取引チャット",
+      "description": "GritVibの取引に関するメッセージ画面です。購入者と出品者がスキル提供の進行についてやり取りできます。"
+    },
+    "maintenance": {
+      "title": "メンテナンス中",
+      "description": "GritVibは現在メンテナンス中です。しばらくしてから再度アクセスしてください。"
+    },
+    "profileSetup": {
+      "title": "プロフィール設定",
+      "description": "GritVibでスキルを出品・購入する前に、表示名や自己紹介などの公開プロフィールを設定します。"
+    },
+    "updatePassword": {
+      "title": "パスワード更新"
+    },
+    "createSkill": {
+      "title": "スキルを出品",
+      "description": "あなたのスキルや「好き」を商品に。GritVibでストアに出品するための作成画面です。内容・価格・事前相談の設定までここから登録できます。"
+    },
+    "account": {
+      "fallbackTitle": "アカウント",
+      "descriptionTemplate": "GritVibの{title}画面です。",
+      "sections": {
+        "profile": "プロフィール設定",
+        "sales": "売上の確認",
+        "trades": "取引・メッセージ",
+        "favorites": "お気に入り",
+        "reviews": "評価",
+        "settings": "設定",
+        "listings": "出品管理"
+      }
+    },
+    "store": {
+      "fallbackTitle": "ストア",
+      "fallbackDisplayName": "出品者",
+      "descriptionTemplate": "{name}さんの個人ストア。GritVibでスキルやサービスを掲載しています。"
+    },
+    "skillsLayout": {
+      "fallbackTitle": "スキル",
+      "fallbackDescription": "GritVibで提供中のスキルです。"
+    }
+  },
+  "email": {
+    "footer": "このメールは送信専用です。返信できません。",
+    "signupConfirmation": {
+      "subject": "GritVib メールアドレスの確認",
+      "heading": "メールアドレスの確認",
+      "intro": "GritVib へのご登録ありがとうございます。下のボタンからメールアドレスを確認してください。",
+      "cta": "メールアドレスを確認する"
+    },
+    "checkoutRefund": {
+      "subject": "【GritVib】お支払いが返金されました",
+      "heading": "返金のお知らせ",
+      "introDuplicate": "同一スキルに対する重複したお支払いを検出したため、今回の決済は自動返金しました。",
+      "introSkillFull": "申し込み枠の確保に失敗したため、今回のお支払いは自動返金しました。",
+      "lineSkill": "対象スキル: {title}",
+      "lineDelay": "返金の反映には、カード会社や決済サービスの処理により数日かかる場合があります。",
+      "cta": "スキルページを開く"
+    },
+    "transactionEstablished": {
+      "subject": "【GritVib】取引が成立しました",
+      "heading": "取引成立通知",
+      "introSeller": "あなたのスキルが購入され、取引が開始されました。",
+      "introBuyer": "購入手続きが完了し、取引が開始されました。",
+      "cta": "取引チャットを開く"
+    },
+    "transactionMessage": {
+      "subject": "【GritVib】取引チャットに新しいメッセージが届きました",
+      "heading": "取引チャット通知",
+      "intro": "取引チャットに新しいメッセージが届いています。",
+      "cta": "チャットを開く"
+    },
+    "completionRequested": {
+      "subject": "【GritVib】取引完了申請が届きました",
+      "heading": "取引完了申請通知",
+      "intro": "出品者から取引完了申請が届きました。内容を確認して承認してください。",
+      "cta": "取引チャットを確認"
+    },
+    "transactionCompleted": {
+      "subject": "【GritVib】取引が完了しました",
+      "heading": "取引完了通知",
+      "intro": "対象の取引は完了しました。",
+      "cta": "取引チャットを開く"
+    },
+    "consultationOffer": {
+      "subject": "【GritVib】新しい事前オファーが届きました",
+      "heading": "事前オファー通知",
+      "intro": "あなたのスキルに新しい事前オファーが届きました。",
+      "line": "マイページの受講リクエストから内容を確認し、承認または拒否を選択してください。",
+      "cta": "受講リクエストを確認"
+    },
+    "consultationDecision": {
+      "subjectAccepted": "【GritVib】事前オファーが承認されました",
+      "subjectRejected": "【GritVib】事前オファーが拒否されました",
+      "headingAccepted": "事前オファー承認通知",
+      "headingRejected": "事前オファー拒否通知",
+      "introAccepted": "事前オファーが承認されました。購入手続きに進めます。",
+      "introRejected": "事前オファーが拒否されました。必要があれば内容を見直して再申請してください。",
+      "cta": "マイページを開く"
+    },
+    "disputeResult": {
+      "subjectApproved": "【GritVib】異議申し立てが承認されました",
+      "subjectRejected": "【GritVib】異議申し立てが棄却されました",
+      "heading": "異議申し立て結果通知",
+      "introApproved": "異議申し立てが承認され、取引は再開されました。",
+      "introRejected": "異議申し立ては棄却され、取引は完了しました。",
+      "cta": "取引チャットを確認"
+    },
+    "userBanned": {
+      "subject": "【GritVib】アカウント利用制限のお知らせ",
+      "heading": "アカウント利用制限通知",
+      "intro": "運営判断により、あなたのアカウントは利用停止（BAN）されました。",
+      "lineReason": "理由: {reason}",
+      "cta": "お問い合わせ"
+    },
+    "skillModerated": {
+      "subjectDeleted": "【GritVib】商品が削除されました",
+      "subjectUnpublished": "【GritVib】商品が非公開されました",
+      "subjectPublished": "【GritVib】商品が公開されました",
+      "heading": "商品モデレーション通知",
+      "introDeleted": "運営対応により商品「{title}」が削除されました。",
+      "introUnpublished": "運営対応により商品「{title}」が非公開にされました。",
+      "introPublished": "運営対応により商品「{title}」が公開されました。",
+      "lineReason": "理由: {reason}",
+      "cta": "マイページを開く"
+    },
+    "inquiryMessage": {
+      "subject": "【GritVib】新しい相談メッセージが届きました",
+      "preview": "{sender}さんから相談メッセージが届きました",
+      "heading": "GritVib 相談チャット通知",
+      "greeting": "{recipient}さん、こんにちは。",
+      "body": "{sender}さんから、{skill} について新しいメッセージが届きました。",
+      "snippetLabel": "受信メッセージ",
+      "cta": "チャットを開く",
+      "userFallback": "ユーザー",
+      "skillFallback": "スキル"
+    }
+  }
+}

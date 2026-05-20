@@ -176,6 +176,12 @@ export async function completeTransactionWithPayout(
         intro: "異議申し立ては棄却され、取引は完了しました。",
         ctaLabel: "取引チャットを開く",
         ctaUrl: chatUrl,
+        localizedKeys: {
+          subjectKey: "email.disputeResult.subjectRejected",
+          headingKey: "email.disputeResult.heading",
+          introKey: "email.disputeResult.introRejected",
+          ctaLabelKey: "email.disputeResult.cta",
+        },
       }),
       sendUserEventEmail({
         topic: "dispute_result",
@@ -185,6 +191,12 @@ export async function completeTransactionWithPayout(
         intro: "異議申し立ては棄却され、取引は完了しました。",
         ctaLabel: "取引チャットを開く",
         ctaUrl: chatUrl,
+        localizedKeys: {
+          subjectKey: "email.disputeResult.subjectRejected",
+          headingKey: "email.disputeResult.heading",
+          introKey: "email.disputeResult.introRejected",
+          ctaLabelKey: "email.disputeResult.cta",
+        },
       }),
     ])
   } else {
@@ -197,6 +209,12 @@ export async function completeTransactionWithPayout(
         intro: "対象の取引は完了しました。",
         ctaLabel: "取引チャットを開く",
         ctaUrl: chatUrl,
+        localizedKeys: {
+          subjectKey: "email.transactionCompleted.subject",
+          headingKey: "email.transactionCompleted.heading",
+          introKey: "email.transactionCompleted.intro",
+          ctaLabelKey: "email.transactionCompleted.cta",
+        },
       }),
       sendUserEventEmail({
         topic: "transaction_completed",
@@ -206,6 +224,12 @@ export async function completeTransactionWithPayout(
         intro: "対象の取引は完了しました。",
         ctaLabel: "取引チャットを開く",
         ctaUrl: chatUrl,
+        localizedKeys: {
+          subjectKey: "email.transactionCompleted.subject",
+          headingKey: "email.transactionCompleted.heading",
+          introKey: "email.transactionCompleted.intro",
+          ctaLabelKey: "email.transactionCompleted.cta",
+        },
       }),
     ])
   }

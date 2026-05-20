@@ -1,4 +1,4 @@
-﻿import {
+import {
   Body,
   Button,
   Container,
@@ -10,6 +10,12 @@
   Text,
 } from "@react-email/components"
 import * as React from "react"
+import {
+  formatMessage,
+  getDictionary,
+  lookupMessage,
+} from "@/lib/i18n/dictionaries"
+import { DEFAULT_LOCALE, localeToHtmlLang, type Locale } from "@/lib/i18n/locales"
 
 type InquiryMessageEmailProps = {
   recipientName: string
@@ -17,6 +23,10 @@ type InquiryMessageEmailProps = {
   skillTitle: string
   messageSnippet: string
   chatUrl: string
+  /**
+   * メール本文の言語。未指定の場合は 'ja'（既存の挙動と完全に一致）。
+   */
+  locale?: Locale
 }
 
 const brandRed = "#e64a19"
@@ -27,31 +37,56 @@ export function InquiryMessageEmail({
   skillTitle,
   messageSnippet,
   chatUrl,
+  locale,
 }: InquiryMessageEmailProps) {
+  const effectiveLocale: Locale = locale ?? DEFAULT_LOCALE
+  const dict = getDictionary(effectiveLocale)
+  const tr = (key: string, values?: Record<string, string | number>): string => {
+    const raw = lookupMessage(dict, key)
+    return formatMessage(raw, values)
+  }
+  const previewText = tr("email.inquiryMessage.preview", { sender: senderName })
+  const headingText = tr("email.inquiryMessage.heading")
+  const greetingText = tr("email.inquiryMessage.greeting", { recipient: recipientName })
+  const snippetLabel = tr("email.inquiryMessage.snippetLabel")
+  const ctaText = tr("email.inquiryMessage.cta")
+  const footerText = tr("email.footer")
+  const bodyTemplate = tr("email.inquiryMessage.body")
+  // 本文に <strong> を埋め込むため、プレースホルダ位置で分割する。
+  const bodyParts = bodyTemplate.split(/\{(sender|skill)\}/g)
+
   return (
-    <Html lang="ja">
+    <Html lang={localeToHtmlLang(effectiveLocale)}>
       <Head />
-      <Preview>{`${senderName}さんから相談メッセージが届きました`}</Preview>
+      <Preview>{previewText}</Preview>
       <Body style={main}>
         <Container style={container}>
-          <Heading style={heading}>GritVib 相談チャット通知</Heading>
-          <Text style={paragraph}>{recipientName}さん、こんにちは。</Text>
+          <Heading style={heading}>{headingText}</Heading>
+          <Text style={paragraph}>{greetingText}</Text>
           <Text style={paragraph}>
-            <strong>{senderName}</strong>さんから、<strong>{skillTitle}</strong> について新しいメッセージが届きました。
+            {bodyParts.map((part, index) => {
+              if (part === "sender") {
+                return <strong key={`sender-${index}`}>{senderName}</strong>
+              }
+              if (part === "skill") {
+                return <strong key={`skill-${index}`}>{skillTitle}</strong>
+              }
+              return <React.Fragment key={`text-${index}`}>{part}</React.Fragment>
+            })}
           </Text>
 
           <Section style={snippetBox}>
-            <Text style={snippetLabel}>受信メッセージ</Text>
+            <Text style={snippetLabelStyle}>{snippetLabel}</Text>
             <Text style={snippetText}>{messageSnippet}</Text>
           </Section>
 
           <Section style={buttonWrap}>
             <Button href={chatUrl} style={button}>
-              チャットを開く
+              {ctaText}
             </Button>
           </Section>
 
-          <Text style={footnote}>このメールは送信専用です。返信できません。</Text>
+          <Text style={footnote}>{footerText}</Text>
         </Container>
       </Body>
     </Html>
@@ -99,7 +134,7 @@ const snippetBox: React.CSSProperties = {
   padding: "14px",
 }
 
-const snippetLabel: React.CSSProperties = {
+const snippetLabelStyle: React.CSSProperties = {
   margin: 0,
   color: "#a1a1aa",
   fontSize: "12px",

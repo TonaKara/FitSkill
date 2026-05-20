@@ -6,11 +6,11 @@ import { Info, Loader2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
-  DISCORD_LINK_SERVER_INVITE_NOTICE,
   isValidDiscordUserIdInput,
   type LinkMessagePayload,
 } from "@/lib/chat-link-payload"
 import { chatUi } from "@/lib/chat-ui"
+import { useTranslations } from "@/lib/i18n/useI18n"
 import { cn } from "@/lib/utils"
 
 type Step = "pick" | "zoom" | "youtube" | "discord"
@@ -33,6 +33,10 @@ type Props = {
 }
 
 export function ChatLinkIntegrationModal({ open, onClose, onConfirm, busy, allowZoom = true }: Props) {
+  const tModal = useTranslations("chatLink.modal")
+  const tErr = useTranslations("chatLink.modal.errors")
+  const tShared = useTranslations("chatLink")
+  const tAria = useTranslations("aria")
   const [mounted, setMounted] = useState(false)
   const [step, setStep] = useState<Step>("pick")
   const [zoomMeetingId, setZoomMeetingId] = useState("")
@@ -81,15 +85,15 @@ export function ChatLinkIntegrationModal({ open, onClose, onConfirm, busy, allow
     const meetingId = zoomMeetingId.trim()
     const link = zoomLink.trim()
     if (!meetingId) {
-      setLocalError("ミーティングIDを入力してください。")
+      setLocalError(tErr("meetingIdRequired"))
       return
     }
     if (!link) {
-      setLocalError("リンクを入力してください。")
+      setLocalError(tErr("linkRequired"))
       return
     }
     if (!isValidHttpUrl(link)) {
-      setLocalError("リンクは有効な URL 形式で入力してください。")
+      setLocalError(tErr("linkInvalid"))
       return
     }
     await onConfirm({
@@ -104,11 +108,11 @@ export function ChatLinkIntegrationModal({ open, onClose, onConfirm, busy, allow
     setLocalError(null)
     const url = youtubeUrl.trim()
     if (!url) {
-      setLocalError("動画の URL を入力してください。")
+      setLocalError(tErr("youtubeUrlRequired"))
       return
     }
     if (!isValidHttpUrl(url)) {
-      setLocalError("URL の形式が正しくありません。")
+      setLocalError(tErr("urlInvalid"))
       return
     }
     await onConfirm({ kind: "youtube", url })
@@ -118,11 +122,11 @@ export function ChatLinkIntegrationModal({ open, onClose, onConfirm, busy, allow
     setLocalError(null)
     const userId = discordUserId.trim()
     if (!userId) {
-      setLocalError("Discord のユーザー名（ID）を入力してください。")
+      setLocalError(tErr("discordUserIdRequired"))
       return
     }
     if (!isValidDiscordUserIdInput(userId)) {
-      setLocalError("ユーザー名（ID）の形式が正しくありません。")
+      setLocalError(tErr("discordUserIdInvalid"))
       return
     }
     await onConfirm({ kind: "discord", userId })
@@ -143,10 +147,10 @@ export function ChatLinkIntegrationModal({ open, onClose, onConfirm, busy, allow
       >
         <div className="mb-4 flex items-start justify-between gap-3">
           <h2 id="chat-link-modal-title" className={chatUi.modalTitleSm}>
-            {step === "pick" && "外部ツール連携"}
-            {step === "zoom" && "Zoom連携"}
-            {step === "youtube" && "YouTube連携"}
-            {step === "discord" && "Discord連携"}
+            {step === "pick" && tModal("pickTitle")}
+            {step === "zoom" && tModal("zoomTitle")}
+            {step === "youtube" && tModal("youtubeTitle")}
+            {step === "discord" && tModal("discordTitle")}
           </h2>
           <Button
             type="button"
@@ -155,7 +159,7 @@ export function ChatLinkIntegrationModal({ open, onClose, onConfirm, busy, allow
             className={cn("shrink-0", chatUi.ghostBtn)}
             disabled={busy}
             onClick={onClose}
-            aria-label="閉じる"
+            aria-label={tAria("close")}
           >
             <X className="h-5 w-5" />
           </Button>
@@ -163,7 +167,7 @@ export function ChatLinkIntegrationModal({ open, onClose, onConfirm, busy, allow
 
         {step === "pick" ? (
           <div className="flex flex-col gap-3">
-            <p className="text-sm text-muted-foreground">連携するサービスを選んでください。</p>
+            <p className="text-sm text-muted-foreground">{tModal("pickDescription")}</p>
             {allowZoom ? (
               <>
                 <Button
@@ -172,7 +176,7 @@ export function ChatLinkIntegrationModal({ open, onClose, onConfirm, busy, allow
                   onClick={() => setStep("zoom")}
                   disabled={busy}
                 >
-                  Zoom連携
+                  {tModal("zoomTitle")}
                 </Button>
                 <Button
                   type="button"
@@ -180,7 +184,7 @@ export function ChatLinkIntegrationModal({ open, onClose, onConfirm, busy, allow
                   onClick={() => setStep("discord")}
                   disabled={busy}
                 >
-                  Discord連携
+                  {tModal("discordTitle")}
                 </Button>
               </>
             ) : null}
@@ -190,7 +194,7 @@ export function ChatLinkIntegrationModal({ open, onClose, onConfirm, busy, allow
               onClick={() => setStep("youtube")}
               disabled={busy}
             >
-              YouTube連携
+              {tModal("youtubeTitle")}
             </Button>
           </div>
         ) : null}
@@ -198,33 +202,33 @@ export function ChatLinkIntegrationModal({ open, onClose, onConfirm, busy, allow
         {step === "zoom" ? (
           <div className="space-y-3">
             <label className="block">
-              <span className="mb-1 block text-xs text-muted-foreground">ミーティングID</span>
+              <span className="mb-1 block text-xs text-muted-foreground">{tModal("zoom.meetingIdLabel")}</span>
               <Input
                 value={zoomMeetingId}
                 onChange={(e) => setZoomMeetingId(e.target.value)}
-                placeholder="000 0000 0000"
+                placeholder={tModal("zoom.meetingIdPlaceholder")}
                 disabled={busy}
                 className={chatUi.input}
                 autoComplete="off"
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs text-muted-foreground">パスコード</span>
+              <span className="mb-1 block text-xs text-muted-foreground">{tModal("zoom.passcodeLabel")}</span>
               <Input
                 value={zoomPassword}
                 onChange={(e) => setZoomPassword(e.target.value)}
-                placeholder="000000"
+                placeholder={tModal("zoom.passcodePlaceholder")}
                 disabled={busy}
                 className={chatUi.input}
                 autoComplete="off"
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs text-muted-foreground">参加リンク</span>
+              <span className="mb-1 block text-xs text-muted-foreground">{tModal("zoom.joinLinkLabel")}</span>
               <Input
                 value={zoomLink}
                 onChange={(e) => setZoomLink(e.target.value)}
-                placeholder="https://zoom.us/j/..."
+                placeholder={tModal("zoom.joinLinkPlaceholder")}
                 disabled={busy}
                 className={chatUi.input}
                 autoComplete="off"
@@ -238,7 +242,7 @@ export function ChatLinkIntegrationModal({ open, onClose, onConfirm, busy, allow
                 disabled={busy}
                 onClick={() => setStep("pick")}
               >
-                戻る
+                {tModal("back")}
               </Button>
               <Button
                 type="button"
@@ -246,7 +250,7 @@ export function ChatLinkIntegrationModal({ open, onClose, onConfirm, busy, allow
                 disabled={busy}
                 onClick={() => void submitZoom()}
               >
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "送信"}
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : tModal("send")}
               </Button>
             </div>
           </div>
@@ -262,14 +266,14 @@ export function ChatLinkIntegrationModal({ open, onClose, onConfirm, busy, allow
               role="note"
             >
               <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden />
-              <p className="text-xs leading-relaxed">{DISCORD_LINK_SERVER_INVITE_NOTICE}</p>
+              <p className="text-xs leading-relaxed">{tShared("discordServerInviteNotice")}</p>
             </div>
             <label className="block">
-              <span className="mb-1 block text-xs text-muted-foreground">Discord ユーザー名（ID）</span>
+              <span className="mb-1 block text-xs text-muted-foreground">{tModal("discord.userIdLabel")}</span>
               <Input
                 value={discordUserId}
                 onChange={(e) => setDiscordUserId(e.target.value)}
-                placeholder="例: gritvib_user"
+                placeholder={tModal("discord.userIdPlaceholder")}
                 disabled={busy}
                 className={chatUi.input}
                 autoComplete="off"
@@ -277,7 +281,7 @@ export function ChatLinkIntegrationModal({ open, onClose, onConfirm, busy, allow
               />
             </label>
             <p className="text-[11px] leading-relaxed text-muted-foreground">
-              フレンド追加用のユーザー名を共有してください。サーバー招待リンクの送信はできません。
+              {tModal("discord.userIdHint")}
             </p>
             <div className="flex gap-2 pt-2">
               <Button
@@ -287,7 +291,7 @@ export function ChatLinkIntegrationModal({ open, onClose, onConfirm, busy, allow
                 disabled={busy}
                 onClick={() => setStep("pick")}
               >
-                戻る
+                {tModal("back")}
               </Button>
               <Button
                 type="button"
@@ -295,7 +299,7 @@ export function ChatLinkIntegrationModal({ open, onClose, onConfirm, busy, allow
                 disabled={busy}
                 onClick={() => void submitDiscord()}
               >
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "送信"}
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : tModal("send")}
               </Button>
             </div>
           </div>
@@ -304,11 +308,11 @@ export function ChatLinkIntegrationModal({ open, onClose, onConfirm, busy, allow
         {step === "youtube" ? (
           <div className="space-y-3">
             <label className="block">
-              <span className="mb-1 block text-xs text-muted-foreground">動画 URL</span>
+              <span className="mb-1 block text-xs text-muted-foreground">{tModal("youtube.urlLabel")}</span>
               <Input
                 value={youtubeUrl}
                 onChange={(e) => setYoutubeUrl(e.target.value)}
-                placeholder="https://www.youtube.com/watch?v=..."
+                placeholder={tModal("youtube.urlPlaceholder")}
                 disabled={busy}
                 className={chatUi.input}
                 autoComplete="off"
@@ -323,7 +327,7 @@ export function ChatLinkIntegrationModal({ open, onClose, onConfirm, busy, allow
                   disabled={busy}
                   onClick={() => setStep("pick")}
                 >
-                  戻る
+                  {tModal("back")}
                 </Button>
               ) : null}
               <Button
@@ -332,7 +336,7 @@ export function ChatLinkIntegrationModal({ open, onClose, onConfirm, busy, allow
                 disabled={busy}
                 onClick={() => void submitYoutube()}
               >
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "送信"}
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : tModal("send")}
               </Button>
             </div>
           </div>

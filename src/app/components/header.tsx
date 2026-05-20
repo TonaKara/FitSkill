@@ -10,11 +10,13 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { BrandMarkSvg } from "@/components/BrandMarkSvg"
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher"
 import { navigateAfterLogout } from "@/components/logout-success-toast"
 import { useHeaderAuth } from "@/lib/header-auth-context"
 import { UserMenu } from "@/components/user-menu"
 import { MobileHeaderMenuDrawer } from "@/components/mobile-header-menu-drawer"
 import { useMobileHeaderMenu } from "@/components/mobile-header-menu-context"
+import { useTranslations } from "@/lib/i18n/useI18n"
 import { cn } from "@/lib/utils"
 type HeaderProps = {
   searchKeyword?: string
@@ -28,6 +30,8 @@ export function Header({ searchKeyword, onSearchKeywordChange, fixed = false }: 
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
   const { isMobileMenuOpen: isMenuOpen, setMobileMenuOpen: setIsMenuOpen } = useMobileHeaderMenu()
   const { isAuthenticated, isAuthLoading, profileSummary, profileLoading } = useHeaderAuth()
+  const tHeader = useTranslations("header")
+  const tCommon = useTranslations("common")
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement | null>(null)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
@@ -142,7 +146,7 @@ export function Header({ searchKeyword, onSearchKeywordChange, fixed = false }: 
                   type="search"
                   enterKeyHint="search"
                   autoComplete="off"
-                  placeholder="スキルを検索..."
+                  placeholder={tHeader("searchPlaceholder")}
                   value={searchKeyword ?? ""}
                   onChange={(event) => onSearchKeywordChange(event.target.value)}
                   className="h-9 w-full border-border bg-secondary pl-9 pr-2 text-sm focus:border-primary focus:ring-primary sm:h-10 sm:pl-10"
@@ -160,10 +164,10 @@ export function Header({ searchKeyword, onSearchKeywordChange, fixed = false }: 
                 type="button"
                 disabled
                 aria-busy="true"
-                aria-label="読み込み中"
+                aria-label={tCommon("loading")}
                 className="pointer-events-none h-9 min-w-[5.5rem] bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm"
               >
-                <span className="opacity-0">教える</span>
+                <span className="opacity-0">{tHeader("teach")}</span>
               </Button>
             ) : isAuthenticated ? (
               <Button
@@ -171,7 +175,7 @@ export function Header({ searchKeyword, onSearchKeywordChange, fixed = false }: 
                 onClick={handleCreateSkillClick}
                 className="h-9 bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
               >
-                教える
+                {tHeader("teach")}
               </Button>
             ) : (
               <Button
@@ -179,12 +183,13 @@ export function Header({ searchKeyword, onSearchKeywordChange, fixed = false }: 
                 onClick={handleCreateSkillClick}
                 className="h-9 bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
               >
-                無料でお店をつくる
+                {tHeader("createStore")}
               </Button>
             )}
             <Link href="/guide" className="text-sm font-medium text-muted-foreground hover:text-primary-readable transition-colors">
-              使い方
+              {tHeader("guide")}
             </Link>
+            <LanguageSwitcher variant="compact" />
           </nav>
 
           {/* Actions */}
@@ -194,7 +199,7 @@ export function Header({ searchKeyword, onSearchKeywordChange, fixed = false }: 
               type="button"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               disabled={isAuthLoading}
-              aria-label="メニューを開く"
+              aria-label={tHeader("menuOpen")}
               aria-expanded={isMenuOpen}
               aria-controls="mobile-header-menu"
               className="ml-2 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-foreground outline-none transition-colors hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-60 md:hidden"
@@ -221,7 +226,7 @@ export function Header({ searchKeyword, onSearchKeywordChange, fixed = false }: 
                 type="button"
                 onClick={handleLoginClick}
                 disabled={isAuthLoading}
-                aria-label="ログイン"
+                aria-label={tHeader("login")}
                 className="ml-2 hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg text-foreground outline-none transition-colors hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-60 md:ml-3 md:inline-flex"
               >
                 {isAuthLoading ? (
@@ -257,7 +262,7 @@ export function Header({ searchKeyword, onSearchKeywordChange, fixed = false }: 
               onClick={(e) => e.stopPropagation()}
             >
               <h2 id="header-logout-confirm-title" className="text-center text-base font-medium leading-relaxed text-foreground">
-                ログアウトしてもよろしいですか？
+                {tHeader("logoutConfirm")}
               </h2>
               <div className="mt-6 flex gap-3">
                 <Button
@@ -267,7 +272,7 @@ export function Header({ searchKeyword, onSearchKeywordChange, fixed = false }: 
                   onClick={handleLogoutCancel}
                   disabled={isSigningOut}
                 >
-                  キャンセル
+                  {tCommon("cancel")}
                 </Button>
                 <Button
                   type="button"
@@ -275,7 +280,7 @@ export function Header({ searchKeyword, onSearchKeywordChange, fixed = false }: 
                   onClick={() => void handleLogoutConfirm()}
                   disabled={isSigningOut}
                 >
-                  ログアウト
+                  {tHeader("logout")}
                 </Button>
               </div>
             </div>

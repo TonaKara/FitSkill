@@ -116,7 +116,7 @@ export const HOME_TITLE_ABSOLUTE =
 export const HOME_DESCRIPTION =
   "GritVib（グリット・ヴィブ）は、誰でも自分のスキルを売るためのストアを無料で簡単に作れるサービスです。特別な資格がなくても、あなたの日々の積み重ねや「好き」の経験が誰かの価値になります。SNSから手軽に始めて、あなたの「好き」をもっと大切にする副業に。"
 
-/** 検索向けキーワード（ブランド → サービス → 利用シーン → ジャンル） */
+/** 検索向けキーワード（日本語版・ブランド → サービス → 利用シーン → ジャンル） */
 export const SITE_KEYWORDS = [
   "GritVib",
   "グリットヴィブ",
@@ -138,3 +138,32 @@ export const SITE_KEYWORDS = [
   "ゲーム",
   "フィットネス",
 ] as const
+
+/** 英語版キーワード（検索意図を補強する世界共通語彙） */
+export const SITE_KEYWORDS_EN = [
+  "GritVib",
+  "gritvib.com",
+  "personal store",
+  "skill sharing",
+  "skill marketplace",
+  "skills",
+  "hobbies",
+  "side hustle",
+  "online consultation",
+  "online lessons",
+  "digital content",
+  "coaching",
+  "study",
+  "cooking",
+  "gaming",
+  "fitness",
+] as const
+
+/**
+ * 検索 / ヘッダーで利用するキーワード集合を locale 別に返す。
+ * ブランド名 + 主要語彙のみ。トップページの description が言語ごとに切り替わるため、
+ * keywords も合わせて切り替える方が SEO 上一貫性がある。
+ */
+export function getLocalizedSiteKeywords(locale: "ja" | "en"): readonly string[] {
+  return locale === "en" ? SITE_KEYWORDS_EN : SITE_KEYWORDS
+}

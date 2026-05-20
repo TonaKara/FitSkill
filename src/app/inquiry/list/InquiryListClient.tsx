@@ -9,10 +9,12 @@ import { InquiryInboxList, type InquiryPeerProfile } from "@/components/inquiry/
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { fetchInquiryInboxList, type InquiryInboxListRow } from "@/lib/inquiry-messages"
 import { normalizeSkillBigIntId, uniqueSkillBigIntIds } from "@/lib/skill-id-bigint"
+import { useTranslations } from "@/lib/i18n/useI18n"
 
 export function InquiryListClient() {
   const router = useRouter()
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
+  const t = useTranslations("inquiry")
 
   const [authLoading, setAuthLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
@@ -107,13 +109,13 @@ export function InquiryListClient() {
   if (!userId) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-4 text-foreground">
-        <p className="text-center text-sm text-muted-foreground">相談一覧を表示するにはログインが必要です。</p>
+        <p className="text-center text-sm text-muted-foreground">{t("loginRequired")}</p>
         <Button
           type="button"
           className="bg-red-600 text-white hover:bg-red-500"
           onClick={() => router.replace(`/login?redirect=${encodeURIComponent("/inquiry/list")}`)}
         >
-          ログインへ
+          {t("loginCta")}
         </Button>
       </div>
     )
@@ -124,11 +126,11 @@ export function InquiryListClient() {
       <div className="mx-auto max-w-lg px-4 pb-16 pt-6 md:max-w-2xl md:pt-8">
         <div className="mb-6 flex items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-black tracking-wide text-foreground">購入前の相談</h1>
-            <p className="mt-1 text-sm text-muted-foreground">相手を選ぶとチャットが開きます。</p>
+            <h1 className="text-2xl font-black tracking-wide text-foreground">{t("title")}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
           </div>
           <Button asChild variant="outline" className="border-border bg-background text-muted-foreground hover:border-red-500">
-            <Link href="/">ホームへ</Link>
+            <Link href="/">{t("homeLink")}</Link>
           </Button>
         </div>
         <div className="overflow-hidden rounded-2xl border border-border bg-muted/40">

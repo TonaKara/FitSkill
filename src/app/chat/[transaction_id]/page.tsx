@@ -50,9 +50,12 @@ import {
 } from "@/lib/chat-file-attachments"
 import { fetchMyTransactionReview, type TransactionReviewRow } from "@/lib/transaction-reviews"
 import { ALLOWED_EXTERNAL_TOOLS_SLASH } from "@/lib/allowed-external-tools"
+import { lookupJaMessage } from "@/lib/i18n/ja-canonical"
 import { chatUi } from "@/lib/chat-ui"
 import { cn, getUnknownErrorMessage } from "@/lib/utils"
 import type { AppNotice } from "@/lib/notifications"
+import { useLocale, useTranslations } from "@/lib/i18n/useI18n"
+import { localeToHtmlLang } from "@/lib/i18n/locales"
 
 /** `transactions` テーブル（定義どおり） */
 type TransactionRow = {
@@ -187,6 +190,13 @@ const DISPUTE_REASON_OPTIONS = [
   "その他",
 ] as const
 
+const DISPUTE_REASON_VALUE_TO_KEY: Record<string, "different" | "noContact" | "defective" | "other"> = {
+  "提供内容が事前説明と異なる": "different",
+  "講師と連絡が取れない": "noContact",
+  "納品物や対応に不備がある": "defective",
+  "その他": "other",
+}
+
 type ChatMediaSignedProps = {
   supabase: SupabaseClient
   /** ストレージオブジェクトキー（例: `18/filename.png`） */
@@ -196,6 +206,11 @@ type ChatMediaSignedProps = {
   fileSizeBytes?: number | null
   mine?: boolean
   onExpand?: (media: ExpandedMedia) => void
+}
+
+function ChatMediaLoadFailedText() {
+  const t = useTranslations("chat.media")
+  return <p className="text-xs text-amber-800 dark:text-amber-200/90">{t("loadFailed")}</p>
 }
 
 function ChatMediaSigned({
@@ -231,7 +246,7 @@ function ChatMediaSigned({
   }, [supabase, path])
 
   if (failed) {
-    return <p className="text-xs text-amber-800 dark:text-amber-200/90">メディアを読み込めませんでした。</p>
+    return <ChatMediaLoadFailedText />
   }
   if (!signedUrl) {
     return (
@@ -338,6 +353,26 @@ export default function ChatTransactionPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
+  const t = useTranslations("chat")
+  const tErr = useTranslations("chat.errors")
+  const tSucc = useTranslations("chat.successes")
+  const tNoti = useTranslations("chat.notifications")
+  const tBanner = useTranslations("chat.banner")
+  const tAct = useTranslations("chat.actions")
+  const tApprov = useTranslations("chat.approvalPending")
+  const tDispSub = useTranslations("chat.dispute.submission")
+  const tDispForm = useTranslations("chat.dispute.form")
+  const tDispReasons = useTranslations("chat.dispute.reasons")
+  const tMsg = useTranslations("chat.message")
+  const tComp = useTranslations("chat.composer")
+  const tReqAgr = useTranslations("chat.requestAgreement")
+  const tAppAgr = useTranslations("chat.approveAgreement")
+  const tViewer = useTranslations("chat.viewer")
+  const tHeader = useTranslations("chat.header")
+  const tPeer = useTranslations("chat.peer")
+  const tList = useTranslations("chat.list")
+  const locale = useLocale()
+  const htmlLang = localeToHtmlLang(locale)
   const transactionId =
     typeof params.transaction_id === "string"
       ? params.transaction_id
@@ -463,7 +498,7 @@ export default function ChatTransactionPage() {
     try {
       const response = await fetch(expandedMedia.url)
       if (!response.ok) {
-        throw new Error("画像の取得に失敗しました。")
+        throw new Error(tErr("imageFetchFailed"))
       }
 
       const blob = await response.blob()
@@ -481,7 +516,7 @@ export default function ChatTransactionPage() {
       URL.revokeObjectURL(objectUrl)
     } catch (error) {
       console.error("【画像保存エラー】", error)
-      window.alert("画像の保存に失敗しました。")
+      window.alert(tErr("imageSaveFailed"))
     }
   }, [expandedMedia])
 
@@ -585,7 +620,7 @@ export default function ChatTransactionPage() {
     if (error || !row) {
       setTransaction(null)
       setOtherProfile(null)
-      setLoadError("取引が見つかりません。")
+      setLoadError(tErr("txNotFound"))
       setTxLoading(false)
       return
     }
@@ -594,7 +629,7 @@ export default function ChatTransactionPage() {
     if (t.buyer_id !== userId && t.seller_id !== userId) {
       setTransaction(null)
       setOtherProfile(null)
-      setLoadError("この取引にアクセスできません。")
+      setLoadError(tErr("txAccessForbidden"))
       setTxLoading(false)
       return
     }
@@ -607,7 +642,7 @@ export default function ChatTransactionPage() {
       .maybeSingle()
 
     if (pErr) {
-      setLoadError("相手のプロフィールを読み込めませんでした。")
+      setLoadError(tErr("peerProfileFailed"))
       setTransaction(t)
       setOtherProfile(null)
       setTxLoading(false)
@@ -913,7 +948,7 @@ export default function ChatTransactionPage() {
     }
   }, [messages, myTransactionReview, myTransactionReviewLoading, transaction?.status])
 
-  const otherName = otherProfile?.display_name?.trim() || "相手"
+  const otherName = otherProfile?.display_name?.trim() || tPeer("fallback")
   const isSeller = Boolean(userId && transaction && transaction.seller_id === userId)
   const isBuyer = Boolean(userId && transaction && transaction.buyer_id === userId)
   const isRatingTerminal =
@@ -964,7 +999,9 @@ export default function ChatTransactionPage() {
         void createTransactionNotification(supabase, {
           recipient_id: String(recipientId),
           type: NOTIFICATION_TYPE.message,
-          content: "新しいメッセージが届いています。",
+          // DB には常に JA 正規形を保存。表示時は notification-content-i18n.ts で
+          // 受信者ロケールに応じて差し替える（送信者ロケールに依存させない）。
+          content: lookupJaMessage("chat.notifications.newMessage"),
           reason: `transaction_id:${String(transactionId)}`,
         }).then(({ error: nErr }) => {
           if (nErr) {
@@ -999,7 +1036,8 @@ export default function ChatTransactionPage() {
     }
     const validation = validateChatAttachmentFile(picked)
     if (!validation.ok) {
-      window.alert(validation.error)
+      // バリデーション結果の `code` を使って locale 別の文言を解決する。
+      window.alert(tErr(validation.code))
       return
     }
     setSendError(null)
@@ -1031,7 +1069,7 @@ export default function ChatTransactionPage() {
     if (file) {
       const validation = validateChatAttachmentFile(file)
       if (!validation.ok) {
-        window.alert(validation.error)
+        window.alert(tErr(validation.code))
         setSending(false)
         return
       }
@@ -1041,7 +1079,7 @@ export default function ChatTransactionPage() {
         upsert: false,
       })
       if (upErr || !upData?.path) {
-        setSendError("ファイルのアップロードに失敗しました。")
+        setSendError(tErr("fileUploadFailed"))
         setSending(false)
         return
       }
@@ -1059,7 +1097,7 @@ export default function ChatTransactionPage() {
     setSending(false)
 
     if (ok.error) {
-      setSendError(fileUrl ? "メッセージの送信に失敗しました。" : "送信に失敗しました。")
+      setSendError(fileUrl ? tErr("messageSendFailed") : tErr("sendFailedFallback"))
       return
     }
 
@@ -1112,7 +1150,7 @@ export default function ChatTransactionPage() {
         const latestStatus = (latestRow as { status?: string } | null)?.status ?? null
         if (latestStatus === "completed") {
           setRequestAgreementOpen(false)
-          setNotice({ variant: "success", message: "この取引はすでに完了済みです" })
+          setNotice({ variant: "success", message: tSucc("alreadyCompleted") })
           await loadTransactionAndPeer()
           return
         }
@@ -1129,18 +1167,19 @@ export default function ChatTransactionPage() {
         })
         setNotice({
           variant: "error",
-          message: "取引情報の更新に失敗しました。時間を置いて再度お試しください。",
+          message: tErr("txUpdateFailed"),
         })
         return
       }
 
       setRequestAgreementOpen(false)
-      setNotice({ variant: "success", message: "申請が完了しました" })
+      setNotice({ variant: "success", message: tSucc("applyRequested") })
       if (userId) {
         void createTransactionNotification(supabase, {
           recipient_id: String(transaction.buyer_id),
           type: NOTIFICATION_TYPE.completion_request,
-          content: "取引の完了申請が届いています。承認をお願いします。",
+          // DB には常に JA 正規形を保存。表示時翻訳で受信者ロケールに応じて差し替える。
+          content: lookupJaMessage("chat.notifications.applyForApproval"),
           reason: `transaction_id:${String(transactionId)}`,
         }).then(({ error: nErr }) => {
           if (nErr) {
@@ -1171,7 +1210,7 @@ export default function ChatTransactionPage() {
       })
       setNotice({
           variant: "error",
-          message: "取引情報の更新に失敗しました。時間を置いて再度お試しください。",
+          message: tErr("txUpdateFailed"),
         })
     } finally {
       setCompleting(false)
@@ -1187,7 +1226,7 @@ export default function ChatTransactionPage() {
       return
     }
     if (!userId) {
-      setCompleteError("ログイン情報を確認できません。")
+      setCompleteError(tErr("loginInfoMissing"))
       return
     }
     setCompleteError(null)
@@ -1215,7 +1254,7 @@ export default function ChatTransactionPage() {
       const { data: authData } = await supabase.auth.getUser()
       const authUserId = authData.user?.id ?? null
       if (!authUserId) {
-        setCompleteError("ログイン情報を確認できません。")
+        setCompleteError(tErr("loginInfoMissing"))
         return
       }
 
@@ -1229,7 +1268,7 @@ export default function ChatTransactionPage() {
 
       if (dbError) {
         console.error("DB取得エラー:", dbError)
-        setCompleteError("チャットのファイル情報の取得に失敗しました。ストレージの削除はスキップされました。")
+        setCompleteError(tErr("completeChatFileFetchFailed"))
         return
       }
 
@@ -1257,11 +1296,11 @@ export default function ChatTransactionPage() {
       await loadTransactionAndPeer()
     } catch (error) {
       if (error instanceof Error && error.message === "AUTH_REQUIRED") {
-        setNotice({ variant: "error", message: "ログインの有効期限が切れました。再度ログインしてください。" })
+        setNotice({ variant: "error", message: tErr("sessionExpired") })
         router.push("/login")
         return
       }
-      const userMsg = getUnknownErrorMessage(error, "取引の承認に失敗しました。時間を置いて再度お試しください。")
+      const userMsg = getUnknownErrorMessage(error, tErr("approveGenericFailed"))
       console.error("[tx-complete] error", {
         transactionId,
         message: userMsg,
@@ -1279,11 +1318,11 @@ export default function ChatTransactionPage() {
     }
     const reason = disputeReason.trim()
     if (!reason) {
-      setCompleteError("異議申し立て理由を選択してください。")
+      setCompleteError(tErr("disputeReasonRequired"))
       return
     }
     if (disputedEvidenceUploading) {
-      setCompleteError("写真のアップロード完了後に送信してください。")
+      setCompleteError(tErr("waitEvidenceUpload"))
       return
     }
     setCompleteError(null)
@@ -1311,11 +1350,11 @@ export default function ChatTransactionPage() {
           uploadError ?? { message: "uploadData.path が空", uploadData },
         )
         setCompleting(false)
-        setCompleteError("写真のアップロードに失敗しました。")
+        setCompleteError(tErr("evidenceUploadFailed"))
         if (isAdmin) {
           setNotice({
             variant: "error",
-            message: "写真アップロードに失敗したため、取引情報は更新されませんでした。",
+            message: tErr("evidenceUploadFailedTxNote"),
           })
         }
         return
@@ -1342,7 +1381,7 @@ export default function ChatTransactionPage() {
     setCompleting(false)
     if (error || !data || (data as { status?: string }).status !== "disputed") {
       console.error("異議申し立ての更新確認に失敗:", { error, data })
-      setCompleteError("異議申し立ての送信に失敗しました。")
+      setCompleteError(tErr("disputeSubmitFailed"))
       return
     }
     setShowDisputeReasonPicker(false)
@@ -1358,14 +1397,14 @@ export default function ChatTransactionPage() {
         console.error("[dispute] dispute-inapp failed", await inAppRes.text().catch(() => ""))
         setNotice({
           variant: "error",
-          message: "異議申し立ては記録されましたが、お知らせの作成に失敗しました。時間をおいてから通知を確認してください。",
+          message: tErr("disputeRecordedNoticeMissing"),
         })
       }
     } catch (e) {
       console.error("[dispute] dispute-inapp", e)
       setNotice({
         variant: "error",
-        message: "異議申し立ては記録されましたが、お知らせの作成に失敗しました。時間をおいてから通知を確認してください。",
+        message: tErr("disputeRecordedNoticeMissing"),
       })
     }
     try {
@@ -1391,11 +1430,11 @@ export default function ChatTransactionPage() {
       return
     }
     if (!picked.type.startsWith("image/")) {
-      setCompleteError("証拠写真は画像ファイルのみアップロードできます。")
+      setCompleteError(tErr("evidenceMustBeImage"))
       return
     }
     if (picked.size > MAX_DISPUTE_EVIDENCE_BYTES) {
-      setCompleteError("証拠写真は10MB以下にしてください。")
+      setCompleteError(tErr("evidenceTooLarge"))
       return
     }
 
@@ -1426,7 +1465,7 @@ export default function ChatTransactionPage() {
     })
     setLinkSending(false)
     if (ok.error) {
-      setSendError("連携情報の送信に失敗しました。")
+      setSendError(tErr("linkSendFailed"))
       return
     }
     setLinkModalOpen(false)
@@ -1444,13 +1483,13 @@ export default function ChatTransactionPage() {
     const redirectTo = transactionId ? `/login?redirect=${encodeURIComponent(chatPathWithQuery)}` : "/login"
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black px-4 text-foreground">
-        <p className="text-center text-sm text-muted-foreground">この取引チャットを開くにはログインが必要です。</p>
+        <p className="text-center text-sm text-muted-foreground">{t("loginRequired")}</p>
         <Button
           type="button"
           className="bg-red-600 text-white hover:bg-red-500"
           onClick={() => router.replace(redirectTo)}
         >
-          ログインへ
+          {t("loginCta")}
         </Button>
       </div>
     )
@@ -1460,7 +1499,7 @@ export default function ChatTransactionPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black text-muted-foreground">
         <Loader2 className="h-8 w-8 animate-spin text-red-500" aria-hidden />
-        <span className="ml-2 text-sm">取引を読み込み中...</span>
+        <span className="ml-2 text-sm">{t("txLoading")}</span>
       </div>
     )
   }
@@ -1477,10 +1516,10 @@ export default function ChatTransactionPage() {
           >
             <span className="inline-flex items-center gap-2">
               <ArrowLeft className="h-4 w-4" />
-              戻る
+              {t("backLabel")}
             </span>
           </Button>
-          <p className="text-center text-red-400">{loadError ?? "取引を開けませんでした。"}</p>
+          <p className="text-center text-red-400">{loadError ?? t("openFailedFallback")}</p>
         </div>
       </div>
     )
@@ -1502,7 +1541,7 @@ export default function ChatTransactionPage() {
               className="shrink-0 text-muted-foreground hover:bg-muted hover:text-foreground"
               onClick={handleHeaderBack}
             >
-              <span aria-label="戻る">
+              <span aria-label={tHeader("backAria")}>
                 <ArrowLeft className="h-5 w-5" />
               </span>
             </Button>
@@ -1514,7 +1553,7 @@ export default function ChatTransactionPage() {
             />
             <div className="min-w-0 flex-1">
               <p className="truncate font-semibold text-foreground">{otherName}</p>
-              <p className="text-xs text-muted-foreground">取引チャット</p>
+              <p className="text-xs text-muted-foreground">{tHeader("txChat")}</p>
             </div>
           </div>
 
@@ -1537,16 +1576,16 @@ export default function ChatTransactionPage() {
                   {completing ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      処理中...
+                      {tAct("processing")}
                     </>
                   ) : isApprovalPending ? (
-                    "相手の承認をお待ちください"
+                    tAct("applyPending")
                   ) : isCanceledOrRefunded ? (
-                    "取引はキャンセルまたは返金により終了しました"
+                    tAct("applyCanceled")
                   ) : isCompleted ? (
-                    "この取引は終了しています"
+                    tAct("applyClosed")
                   ) : (
-                    "完了申請を送る"
+                    tAct("applyCta")
                   )}
                 </Button>
               ) : null}
@@ -1557,11 +1596,11 @@ export default function ChatTransactionPage() {
           {isBuyer && isApprovalPending ? (
             <div ref={disputeBuyerActionsRef} className="flex flex-col gap-2 pl-[52px]">
               <p className="text-xs text-amber-800 dark:text-amber-200/90">
-                完了申請が届いています。問題がなければ承認、問題があれば異議申し立てを行ってください。
+                {tApprov("intro")}
               </p>
               {transaction.applied_at ? (
                 <p className="text-[11px] text-muted-foreground">
-                  {formatAppliedDeadline(transaction.applied_at)} までに操作がない場合は自動的に完了します。
+                  {tApprov("autoComplete", { deadline: formatAppliedDeadline(transaction.applied_at) ?? "" })}
                 </p>
               ) : null}
               <div className="flex flex-wrap items-center gap-2">
@@ -1572,7 +1611,7 @@ export default function ChatTransactionPage() {
                   onClick={() => setApproveAgreementOpen(true)}
                   className="bg-emerald-600 text-white hover:bg-emerald-500"
                 >
-                  取引完了
+                  {tAct("approveCompletion")}
                 </Button>
                 <Button
                   type="button"
@@ -1582,7 +1621,7 @@ export default function ChatTransactionPage() {
                   onClick={() => setShowDisputeReasonPicker((prev) => !prev)}
                   className="border-red-500/50 bg-red-50 text-red-800 hover:bg-red-100 dark:border-red-500/50 dark:bg-red-950/30 dark:text-red-100 dark:hover:bg-red-950/60"
                 >
-                  異議申し立て
+                  {tAct("openDispute")}
                 </Button>
               </div>
               {completeError && !showDisputeReasonPicker ? (
@@ -1593,39 +1632,43 @@ export default function ChatTransactionPage() {
 
           {isBannedUser ? (
             <p className="pl-[52px] text-xs text-amber-800 dark:text-amber-200">
-              このアカウントは現在利用停止中のため、進行中取引のメッセージ閲覧のみ可能です。新規送信はできません。
+              {tBanner("banned")}
             </p>
           ) : isCanceledOrRefunded ? (
             <p className="pl-[52px] text-xs text-muted-foreground">
-              取引はキャンセルまたは返金により終了しています。メッセージの送信はできません。
+              {tBanner("canceled")}
             </p>
           ) : isCompleted ? (
-            <p className="pl-[52px] text-xs text-muted-foreground">この取引は終了しています。メッセージの送信はできません。</p>
+            <p className="pl-[52px] text-xs text-muted-foreground">{tBanner("closed")}</p>
           ) : isDisputed ? (
             <div className="pl-[52px]">
               <div className="max-w-full rounded-md border border-amber-500/30 bg-amber-50 px-3 py-2 text-xs leading-snug text-amber-950 dark:bg-amber-950/35 dark:text-amber-50/95">
                 {isBuyer
-                  ? "この取引は異議申し立て中です。運営の確認が入るまで完了しません。"
+                  ? tBanner("disputedBuyer")
                   : isSeller
-                    ? "異議申し立てが行われました。運営の確認をお待ちください。"
-                    : "この取引は異議申し立て中です。運営の確認が入るまで完了しません。"}
+                    ? tBanner("disputedSeller")
+                    : tBanner("disputedBuyer")}
               </div>
               {canViewDisputeSubmission ? (
                 <div className="mt-2 max-w-full space-y-2 rounded-md border border-border bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
                   {transaction.disputed_reason ? (
                     <p>
-                      <span className="text-muted-foreground">理由:</span> {transaction.disputed_reason}
+                      <span className="text-muted-foreground">{tDispSub("reasonLabel")}</span>{" "}
+                      {(() => {
+                        const key = DISPUTE_REASON_VALUE_TO_KEY[transaction.disputed_reason ?? ""]
+                        return key ? tDispReasons(key) : transaction.disputed_reason
+                      })()}
                     </p>
                   ) : null}
                   {transaction.disputed_reason_detail ? (
                     <p className="whitespace-pre-wrap">
-                      <span className="text-muted-foreground">詳細:</span> {transaction.disputed_reason_detail}
+                      <span className="text-muted-foreground">{tDispSub("detailLabel")}</span> {transaction.disputed_reason_detail}
                     </p>
                   ) : null}
                   {transaction.disputed_evidence_url?.trim() ? (
                     <DisputeEvidenceImage
                       pathOrUrl={transaction.disputed_evidence_url}
-                      alt="異議申し立ての証拠写真"
+                      alt={tDispSub("evidenceAlt")}
                       className="mt-1"
                       chatThumbnail
                     />
@@ -1650,12 +1693,12 @@ export default function ChatTransactionPage() {
         ) : (
           <>
         {messages.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">まだメッセージがありません。挨拶を送ってみましょう。</p>
+          <p className="py-8 text-center text-sm text-muted-foreground">{tList("empty")}</p>
         ) : (
           messages.map((m) => {
             const mine = m.sender_id === userId
             const prof = senderProfiles[m.sender_id]
-            const label = mine ? "自分" : prof?.display_name?.trim() || "ユーザー"
+            const label = mine ? tMsg("selfLabel") : prof?.display_name?.trim() || tMsg("anonymousUser")
             const senderProfilePath = buildProfilePath(m.sender_id, prof?.custom_id ?? null)
             const linkPayload =
               m.file_type === CHAT_LINK_FILE_TYPE ? parseLinkMessageContent(m.content) : null
@@ -1688,14 +1731,14 @@ export default function ChatTransactionPage() {
                   <ChatLinkMessageCard payload={linkPayload} mine={mine} />
                 ) : m.file_type === CHAT_LINK_FILE_TYPE ? (
                   <p className={cn("text-xs", mine ? "text-red-100/95" : "text-amber-200/90")}>
-                    リンク情報を読み取れませんでした。
+                    {tMsg("linkLoadFailed")}
                   </p>
                 ) : m.file_type === CHAT_YOUTUBE_FILE_TYPE ? (
                   youtubeFromFileType ? (
                     <ChatYoutubeRich url={youtubeFromFileType} mine={mine} />
                   ) : (
                     <p className={cn("text-xs", mine ? "text-red-100/95" : "text-amber-200/90")}>
-                      YouTube の URL を読み取れませんでした。
+                      {tMsg("youtubeLoadFailed")}
                     </p>
                   )
                 ) : plainRichYoutubeUrl ? (
@@ -1734,7 +1777,7 @@ export default function ChatTransactionPage() {
                         m.is_read ? "text-red-100/85" : "text-amber-200",
                       )}
                     >
-                      {m.is_read ? "既読" : "未読"}
+                      {m.is_read ? tMsg("readMark") : tMsg("unreadMark")}
                     </span>
                   ) : null}
                 </div>
@@ -1757,7 +1800,7 @@ export default function ChatTransactionPage() {
                 <Link
                   href={senderProfilePath}
                   className="shrink-0"
-                  aria-label={`${label}のプロフィールへ`}
+                  aria-label={tMsg("viewProfileAria", { name: label })}
                 >
                   <ProfileAvatar
                     avatarUrl={prof?.avatar_url ?? null}
@@ -1785,12 +1828,12 @@ export default function ChatTransactionPage() {
               transactionId={String(transactionId)}
               userId={userId}
               revieweeId={isBuyer ? String(transaction.seller_id) : String(transaction.buyer_id)}
-              peerNoun={isBuyer ? "出品者" : "購入者"}
+              peerNoun={isBuyer ? tMsg("peerNounSeller") : tMsg("peerNounBuyer")}
               initialReview={myTransactionReview}
               reviewLoading={myTransactionReviewLoading}
               onReviewSaved={(row) => {
                 setMyTransactionReview(row)
-                setNotice({ variant: "success", message: "評価を送信しました。" })
+                setNotice({ variant: "success", message: tSucc("reviewSent") })
                 void loadTransactionAndPeer()
                 router.refresh()
               }}
@@ -1819,7 +1862,7 @@ export default function ChatTransactionPage() {
                 size="icon"
                 disabled={sending}
                 className="absolute right-1 top-1 z-10 h-8 w-8 rounded-full border border-border bg-background/90 text-foreground shadow-sm hover:border-primary hover:text-primary-readable"
-                aria-label="添付を取り消し"
+                aria-label={tComp("removeAttachment")}
                 onClick={clearPendingFile}
               >
                 <X className="h-4 w-4" />
@@ -1860,7 +1903,7 @@ export default function ChatTransactionPage() {
               size="icon"
               disabled={!canSend || sending || linkSending}
               className="mb-0.5 shrink-0 border-border bg-background text-foreground hover:border-primary hover:bg-muted"
-              aria-label="ファイルを添付"
+              aria-label={tComp("attachFile")}
               onClick={() => fileInputRef.current?.click()}
             >
               <Plus className="h-4 w-4" />
@@ -1874,8 +1917,8 @@ export default function ChatTransactionPage() {
               className="mb-0.5 shrink-0 border-border bg-background text-foreground hover:border-primary hover:bg-muted"
               aria-label={
                 isSeller
-                  ? `外部ツール連携（${ALLOWED_EXTERNAL_TOOLS_SLASH}）`
-                  : "外部ツール連携（YouTube）"
+                  ? tComp("externalToolSeller", { tools: ALLOWED_EXTERNAL_TOOLS_SLASH })
+                  : tComp("externalToolBuyer")
               }
                 onClick={() => setLinkModalOpen(true)}
               >
@@ -1885,7 +1928,7 @@ export default function ChatTransactionPage() {
             <ChatComposerTextarea
               value={text}
               onChange={setText}
-              placeholder={canSend ? "メッセージを入力..." : "送信できません"}
+              placeholder={canSend ? tComp("placeholder") : tComp("disabledPlaceholder")}
               disabled={!canSend || sending || linkSending}
               maxLength={8000}
               onSubmit={() => composerFormRef.current?.requestSubmit()}
@@ -1894,28 +1937,28 @@ export default function ChatTransactionPage() {
               type="submit"
               disabled={!canSend || sending || linkSending || (!text.trim() && !file)}
               className="mb-0.5 shrink-0 bg-red-600 text-white hover:bg-red-500"
-              aria-label="送信"
+              aria-label={tComp("sendAria")}
             >
               {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
           </div>
           <p className="text-[11px] leading-relaxed text-muted-foreground">
             {isBannedUser ? (
-              "利用停止中は進行中取引のチャット閲覧のみ可能です。"
+              tComp("bannedNote")
             ) : (
               <>
-                ＋でファイルを添付できます（1ファイル
-                <strong className="font-medium text-muted-foreground">50MB以下</strong>
-                ・画像・動画・PDF・Office・テキスト等。実行ファイルは不可）。
+                {tComp("filePart1")}
+                <strong className="font-medium text-muted-foreground">{tComp("fileLimit")}</strong>
+                {tComp("filePart2")}
                 <br />
                 {isSeller
-                  ? `リンクアイコンから外部ツール（${ALLOWED_EXTERNAL_TOOLS_SLASH}）連携ができます。`
+                  ? tComp("linkSeller", { tools: ALLOWED_EXTERNAL_TOOLS_SLASH })
                   : isBuyer
-                    ? "リンクアイコンから外部ツール（YouTube）連携ができます。"
-                    : "リンクアイコンから外部ツール連携ができます。"}
+                    ? tComp("linkBuyer")
+                    : tComp("linkGeneric")}
                 <span className="hidden md:inline">
                   <br />
-                  PCでは Enter で送信、Shift+Enter で改行できます。
+                  {tComp("keyboardHint")}
                 </span>
               </>
             )}
@@ -1937,14 +1980,14 @@ export default function ChatTransactionPage() {
             <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 overflow-y-auto px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">
               <div className="flex items-start justify-between gap-2">
                 <h2 id="dispute-form-title" className="text-base font-semibold text-foreground">
-                  異議申し立て
+                  {tDispForm("title")}
                 </h2>
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
                   className="shrink-0 text-muted-foreground hover:text-foreground"
-                  aria-label="閉じる"
+                  aria-label={tDispForm("closeAria")}
                   disabled={completing}
                   onClick={() => setShowDisputeReasonPicker(false)}
                 >
@@ -1952,7 +1995,7 @@ export default function ChatTransactionPage() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                内容を確認のうえ送信してください。運営が内容を確認します。
+                {tDispForm("intro")}
               </p>
               {completeError ? (
                 <p className="rounded-md border border-red-500/40 bg-red-950/40 px-3 py-2 text-xs text-red-200">
@@ -1961,7 +2004,7 @@ export default function ChatTransactionPage() {
               ) : null}
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="dispute-reason" className="text-xs font-medium text-muted-foreground">
-                  理由
+                  {tDispForm("reasonLabel")}
                 </label>
                 <select
                   id="dispute-reason"
@@ -1970,16 +2013,19 @@ export default function ChatTransactionPage() {
                   disabled={completing}
                   className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 disabled:opacity-50"
                 >
-                  {DISPUTE_REASON_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
+                  {DISPUTE_REASON_OPTIONS.map((opt) => {
+                    const key = DISPUTE_REASON_VALUE_TO_KEY[opt]
+                    return (
+                      <option key={opt} value={opt}>
+                        {key ? tDispReasons(key) : opt}
+                      </option>
+                    )
+                  })}
                 </select>
               </div>
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="dispute-detail" className="text-xs font-medium text-muted-foreground">
-                  詳細（任意）
+                  {tDispForm("detailLabel")}
                 </label>
                 <textarea
                   id="dispute-detail"
@@ -1988,12 +2034,12 @@ export default function ChatTransactionPage() {
                   disabled={completing}
                   rows={4}
                   maxLength={2000}
-                  placeholder="状況を具体的にご記入ください"
+                  placeholder={tDispForm("detailPlaceholder")}
                   className="min-h-[5rem] resize-y rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 disabled:opacity-50"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-muted-foreground">証拠写真（任意）</span>
+                <span className="text-xs font-medium text-muted-foreground">{tDispForm("evidenceLabel")}</span>
                 <input
                   ref={disputeEvidenceInputRef}
                   type="file"
@@ -2011,7 +2057,7 @@ export default function ChatTransactionPage() {
                     onClick={() => disputeEvidenceInputRef.current?.click()}
                     className="border-border bg-background text-foreground hover:border-primary hover:bg-muted"
                   >
-                    写真を選択
+                    {tDispForm("selectImage")}
                   </Button>
                   {disputeEvidenceFile ? (
                     <>
@@ -2026,7 +2072,7 @@ export default function ChatTransactionPage() {
                         className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
                         onClick={handleDisputeEvidenceClear}
                       >
-                        取り消し
+                        {tDispForm("clearImage")}
                       </Button>
                     </>
                   ) : null}
@@ -2041,7 +2087,7 @@ export default function ChatTransactionPage() {
                     />
                   </div>
                 ) : null}
-                <p className="text-[11px] text-muted-foreground">画像のみ・10MB以下</p>
+                <p className="text-[11px] text-muted-foreground">{tDispForm("imageNote")}</p>
               </div>
               <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-3">
                 <Button
@@ -2051,7 +2097,7 @@ export default function ChatTransactionPage() {
                   onClick={() => setShowDisputeReasonPicker(false)}
                   className="border-border bg-background text-muted-foreground"
                 >
-                  キャンセル
+                  {tDispForm("cancel")}
                 </Button>
                 <Button
                   type="button"
@@ -2062,10 +2108,10 @@ export default function ChatTransactionPage() {
                   {completing ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      送信中...
+                      {tDispForm("submitting")}
                     </>
                   ) : (
-                    "異議を送信"
+                    tDispForm("submit")
                   )}
                 </Button>
               </div>
@@ -2106,19 +2152,19 @@ export default function ChatTransactionPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 id="request-agreement-title" className="text-lg font-bold text-foreground">
-              【取引完了申請に関する重要事項】
+              {tReqAgr("title")}
             </h2>
             <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground">
               <p>
-                生徒が取引完了ボタンを押すと、写真・動画データはサーバーから完全に削除され、復元できなくなります。
+                {tReqAgr("body1")}
               </p>
               <p>
-                生徒からの承認がない場合でも、申請から3日経過すると自動的に取引完了となり、報酬が確定します。
+                {tReqAgr("body2")}
               </p>
               <p>
-                生徒から「異議申し立て」が行われた場合、運営による調査が入ります。その間、報酬の確定・振込は一時停止されます。調査には数日〜1週間程度かかる場合があります。
+                {tReqAgr("body3")}
               </p>
-              <p>上記の内容を理解し、取引完了申請を行いますか？</p>
+              <p>{tReqAgr("confirm")}</p>
             </div>
             <div className="mt-5 flex justify-end gap-2">
               <Button
@@ -2128,7 +2174,7 @@ export default function ChatTransactionPage() {
                 className="border-border bg-background text-foreground hover:bg-muted"
                 onClick={() => setRequestAgreementOpen(false)}
               >
-                キャンセル
+                {tReqAgr("cancel")}
               </Button>
               <Button
                 type="button"
@@ -2136,7 +2182,7 @@ export default function ChatTransactionPage() {
                 className="bg-amber-600 text-white hover:bg-amber-500"
                 onClick={() => void handleApplyCompletion()}
               >
-                {completing ? "処理中..." : "同意して申請する"}
+                {completing ? tReqAgr("submitting") : tReqAgr("submit")}
               </Button>
             </div>
           </div>
@@ -2159,18 +2205,18 @@ export default function ChatTransactionPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 id="approve-agreement-title" className="text-lg font-bold text-foreground">
-              【取引完了の最終確認】
+              {tAppAgr("title")}
             </h2>
             <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground">
               <p>
-                この操作を行うと、チャット内の写真・動画データはサーバーから完全に削除され、復元できなくなります。
+                {tAppAgr("body1")}
               </p>
-              <p>取引完了を承認すると、講師への支払いが確定し、キャンセルはできなくなります。</p>
+              <p>{tAppAgr("body2")}</p>
               <p>
-                もし指導内容に不備がある場合は、「異議申し立て」を行ってください。その際、証拠となる画像やチャットログが必要となります。
+                {tAppAgr("body3")}
               </p>
-              <p>運営の確認作業には時間がかかる場合がありますのでご了承ください。</p>
-              <p>取引を完了し、データを削除しますか？</p>
+              <p>{tAppAgr("body4")}</p>
+              <p>{tAppAgr("confirm")}</p>
             </div>
             <div className="mt-5 flex justify-end gap-2">
               <Button
@@ -2180,7 +2226,7 @@ export default function ChatTransactionPage() {
                 className="border-border bg-background text-foreground hover:bg-muted"
                 onClick={() => setApproveAgreementOpen(false)}
               >
-                キャンセル
+                {tAppAgr("cancel")}
               </Button>
               <Button
                 type="button"
@@ -2188,7 +2234,7 @@ export default function ChatTransactionPage() {
                 className="bg-emerald-600 text-white hover:bg-emerald-500"
                 onClick={() => void handleApproveCompletion()}
               >
-                {completing ? "処理中..." : "取引を完了する"}
+                {completing ? tAppAgr("submitting") : tAppAgr("submit")}
               </Button>
             </div>
           </div>
@@ -2211,12 +2257,12 @@ export default function ChatTransactionPage() {
                   void handleSaveExpandedImage()
                 }}
               >
-                保存
+                {tViewer("save")}
               </button>
             ) : null}
             <button
               type="button"
-              aria-label="閉じる"
+              aria-label={tViewer("closeAria")}
               className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80"
               onClick={(e) => {
                 e.stopPropagation()

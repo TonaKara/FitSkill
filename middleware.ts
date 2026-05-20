@@ -1,6 +1,12 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 import { getBanStatusFromProfile } from "@/lib/ban"
+import { pickLocaleFromAcceptLanguage } from "@/lib/i18n/detect-locale"
+import {
+  LOCALE_COOKIE_MAX_AGE,
+  LOCALE_COOKIE_NAME,
+  isSupportedLocale,
+} from "@/lib/i18n/locales"
 import { shouldRedirectPublicUserToMaintenance } from "@/lib/maintenance-access"
 import { getCanonicalHostname } from "@/lib/site-seo"
 
@@ -23,6 +29,25 @@ function withVercelNoIndex(request: NextRequest, response: NextResponse): NextRe
   if (isVercelDeploymentHost(request.nextUrl.hostname)) {
     response.headers.set("X-Robots-Tag", "noindex, nofollow")
   }
+  return response
+}
+
+/**
+ * Cookie に locale が無いリクエストでは Accept-Language から推定し、
+ * レスポンスに Set-Cookie する。
+ * Cookie の有無を変えるだけで再描画は行わない（既存セッション処理に影響なし）。
+ */
+function ensureLocaleCookie(request: NextRequest, response: NextResponse): NextResponse {
+  const existing = request.cookies.get(LOCALE_COOKIE_NAME)?.value
+  if (existing && isSupportedLocale(existing)) {
+    return response
+  }
+  const detected = pickLocaleFromAcceptLanguage(request.headers.get("accept-language"))
+  response.cookies.set(LOCALE_COOKIE_NAME, detected, {
+    path: "/",
+    maxAge: LOCALE_COOKIE_MAX_AGE,
+    sameSite: "lax",
+  })
   return response
 }
 
@@ -111,13 +136,13 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   if (isBypassMiddlewarePath(pathname)) {
-    return withVercelNoIndex(request, NextResponse.next())
+    return ensureLocaleCookie(request, withVercelNoIndex(request, NextResponse.next()))
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   if (!supabaseUrl || !supabaseAnonKey) {
-    return withVercelNoIndex(request, NextResponse.next())
+    return ensureLocaleCookie(request, withVercelNoIndex(request, NextResponse.next()))
   }
 
   let supabaseResponse = NextResponse.next({
@@ -152,7 +177,7 @@ export async function middleware(request: NextRequest) {
     })
     if (isBanned && !isAdmin && !allowForBannedBase && !allowBannedChat) {
       const bannedUrl = new URL("/banned", request.nextUrl)
-      return withVercelNoIndex(request, NextResponse.redirect(bannedUrl))
+      return ensureLocaleCookie(request, withVercelNoIndex(request, NextResponse.redirect(bannedUrl)))
     }
   }
 
@@ -161,7 +186,7 @@ export async function middleware(request: NextRequest) {
     const loginUrl = new URL("/login", request.nextUrl)
     const redirectTo = `${pathname}${request.nextUrl.search}`
     loginUrl.searchParams.set("redirect", redirectTo)
-    return withVercelNoIndex(request, NextResponse.redirect(loginUrl))
+    return ensureLocaleCookie(request, withVercelNoIndex(request, NextResponse.redirect(loginUrl)))
   }
 
   // メンテ中でもログイン・メール認証コールバックは可能にする
@@ -171,19 +196,22 @@ export async function middleware(request: NextRequest) {
     pathname === "/auth/callback" ||
     pathname === "/auth/update-password"
   ) {
-    return withVercelNoIndex(request, supabaseResponse)
+    return ensureLocaleCookie(request, withVercelNoIndex(request, supabaseResponse))
   }
 
   if (pathname.startsWith("/admin") || pathname === "/maintenance") {
-    return withVercelNoIndex(request, supabaseResponse)
+    return ensureLocaleCookie(request, withVercelNoIndex(request, supabaseResponse))
   }
 
   const block = await shouldRedirectPublicUserToMaintenance(supabase)
   if (block) {
-    return withVercelNoIndex(request, NextResponse.redirect(new URL("/maintenance", request.url)))
+    return ensureLocaleCookie(
+      request,
+      withVercelNoIndex(request, NextResponse.redirect(new URL("/maintenance", request.url))),
+    )
   }
 
-  return withVercelNoIndex(request, supabaseResponse)
+  return ensureLocaleCookie(request, withVercelNoIndex(request, supabaseResponse))
 }
 
 export const config = {

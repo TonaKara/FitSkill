@@ -13,10 +13,16 @@ import {
   getGeneralNotificationListSubject,
   getAdminOpsAccordionContent,
   getAdminOpsAccordionTitle,
-  getNotificationBodySectionLabel,
+  type NotificationDisplayLabels,
   parseTransactionIdFromNotificationReason,
 } from "@/lib/notification-display"
+import {
+  translateNotificationContent,
+  translateNotificationTitle,
+} from "@/lib/notification-content-i18n"
 import { cn } from "@/lib/utils"
+import { useLocale, useTranslations } from "@/lib/i18n/useI18n"
+import { localeToHtmlLang } from "@/lib/i18n/locales"
 
 type GeneralNotificationsListProps = {
   userId: string
@@ -25,12 +31,12 @@ type GeneralNotificationsListProps = {
   onRead?: () => void
 }
 
-function formatTime(iso: string) {
+function formatTime(iso: string, htmlLang: string) {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) {
     return ""
   }
-  return d.toLocaleString("ja-JP", {
+  return d.toLocaleString(htmlLang, {
     month: "short",
     day: "numeric",
     hour: "2-digit",
@@ -41,12 +47,69 @@ function formatTime(iso: string) {
 export function GeneralNotificationsList({ userId, adminOrigin, onRead }: GeneralNotificationsListProps) {
   const router = useRouter()
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
+  const t = useTranslations("notifications.bell")
+  const locale = useLocale()
+  const htmlLang = localeToHtmlLang(locale)
   const [rows, setRows] = useState<NotificationRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [updating, setUpdating] = useState<string | null>(null)
   const [openIds, setOpenIds] = useState<Set<string>>(() => new Set())
   const markInFlight = useRef(false)
+
+  // locale === "en" のときだけ、既知の日本語パターンを英訳した行を表示用に作る。
+  // DB / state の `rows` は触らず、表示直前でだけ書き換える（safest）。
+  // 既存ユーザー（locale === "ja"）はこのループでも元の値がそのまま返るため挙動完全互換。
+  const displayRows = useMemo<NotificationRow[]>(() => {
+    if (locale !== "en") {
+      return rows
+    }
+    return rows.map((n) => ({
+      ...n,
+      title: translateNotificationTitle(n.title, locale),
+      content: translateNotificationContent(n.content, locale),
+    }))
+  }, [rows, locale])
+
+  const displayLabels = useMemo<NotificationDisplayLabels>(
+    () => ({
+      subjectByType: {
+        purchase: t("subject.purchase"),
+        message: t("subject.message"),
+        completion_request: t("subject.completion_request"),
+        completion_approved: t("subject.completion_approved"),
+        review: t("subject.review"),
+        dispute: t("subject.dispute"),
+        consultation_request: t("subject.consultation_request"),
+        consultation_accepted: t("subject.consultation_accepted"),
+        consultation_rejected: t("subject.consultation_rejected"),
+        announcement: t("subject.announcement"),
+        admin_product_deleted: t("subject.admin_product_deleted"),
+        admin_product_visibility: t("subject.admin_product_visibility"),
+      },
+      defaultSubject: t("subject.default"),
+      adminCategoryTransactionChat: t("adminCategory.transactionChat"),
+      adminCategoryAnnouncement: t("adminCategory.announcement"),
+      adminCategoryBracketByType: {
+        admin_product_deleted: t("adminCategory.adminProductDeleted"),
+        admin_product_visibility: t("adminCategory.adminProductVisibility"),
+      },
+      adminCategoryDefault: t("adminCategory.default"),
+      adminHeadlineAnnouncementFallback: t("adminHeadline.announcementFallback"),
+      adminHeadlineDefault: t("adminHeadline.default"),
+      adminBracketPrefix: t("adminBracketPrefix"),
+      emptyContent: t("emptyContent"),
+      bodySectionLabel: t("bodySectionLabel"),
+      announcementReasonByJa: {
+        "利用規約違反": t("announcementReason.tosViolation"),
+        "不適切な画像": t("announcementReason.inappropriateImage"),
+        "重要なお知らせ": t("announcementReason.importantNotice"),
+        "運営メンテナンス": t("announcementReason.maintenance"),
+        "運営判断": t("announcementReason.adminDecision"),
+      },
+    }),
+    [t],
+  )
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -216,17 +279,17 @@ export function GeneralNotificationsList({ userId, adminOrigin, onRead }: Genera
     return (
       <div className="flex items-center justify-center py-8 text-zinc-400">
         <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-        <span className="ml-2 text-sm">読み込み中…</span>
+        <span className="ml-2 text-sm">{t("loading")}</span>
       </div>
     )
   }
   if (error) {
     return <p className="px-3 py-2 text-sm text-destructive">{error}</p>
   }
-  if (rows.length === 0) {
+  if (displayRows.length === 0) {
     return (
       <p className="px-3 py-4 text-center text-sm text-zinc-500">
-        {adminOrigin ? "運営からの通知はまだありません" : "通知はまだありません"}
+        {adminOrigin ? t("empty.ops") : t("empty.general")}
       </p>
     )
   }
@@ -234,7 +297,7 @@ export function GeneralNotificationsList({ userId, adminOrigin, onRead }: Genera
   if (!adminOrigin) {
     return (
       <ul className="max-h-72 space-y-1 overflow-y-auto p-1">
-        {rows.map((n) => {
+        {displayRows.map((n) => {
           return (
             <li key={n.id}>
               <button
@@ -249,12 +312,12 @@ export function GeneralNotificationsList({ userId, adminOrigin, onRead }: Genera
               >
                 <span className="line-clamp-2">
                   {n?.title?.trim()
-                    ? `${getGeneralNotificationListSubject(n)}：${n.title.trim()}`
-                    : getGeneralNotificationListSubject(n)}
+                    ? `${getGeneralNotificationListSubject(n, displayLabels)}：${n.title.trim()}`
+                    : getGeneralNotificationListSubject(n, displayLabels)}
                 </span>
-                <span className="mt-1 block text-xs text-zinc-500">{n?.content?.trim() || "（内容なし）"}</span>
+                <span className="mt-1 block text-xs text-zinc-500">{n?.content?.trim() || t("emptyContent")}</span>
                 <time className="mt-1 block text-xs text-zinc-500" dateTime={n?.created_at ?? ""}>
-                  {formatTime(n?.created_at ?? "")}
+                  {formatTime(n?.created_at ?? "", htmlLang)}
                 </time>
               </button>
             </li>
@@ -266,10 +329,10 @@ export function GeneralNotificationsList({ userId, adminOrigin, onRead }: Genera
 
   return (
     <ul className="max-h-80 space-y-1.5 overflow-y-auto px-1 pb-1">
-      {rows.map((n) => {
+      {displayRows.map((n) => {
         const isOpen = openIds.has(n.id)
-        const accordionTitle = getAdminOpsAccordionTitle(n)
-        const accordionContent = getAdminOpsAccordionContent(n)
+        const accordionTitle = getAdminOpsAccordionTitle(n, displayLabels)
+        const accordionContent = getAdminOpsAccordionContent(n, displayLabels)
         return (
           <li key={n.id} className="overflow-hidden rounded-md border border-border/70 bg-background/50">
             <button
@@ -292,10 +355,10 @@ export function GeneralNotificationsList({ userId, adminOrigin, onRead }: Genera
                   aria-hidden
                 />
                 {updating === n.id ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-400" aria-label="更新中" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-400" aria-label={t("updating")} />
                 ) : (
                   <time className="whitespace-nowrap text-[10px] text-zinc-500" dateTime={n.created_at}>
-                    {formatTime(n.created_at)}
+                    {formatTime(n.created_at, htmlLang)}
                   </time>
                 )}
               </div>

@@ -6,11 +6,11 @@ import { ExternalLink } from "lucide-react"
 import { ChatYoutubeRich } from "@/components/chat-youtube-rich"
 import { Button } from "@/components/ui/button"
 import {
-  DISCORD_LINK_SERVER_INVITE_NOTICE,
   type DiscordLinkPayload,
   type LinkMessagePayload,
   type ZoomLinkPayload,
 } from "@/lib/chat-link-payload"
+import { useTranslations } from "@/lib/i18n/useI18n"
 import { cn } from "@/lib/utils"
 
 type Props = {
@@ -19,6 +19,8 @@ type Props = {
 }
 
 function ZoomInviteCard({ payload, mine }: { payload: ZoomLinkPayload; mine: boolean }) {
+  const t = useTranslations("chatLink.zoom")
+  const tCopied = useTranslations("chatLink")
   const [toastOpen, setToastOpen] = useState(false)
   const [portalReady, setPortalReady] = useState(false)
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -70,12 +72,12 @@ function ZoomInviteCard({ payload, mine }: { payload: ZoomLinkPayload; mine: boo
             : "border-zinc-600 bg-zinc-950/80",
         )}
       >
-        <p className="text-xs font-semibold text-amber-200">Zoom会議招待</p>
+        <p className="text-xs font-semibold text-amber-200">{t("title")}</p>
         <div className="mt-3 space-y-3 text-xs">
           <div className="rounded-lg border border-zinc-700/80 bg-black/20 p-2.5">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
               <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-medium text-zinc-400">ミーティングID</p>
+                <p className="text-[11px] font-medium text-zinc-400">{t("meetingId")}</p>
                 <p className="mt-0.5 break-all font-mono text-sm text-zinc-100">{payload.meetingId}</p>
               </div>
               <Button
@@ -90,7 +92,7 @@ function ZoomInviteCard({ payload, mine }: { payload: ZoomLinkPayload; mine: boo
                 )}
                 onClick={() => void copyText(payload.meetingId)}
               >
-                IDをコピー
+                {t("copyId")}
               </Button>
             </div>
           </div>
@@ -98,7 +100,7 @@ function ZoomInviteCard({ payload, mine }: { payload: ZoomLinkPayload; mine: boo
           <div className="rounded-lg border border-zinc-700/80 bg-black/20 p-2.5">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
               <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-medium text-zinc-400">パスコード</p>
+                <p className="text-[11px] font-medium text-zinc-400">{t("passcode")}</p>
                 <p className="mt-0.5 break-all font-mono text-sm text-zinc-100">
                   {hasPassword ? payload.password : "—"}
                 </p>
@@ -108,7 +110,7 @@ function ZoomInviteCard({ payload, mine }: { payload: ZoomLinkPayload; mine: boo
                 variant="outline"
                 size="sm"
                 disabled={!hasPassword}
-                title={hasPassword ? undefined : "パスコードが設定されていません"}
+                title={hasPassword ? undefined : t("noPasscode")}
                 className={cn(
                   "h-8 shrink-0 self-start px-2.5 text-[11px] font-medium",
                   mine
@@ -117,13 +119,13 @@ function ZoomInviteCard({ payload, mine }: { payload: ZoomLinkPayload; mine: boo
                 )}
                 onClick={() => hasPassword && void copyText(payload.password)}
               >
-                パスコードをコピー
+                {t("copyPasscode")}
               </Button>
             </div>
           </div>
 
           <div className="rounded-lg border border-zinc-700/80 bg-black/20 p-2.5">
-            <p className="text-[11px] font-medium text-zinc-400">参加リンク</p>
+            <p className="text-[11px] font-medium text-zinc-400">{t("joinLink")}</p>
             <p className="mt-0.5 break-all font-mono text-[11px] leading-relaxed text-zinc-300">{payload.link}</p>
           </div>
         </div>
@@ -142,7 +144,7 @@ function ZoomInviteCard({ payload, mine }: { payload: ZoomLinkPayload; mine: boo
         >
           <a href={payload.link} target="_blank" rel="noopener noreferrer">
             <ExternalLink className="h-3.5 w-3.5" />
-            会議に参加
+            {t("joinMeeting")}
           </a>
         </Button>
       </div>
@@ -155,7 +157,7 @@ function ZoomInviteCard({ payload, mine }: { payload: ZoomLinkPayload; mine: boo
             role="status"
             aria-live="polite"
           >
-            コピーしました！
+            {tCopied("copied")}
           </div>,
           document.body,
         )}
@@ -164,6 +166,8 @@ function ZoomInviteCard({ payload, mine }: { payload: ZoomLinkPayload; mine: boo
 }
 
 function DiscordInviteCard({ payload, mine }: { payload: DiscordLinkPayload; mine: boolean }) {
+  const t = useTranslations("chatLink.discord")
+  const tShared = useTranslations("chatLink")
   const [toastOpen, setToastOpen] = useState(false)
   const [portalReady, setPortalReady] = useState(false)
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -210,11 +214,11 @@ function DiscordInviteCard({ payload, mine }: { payload: DiscordLinkPayload; min
             : "border-zinc-600 bg-zinc-950/80",
         )}
       >
-        <p className="text-xs font-semibold text-[#949cf7]">Discord</p>
+        <p className="text-xs font-semibold text-[#949cf7]">{t("title")}</p>
         <div className="mt-3 rounded-lg border border-zinc-700/80 bg-black/20 p-2.5">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-medium text-zinc-400">ユーザー名（ID）</p>
+              <p className="text-[11px] font-medium text-zinc-400">{t("usernameLabel")}</p>
               <p className="mt-0.5 break-all font-mono text-sm text-zinc-100">{payload.userId}</p>
             </div>
             <Button
@@ -229,11 +233,11 @@ function DiscordInviteCard({ payload, mine }: { payload: DiscordLinkPayload; min
               )}
               onClick={() => void copyUserId()}
             >
-              IDをコピー
+              {t("copyId")}
             </Button>
           </div>
         </div>
-        <p className="mt-3 text-[11px] leading-relaxed text-amber-200/90">{DISCORD_LINK_SERVER_INVITE_NOTICE}</p>
+        <p className="mt-3 text-[11px] leading-relaxed text-amber-200/90">{tShared("discordServerInviteNotice")}</p>
       </div>
 
       {portalReady &&
@@ -244,7 +248,7 @@ function DiscordInviteCard({ payload, mine }: { payload: DiscordLinkPayload; min
             role="status"
             aria-live="polite"
           >
-            コピーしました！
+            {tShared("copied")}
           </div>,
           document.body,
         )}

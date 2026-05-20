@@ -14,6 +14,7 @@ import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { getCroppedImageBlobFromVisibleArea } from "@/lib/get-cropped-image-blob"
 import { SKILL_THUMBNAIL_ASPECT_RATIO } from "@/lib/skill-thumbnail"
+import { useTranslations } from "@/lib/i18n/useI18n"
 import "./thumbnail-crop-modal.css"
 
 /** 枠の最大幅・高さは thumbnail-crop-modal.css の --crop-frame-max-w / --crop-frame-max-h と揃える */
@@ -73,8 +74,6 @@ type ThumbnailCropModalProps = {
   subheading?: string
 }
 
-const GENERIC_IMAGE_ERROR = "画像の処理に失敗しました。"
-
 export function ThumbnailCropModal({
   open,
   imageSrc,
@@ -83,9 +82,13 @@ export function ThumbnailCropModal({
   isAdmin = false,
   cropShape = "skill",
   outputPixelSize,
-  heading = "サムネイルの切り抜き",
-  subheading = "枠内が保存される範囲です。ドラッグで位置を、ホイールやピンチで拡大・縮小できます。",
+  heading,
+  subheading,
 }: ThumbnailCropModalProps) {
+  const t = useTranslations("thumbnailCropModal")
+  const tAria = useTranslations("aria")
+  const resolvedHeading = heading ?? t("headingDefault")
+  const resolvedSubheading = subheading ?? t("subheadingDefault")
   /** ユーザーが変更できない固定比率（react-quick-pinch-zoom は等方ズームのみで、枠比率はここで決まる） */
   const fixedAspectRatio = cropShape === "avatar" ? 1 : SKILL_THUMBNAIL_ASPECT_RATIO
 
@@ -238,7 +241,7 @@ export function ThumbnailCropModal({
     const image = imgRef.current
     const viewport = viewportRef.current
     if (!image || !viewport || !mediaReady) {
-      setError("画像の読み込みが完了していません。")
+      setError(t("errors.imageNotReady"))
       return
     }
 
@@ -256,7 +259,7 @@ export function ThumbnailCropModal({
       if (isAdmin && e instanceof Error && e.message.trim()) {
         setError(e.message)
       } else {
-        setError(GENERIC_IMAGE_ERROR)
+        setError(t("errors.genericFailure"))
       }
     } finally {
       setBusy(false)
@@ -278,9 +281,9 @@ export function ThumbnailCropModal({
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border bg-card px-4 py-3 md:px-6">
           <div>
             <h2 id="thumbnail-crop-title" className="text-base font-bold text-white md:text-lg">
-              {heading}
+              {resolvedHeading}
             </h2>
-            <p className="mt-1 text-xs leading-relaxed text-zinc-400 md:text-sm">{subheading}</p>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-400 md:text-sm">{resolvedSubheading}</p>
           </div>
           <Button
             type="button"
@@ -289,7 +292,7 @@ export function ThumbnailCropModal({
             onClick={onClose}
             disabled={busy}
             className="shrink-0 text-zinc-400 hover:bg-zinc-800 hover:text-white"
-            aria-label="閉じる"
+            aria-label={tAria("close")}
           >
             <X className="h-5 w-5" />
           </Button>
@@ -318,7 +321,7 @@ export function ThumbnailCropModal({
                 <img
                   ref={imgRef}
                   src={imageSrc}
-                  alt="切り抜き対象"
+                  alt={t("altCropTarget")}
                   draggable={false}
                   onLoad={handleImageLoad}
                   className="thumbnail-crop-source block max-w-none select-none"
@@ -330,7 +333,7 @@ export function ThumbnailCropModal({
             </div>
             <div className="flex w-full max-w-[min(100%,560px)] flex-row items-center gap-3 px-1 text-zinc-300 max-sm:mt-0.5 sm:mt-3 sm:w-auto sm:min-w-[12rem] md:min-w-[14rem]">
               <label htmlFor="thumbnail-crop-zoom" className="shrink-0 text-xs text-zinc-400">
-                拡大
+                {t("zoomLabel")}
               </label>
               <input
                 id="thumbnail-crop-zoom"
@@ -360,7 +363,7 @@ export function ThumbnailCropModal({
             disabled={busy}
             className="border-zinc-600 bg-zinc-900 text-zinc-200 hover:border-red-500 hover:bg-zinc-800"
           >
-            キャンセル
+            {t("cancel")}
           </Button>
           <Button
             type="button"
@@ -368,7 +371,7 @@ export function ThumbnailCropModal({
             disabled={busy || !mediaReady}
             className="bg-red-600 font-semibold text-white hover:bg-red-500 disabled:opacity-50"
           >
-            {busy ? "処理中..." : "この範囲で決定"}
+            {busy ? t("processing") : t("confirm")}
           </Button>
         </div>
       </div>

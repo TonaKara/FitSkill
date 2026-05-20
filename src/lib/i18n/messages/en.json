@@ -1,0 +1,1798 @@
+{
+  "common": {
+    "appName": "GritVib",
+    "loading": "Loading...",
+    "save": "Save",
+    "saving": "Saving...",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "deleting": "Deleting...",
+    "edit": "Edit",
+    "close": "Close",
+    "submit": "Submit",
+    "submitting": "Submitting...",
+    "back": "Back",
+    "next": "Next",
+    "search": "Search",
+    "yes": "Yes",
+    "no": "No",
+    "confirm": "Confirm",
+    "more": "Show more",
+    "retry": "Retry"
+  },
+  "language": {
+    "label": "Language",
+    "ja": "日本語",
+    "en": "English",
+    "switchToJa": "日本語に切り替える",
+    "switchToEn": "Switch to English"
+  },
+  "header": {
+    "searchPlaceholder": "Search skills...",
+    "teach": "Teach",
+    "createStore": "Create your store for free",
+    "guide": "How it works",
+    "menuOpen": "Open menu",
+    "menuClose": "Close menu",
+    "menu": "Menu",
+    "login": "Log in",
+    "logout": "Log out",
+    "logoutConfirm": "Are you sure you want to log out?",
+    "guest": "Guest",
+    "user": "User",
+    "loggedIn": "Logged in"
+  },
+  "auth": {
+    "loginTitle": "Log in",
+    "signupTitle": "Sign up",
+    "email": "Email",
+    "password": "Password",
+    "loginButton": "Log in",
+    "signupButton": "Sign up",
+    "logoutButton": "Log out"
+  },
+  "nav": {
+    "home": "Home",
+    "discover": "Discover",
+    "mypage": "My Page",
+    "messages": "Messages",
+    "notifications": "Notifications",
+    "settings": "Settings",
+    "help": "Help",
+    "sectionMenu": "Menu",
+    "sectionAccount": "Account",
+    "ariaMenu": "Menu",
+    "ariaMainMenu": "Main menu",
+    "adminPage": "Admin",
+    "itemLabels": {
+      "store": "My Store",
+      "discover": "Find Skills",
+      "create": "Create Listing",
+      "listings": "Manage Listings",
+      "profile": "Profile",
+      "sales": "Sales",
+      "trades": "Trades & Messages",
+      "favorites": "Favorites",
+      "reviews": "Reviews",
+      "settings": "Settings"
+    },
+    "tradesMenu": "Trades & Messages",
+    "tradesSubmenu": {
+      "offers": "Pre-purchase Offers",
+      "inquiry": "Consult / Messages",
+      "active": "Ongoing Trades",
+      "history": "Trade History"
+    }
+  },
+  "categoriesUi": {
+    "parentLabel": "Category",
+    "subLabel": "Sub-category",
+    "selectPlaceholder": "Please select",
+    "storedHint": "Stored as:"
+  },
+  "categories": {
+    "all": "All",
+    "fitness": "Fitness",
+    "cooking": "Cooking",
+    "game": "Gaming",
+    "study": "Study",
+    "creation": "Creation",
+    "art": "Art",
+    "other": "Other",
+    "fitnessSub": {
+      "soccer": "Soccer",
+      "stretch": "Stretching",
+      "diet": "Diet",
+      "dance": "Dance",
+      "basketball": "Basketball",
+      "badminton": "Badminton",
+      "pilates": "Pilates",
+      "yoga": "Yoga",
+      "running": "Running",
+      "martialArts": "Martial Arts",
+      "strengthTraining": "Strength Training",
+      "other": "Other"
+    }
+  },
+  "accentColors": {
+    "orange": "Orange (default)",
+    "yellow": "Yellow",
+    "blue": "Blue",
+    "green": "Green"
+  },
+  "contactCategories": {
+    "feedback": "Feedback",
+    "bug": "Bug report",
+    "ban": "User / listing BAN",
+    "dispute": "Dispute issue",
+    "question": "Question",
+    "other": "Other"
+  },
+  "aria": {
+    "closeNotification": "Close notification",
+    "addFavorite": "Add to favorites",
+    "removeFavorite": "Remove from favorites",
+    "profileImageUnset": "No profile image set",
+    "mainMenu": "Main menu",
+    "close": "Close"
+  },
+  "banned": {
+    "title": "Account suspended",
+    "body": "This account is currently unavailable because a violation of our terms was confirmed.",
+    "contactPrefix": "Please reach out via ",
+    "contactLink": "Contact us",
+    "contactSuffix": " for details.",
+    "backToTop": "Back to home"
+  },
+  "pullToRefresh": {
+    "refreshing": "Refreshing…",
+    "releaseToRefresh": "Release to refresh",
+    "pullToRefresh": "Pull down to refresh"
+  },
+  "userMenu": {
+    "openMenu": "Open account menu",
+    "loading": "Loading…",
+    "fallbackName": "User",
+    "loggedInLabel": "Signed in",
+    "logout": "Log out"
+  },
+  "authToasts": {
+    "registeredCheckEmail": "After signing in with the email and password you registered, you can proceed to profile setup.",
+    "resendInvalidEmail": "Please enter a valid email address for resending.",
+    "resendMismatch": "We can't resend to an email different from the one you registered. Please use \"Re-register with this email\" below to start over.",
+    "resendFailedFallback": "Failed to resend the confirmation email. Please try again later.",
+    "resendSuccessFallback": "Confirmation email resent. Please check your inbox.",
+    "emailRequired": "Please enter your email address.",
+    "emailAndPasswordRequired": "Please enter both email and password.",
+    "passwordResetMailFailed": "Failed to send the password reset email.",
+    "passwordResetMailSent": "Password reset email sent. Please follow the link in the email.",
+    "displayNameRequired": "Please enter a display name.",
+    "emailConfirmMismatch": "Email and confirmation email do not match.",
+    "passwordPolicy": "Password must be at least 8 characters and include uppercase, lowercase, and a digit.",
+    "passwordConfirmMismatch": "Password and confirmation password do not match.",
+    "birthdayRequired": "Please enter your date of birth.",
+    "birthdayFuture": "Date of birth cannot be in the future.",
+    "loginSuccess": "Sign-in successful.",
+    "userCreateFailed": "Failed to create the user.",
+    "emailMaybeRegistered": "This email may already be registered or pending confirmation. Please check your inbox.",
+    "accountCreated": "Account created. Proceeding to profile setup.",
+    "passwordUpdated": "Password updated. Redirecting to the dashboard."
+  },
+  "profileSetupToasts": {
+    "genericSaveFailed": "Failed to save. Please try again later.",
+    "profileLoadFailed": "Failed to load your profile.",
+    "imageFileRequired": "Please select an image file (jpg/png/webp, etc.).",
+    "avatarPublicUrlFailed": "Failed to get the public URL for the avatar image.",
+    "customIdLocked": "Custom ID cannot be changed once set.",
+    "customIdValidation": "Custom ID must start with a lowercase letter and use 3-30 characters of lowercase letters, digits, _, or -.",
+    "customIdReserved": "That custom ID is reserved and cannot be used.",
+    "saveFailed": "Failed to save.",
+    "customIdTaken": "This custom ID is already in use.",
+    "profileSavedAvatarPending": "Profile content saved. The avatar image could not be uploaded while the service is still being prepared.",
+    "profileSavedAvatarFailed": "Profile saved. The avatar image could not be saved. Please try again shortly.",
+    "profileSaved": "Profile saved."
+  },
+  "mypageToasts": {
+    "storeUrlFetchFailed": "Failed to fetch the store URL.",
+    "storeUrlCopied": "Store URL copied.",
+    "copyFailedManual": "Copy failed. Please copy manually.",
+    "imageFileRequired": "Please select an image file (jpg/png/webp, etc.).",
+    "stripeLinked": "Stripe linking completed.",
+    "updated": "Updated.",
+    "adminLockedHide": "This listing was hidden by the operator and cannot be re-published by you.",
+    "skillPublished": "The skill has been published.",
+    "consultationApproved": "The booking request has been approved.",
+    "consultationRejected": "The booking request has been declined.",
+    "customIdLocked": "Custom ID cannot be changed once set.",
+    "customIdReserved": "That custom ID is reserved and cannot be used.",
+    "customIdTaken": "This custom ID is already in use.",
+    "logoutFailed": "Failed to sign out. Please try again.",
+    "avatarPublicUrlFailed": "Failed to get the public URL for the avatar image.",
+    "profileLoadFailed": "Failed to load your profile.",
+    "emailPrefsSaveFailed": "Failed to save email notification settings.",
+    "balanceFetchFailed": "Failed to fetch the balance.",
+    "skillPublishFailed": "Failed to publish the skill.",
+    "listingsFetchFailed": "Failed to fetch listed skills.",
+    "consultationFetchFailed": "Failed to fetch booking requests.",
+    "consultationApproveFailed": "Failed to approve.",
+    "consultationRejectFailed": "Failed to decline.",
+    "sentRequestsFetchFailed": "Failed to fetch sent requests.",
+    "favoritesFetchFailed": "Failed to fetch favorites.",
+    "favoritesRemoveFailed": "Failed to remove from favorites.",
+    "reviewsFetchFailed": "Failed to fetch ratings.",
+    "transactionsFetchFailed": "Failed to fetch transactions.",
+    "transactionsHistoryFetchFailed": "Failed to fetch transaction history.",
+    "peerProfileFetchFailed": "Failed to fetch the other party's profile.",
+    "skillFallback": "Skill",
+    "nameUnset": "Unnamed",
+    "instructorFallback": "Instructor",
+    "avatarUploadFailed": "Failed to upload the avatar image.",
+    "saveFailed": "Failed to save.",
+    "customIdValidation": "Custom ID must start with a lowercase letter and use 3-30 characters of lowercase letters, digits, _, or -.",
+    "displayNameLockedSaved": "Display name can only be changed once every 30 days. Other items have been saved.",
+    "profileSavedAvatarPending": "Profile saved. Avatar image could not be saved while the service is still being prepared.",
+    "profileSavedAvatarFailed": "Profile saved. The avatar image could not be saved. Please try again shortly.",
+    "profileSaved": "Profile saved.",
+    "consultationApprovedSystemContent": "Your pre-offer request has been approved. You can proceed to purchase.",
+    "consultationDeclinedNoReason": "Your pre-offer was declined.",
+    "stripeStatusCheckFailed": "Failed to verify Stripe connection. Please try again later.",
+    "stripeOnboardingOpenFailed": "Could not open the Stripe screen. Please try again later.",
+    "stripeDashboardOpenFailed": "Could not open the Stripe Dashboard. Please try again later.",
+    "avatarSavedAdminPending": " The avatar image could not be saved while the service is preparing.",
+    "avatarSaveFailedSuffix": " The avatar image could not be saved."
+  },
+  "chatLink": {
+    "discordServerInviteNotice": "Inviting users directly to your server from this chat is prohibited.",
+    "zoom": {
+      "title": "Zoom meeting invite",
+      "meetingId": "Meeting ID",
+      "passcode": "Passcode",
+      "joinLink": "Join link",
+      "copyId": "Copy ID",
+      "copyPasscode": "Copy passcode",
+      "noPasscode": "No passcode is set",
+      "joinMeeting": "Join meeting"
+    },
+    "discord": {
+      "title": "Discord",
+      "usernameLabel": "Username (ID)",
+      "copyId": "Copy ID"
+    },
+    "copied": "Copied!",
+    "modal": {
+      "pickTitle": "Link external tool",
+      "zoomTitle": "Zoom integration",
+      "youtubeTitle": "YouTube integration",
+      "discordTitle": "Discord integration",
+      "pickDescription": "Please choose the service to link.",
+      "back": "Back",
+      "send": "Send",
+      "zoom": {
+        "meetingIdLabel": "Meeting ID",
+        "meetingIdPlaceholder": "000 0000 0000",
+        "passcodeLabel": "Passcode",
+        "passcodePlaceholder": "000000",
+        "joinLinkLabel": "Join link",
+        "joinLinkPlaceholder": "https://zoom.us/j/..."
+      },
+      "discord": {
+        "userIdLabel": "Discord username (ID)",
+        "userIdPlaceholder": "e.g. gritvib_user",
+        "userIdHint": "Share your username so the other party can add you as a friend. Server invite links cannot be sent."
+      },
+      "youtube": {
+        "urlLabel": "Video URL",
+        "urlPlaceholder": "https://www.youtube.com/watch?v=..."
+      },
+      "errors": {
+        "meetingIdRequired": "Please enter the meeting ID.",
+        "linkRequired": "Please enter a link.",
+        "linkInvalid": "Please enter a valid URL.",
+        "youtubeUrlRequired": "Please enter the video URL.",
+        "urlInvalid": "The URL format is invalid.",
+        "discordUserIdRequired": "Please enter the Discord username (ID).",
+        "discordUserIdInvalid": "The username (ID) format is invalid."
+      }
+    }
+  },
+  "transactionReview": {
+    "loadingState": "Checking review status…",
+    "completedNotice": "The transaction is complete. Please rate {peerNoun}.",
+    "rateButton": "Rate",
+    "doneTemplate": "Rated: {stars} star(s){commentSuffix}",
+    "commentSeparator": " — ",
+    "modal": {
+      "title": "Rate {peerNoun}",
+      "description": "You can rate from 1 to 5 stars and add an optional comment.",
+      "starAria": "{n} stars",
+      "starsScore": "{stars} / 5",
+      "starsUnselected": "Not selected",
+      "commentPlaceholder": "Comment (optional)",
+      "cancel": "Cancel",
+      "submit": "Submit"
+    },
+    "errors": {
+      "selectStars": "Please choose a rating from 1 to 5 stars.",
+      "duplicate": "You have already submitted a review for this transaction.",
+      "submitFailed": "Failed to send the review. Please try again later."
+    }
+  },
+  "cmsPublic": {
+    "loadingFooter": "Loading legal notice information...",
+    "loadingDetails": "Loading information...",
+    "operator": "Operator: {name}",
+    "contact": "Contact: {email}",
+    "unset": "Not set",
+    "viewLink": "View notice under the Specified Commercial Transactions Act",
+    "labels": {
+      "siteName": "Seller Name",
+      "address": "Address",
+      "email": "Email address",
+      "phone": "Phone number",
+      "priceInfo": "Price",
+      "paymentMethod": "Payment method and timing",
+      "deliveryInfo": "Provision/delivery timing",
+      "returnPolicy": "Returns",
+      "refundPolicy": "Refunds and cancellation",
+      "serviceTerms": "Other terms of sale"
+    }
+  },
+  "reportModal": {
+    "title": "Report",
+    "reasonLabel": "Reason",
+    "selectPlaceholder": "Please select",
+    "contentLabel": "Details",
+    "contentPlaceholder": "Please describe the issue",
+    "cancel": "Cancel",
+    "submitting": "Sending...",
+    "submit": "Submit report",
+    "errors": {
+      "reasonRequired": "Please select a reason.",
+      "contentRequired": "Please enter the details.",
+      "submitFailed": "Failed to submit the report. Please try again later.",
+      "submitFailedFallback": "Failed to submit the report."
+    },
+    "success": "Your report has been received.",
+    "reasons": {
+      "inappropriateName": "Inappropriate name",
+      "termsViolation": "Terms violation",
+      "inappropriateContent": "Inappropriate content",
+      "other": "Other"
+    }
+  },
+  "stripeInstructorOnboarding": {
+    "issuing": "Issuing...",
+    "startRegistration": "Start instructor registration on Stripe",
+    "confirmTitle": "Confirm Stripe instructor registration",
+    "defaultsLead": "For a smoother registration, the following information is pre-filled on Stripe:",
+    "defaults": {
+      "country": "Country: Japan",
+      "businessType": "Business type: Sole proprietor",
+      "industry": "Industry: Education > Other",
+      "url": "URL: https://gritvib.com",
+      "description": "Description: On GritVib, a store platform for individuals, we provide services such as online consultations, digital content, and in-person skill transactions/lessons."
+    },
+    "notesHeading": "Notes",
+    "notes": {
+      "editable": "After registration, these details can be edited from your Stripe dashboard.",
+      "privacy": "Bank and personal information are handled securely by Stripe and are not stored in our database."
+    },
+    "cancel": "Cancel",
+    "proceeding": "Going to Stripe...",
+    "agreeProceed": "Agree and continue to Stripe",
+    "loadingTitle": "Preparing the Stripe screen",
+    "loadingBody": "You will be redirected to Stripe shortly. Please stay on this page.",
+    "openFailedFallback": "Could not open the Stripe screen. Please try again later."
+  },
+  "stripePaymentSheet": {
+    "title": "Payment",
+    "description": "Please complete payment with the method shown.",
+    "cancel": "Cancel",
+    "processing": "Processing...",
+    "pay": "Pay",
+    "errors": {
+      "stripeLoadFailed": "Failed to load Stripe.",
+      "elementsInitFailed": "Failed to initialize the payment form.",
+      "paymentFailed": "Payment could not be completed. Please try again later."
+    }
+  },
+  "thumbnailCropModal": {
+    "headingDefault": "Crop thumbnail",
+    "subheadingDefault": "The area inside the frame will be saved. Drag to reposition; use the wheel or pinch to zoom.",
+    "altCropTarget": "Crop target",
+    "zoomLabel": "Zoom",
+    "cancel": "Cancel",
+    "processing": "Processing...",
+    "confirm": "Use this area",
+    "errors": {
+      "imageNotReady": "The image has not finished loading.",
+      "genericFailure": "Failed to process the image."
+    }
+  },
+  "disputeEvidence": {
+    "defaultAlt": "Evidence image",
+    "loadFailed": "Failed to load the image.",
+    "cannotDisplay": "Unable to display the image.",
+    "loadingAria": "Loading evidence image",
+    "expandedAria": "Evidence image enlarged view",
+    "zoomAria": "Enlarge {alt}"
+  },
+  "chatRich": {
+    "youtube": {
+      "label": "YouTube video",
+      "previewUnavailable": "Preview is unavailable for this URL. Please open the link directly.",
+      "openExternal": "Open on YouTube"
+    },
+    "file": {
+      "loadFailed": "Failed to load the file.",
+      "preparing": "Preparing the file…",
+      "save": "Save"
+    }
+  },
+  "storeListings": {
+    "title": "Your listings",
+    "newSkill": "New listing",
+    "filter": {
+      "published": "Published",
+      "draft": "Drafts / hidden",
+      "all": "All"
+    },
+    "badge": {
+      "private": "Hidden",
+      "public": "Published",
+      "adminLocked": "Hidden by admin"
+    },
+    "loading": "Loading...",
+    "empty": {
+      "published": "You don't have any published listings yet.",
+      "draft": "No drafts or hidden listings.",
+      "all": "You haven't listed any skills yet."
+    },
+    "cta": {
+      "firstListing": "List your first skill"
+    },
+    "uncategorized": "Uncategorized",
+    "priceFormat": "¥{price}",
+    "thumbnailAlt": "Thumbnail of {title}",
+    "actions": {
+      "view": "View",
+      "publish": "Publish",
+      "publishing": "Publishing...",
+      "edit": "Edit"
+    },
+    "publishModal": {
+      "title": "Publish this listing?",
+      "description": "\"{title}\" will be shown on your store.",
+      "cancel": "Cancel",
+      "confirm": "Publish",
+      "confirming": "Publishing..."
+    },
+    "notice": {
+      "adminLocked": "This listing was hidden by admin and cannot be republished by you.",
+      "publishFailed": "Failed to publish the listing.",
+      "published": "The listing has been published."
+    }
+  },
+  "notifications": {
+    "bell": {
+      "ariaLabel": "Notifications",
+      "panelLabel": "Notifications",
+      "unreadCount": "{count} unread",
+      "tabs": {
+        "ops": "From admin",
+        "general": "General"
+      },
+      "empty": {
+        "ops": "No notifications from admin yet.",
+        "general": "No notifications yet."
+      },
+      "loading": "Loading…",
+      "emptyContent": "(No content)",
+      "bodySectionLabel": "Details",
+      "updating": "Updating",
+      "subject": {
+        "purchase": "Transaction started",
+        "message": "New message",
+        "completion_request": "Completion approval request",
+        "completion_approved": "Transaction completed",
+        "review": "Review",
+        "dispute": "Dispute filed",
+        "consultation_request": "New pre-offer request",
+        "consultation_accepted": "Pre-offer accepted",
+        "consultation_rejected": "Pre-offer declined",
+        "announcement": "Announcement",
+        "admin_product_deleted": "Your listing was removed by admin",
+        "admin_product_visibility": "Listing visibility was changed by admin",
+        "default": "Notification"
+      },
+      "adminCategory": {
+        "transactionChat": "Transaction / chat",
+        "announcement": "Announcement",
+        "adminProductDeleted": "Listing removed",
+        "adminProductVisibility": "Visibility change",
+        "default": "Message from admin"
+      },
+      "adminHeadline": {
+        "announcementFallback": "Announcement from admin",
+        "default": "Message from admin"
+      },
+      "adminBracketPrefix": "Admin",
+      "announcementReason": {
+        "tosViolation": "Terms of Service violation",
+        "inappropriateImage": "Inappropriate image",
+        "importantNotice": "Important notice",
+        "maintenance": "Service maintenance",
+        "adminDecision": "Admin decision"
+      }
+    }
+  },
+  "tradeFinalConfirm": {
+    "noticeAccordion": "Important notices about this transaction (please read carefully)",
+    "physicalSafetyHeading": "[Important note on physical safety]",
+    "physicalSafetyNotice": "If you have injuries, pre-existing conditions, are pregnant, or have any other health concerns, please follow your doctor's instructions and proceed at your own risk. GritVib and the instructor accept no responsibility for injuries or accidents that may occur during sessions.",
+    "agreePrefix": "I agree to the notices above and the ",
+    "agreeTermsLink": "Terms of Service",
+    "agreeSeparator": " and ",
+    "agreePrivacyLink": "Privacy Policy",
+    "agreeSuffix": ".",
+    "cancelDefault": "Back",
+    "processing": "Processing..."
+  },
+  "purchaseConfirmModal": {
+    "title": "Final confirmation",
+    "subtitle": "Please agree to the notices before purchase to start the transaction.",
+    "actionLabel": "Purchase",
+    "cancelLabel": "Back"
+  },
+  "createSkill": {
+    "loading": "Loading...",
+    "authCheck": "Checking login status...",
+    "skillLoading": "Loading skill information...",
+    "pageTitle": {
+      "create": "List a skill",
+      "edit": "Edit skill"
+    },
+    "formTitle": {
+      "create": "Listing form",
+      "edit": "Edit form"
+    },
+    "submitLabel": {
+      "create": "List skill",
+      "edit": "Update"
+    },
+    "back": "Back",
+    "required": "required",
+    "cropHeading": "Crop the thumbnail",
+    "cropSubheading": "The frame is 16:10, matching the listing thumbnail. Drag, pinch, or use the zoom slider to adjust the position and zoom.",
+    "thumbnail": {
+      "title": "Thumbnail image",
+      "hint": "You can set the thumbnail later.",
+      "select": "Select image",
+      "unselected": "Not selected",
+      "removeAria": "Remove thumbnail image"
+    },
+    "sections": {
+      "basic": "Basics",
+      "delivery": "Delivery method",
+      "pricing": "Pricing and conditions",
+      "preOffer": "Pre-offer settings",
+      "consultationChat": "Pre-purchase chat settings",
+      "visibility": "Visibility"
+    },
+    "fields": {
+      "title": "Title",
+      "titlePlaceholder": "e.g. For beginners: Online consultation (30 min)",
+      "audience": "Recommended for",
+      "audiencePlaceholder": "e.g. Beginners, people who want focused time-boxed advice",
+      "description": "Description",
+      "descriptionPlaceholder": "Describe your strengths and what you offer (including how you integrate with {tools} if used), the flow, and what buyers should prepare.",
+      "descriptionHint": "If you use external tools ({tools}), include integration details in the description to prevent issues.",
+      "format": "Format",
+      "formatOnline": "Online",
+      "formatOnsite": "In person",
+      "location": "Location (prefecture)",
+      "locationPlaceholder": "Please select a prefecture",
+      "price": "Price (JPY)",
+      "pricePlaceholder": "e.g. 3500",
+      "fee": "Service fee ({percent}%): ¥{fee}",
+      "receive": "Estimated payout: ¥{amount}",
+      "duration": "Time per session (min)",
+      "durationPlaceholder": "e.g. 60",
+      "capacity": "Maximum capacity",
+      "capacityPlaceholder": "e.g. 5"
+    },
+    "preOffer": {
+      "enable": "Accept pre-offer (question form)",
+      "hint": "When enabled, buyers must fill out a form and get the instructor's approval before purchase (please set question labels).",
+      "q1": "Question 1",
+      "q2": "Question 2",
+      "q3": "Question 3",
+      "free": "Free text",
+      "exampleQ1": "e.g. What are you most curious about right now?",
+      "exampleQ2": "e.g. What are you aiming for?",
+      "exampleQ3": "e.g. Tell us about your past experience and level",
+      "exampleFree": "e.g. Anything else you'd like to share in advance"
+    },
+    "consultationChat": {
+      "enable": "Accept pre-purchase chat consultations",
+      "hint": "When enabled, the skill page shows \"Ask the seller\", letting users exchange messages before the transaction."
+    },
+    "visibility": {
+      "public": "Public",
+      "private": "Private",
+      "adminLocked": "This listing has been hidden by support. You can't make it public again on your own."
+    },
+    "submit": {
+      "imageUploading": "Uploading image...",
+      "saving": "Saving...",
+      "deleteListing": "Delete listing",
+      "deleteHint": "Deleting permanently removes this listing data (cannot be undone)."
+    },
+    "publishConfirm": {
+      "titlePublic": "Save this skill as public?",
+      "titlePrivate": "Save this skill as private?",
+      "bodyPublic": "Once saved, it will appear in the skill list and be visible to buyers.",
+      "bodyPrivate": "Once saved, it will be hidden from the skill list (ongoing transactions are not affected).",
+      "cancel": "Cancel",
+      "saving": "Saving...",
+      "save": "Save"
+    },
+    "deleteConfirm": {
+      "title": "Delete this listing?",
+      "body": "Once deleted, it cannot be restored.",
+      "cancel": "Cancel",
+      "deleting": "Deleting...",
+      "delete": "Delete"
+    },
+    "finalConfirm": {
+      "title": "Final confirmation",
+      "subtitle": "Please review and confirm to complete the process.",
+      "visibilityLabel": "Visibility:",
+      "visibilityPublic": "Public (listed)",
+      "visibilityPrivate": "Private (hidden from list)",
+      "cancel": "Back"
+    },
+    "notices": {
+      "editNotFound": "The skill to edit could not be found.",
+      "imageMustBeImage": "Please select an image file (jpg/png/webp etc.).",
+      "thumbnailRequired": "Please select a thumbnail image.",
+      "thumbnailUrlFailed": "Failed to obtain the public URL for the thumbnail image.",
+      "deleteFailedFallback": "Failed to delete the listing.",
+      "consultationSettingsSaveFailed": "Failed to save consultation settings (invalid skill ID).",
+      "requiredFieldsMissing": "Some required fields are missing.",
+      "minDuration": "Time per session must be an integer of at least {min} minutes.",
+      "minCapacity": "Maximum capacity must be an integer of at least {min}.",
+      "minPrice": "Minimum price is ¥{min}",
+      "prefectureRequired": "Please select a prefecture for in-person lessons.",
+      "preOfferQ1Required": "Question 1 is required when enabling the pre-offer.",
+      "adminLockedPublish": "This listing has been hidden by support. You can't make it public again on your own.",
+      "stripeRequired": "Listing requires a bank account. Please complete Stripe onboarding from Sales & Payout Settings.",
+      "createFailed": "Failed to create the skill.",
+      "createSuccess": "Listing complete!",
+      "submitFallback": "Failed to list. Please try again later."
+    }
+  },
+  "skillDetail": {
+    "format": {
+      "online": "Online",
+      "offline": "In person",
+      "prefectureFallback": "Prefecture unset"
+    },
+    "loading": "Loading...",
+    "checkoutCancelSyncing": "Checking the number of applicants",
+    "notFound": {
+      "title": "Skill not found",
+      "subtitle": "Please check the URL.",
+      "homeCta": "Back to home"
+    },
+    "instructorFallback": "Instructor",
+    "purchaseProgress": {
+      "preparingCheckout": "Preparing checkout...",
+      "movingToCheckout": "Redirecting to checkout...",
+      "movingToChat": "Opening chat...",
+      "verifyingTransaction": "Verifying transaction..."
+    },
+    "errors": {
+      "checkoutPrepareFailed": "Failed to prepare checkout.",
+      "checkoutPageCreateFailed": "Could not create the checkout page.",
+      "checkoutReflectFailed": "Failed to apply checkout info. Please try again later.",
+      "checkoutSlow": "It's taking a while to reflect your transaction. Please open the chat from My Page.",
+      "checkConfirming": "Verifying the transaction status. Please try again shortly.",
+      "txCheckFailed": "Failed to verify the transaction.",
+      "checkoutStartGeneric": "Failed to start checkout. Please reload the page and try again.",
+      "checkoutStartWithReason": "Failed to start checkout. ({reason})",
+      "invalidSkillId": "Invalid skill ID format.",
+      "consultationRequired": "Please fill in all displayed consultation fields.",
+      "loginInfoCannotVerify": "Could not verify your login info. Please sign in again.",
+      "authUserUpdated": "Your authentication info was updated. Please reload the page and try again.",
+      "skillPendingApproval": "This skill is pending approval. You can resubmit after approval or rejection.",
+      "instructorInfoFailed": "Could not verify the instructor's info. Please reload the page and try again.",
+      "consultationRequestFailed": "Failed to send the consultation request.",
+      "paymentMaybeComplete": "Your payment may have completed. Please open the chat from your transactions on My Page, or try again later."
+    },
+    "successes": {
+      "consultationRequested": "Request sent. Please wait for the instructor's approval"
+    },
+    "notifications": {
+      "consultationOfferTitleFallback": "Pre-offer",
+      "consultationOfferContent": "You have a pre-offer request. Please review the booking request."
+    },
+    "backToList": "Back to list",
+    "sections": {
+      "instructor": "Instructor",
+      "price": "Price",
+      "description": "Description",
+      "forWhom": "Recommended for",
+      "format": "Format",
+      "location": "Location",
+      "capacity": "Capacity"
+    },
+    "instructor": {
+      "reviewCount": "{count} reviews",
+      "noRating": "No rating yet"
+    },
+    "price": {
+      "perSession": "/ session"
+    },
+    "capacity": {
+      "max": "Max capacity: {max}",
+      "enrolled": "Currently enrolled: {enrolled}"
+    },
+    "duration": {
+      "label": "Time per session:",
+      "minutes": "{minutes} min"
+    },
+    "consultation": {
+      "loginToSendOffer": "Sign in to send a pre-offer",
+      "closeForm": "Close the form",
+      "openForm": "Send a pre-offer",
+      "submitting": "Submitting...",
+      "submit": "Submit request"
+    },
+    "actions": {
+      "askSeller": "Ask the seller",
+      "askSellerHint": "Use \"Ask the seller\" for pre-purchase questions. Once the transaction starts, use the transaction chat.",
+      "consultationRequired": "This skill requires a pre-offer. You need to apply before the first purchase.",
+      "ownSkill": "This is your own skill",
+      "openProgramChat": "Open the program (chat)",
+      "approvalPending": "Pending approval",
+      "rejected": "Your request was rejected.",
+      "reportProduct": "Report this product",
+      "checkoutConditionUnknown": "Could not verify purchase conditions",
+      "txStatusLoading": "Checking transaction status...",
+      "txStatusFailed": "Could not verify transaction status",
+      "purchase": "Purchase",
+      "soldOut": "Sold out"
+    }
+  },
+  "chat": {
+    "loginRequired": "You need to sign in to open this transaction chat.",
+    "loginCta": "Sign in",
+    "txLoading": "Loading transaction...",
+    "backLabel": "Back",
+    "openFailedFallback": "Could not open the transaction.",
+    "header": {
+      "txChat": "Transaction chat",
+      "backAria": "Back"
+    },
+    "media": {
+      "loadFailed": "Could not load the media."
+    },
+    "errors": {
+      "imageFetchFailed": "Failed to fetch the image.",
+      "imageSaveFailed": "Failed to save the image.",
+      "txNotFound": "Transaction not found.",
+      "txAccessForbidden": "You can't access this transaction.",
+      "peerProfileFailed": "Could not load the peer's profile.",
+      "fileUploadFailed": "Failed to upload the file.",
+      "messageSendFailed": "Failed to send the message.",
+      "sendFailedFallback": "Failed to send.",
+      "linkSendFailed": "Failed to send the integration info.",
+      "evidenceMustBeImage": "Evidence photos must be image files.",
+      "evidenceTooLarge": "Evidence photos must be 10MB or less.",
+      "evidenceUploadFailed": "Failed to upload the photo.",
+      "evidenceUploadFailedTxNote": "Because the photo upload failed, the transaction was not updated.",
+      "disputeSubmitFailed": "Failed to submit the dispute.",
+      "disputeRecordedNoticeMissing": "The dispute was recorded, but creating the notification failed. Please check notifications later.",
+      "txUpdateFailed": "Failed to update transaction info. Please try again later.",
+      "completeChatFileFetchFailed": "Failed to fetch chat file info. Storage deletion was skipped.",
+      "approveGenericFailed": "Failed to approve the transaction. Please try again later.",
+      "loginInfoMissing": "Login info could not be verified.",
+      "sessionExpired": "Your session expired. Please sign in again.",
+      "disputeReasonRequired": "Please select a dispute reason.",
+      "waitEvidenceUpload": "Please wait for the photo upload to finish before submitting.",
+      "fileTooLarge": "Please choose a file 50MB or smaller.",
+      "fileBlocked": "For security reasons, this file type cannot be sent.",
+      "fileUnsupported": "This file type is not supported. Please choose an image, video, PDF, Office document, text file, etc."
+    },
+    "successes": {
+      "alreadyCompleted": "This transaction is already completed.",
+      "applyRequested": "Request submitted.",
+      "reviewSent": "Your review has been sent."
+    },
+    "notifications": {
+      "newMessage": "You have a new message.",
+      "applyForApproval": "A completion request has been received. Please review and approve."
+    },
+    "peer": {
+      "fallback": "Peer"
+    },
+    "actions": {
+      "processing": "Processing...",
+      "applyPending": "Waiting for the peer's approval",
+      "applyCanceled": "This transaction was canceled or refunded.",
+      "applyClosed": "This transaction is closed.",
+      "applyCta": "Submit completion request",
+      "approveCompletion": "Complete transaction",
+      "openDispute": "Open a dispute"
+    },
+    "approvalPending": {
+      "intro": "A completion request is pending. Approve if everything is fine, or open a dispute if there is an issue.",
+      "autoComplete": "Auto-completes if no action is taken by {deadline}."
+    },
+    "banner": {
+      "banned": "This account is currently suspended, so you can only view messages on ongoing transactions. New messages can't be sent.",
+      "canceled": "This transaction has ended due to cancellation or refund. New messages can't be sent.",
+      "closed": "This transaction is closed. New messages can't be sent.",
+      "disputedBuyer": "This transaction is under dispute and won't be completed until support has reviewed it.",
+      "disputedSeller": "A dispute has been filed. Please wait for support review."
+    },
+    "dispute": {
+      "submission": {
+        "reasonLabel": "Reason:",
+        "detailLabel": "Details:",
+        "evidenceAlt": "Dispute evidence photo"
+      },
+      "form": {
+        "title": "Open a dispute",
+        "closeAria": "Close",
+        "intro": "Please review and submit. Support will review the contents.",
+        "reasonLabel": "Reason",
+        "detailLabel": "Details (optional)",
+        "detailPlaceholder": "Please describe the situation in detail",
+        "evidenceLabel": "Evidence photo (optional)",
+        "selectImage": "Select photo",
+        "clearImage": "Remove",
+        "imageNote": "Image only, 10MB or less",
+        "cancel": "Cancel",
+        "submit": "Submit dispute",
+        "submitting": "Submitting..."
+      },
+      "reasons": {
+        "different": "Provided content differs from prior description",
+        "noContact": "Cannot get in touch with the instructor",
+        "defective": "Deliverables or support are inadequate",
+        "other": "Other"
+      }
+    },
+    "list": {
+      "empty": "No messages yet. Try saying hello."
+    },
+    "message": {
+      "selfLabel": "You",
+      "anonymousUser": "User",
+      "readMark": "Read",
+      "unreadMark": "Unread",
+      "linkLoadFailed": "Could not read link info.",
+      "youtubeLoadFailed": "Could not read the YouTube URL.",
+      "viewProfileAria": "Open {name}'s profile",
+      "peerNounSeller": "Seller",
+      "peerNounBuyer": "Buyer"
+    },
+    "composer": {
+      "removeAttachment": "Remove attachment",
+      "attachFile": "Attach a file",
+      "externalToolSeller": "External tool integration ({tools})",
+      "externalToolBuyer": "External tool integration (YouTube)",
+      "placeholder": "Type a message...",
+      "disabledPlaceholder": "Sending is disabled",
+      "sendAria": "Send",
+      "bannedNote": "While suspended, you can only view chats of ongoing transactions.",
+      "filePart1": "Use + to attach files (per file ",
+      "fileLimit": "50MB or less",
+      "filePart2": ", images / videos / PDFs / Office / text, etc. Executables are not allowed).",
+      "linkSeller": "Use the link icon to integrate with external tools ({tools}).",
+      "linkBuyer": "Use the link icon to integrate with external tools (YouTube).",
+      "linkGeneric": "Use the link icon to integrate with external tools.",
+      "keyboardHint": "Press Enter to send, Shift+Enter for newline on desktop."
+    },
+    "requestAgreement": {
+      "title": "[Important: Completion Request]",
+      "body1": "Once the student presses the completion button, photo and video data will be permanently deleted from the server and cannot be restored.",
+      "body2": "Even without the student's approval, the transaction will auto-complete 3 days after the request, finalizing your payout.",
+      "body3": "If the student opens a dispute, support will investigate. Payouts will be paused during the investigation, which can take several days to a week.",
+      "confirm": "Do you understand the above and want to submit the completion request?",
+      "cancel": "Cancel",
+      "submit": "Agree and submit",
+      "submitting": "Processing..."
+    },
+    "approveAgreement": {
+      "title": "[Final Completion Confirmation]",
+      "body1": "Performing this action permanently deletes photo and video data in the chat from the server and they cannot be restored.",
+      "body2": "Approving completion finalizes payment to the instructor and cancellation is no longer possible.",
+      "body3": "If there is an issue with the instruction, please open a dispute. You will need supporting images or chat logs.",
+      "body4": "Support reviews may take some time. Thank you for your patience.",
+      "confirm": "Complete the transaction and delete data?",
+      "cancel": "Cancel",
+      "submit": "Complete transaction",
+      "submitting": "Processing..."
+    },
+    "viewer": {
+      "save": "Save",
+      "closeAria": "Close"
+    }
+  },
+  "inquiry": {
+    "loginRequired": "You need to sign in to view your inquiries.",
+    "loginToOpenChat": "You need to sign in to open the inquiry chat.",
+    "loginCta": "Sign in",
+    "title": "Pre-purchase Inquiries",
+    "subtitle": "Select a peer to open the chat.",
+    "homeLink": "Home",
+    "listLink": "Back to list",
+    "loading": "Loading...",
+    "inboxEmpty": "No inquiry messages yet. You can ask the seller from the skill details page.",
+    "anonymousUser": "User",
+    "skillFallback": "Skill #{id}",
+    "contextLabelDefault": "Skill in discussion",
+    "contextLabelPending": "Inquiry about this skill",
+    "skillInfoLoading": "Loading skill info…",
+    "priceLine": "¥{amount} / session",
+    "openPurchaseCta": "Start a transaction with this skill (purchase page)",
+    "pendingContextHint": "Messages you send below will be delivered as an inquiry about this skill.",
+    "readUpdateFailed": "Failed to update read status: {reason}",
+    "invalidUrl": "Invalid URL.",
+    "selfChatForbidden": "You can't chat with yourself.",
+    "preChatChecking": "Checking inquiry settings…",
+    "inboxHeading": "Inquiries",
+    "backToListAria": "Back to list",
+    "peerLabel": "Peer",
+    "noMessagesWithCta": "No messages yet. Open from \"Ask the seller\" on the skill details page, or send from the composer below.",
+    "noMessagesSimple": "No messages yet. Send from the composer below.",
+    "selfLabel": "You",
+    "readMark": "Read",
+    "unreadMark": "Unread",
+    "readMarkSeparator": " · Read",
+    "unreadMarkSeparator": " · Unread",
+    "viewProfileAria": "Open {name}'s profile",
+    "composerPlaceholder": "Type a message...",
+    "sendButton": "Send",
+    "purchaseChatNote": "For post-purchase conversations, please use the dedicated transaction chat created after purchase.",
+    "keyboardHint": "Press Enter to send, Shift+Enter for newline on desktop.",
+    "missingSkillError": "Cannot identify the target skill. Please reopen from \"Ask the seller\" on the skill page.",
+    "sendFailedFallback": "Failed to send."
+  },
+  "mypage": {
+    "tradesHubTitle": "Trades & Messages",
+    "tradesHubSubtitle": "Switch between purchased and sold items to view pre-offers, inquiries, ongoing trades, and history.",
+    "sideTabAria": "Switch between purchased and sold items",
+    "statusTabAria": "Switch trade status",
+    "sideBuyer": "Purchased",
+    "sideSeller": "Sold",
+    "tabPreOffer": "Pre-Offers",
+    "tabActive": "Ongoing",
+    "tabHistory": "History",
+    "tabIncomingRequests": "Incoming Requests",
+    "inquiryEmptyInstructor": "No inquiry messages yet. Once a buyer reaches out, it will appear here.",
+    "inquiryEmptyStudent": "No inquiry messages yet. You can ask the seller from the skill details page.",
+    "menu": {
+      "tradesMessages": "Trades & Messages",
+      "favorites": "Favorites",
+      "profile": "Profile",
+      "reviews": "Reviews",
+      "account": "Account Settings",
+      "studentMode": "Use as Buyer",
+      "instructorMode": "Use as Seller",
+      "settingsHeading": "Settings",
+      "adminPage": "Admin page",
+      "toMyStore": "My Store",
+      "menuAria": "My page menu"
+    },
+    "profile": {
+      "title": "Profile Settings",
+      "subtitle": "Manage your icon, display name, bio, and interests.",
+      "previewLink": "Preview",
+      "copyStoreUrl": "Copy my store URL",
+      "imageHeading": "Profile Image",
+      "imageHint": "Set the icon image shown on your profile, in chat, and more (optional).",
+      "imagePreviewAlt": "Icon preview",
+      "imageRemoveAria": "Remove or clear profile image",
+      "imageSelect": "Choose image",
+      "cropHeading": "Profile Icon",
+      "cropSubheading": "The framed area will be saved. Drag to reposition, scroll or pinch to zoom.",
+      "displayNameLabel": "Display name",
+      "displayNamePlaceholder": "Nickname or your name",
+      "displayNameNote": "* Display name can only be changed once every 30 days.",
+      "displayNameNextChangeable": "Next change available: {date}",
+      "customIdLabel": "Custom ID (optional, recommended)",
+      "customIdPlaceholder": "e.g. taro_fit",
+      "customIdHint": "Customize your store URL (e.g. setting \"taro_fit\" displays as https://gritvib.com/store/taro_fit). Use lowercase letters to start, 3–30 chars of lowercase / digits / underscore / hyphen. Once set, the custom ID cannot be changed.",
+      "customIdLocked": "Already set. The custom ID cannot be edited.",
+      "bioLabel": "Bio",
+      "bioPlaceholder": "Share your strengths, background, goals, etc.",
+      "interestsLabel": "Interests",
+      "interestsHint": "You can select multiple.",
+      "submit": "Save",
+      "submitting": "Saving..."
+    },
+    "listings": {
+      "title": "Manage Listings",
+      "subtitle": "Your published skills.",
+      "empty": "You haven't listed any skills yet.",
+      "emptyLink": "Create a listing",
+      "statusPrivate": "Private",
+      "statusPublic": "Published",
+      "statusAdminLocked": "Unpublished by Admin",
+      "uncategorized": "Uncategorized",
+      "publish": "Publish",
+      "publishing": "Publishing...",
+      "edit": "Edit",
+      "fallbackSkill": "this skill",
+      "confirmTitle": "Publish this skill?",
+      "confirmBody": "\"{title}\" will be saved as visible in the listings.",
+      "cancel": "Cancel"
+    },
+    "requests": {
+      "titleIncoming": "Incoming Requests",
+      "titleSent": "Sent Requests",
+      "descriptionIncoming": "Review pre-offers from buyers and accept or decline.",
+      "descriptionSent": "Track the progress of pre-offers you've sent.",
+      "sentSecondaryDescription": "Track the status of pre-offers you've sent.",
+      "filterPending": "Pending",
+      "filterHandled": "Handled",
+      "filterAll": "All",
+      "emptyPending": "No pending requests.",
+      "emptyHandled": "No handled requests.",
+      "emptyAll": "No requests yet.",
+      "emptySent": "No sent requests yet.",
+      "notInput": "Not entered",
+      "statusPending": "Awaiting approval",
+      "statusAccepted": "Accepted",
+      "statusRejected": "Declined",
+      "statusPendingShort": "Pending",
+      "approve": "Accept",
+      "reject": "Decline",
+      "rejectReasonLabel": "Reason for declining (optional)",
+      "rejectReasonPlaceholder": "Optional. You can decline without entering a reason.",
+      "cancel": "Cancel",
+      "confirmReject": "Decline with this content",
+      "rejectionReasonHeading": "Reason for declining",
+      "rejectionReasonEmpty": "(No reason provided)"
+    },
+    "favorites": {
+      "title": "Favorites",
+      "subtitle": "Skills you've saved.",
+      "empty": "No favorited skills yet.",
+      "removeAria": "Remove from favorites",
+      "remove": "Remove favorite",
+      "priceYen": "¥{amount}"
+    },
+    "reviews": {
+      "title": "Reviews",
+      "subtitle": "View ratings and comments you've received.",
+      "starLabel": "{count} stars",
+      "starCount": "{count}",
+      "averagePrefix": "Average: ",
+      "reviewCountSuffix": "({count} reviews)",
+      "commentsHeading": "Review Comments",
+      "filterCurrent": "Showing {count} stars (clear)",
+      "emptyComments": "No reviews with comments yet.",
+      "commentRatingAria": "Rating {value}",
+      "unnamedReviewer": "User"
+    },
+    "trades": {
+      "titleLearning": "Ongoing (as Buyer)",
+      "titleTeaching": "Ongoing (as Seller)",
+      "descriptionLearning": "Items you've purchased that are in progress. You can chat with the seller.",
+      "descriptionTeaching": "Trades in progress in your store. You can chat with the buyer.",
+      "emptyLearning": "No ongoing purchases.",
+      "emptyTeaching": "No ongoing orders.",
+      "peerInstructor": "Seller",
+      "peerBuyer": "Buyer",
+      "peerSeller": "Seller",
+      "transactionIdLabel": "Transaction ID: {id}",
+      "startedAtLabel": "Started: {date}",
+      "startedAtPlaceholder": "Started: -",
+      "completedAtLabel": "Completed: {date}",
+      "completedAtPlaceholder": "Completed: -",
+      "toChat": "Open Chat"
+    },
+    "history": {
+      "titleSeller": "Trade History (Sold)",
+      "titleBuyer": "Trade History (Purchased)",
+      "descriptionSeller": "History of sales and fulfillment in your store. Includes completed, refunded, and canceled cases.",
+      "descriptionBuyer": "History of your purchases. Includes completed, refunded, and canceled cases.",
+      "emptySeller": "No sold-item history yet.",
+      "emptyBuyer": "No purchased-item history yet.",
+      "summary": "Showing {start}-{end} of {total}",
+      "prev": "Prev",
+      "next": "Next",
+      "statusCanceledOrRefunded": "Completed (refunded/canceled)",
+      "statusCompleted": "Completed"
+    },
+    "payout": {
+      "title": "Sales & Payout Settings",
+      "notRegisteredHint": "Not registered. Click the button below to start Stripe setup.",
+      "registeredHint": "Registered. You can open the Stripe Dashboard.",
+      "startStripe": "Start Stripe Seller Registration",
+      "openDashboard": "Open Stripe Dashboard",
+      "issuing": "Generating...",
+      "balanceHeading": "Stripe Connect Balance",
+      "balanceLoading": "Loading balance...",
+      "balanceTotal": "Sales (total balance): ¥{amount}",
+      "balancePending": "Pending: ¥{amount}",
+      "balanceAvailable": "Available for payout: ¥{amount}",
+      "balanceNote": "Sales become available in your payout balance a few days after Stripe processes payment and security checks.",
+      "disclaimer": "* All payment and identity verification is handled within Stripe's system. We do not store credit card or banking details on our site."
+    },
+    "stripeConfirm": {
+      "title": "Confirm Stripe Seller Registration",
+      "defaultsHeading": "To streamline registration, Stripe will be pre-filled with the following:",
+      "country": "Country: Japan",
+      "business": "Business type: Sole proprietor",
+      "industry": "Industry: Education > Other",
+      "url": "URL: https://gritvib.com",
+      "description": "Description: Provides online consultations, digital content, or in-person personal skill services on the GritVib personal store platform.",
+      "cautionHeading": "Notes",
+      "caution1": "These values can be edited later from your Stripe Dashboard.",
+      "caution2": "Bank account and personal details are securely managed by Stripe and are not stored in our database.",
+      "cancel": "Cancel",
+      "proceed": "Agree and Continue to Stripe",
+      "proceedBusy": "Opening Stripe..."
+    },
+    "payoutBusy": {
+      "title": "Preparing the Stripe screen",
+      "body": "You'll be redirected to Stripe shortly. Please keep this screen open."
+    },
+    "account": {
+      "subtitle": "Check your account or sign out here.",
+      "displayNameHeading": "Display name",
+      "notSet": "Not set",
+      "anonymousUser": "User",
+      "profileEditHint": "Edit your profile from the \"Profile\" page.",
+      "themeHeading": "Theme",
+      "themeHint": "Light when off, dark mode when on.",
+      "themeDarkLabel": "Dark mode",
+      "themeToggleAria": "Toggle dark mode",
+      "accentHeading": "Accent Color",
+      "accentHint": "Choose the site-wide accent color (logo, primary buttons, etc.).",
+      "accentAria": "Accent color",
+      "emailHeading": "Email Notifications",
+      "emailIntro1": "Control which emails are sent to your registered address. All are on by default. Items turned off won't be emailed.",
+      "emailIntro2": "Header notifications and in-app notices are unaffected — ",
+      "emailInAppBold": "in-app notifications are always delivered regardless of these settings",
+      "emailIntro3": ". Turning off \"Email Notifications\" stops all emails and disables individual toggles.",
+      "emailMaster": "Email Notifications",
+      "emailMasterAria": "Receive email notifications",
+      "emailItemAria": "Receive emails about {label}",
+      "loginHeading": "Login status",
+      "loginHint": "Signing out will end your login on this browser.",
+      "logoutButton": "Sign out"
+    },
+    "logoutConfirm": {
+      "title": "Sign out?",
+      "cancel": "Cancel",
+      "confirm": "Sign out",
+      "busy": "Processing..."
+    },
+    "customIdConfirm": {
+      "title": "Confirm Custom ID",
+      "intro": "With this ID, your store URL will be:",
+      "warning": "The custom ID cannot be changed once set. Save with this ID?",
+      "back": "Back",
+      "proceed": "Save with this ID"
+    }
+  },
+  "publicProfile": {
+    "loading": "Loading...",
+    "notFound": "Store not found",
+    "backToHome": "Back to home",
+    "anonymousUser": "User",
+    "reviewCount": "{count} reviews",
+    "noRating": "No ratings",
+    "bioHeading": "About",
+    "bioEmpty": "No bio yet.",
+    "skillsHeading": "Listed Skills",
+    "skillsFetchFailed": "Failed to load listed skills.",
+    "skillsEmpty": "No listed items yet.",
+    "ratingHeading": "Ratings",
+    "averageRating": "Average rating",
+    "averageRatingAria": "Average rating {value}",
+    "ratingsCount": "{count} ratings",
+    "starLabel": "{count} stars",
+    "starCount": "{count}",
+    "noRatingsYet": "No ratings yet.",
+    "commentsHeading": "Reviews",
+    "filterReset": "Clear filter ({count} stars)",
+    "commentsEmpty": "No reviews with comments yet.",
+    "commentRatingAria": "Rating {value}",
+    "reportUser": "Report this user",
+    "unnamedReviewer": "User"
+  },
+  "brandLogo": {
+    "pageTitle": "Brand Logo",
+    "backToHome": "Back to top page",
+    "intentHeading": "The Story Behind the GritVib Logo",
+    "intent": "GritVib is built on two pillars: resilience and resonance. It is more than just a marketplace for skills. It was born as a sanctuary where those with \"Grit\" (perseverance and passion) can let their energy \"Vibe\" (resonate) with others, empowering new challenges.",
+    "introHeading": "1. Introduction",
+    "intro1": "GritVib is a community designed to transform the raw energy of those in the midst of their journey into tangible value, passing the torch to the next challenger.",
+    "intro2": "This logo represents both the \"spark of a new beginning\" and the \"persistence of time\" within a single symbol.",
+    "symbolHeading": "2. The Symbol: A Hidden Story",
+    "symbol1Title": "Homage to the GOAT (Greatest of All Time)",
+    "symbol1Body": "The triangular elements that form the logo are inspired by the hoofprints of a Mountain Goat, an animal that climbs rugged peaks with unwavering strength.",
+    "symbol2Title": "\"Grit\" Aiming for the Summit",
+    "symbol2Body": "The hidden triangles represent the steady, step-by-step progress toward a goal. Together, they form the silhouette of a goat's horn — a symbol of protection, power, and the drive to reach the top.",
+    "conceptHeading": "3. Concept: Passion Over Pedigree",
+    "conceptTagline": "\"Anyone can teach. Anyone can challenge.\"",
+    "concept1": "This logo was designed to affirm not just the \"perfected professional,\" but the \"striver\" who is working hard right now.",
+    "concept2": "Even without a flashy resume, your unique perspective and passion for what you love can be the very force that supports someone else's first step.",
+    "concept3": "Like these small hoofprints (our logo), we aim to be a community where individual challenges stack up to help everyone conquer their own mountains."
+  },
+  "maintenance": {
+    "title": "Under Maintenance",
+    "message": "The service is currently under maintenance. We apologize for the inconvenience. Please try again later."
+  },
+  "profileSetup": {
+    "title": "Profile Setup",
+    "subtitle": "Set up your icon, bio, and interests to get started with GritVib!",
+    "skipToHome": "Skip to home",
+    "avatarHeading": "Profile Image",
+    "avatarHint": "Set an icon image shown on your profile, in chat, and more (optional).",
+    "avatarPreviewAlt": "Icon preview",
+    "avatarRemoveAria": "Remove profile image",
+    "avatarSelect": "Choose image",
+    "cropModalHeading": "Profile Icon",
+    "cropModalSubheading": "The framed area will be saved. Drag to reposition, scroll or pinch to zoom.",
+    "customIdLabel": "Custom ID (optional, recommended)",
+    "customIdPlaceholder": "e.g. taro_fit",
+    "customIdHintBefore": "Customize your store URL (e.g. setting \"taro_fit\" displays as ",
+    "customIdHintAfter": "). Use lowercase letters to start, 3–30 chars of lowercase / digits / underscore / hyphen. Once set, the custom ID cannot be changed.",
+    "customIdLocked": "Already set. The custom ID cannot be edited.",
+    "bioLabel": "Bio",
+    "bioPlaceholder": "Share your strengths, background, goals, etc.",
+    "interestsLabel": "Interests",
+    "interestsHint": "You can select multiple.",
+    "submit": "Save",
+    "submitting": "Saving...",
+    "confirmTitle": "Confirm Custom ID",
+    "confirmIntro": "With this ID, your store URL will be:",
+    "confirmWarning": "The custom ID cannot be changed once set. Save with this ID?",
+    "confirmCancel": "Back",
+    "confirmProceed": "Save with this ID"
+  },
+  "about": {
+    "title": "About GritVib",
+    "backToHome": "Back to top page",
+    "lead": "GritVib is a personal store platform that turns what you love and what you're good at into value, allowing you to open your own independent store.",
+    "conceptHeading": "What GritVib stands for (Concept)",
+    "conceptPoint1": "We believe that when teaching or offering something to others, your experience, ingenuity, and passion hold far greater value than fixed titles or qualifications.",
+    "conceptPoint2": "Even without special credentials or a long career in the field, the unique know-how and individuality you've built up can solve someone's challenges and powerfully push them toward their goals.",
+    "conceptPoint3": "GritVib provides a personal store that lets you deliver your skills and passions directly to your social followers and the people who need them.",
+    "featuresHeading": "GritVib Features",
+    "feature1Title": "Trustworthy Transactions That Start with a Conversation",
+    "feature1Body": "Instead of immediate purchases, we use a \"Booking Request\" system where buyers first send a request and both sides confirm details before starting the transaction. This enables honest deals with no mismatched expectations.",
+    "feature2Title": "Freedom to Sell Skills That Are Uniquely Yours",
+    "feature2Body": "There are no genre restrictions. Create your menu freely — text-based online consultations, videos and digital content, one-on-one calls, or in-person sessions — leveraging your strengths and passions.",
+    "feature3Title": "Fees",
+    "feature3Body": "The platform fee is 15% of the sale price at the time of transaction. No complicated add-on fees — we aim to return as much of your effort and results to you as possible.",
+    "safetyHeading": "Our Commitment to Safety",
+    "safetyIntro": "We maintain a clean environment where individuals can run their businesses with peace of mind and buyers can comfortably receive services.",
+    "safety1Title": "Thorough Elimination of Inappropriate Content",
+    "safety1Body": "We respect the healthy purpose of skill exchange. Acts violating public order and morals or inappropriate content that threatens community safety are handled strictly through our systems and terms.",
+    "safety2Title": "Trusted Global Payment System",
+    "safety2Body": "We use Stripe (Stripe Connect), one of the world's leading payment infrastructures. Both sellers and buyers can transact securely without any concerns about money handling.",
+    "operatorHeading": "A Message from the Operator",
+    "operatorParagraph1": "GritVib is a platform I launched out of my own desire to connect with others through what we love and create value together.",
+    "operatorParagraph2": "It's still a small service, but I sincerely hope it becomes a place where many new challenges take root. Feel free to share what you love!"
+  },
+  "legal": {
+    "termsTitle": "GritVib Terms of Service",
+    "privacyTitle": "GritVib Privacy Policy",
+    "commercialTitle": "Notation Based on the Act on Specified Commercial Transactions",
+    "backToHome": "Back to top page",
+    "documentEnd": ""
+  },
+  "footer": {
+    "aboutTitle": "About",
+    "about": "About GritVib",
+    "brandLogo": "Brand Logo",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy",
+    "commercial": "Commercial Disclosure",
+    "helpTitle": "Help & Guide",
+    "guide": "How-to Guide",
+    "contact": "Contact",
+    "socialTitle": "Official SNS",
+    "officialX": "GritVib Official X",
+    "officialInstagram": "GritVib Official Instagram",
+    "copyright": "© 2026 GritVib"
+  },
+  "store": {
+    "notLoggedInTitle": "Get Started with My Store",
+    "notLoggedInDescription": "Sign in to manage your sales, listings, and profile, and to share your store URL.",
+    "urlFetchFailed": "Failed to retrieve your store URL.",
+    "copyFailed": "Failed to copy. Please copy manually.",
+    "copied": "Store URL copied to clipboard.",
+    "stripeBalanceFetchFailed": "Failed to retrieve Stripe balance.",
+    "dashboard": {
+      "kicker": "My Store",
+      "title": "Dashboard",
+      "lifetimeSales": "Total Sales (Lifetime)",
+      "salesOnboarding": "Sales",
+      "afterFeeNote": "Received amount after 15% fee",
+      "salesLoading": "Loading sales...",
+      "stripeOnboardingPrompt": "Sales become visible once you complete Stripe account and identity verification.",
+      "details": "Details",
+      "completedTrades": "Completed",
+      "publishedListings": "Published",
+      "available": "Available",
+      "pending": "Pending",
+      "countSuffix": "",
+      "monthlyChart": "Last 6 months earnings",
+      "shortcuts": "Shortcuts",
+      "open": "Open"
+    },
+    "urlPanel": {
+      "title": "Store URL",
+      "subtitle": "Share your store with one tap",
+      "customIdPrefix": "You can set a custom ID from ",
+      "customIdLink": "Profile Settings",
+      "customIdSuffix": ".",
+      "copyUrl": "Copy URL",
+      "preview": "Preview"
+    },
+    "menuDescriptions": {
+      "profile": "Display name, icon, bio",
+      "sales": "Payouts & Stripe balance",
+      "listings": "Publish, unpublish, edit",
+      "trades": "Purchases, orders, inquiries, chat",
+      "favorites": "Favorited stores and skills",
+      "reviews": "Reviews and ratings",
+      "settings": "Account & notifications"
+    }
+  },
+  "discover": {
+    "title": "Skills",
+    "subtitle": "Browse and purchase from published skills",
+    "filtersButton": "Filters",
+    "sortAria": "Sort",
+    "modalTitle": "Filters",
+    "parentCategoryLabel": "Category",
+    "subCategoryLabel": "Sub-category",
+    "preOfferLabel": "Pre-purchase Offer",
+    "preOfferEnabled": "Available",
+    "preOfferDisabled": "Not available",
+    "formatLabel": "Format",
+    "formatOnline": "Online",
+    "formatOnsite": "In-person",
+    "locationLabel": "Location",
+    "locationPlaceholder": "Select prefecture",
+    "availabilityLabel": "Availability",
+    "availabilityAvailable": "Available",
+    "availabilityFull": "Fully booked",
+    "durationLabel": "Duration per session",
+    "minDurationPlaceholder": "Min minutes",
+    "maxDurationPlaceholder": "Max minutes",
+    "priceLabel": "Price (JPY)",
+    "minPricePlaceholder": "Min price",
+    "maxPricePlaceholder": "Max price",
+    "reset": "Reset",
+    "applyAndClose": "Apply",
+    "durationValidation": "Min duration must be less than or equal to max duration.",
+    "priceValidation": "Min price must be less than or equal to max price."
+  },
+  "hero": {
+    "line1": "Empowering Every Challenger.",
+    "line2Prefix": "Turn Your Passion into ",
+    "line2Emphasis": "Value",
+    "line2Suffix": ".",
+    "subtitle": "Sell your unique skills and start your own journey today!"
+  },
+  "guide": {
+    "title": "GritVib User Guide",
+    "backToHome": "Back to home",
+    "intro": "To ensure a safe and smooth experience for both Creators and Buyers, we've outlined the journey from start to finish.",
+    "seller": {
+      "heading": "1. For Creators: Selling Your \"Skills\"",
+      "intro": "Share your expertise, passion, and digital content with those who need it most.",
+      "step1Title": "Prepare Your Profile",
+      "step1Body": "Go to \"My Page\" and complete your Stripe integration. This includes identity verification and bank account settings, which are mandatory to receive payouts.",
+      "step2Title": "Create Your Store",
+      "step2Body": "Click the \"Create New Listing\" button. Set up your service details (Text consultation, Online calls, Video content, In-person sessions, etc.) and your price.",
+      "step3Title": "Set Up Application Questions",
+      "step3Body": "You can set up to 3 pre-purchase questions. By understanding the buyer's goals and current situation beforehand, you can prevent any mismatch in expectations.",
+      "step4Title": "Review & Approve Requests",
+      "step4Body": "Check the requests from potential buyers and select \"Approve\" or \"Decline.\" Once approved, the buyer will be able to proceed to payment.",
+      "step5Title": "Start the Service",
+      "step5Body": "Once payment is completed, a dedicated chat room will open. Use this space to exchange messages or share links for {tools} to deliver your service.",
+      "step6Title": "Request Completion",
+      "step6Body": "After delivering all services, send a \"Completion Request\" via the chat screen. The transaction is officially finalized once the buyer approves it."
+    },
+    "buyer": {
+      "heading": "2. For Buyers: Purchasing Skills & Content",
+      "intro": "Get personalized support and high-quality skills directly from creators and experts.",
+      "step1Title": "Apply for a Service",
+      "step1Body": "On the listing page, answer the creator's pre-purchase questions and submit your request.",
+      "step2Title": "Payment & Chat Access",
+      "step2Body": "Once the creator approves your request, you can proceed to payment. After payment, you will be instantly guided to your dedicated chat room.",
+      "step3Title": "Receiving the Service",
+      "step3Body": "Communicate with the creator via chat. Receive your service through messages or provided links to external tools ({tools}).",
+      "step4Title": "Approve Completion",
+      "step4Body": "When the creator sends a \"Completion Request,\" review the service provided. If everything is correct, click \"Approve\" to finalize the transaction.",
+      "step5Title": "Feedback",
+      "step5Body": "Rate your experience! Leaving a review helps maintain a trustworthy community for everyone."
+    },
+    "support": {
+      "heading": "3. Safety & Support",
+      "intro": "GritVib is committed to providing a secure environment for all users.",
+      "disputeTitle": "Dispute Resolution",
+      "disputeBody": "If a problem occurs—such as \"service not delivered after payment\" or \"communication has stopped\"—you can file a \"Dispute.\" Our team will investigate and assist with progress or issue a refund if necessary.",
+      "contactTitle": "Contact Us",
+      "contactBody": "If you have any questions or encounter technical issues, please feel free to reach out via the \"Contact\" link in the footer."
+    }
+  },
+  "contact": {
+    "title": "Contact",
+    "backToHome": "Back to home",
+    "formTitle": "Inquiry Form",
+    "labelName": "Name",
+    "labelEmail": "Email",
+    "labelCategory": "Category",
+    "labelSubject": "Subject",
+    "labelTransactionId": "Transaction ID",
+    "labelContent": "Message",
+    "labelAttachment": "Attachment",
+    "required": "Required",
+    "optional": "Optional",
+    "selectPlaceholder": "Please select",
+    "transactionIdHelp": "For inquiries about a transaction, please enter the \"Transaction ID\" shown in the \"Ongoing Trades\" list on My Page.",
+    "fileChoose": "Choose file",
+    "fileNotChosen": "No file chosen",
+    "fileRemove": "Remove",
+    "filePreviewAlt": "Attachment preview",
+    "submit": "Submit",
+    "submitting": "Submitting...",
+    "errors": {
+      "imageOnly": "Please attach an image file.",
+      "requireAll": "Please fill in all required fields.",
+      "invalidEmail": "Email address format is invalid.",
+      "subjectTooLong": "Subject must be {max} characters or less.",
+      "contentTooLong": "Message must be {max} characters or less.",
+      "invalidTransactionId": "Transaction ID must be a number with up to {max} digits.",
+      "uploadFailed": "Failed to upload attachment.",
+      "submitFailed": "Failed to submit. Please try again later."
+    }
+  },
+  "errors": {
+    "generic": "An error occurred.",
+    "network": "A network error occurred. Please try again later.",
+    "unauthorized": "Please log in.",
+    "forbidden": "You do not have permission for this action.",
+    "notFound": "Not found."
+  },
+  "toast": {
+    "logoutSuccess": "Logged out successfully"
+  },
+  "sortOptions": {
+    "popular": "Popular",
+    "newest": "Newest",
+    "oldest": "Oldest",
+    "price_asc": "Price: Low to High",
+    "price_desc": "Price: High to Low",
+    "rating_desc": "Highest Rated",
+    "rating_asc": "Lowest Rated",
+    "review_count_desc": "Most Reviewed",
+    "review_count_asc": "Fewest Reviews",
+    "duration_asc": "Shortest Sessions",
+    "duration_desc": "Longest Sessions"
+  },
+  "skillGrid": {
+    "loading": "Loading skills...",
+    "fetchFailed": "Failed to load skills.",
+    "filterResult": "{count} result(s) found"
+  },
+  "skillCard": {
+    "popular": "Popular",
+    "new": "NEW",
+    "reviewsCount": "({count})",
+    "studentsCount": "{count}",
+    "durationFormat": "{minutes}",
+    "perSession": "/session",
+    "viewDetail": "View details",
+    "referenceOnlyLine1": "Reference data only,",
+    "referenceOnlyLine2": "not purchasable",
+    "openDetailAria": "Open details for {title}",
+    "instructorFallback": "Instructor"
+  },
+  "login": {
+    "titleLogin": "Log in",
+    "titleSignup": "Sign up",
+    "titleReset": "Reset Password",
+    "titleVerify": "Email verification",
+    "titleVerifyRecovery": "Proceed to log in",
+    "descLogin": "Sign in to GritVib with your registered account.",
+    "descSignup": "Create an account with your email. After opening the verification link, you'll proceed to profile setup.",
+    "descReset": "We'll send a reset link to your registered email address.",
+    "descVerify": "Open the link in the verification email to complete authentication. After that, you'll proceed to profile setup.",
+    "descVerifyRecovery": "Log in to proceed to profile setup. If you have trouble, see the guidance below.",
+    "backToHome": "Back to home",
+    "tabLogin": "Log in",
+    "tabSignup": "Sign up",
+    "fullName": "Full name",
+    "fullNamePlaceholder": "e.g. Taro Yamada",
+    "fullNameHelp": "Your name is used only for safe community operations and will not be shown to other users (only your display name is shown). Thank you for cooperating with identity verification and healthy transactions.",
+    "birthday": "Birthday",
+    "displayName": "Display name",
+    "displayNamePlaceholder": "e.g. Kenta Trainer",
+    "email": "Email",
+    "emailPlaceholder": "you@example.com",
+    "emailConfirm": "Confirm email",
+    "emailConfirmPlaceholder": "Re-enter the same email",
+    "emailMismatch": "Emails do not match.",
+    "password": "Password",
+    "passwordPlaceholderLogin": "Enter your password",
+    "passwordPlaceholderSignup": "8+ chars with upper / lower / number",
+    "passwordToggleShow": "Show password",
+    "passwordToggleHide": "Hide password",
+    "passwordConfirm": "Confirm password",
+    "passwordConfirmPlaceholder": "Re-enter the same password",
+    "passwordConfirmToggleShow": "Show confirm password",
+    "passwordConfirmToggleHide": "Hide confirm password",
+    "passwordMismatch": "Passwords do not match.",
+    "passwordRuleMin": "Please use at least 8 characters.",
+    "passwordRuleUpper": "Include an uppercase letter.",
+    "passwordRuleLower": "Include a lowercase letter.",
+    "passwordRuleNumber": "Include a number.",
+    "displayNameNote": "Your display name can be changed once every 30 days. Once set, it can't be changed for 30 days.",
+    "forgotPassword": "Forgot your password?",
+    "returnToLogin": "Back to log in",
+    "submitting": "Processing...",
+    "submitLogin": "Log in",
+    "submitSignup": "Create account",
+    "submitReset": "Send reset email",
+    "verifySent": "Verification email sent.",
+    "verifyDoneLikely": "Verification is usually complete once you open the link",
+    "verifySentBody": "A verification email has been sent. Open the link in the email to complete authentication. You'll then proceed to profile setup.",
+    "verifyRecoveryBody": "Log in with the registered email and password to proceed to profile setup.",
+    "verifyEmailLabel": "Destination email address",
+    "verifyEmailHint": "Please confirm the recipient before resending.",
+    "verifyEmailFormatError": "Email address format is invalid.",
+    "verifyEmailChanged": "This is different from the registered email ({email}). To use a different address, please register again.",
+    "verifyHelpRecoveryTitle": "If you can't log in",
+    "verifyHelpRecoveryIntro": "If you can't log in even after opening the verification link, please try the following in order.",
+    "verifyHelpItemCredentials": "Check that your email and password are correct.",
+    "verifyHelpItemSpam": "Check your spam folder or promotion tab.",
+    "verifyHelpItemResentOnce": "Resending is limited to once. If it doesn't arrive, please contact us.",
+    "verifyHelpItemReRegisterRecovery": "If you registered with the wrong email, try \"Re-register with this email\".",
+    "verifyHelpItemResendWait": "Wait a few minutes, then check the recipient and try \"Resend verification email\" (once only).",
+    "verifyHelpItemReRegisterEditRecovery": "If you registered with the wrong email, edit the input and try \"Re-register with this email\".",
+    "verifyHelpInitialTitle": "If the email doesn't arrive",
+    "verifyHelpItemReRegister": "If you entered the wrong email, try \"Re-register with this email\".",
+    "verifyHelpItemResendWaitInitial": "Wait a few minutes, check the recipient and try \"Resend verification email\" (once only).",
+    "verifyHelpItemReRegisterEdit": "If you entered the wrong email, edit the input and try \"Re-register with this email\".",
+    "verifyAlreadyResentTitle": "Verification email already resent",
+    "verifyAlreadyResentBody": "If it still doesn't arrive, please contact us via the link below.",
+    "verifyResending": "Resending...",
+    "verifyAlreadyResent": "Already resent",
+    "verifyResend": "Resend verification email",
+    "verifyReRegisterButton": "Re-register with this email",
+    "verifyContactButton": "Contact us",
+    "verifyBackToLogin": "Back to login screen",
+    "loginHelpTitle": "If you can't log in",
+    "loginHelpItemCredentials": "Check that your email and password are correct.",
+    "loginHelpItemForgot": "If you forgot your password, use \"Forgot your password?\" below to reset it.",
+    "loginHelpItemContactPrefix": "If the issue isn't resolved, please ",
+    "loginHelpItemContactLink": "contact us",
+    "loginHelpItemContactSuffix": ".",
+    "loginHelpHide": "Don't show this guide"
+  },
+  "contactSuccess": {
+    "title": "Submission Complete",
+    "thanks": "Thank you for contacting us.",
+    "selectiveReply": "Our team will only reply to inquiries that require a response.",
+    "replyMayTake": "Please note that it may take several days to respond.",
+    "acknowledge": "Thank you for your understanding.",
+    "backToHome": "Back to top page"
+  },
+  "updatePassword": {
+    "title": "Update Password",
+    "subtitle": "Set a new password and log in to your account.",
+    "newPassword": "New password",
+    "newPasswordPlaceholder": "8+ chars with upper / lower / number",
+    "newPasswordConfirm": "Confirm new password",
+    "newPasswordConfirmPlaceholder": "Re-enter the same password",
+    "passwordToggleShow": "Show password",
+    "passwordToggleHide": "Hide password",
+    "passwordConfirmToggleShow": "Show confirm password",
+    "passwordConfirmToggleHide": "Hide confirm password",
+    "passwordMismatch": "Passwords do not match.",
+    "submit": "Update password",
+    "submitting": "Updating..."
+  },
+  "authCallback": {
+    "errorMessage": "An error occurred during authentication.",
+    "loadingMessage": "Verifying your email…"
+  },
+  "metadata": {
+    "siteName": "GritVib",
+    "layoutTitleDefault": "GritVib | Empowering Every Challenger. Turn Your Passion into Value.",
+    "layoutDescription": "GritVib lets anyone open a store and sell their skills for free. No qualifications required - the things you love and the experience you've built can become valuable to others. Start easily from social media and turn what you love into a meaningful side hustle.",
+    "homeTitle": "GritVib | Empowering Every Challenger. Turn Your Passion into Value.",
+    "homeDescription": "GritVib lets anyone open a store and sell their skills for free. No qualifications required - the things you love and the experience you've built can become valuable to others. Start easily from social media and turn what you love into a meaningful side hustle.",
+    "about": {
+      "title": "About GritVib",
+      "description": "Discover the concept, features, and safety practices of GritVib, a personal store platform that turns the things you love and excel at into value."
+    },
+    "guide": {
+      "title": "How GritVib works",
+      "description": "A clear walkthrough of the GritVib experience for both sellers and buyers - Stripe onboarding, listing skills, pre-offers, starting lessons, completion requests, and more."
+    },
+    "discover": {
+      "title": "Browse skills",
+      "description": "Search and browse all published skills and services on GritVib."
+    },
+    "terms": {
+      "title": "Terms of Service",
+      "description": "The Terms of Service for the GritVib personal store platform, covering usage, prohibited acts, transactions, payments, and disclaimers."
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "description": "How GritVib handles personal information, including purposes of use, third-party sharing, and the use of cookies."
+    },
+    "specifiedCommercialTransactions": {
+      "title": "Notation Based on the Specified Commercial Transactions Act",
+      "description": "GritVib's statutory notation under the Specified Commercial Transactions Act, including operator info, pricing, payment methods, and refund/cancellation policies."
+    },
+    "contact": {
+      "title": "Contact us",
+      "description": "Send questions, bug reports, or media inquiries to the GritVib team. Our staff will review your message.",
+      "successTitle": "Your inquiry has been received",
+      "successDescription": "Thank you for contacting GritVib. We have received your message and will respond if necessary."
+    },
+    "login": {
+      "title": "Log in",
+      "description": "Log in to GritVib. Opening a store and selling or purchasing skills requires an account."
+    },
+    "mypage": {
+      "title": "My Page",
+      "description": "Your GritVib My Page. Manage listings, transactions, Stripe integration, and notifications from one place."
+    },
+    "chat": {
+      "title": "Transaction chat",
+      "description": "The transaction chat for buyers and sellers to coordinate on skill delivery."
+    },
+    "maintenance": {
+      "title": "Under maintenance",
+      "description": "GritVib is currently under maintenance. Please try again later."
+    },
+    "profileSetup": {
+      "title": "Profile setup",
+      "description": "Set up your public profile (display name, bio, etc.) before listing or purchasing skills on GritVib."
+    },
+    "updatePassword": {
+      "title": "Update password"
+    },
+    "createSkill": {
+      "title": "List a skill",
+      "description": "Turn your skills and passion into a product. Set the details, price, and consultation options to publish on GritVib."
+    },
+    "account": {
+      "fallbackTitle": "Account",
+      "descriptionTemplate": "Your {title} screen on GritVib.",
+      "sections": {
+        "profile": "Profile settings",
+        "sales": "Sales overview",
+        "trades": "Transactions and messages",
+        "favorites": "Favorites",
+        "reviews": "Reviews",
+        "settings": "Settings",
+        "listings": "Listings management"
+      }
+    },
+    "store": {
+      "fallbackTitle": "Store",
+      "fallbackDisplayName": "Instructor",
+      "descriptionTemplate": "{name}'s personal store. Skills and services are listed on GritVib."
+    },
+    "skillsLayout": {
+      "fallbackTitle": "Skill",
+      "fallbackDescription": "A skill listed on GritVib."
+    }
+  },
+  "email": {
+    "footer": "This is an automated message. Replies are not monitored.",
+    "signupConfirmation": {
+      "subject": "Confirm your GritVib email address",
+      "heading": "Confirm your email address",
+      "intro": "Thank you for signing up for GritVib. Please confirm your email address using the button below.",
+      "cta": "Confirm email address"
+    },
+    "checkoutRefund": {
+      "subject": "[GritVib] Your payment has been refunded",
+      "heading": "Refund notice",
+      "introDuplicate": "A duplicate payment for the same skill was detected, so this charge has been refunded automatically.",
+      "introSkillFull": "We could not reserve a slot for your booking, so this payment has been refunded automatically.",
+      "lineSkill": "Skill: {title}",
+      "lineDelay": "Depending on your card issuer or payment provider, the refund may take a few days to appear.",
+      "cta": "Open the skill page"
+    },
+    "transactionEstablished": {
+      "subject": "[GritVib] Your transaction has started",
+      "heading": "Transaction started",
+      "introSeller": "Your skill was purchased and a new transaction has started.",
+      "introBuyer": "Your purchase is complete and the transaction has started.",
+      "cta": "Open transaction chat"
+    },
+    "transactionMessage": {
+      "subject": "[GritVib] New message in your transaction chat",
+      "heading": "Transaction chat notification",
+      "intro": "A new message has arrived in your transaction chat.",
+      "cta": "Open chat"
+    },
+    "completionRequested": {
+      "subject": "[GritVib] Completion request received",
+      "heading": "Completion request",
+      "intro": "The instructor has submitted a completion request. Please review the details and approve it.",
+      "cta": "Open transaction chat"
+    },
+    "transactionCompleted": {
+      "subject": "[GritVib] Your transaction has been completed",
+      "heading": "Transaction completed",
+      "intro": "The transaction has been completed.",
+      "cta": "Open transaction chat"
+    },
+    "consultationOffer": {
+      "subject": "[GritVib] New consultation offer received",
+      "heading": "Consultation offer",
+      "intro": "You have received a new consultation offer for your skill.",
+      "line": "Open the requests tab on My Page to review the details and accept or decline the offer.",
+      "cta": "Open requests"
+    },
+    "consultationDecision": {
+      "subjectAccepted": "[GritVib] Your consultation offer was accepted",
+      "subjectRejected": "[GritVib] Your consultation offer was declined",
+      "headingAccepted": "Consultation accepted",
+      "headingRejected": "Consultation declined",
+      "introAccepted": "Your consultation offer was accepted. You can now proceed to purchase.",
+      "introRejected": "Your consultation offer was declined. You may revise the content and submit a new request.",
+      "cta": "Open My Page"
+    },
+    "disputeResult": {
+      "subjectApproved": "[GritVib] Your dispute has been approved",
+      "subjectRejected": "[GritVib] Your dispute has been rejected",
+      "heading": "Dispute decision",
+      "introApproved": "The dispute was approved, and the transaction has resumed.",
+      "introRejected": "The dispute was rejected, and the transaction has been completed.",
+      "cta": "Open transaction chat"
+    },
+    "userBanned": {
+      "subject": "[GritVib] Account restriction notice",
+      "heading": "Account restriction",
+      "intro": "Following our review, your account has been suspended (banned).",
+      "lineReason": "Reason: {reason}",
+      "cta": "Contact us"
+    },
+    "skillModerated": {
+      "subjectDeleted": "[GritVib] Your listing has been removed",
+      "subjectUnpublished": "[GritVib] Your listing has been unpublished",
+      "subjectPublished": "[GritVib] Your listing has been published",
+      "heading": "Listing moderation",
+      "introDeleted": "Our team has removed your listing \"{title}\".",
+      "introUnpublished": "Our team has unpublished your listing \"{title}\".",
+      "introPublished": "Our team has published your listing \"{title}\".",
+      "lineReason": "Reason: {reason}",
+      "cta": "Open My Page"
+    },
+    "inquiryMessage": {
+      "subject": "[GritVib] New inquiry message received",
+      "preview": "You received a new inquiry from {sender}",
+      "heading": "GritVib Inquiry chat notification",
+      "greeting": "Hi {recipient},",
+      "body": "{sender} sent a new message about {skill}.",
+      "snippetLabel": "Received message",
+      "cta": "Open chat",
+      "userFallback": "User",
+      "skillFallback": "Skill"
+    }
+  }
+}

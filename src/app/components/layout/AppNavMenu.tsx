@@ -14,6 +14,7 @@ import {
   TRADES_SIDEBAR_MENU,
   TRADES_SIDEBAR_SUBMENU,
 } from "@/lib/app-sidebar-nav"
+import { useTranslations, useTranslationsWithFallback } from "@/lib/i18n/useI18n"
 import { cn } from "@/lib/utils"
 
 export function sidebarLinkClass(active: boolean, size: "main" | "sub" = "main") {
@@ -43,6 +44,9 @@ export function AppNavMenu({ guestMode = false, onNavigate, className }: AppNavM
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
   const [isTransactionOpen, setIsTransactionOpen] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const tNav = useTranslations("nav")
+  const tNavItem = useTranslationsWithFallback("nav.itemLabels")
+  const tNavTrades = useTranslationsWithFallback("nav.tradesSubmenu")
 
   const onTradesRoute = isTradesSidebarRoute(pathname)
   const onAdminRoute = pathname.startsWith("/admin")
@@ -101,10 +105,10 @@ export function AppNavMenu({ guestMode = false, onNavigate, className }: AppNavM
     const Icon = discoverItem.icon
     const active = discoverItem.isActive(pathname)
     return (
-      <nav className={cn("flex flex-col", className)} aria-label="メニュー">
+      <nav className={cn("flex flex-col", className)} aria-label={tNav("ariaMenu")}>
         <div>
           <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-            メニュー
+            {tNav("sectionMenu")}
           </p>
           <ul className="space-y-0.5">
             <li>
@@ -115,7 +119,7 @@ export function AppNavMenu({ guestMode = false, onNavigate, className }: AppNavM
                 onClick={onNavigate}
               >
                 <Icon className="h-5 w-5 shrink-0" aria-hidden />
-                {discoverItem.label}
+                {tNavItem(discoverItem.id, discoverItem.label)}
               </Link>
             </li>
           </ul>
@@ -125,11 +129,11 @@ export function AppNavMenu({ guestMode = false, onNavigate, className }: AppNavM
   }
 
   return (
-    <nav className={cn("flex min-h-0 flex-1 flex-col", className)} aria-label="メインメニュー">
+    <nav className={cn("flex min-h-0 flex-1 flex-col", className)} aria-label={tNav("ariaMainMenu")}>
       <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto">
         <div>
           <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-            メニュー
+            {tNav("sectionMenu")}
           </p>
           <ul className="space-y-0.5">
             {(() => {
@@ -148,7 +152,7 @@ export function AppNavMenu({ guestMode = false, onNavigate, className }: AppNavM
                     onClick={onNavigate}
                   >
                     <Icon className="h-5 w-5 shrink-0" aria-hidden />
-                    {storeItem.label}
+                    {tNavItem(storeItem.id, storeItem.label)}
                   </Link>
                 </li>
               )
@@ -163,7 +167,7 @@ export function AppNavMenu({ guestMode = false, onNavigate, className }: AppNavM
                   onClick={onNavigate}
                 >
                   <discoverItem.icon className="h-5 w-5 shrink-0" aria-hidden />
-                  {discoverItem.label}
+                  {tNavItem(discoverItem.id, discoverItem.label)}
                 </Link>
               </li>
             ) : null}
@@ -176,7 +180,7 @@ export function AppNavMenu({ guestMode = false, onNavigate, className }: AppNavM
                 className={cn(sidebarLinkClass(onTradesRoute, "main"), "flex w-full items-center gap-3")}
               >
                 <TradesIcon className="h-5 w-5 shrink-0" aria-hidden />
-                <span className="min-w-0 flex-1 text-left">{TRADES_SIDEBAR_MENU.label}</span>
+                <span className="min-w-0 flex-1 text-left">{tNav("tradesMenu")}</span>
                 <ChevronDown
                   className={cn(
                     "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200",
@@ -204,7 +208,7 @@ export function AppNavMenu({ guestMode = false, onNavigate, className }: AppNavM
                           aria-current={subActive ? "page" : undefined}
                           onClick={onNavigate}
                         >
-                          {item.label}
+                          {tNavTrades(item.panel, item.label)}
                         </Link>
                       </li>
                     )
@@ -229,7 +233,7 @@ export function AppNavMenu({ guestMode = false, onNavigate, className }: AppNavM
                     onClick={onNavigate}
                   >
                     <Icon className="h-5 w-5 shrink-0" aria-hidden />
-                    {createItem.label}
+                    {tNavItem(createItem.id, createItem.label)}
                   </Link>
                 </li>
               )
@@ -251,7 +255,7 @@ export function AppNavMenu({ guestMode = false, onNavigate, className }: AppNavM
                     onClick={onNavigate}
                   >
                     <Icon className="h-5 w-5 shrink-0" aria-hidden />
-                    {listingsItem.label}
+                    {tNavItem(listingsItem.id, listingsItem.label)}
                   </Link>
                 </li>
               )
@@ -261,7 +265,7 @@ export function AppNavMenu({ guestMode = false, onNavigate, className }: AppNavM
 
         <div>
           <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-            アカウント
+            {tNav("sectionAccount")}
           </p>
           <ul className="space-y-0.5">
             {navItems
@@ -284,7 +288,7 @@ export function AppNavMenu({ guestMode = false, onNavigate, className }: AppNavM
                       onClick={onNavigate}
                     >
                       <Icon className="h-5 w-5 shrink-0" aria-hidden />
-                      {item.label}
+                      {tNavItem(item.id, item.label)}
                     </Link>
                   </li>
                 )
@@ -302,7 +306,7 @@ export function AppNavMenu({ guestMode = false, onNavigate, className }: AppNavM
             onClick={onNavigate}
           >
             <Shield className="h-5 w-5 shrink-0" aria-hidden />
-            管理者ページ
+            {tNav("adminPage")}
           </Link>
         </div>
       ) : null}

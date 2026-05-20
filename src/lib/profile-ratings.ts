@@ -92,7 +92,9 @@ export async function fetchProfileRatingData(
       console.error("[fetchProfileRatingData:profiles]", senderProfilesError)
     } else {
       for (const row of (senderProfiles ?? []) as SenderProfileRow[]) {
-        senderNameMap.set(row.id, row.display_name?.trim() || "ユーザー")
+        const trimmed = row.display_name?.trim() ?? ""
+        // 空値は呼び出し側で locale 別フォールバック (`profile.ratings.unnamedReviewer`) を当てる。
+        senderNameMap.set(row.id, trimmed)
       }
     }
   }
@@ -100,7 +102,7 @@ export async function fetchProfileRatingData(
   const comments: ProfileRatingComment[] = commentRows.map((row) => ({
     id: row.id,
     senderId: row.sender_id,
-    senderName: senderNameMap.get(row.sender_id) ?? "ユーザー",
+    senderName: senderNameMap.get(row.sender_id) ?? "",
     rating: Math.max(1, Math.min(5, Math.floor(Number(row.rating)))),
     comment: row.comment?.trim() ?? "",
     createdAt: row.created_at,

@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { NotificationToast } from "@/components/ui/notification-toast"
 import { toSuccessNotice, type AppNotice } from "@/lib/notifications"
+import { useTranslations } from "@/lib/i18n/useI18n"
 
 const LOGOUT_QUERY = "logout"
 const LOGOUT_QUERY_VALUE = "success"
@@ -12,15 +13,16 @@ function LogoutSuccessToastInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [notice, setNotice] = useState<AppNotice | null>(null)
+  const tToast = useTranslations("toast")
 
   useEffect(() => {
     if (searchParams.get(LOGOUT_QUERY) !== LOGOUT_QUERY_VALUE) {
       return
     }
 
-    setNotice(toSuccessNotice("ログアウトしました"))
+    setNotice(toSuccessNotice(tToast("logoutSuccess")))
     router.replace("/", { scroll: false })
-  }, [searchParams, router])
+  }, [searchParams, router, tToast])
 
   if (!notice) {
     return null

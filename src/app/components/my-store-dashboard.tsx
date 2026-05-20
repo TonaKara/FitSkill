@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo } from "react"
 import Link from "next/link"
 import {
   ArrowRight,
@@ -16,8 +17,10 @@ import { StripeInstructorOnboardingCta } from "@/components/stripe-instructor-on
 import type { MyStoreDashboardStats } from "@/lib/my-store-dashboard-stats"
 import type { AppNotice } from "@/lib/notifications"
 import { STORE_MENU_ITEMS, storeMenuItemHref } from "@/lib/store-menu"
+import { useLocale, useTranslations, useTranslationsWithFallback } from "@/lib/i18n/useI18n"
 
 type MenuCard = {
+  slug: string
   title: string
   description: string
   href: string
@@ -26,6 +29,7 @@ type MenuCard = {
 
 function buildMenuCards(tradesHref: string): MenuCard[] {
   return STORE_MENU_ITEMS.filter((item) => item.slug !== "listings").map((item) => ({
+    slug: item.slug,
     title: item.label,
     description: item.description,
     href: storeMenuItemHref(item, tradesHref),
@@ -57,10 +61,11 @@ function formatYen(value: number): string {
 
 function SalesTrendBars({ monthlySales }: { monthlySales: MyStoreDashboardStats["monthlySales"] }) {
   const maxAmount = Math.max(1, ...monthlySales.map((point) => point.amount))
+  const tDash = useTranslations("store.dashboard")
 
   return (
     <div className="mt-6 min-w-0">
-      <p className={`mb-2 ${MUTED_BODY}`}>直近6ヶ月の受取推移</p>
+      <p className={`mb-2 ${MUTED_BODY}`}>{tDash("monthlyChart")}</p>
       <div className="flex h-24 min-w-0 items-end gap-1 sm:gap-1.5 md:gap-2">
         {monthlySales.map((point) => {
           const heightPercent = point.amount / maxAmount
@@ -95,18 +100,20 @@ function StoreUrlCompactPanel({
   MyStoreDashboardProps,
   "storeUrlDisplay" | "storePath" | "storeLoading" | "hasCustomId" | "onCopyStoreUrl"
 >) {
+  const tUrl = useTranslations("store.urlPanel")
+  const tCommon = useTranslations("common")
   return (
     <div className="flex min-w-0 flex-col rounded-2xl border border-border bg-card p-4 md:p-5">
       <div className="flex items-center gap-2 text-sm font-bold text-neutral-900 dark:text-foreground">
         <Link2 className="h-4 w-4 shrink-0 text-primary-readable" aria-hidden />
-        ストアURL
+        {tUrl("title")}
       </div>
-      <p className={`mt-1 ${MUTED_BODY}`}>ストアへの導線をワンタップで共有</p>
+      <p className={`mt-1 ${MUTED_BODY}`}>{tUrl("subtitle")}</p>
 
       {storeLoading ? (
         <p className={`mt-4 flex items-center gap-2 ${MUTED_BODY_SM}`}>
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-          読み込み中...
+          {tCommon("loading")}
         </p>
       ) : (
         <p className="mt-4 break-all rounded-lg border border-border bg-muted/40 px-3 py-2 font-mono text-xs leading-relaxed text-foreground">
@@ -116,11 +123,11 @@ function StoreUrlCompactPanel({
 
       {!storeLoading && !hasCustomId ? (
         <p className={`mt-3 ${MUTED_BODY}`}>
-          カスタムIDは
+          {tUrl("customIdPrefix")}
           <Link href="/account/profile" className="font-medium text-primary-readable underline-offset-2 hover:underline">
-            プロフィール設定
+            {tUrl("customIdLink")}
           </Link>
-          から設定できます。
+          {tUrl("customIdSuffix")}
         </p>
       ) : null}
 
@@ -133,13 +140,13 @@ function StoreUrlCompactPanel({
           onClick={onCopyStoreUrl}
         >
           <Copy className="mr-2 h-4 w-4 shrink-0" aria-hidden />
-          URLをコピー
+          {tUrl("copyUrl")}
         </Button>
         {storePath ? (
           <Button asChild type="button" size="sm" variant="outline" className="w-full border-border font-medium">
             <Link href={storePath} target="_blank" rel="noreferrer">
               <ExternalLink className="mr-2 h-4 w-4 shrink-0" aria-hidden />
-              プレビュー
+              {tUrl("preview")}
             </Link>
           </Button>
         ) : null}
@@ -162,7 +169,21 @@ export function MyStoreDashboard({
   onNotice,
   onListingsChanged,
 }: MyStoreDashboardProps) {
-  const menuCards = buildMenuCards(tradesHref)
+  const tDash = useTranslations("store.dashboard")
+  const tMenuLabel = useTranslationsWithFallback("nav.itemLabels")
+  const tMenuDesc = useTranslationsWithFallback("store.menuDescriptions")
+  const locale = useLocale()
+  const showIsoCurrencyHint = locale === "en"
+  const rawMenuCards = useMemo(() => buildMenuCards(tradesHref), [tradesHref])
+  const menuCards = useMemo(
+    () =>
+      rawMenuCards.map((card) => ({
+        ...card,
+        title: tMenuLabel(card.slug, card.title),
+        description: tMenuDesc(card.slug, card.description),
+      })),
+    [rawMenuCards, tMenuLabel, tMenuDesc],
+  )
   const lifetimeSales = stats?.lifetimeSalesYen ?? 0
   const stripeAvailable = stats?.stripe?.available ?? null
   const stripePending = stats?.stripe?.pending ?? null
@@ -171,10 +192,10 @@ export function MyStoreDashboard({
     <section className="min-w-0 w-full max-w-full space-y-8">
       <div className="min-w-0">
         <p className="text-xs font-semibold uppercase tracking-wider text-orange-600 dark:text-primary-readable">
-          マイストア
+          {tDash("kicker")}
         </p>
         <h2 className="mt-0.5 text-2xl font-bold tracking-tight text-neutral-900 dark:text-foreground">
-          ダッシュボード
+          {tDash("title")}
         </h2>
       </div>
 
@@ -185,22 +206,22 @@ export function MyStoreDashboard({
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-1.5 text-sm font-bold text-neutral-900 dark:text-foreground">
                   <TrendingUp className="h-4 w-4 shrink-0 text-primary-readable" aria-hidden />
-                  {isStripeSetupComplete ? "総売上（累計）" : "売上の確認"}
+                  {isStripeSetupComplete ? tDash("lifetimeSales") : tDash("salesOnboarding")}
                 </p>
                 {isStripeSetupComplete && !statsLoading ? (
                   <p className={`mt-0.5 ${MUTED_BODY}`}>
-                    手数料（15%）差引後の受取額
+                    {tDash("afterFeeNote")}
                   </p>
                 ) : null}
                 {statsLoading ? (
                   <div className="mt-3 flex items-center gap-2">
                     <Loader2 className="h-6 w-6 shrink-0 animate-spin text-primary" aria-hidden />
-                    <span className={MUTED_BODY_SM}>売上を読み込み中...</span>
+                    <span className={MUTED_BODY_SM}>{tDash("salesLoading")}</span>
                   </div>
                 ) : !isStripeSetupComplete ? (
                   <div className="mt-4 rounded-xl border border-border/80 bg-background/60 p-4 sm:p-5 md:px-6 md:text-center">
                     <p className={`${MUTED_BODY} md:text-sm`}>
-                      売上は、Stripeで口座登録や本人確認を済ませるとご確認いただけます。
+                      {tDash("stripeOnboardingPrompt")}
                     </p>
                     <StripeInstructorOnboardingCta
                       className="mt-4 md:mt-5 md:flex md:justify-center"
@@ -211,12 +232,17 @@ export function MyStoreDashboard({
                 ) : (
                   <p className="mt-2 break-all text-[clamp(1.75rem,7vw,3.25rem)] font-black leading-tight tabular-nums tracking-tight text-neutral-900 dark:text-foreground">
                     {formatYen(lifetimeSales)}
+                    {showIsoCurrencyHint ? (
+                      <span className="ml-2 align-baseline text-[0.45em] font-semibold uppercase tracking-wider text-muted-foreground">
+                        (JPY)
+                      </span>
+                    ) : null}
                   </p>
                 )}
               </div>
               {isStripeSetupComplete ? (
                 <Button asChild variant="outline" size="sm" className="w-full shrink-0 border-border bg-background/80 font-medium sm:w-auto">
-                  <Link href="/account/sales">詳細</Link>
+                  <Link href="/account/sales">{tDash("details")}</Link>
                 </Button>
               ) : null}
             </div>
@@ -225,27 +251,31 @@ export function MyStoreDashboard({
               <>
                 <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
                   <div className="min-w-0 rounded-xl border border-border/80 bg-background/60 px-2.5 py-2 sm:px-3 sm:py-2.5">
-                    <p className={MUTED_BODY}>完了取引</p>
+                    <p className={MUTED_BODY}>{tDash("completedTrades")}</p>
                     <p className="mt-0.5 text-base font-bold tabular-nums text-neutral-900 dark:text-foreground sm:text-lg">
                       {stats.completedTransactionCount.toLocaleString("ja-JP")}
-                      <span className={`ml-0.5 ${MUTED_BODY}`}>件</span>
+                      {tDash("countSuffix") ? (
+                        <span className={`ml-0.5 ${MUTED_BODY}`}>{tDash("countSuffix")}</span>
+                      ) : null}
                     </p>
                   </div>
                   <div className="min-w-0 rounded-xl border border-border/80 bg-background/60 px-2.5 py-2 sm:px-3 sm:py-2.5">
-                    <p className={MUTED_BODY}>出品中</p>
+                    <p className={MUTED_BODY}>{tDash("publishedListings")}</p>
                     <p className="mt-0.5 text-base font-bold tabular-nums text-neutral-900 dark:text-foreground sm:text-lg">
                       {stats.publishedListingCount.toLocaleString("ja-JP")}
-                      <span className={`ml-0.5 ${MUTED_BODY}`}>件</span>
+                      {tDash("countSuffix") ? (
+                        <span className={`ml-0.5 ${MUTED_BODY}`}>{tDash("countSuffix")}</span>
+                      ) : null}
                     </p>
                   </div>
                   <div className="min-w-0 rounded-xl border border-border/80 bg-background/60 px-2.5 py-2 sm:px-3 sm:py-2.5">
-                    <p className={MUTED_BODY}>振込可能</p>
+                    <p className={MUTED_BODY}>{tDash("available")}</p>
                     <p className="mt-0.5 break-all text-base font-bold tabular-nums leading-snug text-neutral-900 dark:text-foreground sm:text-lg">
                       {stripeAvailable != null ? formatYen(stripeAvailable) : "—"}
                     </p>
                   </div>
                   <div className="min-w-0 rounded-xl border border-border/80 bg-background/60 px-2.5 py-2 sm:px-3 sm:py-2.5">
-                    <p className={MUTED_BODY}>入金予定</p>
+                    <p className={MUTED_BODY}>{tDash("pending")}</p>
                     <p className="mt-0.5 break-all text-base font-bold tabular-nums leading-snug text-neutral-900 dark:text-foreground sm:text-lg">
                       {stripePending != null ? formatYen(stripePending) : "—"}
                     </p>
@@ -274,7 +304,7 @@ export function MyStoreDashboard({
       <MyStoreListingsPanel userId={userId} onNotice={onNotice} onListingsChanged={onListingsChanged} />
 
       <div className="min-w-0">
-        <h3 className="mb-4 text-base font-bold text-neutral-900 dark:text-foreground">ショートカット</h3>
+        <h3 className="mb-4 text-base font-bold text-neutral-900 dark:text-foreground">{tDash("shortcuts")}</h3>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {menuCards.map((card) => {
             const Icon = card.icon
@@ -294,7 +324,7 @@ export function MyStoreDashboard({
                   </p>
                   <p className={`mt-1 break-words ${MUTED_BODY}`}>{card.description}</p>
                   <span className="mt-4 inline-flex items-center text-sm font-semibold text-primary-readable">
-                    開く
+                    {tDash("open")}
                     <ArrowRight className="ml-1 h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
                   </span>
                 </div>

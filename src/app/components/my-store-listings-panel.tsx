@@ -16,6 +16,9 @@ import {
 } from "@/lib/store-listings"
 import { toErrorNotice, type AppNotice } from "@/lib/notifications"
 import { resolveSkillThumbnailUrl, skillThumbnailContainerAspectStyle } from "@/lib/skill-thumbnail"
+import { useLocale, useTranslations } from "@/lib/i18n/useI18n"
+import { localeToHtmlLang } from "@/lib/i18n/locales"
+import { translateToastMessage } from "@/lib/toast-i18n"
 
 type MyStoreListingsPanelProps = {
   userId: string
@@ -23,13 +26,13 @@ type MyStoreListingsPanelProps = {
   onListingsChanged?: () => void
 }
 
-const FILTER_OPTIONS: { id: StoreListingFilter; label: string }[] = [
-  { id: "published", label: "公開中" },
-  { id: "draft", label: "下書き・非公開" },
-  { id: "all", label: "すべて" },
-]
-
-function ListingStatusBadges({ skill }: { skill: StoreListing }) {
+function ListingStatusBadges({
+  skill,
+  labels,
+}: {
+  skill: StoreListing
+  labels: { hidden: string; published: string; adminLocked: string }
+}) {
   return (
     <>
       <span
@@ -39,11 +42,11 @@ function ListingStatusBadges({ skill }: { skill: StoreListing }) {
             : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
         }`}
       >
-        {skill.is_published === false ? "非公開" : "公開中"}
+        {skill.is_published === false ? labels.hidden : labels.published}
       </span>
       {skill.admin_publish_locked ? (
         <span className="inline-flex rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-semibold text-amber-800 dark:text-amber-200">
-          運営により非公開
+          {labels.adminLocked}
         </span>
       ) : null}
     </>
@@ -52,6 +55,9 @@ function ListingStatusBadges({ skill }: { skill: StoreListing }) {
 
 export function MyStoreListingsPanel({ userId, onNotice, onListingsChanged }: MyStoreListingsPanelProps) {
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
+  const t = useTranslations("storeListings")
+  const locale = useLocale()
+  const htmlLang = localeToHtmlLang(locale)
   const [listings, setListings] = useState<StoreListing[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -59,6 +65,24 @@ export function MyStoreListingsPanel({ userId, onNotice, onListingsChanged }: My
   const [publishingListingId, setPublishingListingId] = useState<string | null>(null)
   const [publishConfirmId, setPublishConfirmId] = useState<string | null>(null)
   const [portalReady, setPortalReady] = useState(false)
+
+  const filterOptions = useMemo<{ id: StoreListingFilter; label: string }[]>(
+    () => [
+      { id: "published", label: t("filter.published") },
+      { id: "draft", label: t("filter.draft") },
+      { id: "all", label: t("filter.all") },
+    ],
+    [t],
+  )
+
+  const badgeLabels = useMemo(
+    () => ({
+      hidden: t("badge.private"),
+      published: t("badge.public"),
+      adminLocked: t("badge.adminLocked"),
+    }),
+    [t],
+  )
 
   useEffect(() => {
     setPortalReady(true)
@@ -91,7 +115,7 @@ export function MyStoreListingsPanel({ userId, onNotice, onListingsChanged }: My
       setPublishConfirmId(null)
       onNotice({
         variant: "error",
-        message: "運営による非公開のため、ご自身で公開に戻すことはできません。",
+        message: t("notice.adminLocked"),
       })
       return
     }
@@ -107,12 +131,12 @@ export function MyStoreListingsPanel({ userId, onNotice, onListingsChanged }: My
     setPublishConfirmId(null)
 
     if (publishError) {
-      onNotice(toErrorNotice(publishError, false, { unknownErrorMessage: "商品の公開に失敗しました。" }))
+      onNotice(toErrorNotice(publishError, false, { unknownErrorMessage: t("notice.publishFailed") }))
       return
     }
 
     setListings((prev) => prev.map((item) => (item.id === skillId ? { ...item, is_published: true } : item)))
-    onNotice({ variant: "success", message: "商品を公開しました。" })
+    onNotice({ variant: "success", message: t("notice.published") })
     onListingsChanged?.()
   }
 
@@ -120,18 +144,18 @@ export function MyStoreListingsPanel({ userId, onNotice, onListingsChanged }: My
     <section id="store-listings" className="min-w-0 scroll-mt-24 rounded-2xl border border-border bg-card">
       <div className="flex flex-col gap-4 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
         <div>
-          <h3 className="text-base font-bold text-neutral-900 dark:text-foreground">出品中の商品</h3>
+          <h3 className="text-base font-bold text-neutral-900 dark:text-foreground">{t("title")}</h3>
         </div>
         <Button asChild size="sm" className="shrink-0 bg-primary text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90">
           <Link href="/create-skill">
             <PlusCircle className="mr-2 h-4 w-4" aria-hidden />
-            新規出品
+            {t("newSkill")}
           </Link>
         </Button>
       </div>
 
       <div className="flex flex-wrap gap-2 border-b border-border px-4 py-3 sm:px-5">
-        {FILTER_OPTIONS.map((option) => {
+        {filterOptions.map((option) => {
           const active = filter === option.id
           return (
             <button
@@ -154,21 +178,21 @@ export function MyStoreListingsPanel({ userId, onNotice, onListingsChanged }: My
         {loading ? (
           <div className="flex items-center justify-center py-12 text-muted-foreground">
             <Loader2 className="mr-2 h-5 w-5 animate-spin text-primary" aria-hidden />
-            読み込み中...
+            {t("loading")}
           </div>
         ) : error ? (
-          <p className="py-8 text-center text-sm text-destructive">{error}</p>
+          <p className="py-8 text-center text-sm text-destructive">{translateToastMessage(error, locale)}</p>
         ) : filteredListings.length === 0 ? (
           <div className="py-10 text-center">
             <p className="text-xs font-normal text-neutral-400 dark:text-muted-foreground">
               {filter === "published"
-                ? "公開中の商品はまだありません。"
+                ? t("empty.published")
                 : filter === "draft"
-                  ? "下書き・非公開の商品はありません。"
-                  : "まだ出品した商品がありません。"}
+                  ? t("empty.draft")
+                  : t("empty.all")}
             </p>
             <Button asChild className="mt-4 bg-primary font-semibold text-primary-foreground hover:bg-primary/90">
-              <Link href="/create-skill">最初の商品を出品する</Link>
+              <Link href="/create-skill">{t("cta.firstListing")}</Link>
             </Button>
           </div>
         ) : (
@@ -183,18 +207,18 @@ export function MyStoreListingsPanel({ userId, onNotice, onListingsChanged }: My
                     className="relative w-12 shrink-0 overflow-hidden rounded-md border border-border bg-muted sm:w-14"
                     style={skillThumbnailContainerAspectStyle()}
                     role="img"
-                    aria-label={`${skill.title}のサムネイル`}
+                    aria-label={t("thumbnailAlt", { title: skill.title })}
                   >
                     <SkillThumbnailSurface imageUrl={resolveSkillThumbnailUrl(skill.thumbnail_url)} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-semibold text-foreground">{skill.title}</p>
-                      <ListingStatusBadges skill={skill} />
+                      <ListingStatusBadges skill={skill} labels={badgeLabels} />
                     </div>
                     <p className="mt-1 text-xs font-normal text-neutral-400 dark:text-muted-foreground">
-                      {skill.category ? formatSkillCategoryDisplay(skill.category) : "未分類"} ·{" "}
-                      {Number(skill.price).toLocaleString("ja-JP")}円
+                      {skill.category ? formatSkillCategoryDisplay(skill.category) : t("uncategorized")} ·{" "}
+                      {t("priceFormat", { price: Number(skill.price).toLocaleString(htmlLang) })}
                     </p>
                   </div>
                 </div>
@@ -203,7 +227,7 @@ export function MyStoreListingsPanel({ userId, onNotice, onListingsChanged }: My
                     <Button asChild variant="outline" size="sm" className="border-border">
                       <Link href={`/skills/${encodeURIComponent(skill.id)}`} target="_blank" rel="noreferrer">
                         <ExternalLink className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-                        表示
+                        {t("actions.view")}
                       </Link>
                     </Button>
                   ) : null}
@@ -218,17 +242,17 @@ export function MyStoreListingsPanel({ userId, onNotice, onListingsChanged }: My
                       {publishingListingId === skill.id ? (
                         <>
                           <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden />
-                          公開中...
+                          {t("actions.publishing")}
                         </>
                       ) : (
-                        "公開する"
+                        t("actions.publish")
                       )}
                     </Button>
                   ) : null}
                   <Button asChild variant="outline" size="sm" className="border-border">
                     <Link href={`/create-skill?edit=${encodeURIComponent(skill.id)}`}>
                       <Pencil className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-                      編集
+                      {t("actions.edit")}
                     </Link>
                   </Button>
                 </div>
@@ -258,10 +282,10 @@ export function MyStoreListingsPanel({ userId, onNotice, onListingsChanged }: My
                 onClick={(event) => event.stopPropagation()}
               >
                 <h2 id="store-listing-publish-title" className="text-center text-base font-semibold text-foreground">
-                  この商品を公開しますか？
+                  {t("publishModal.title")}
                 </h2>
                 <p className="mt-2 text-center text-sm text-muted-foreground">
-                  「{publishTarget.title}」をストアに表示する状態になります。
+                  {t("publishModal.description", { title: publishTarget.title })}
                 </p>
                 <div className="mt-6 flex gap-3">
                   <Button
@@ -271,7 +295,7 @@ export function MyStoreListingsPanel({ userId, onNotice, onListingsChanged }: My
                     disabled={Boolean(publishingListingId)}
                     onClick={() => setPublishConfirmId(null)}
                   >
-                    キャンセル
+                    {t("publishModal.cancel")}
                   </Button>
                   <Button
                     type="button"
@@ -282,10 +306,10 @@ export function MyStoreListingsPanel({ userId, onNotice, onListingsChanged }: My
                     {publishingListingId ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                        公開中...
+                        {t("publishModal.confirming")}
                       </>
                     ) : (
-                      "公開する"
+                      t("publishModal.confirm")
                     )}
                   </Button>
                 </div>

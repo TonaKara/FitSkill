@@ -7,8 +7,10 @@ import { Loader2, X } from "lucide-react"
 import { ProfileAvatar } from "@/components/profile-avatar"
 import { AppNavMenu } from "@/components/layout/AppNavMenu"
 import { Button } from "@/components/ui/button"
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher"
 import { useMobileHeaderMenu } from "@/components/mobile-header-menu-context"
 import { useHeaderAuth } from "@/lib/header-auth-context"
+import { useTranslations } from "@/lib/i18n/useI18n"
 
 type MobileHeaderMenuDrawerProps = {
   portalReady: boolean
@@ -20,6 +22,8 @@ function MobileHeaderMenuDrawerInner({ onLogoutRequest, onLoginRequest }: Omit<M
   const pathname = usePathname()
   const { isMobileMenuOpen, setMobileMenuOpen } = useMobileHeaderMenu()
   const { isAuthenticated, isAuthLoading, profileSummary, profileLoading } = useHeaderAuth()
+  const tHeader = useTranslations("header")
+  const tCommon = useTranslations("common")
 
   const closeMenu = () => setMobileMenuOpen(false)
 
@@ -49,7 +53,13 @@ function MobileHeaderMenuDrawerInner({ onLogoutRequest, onLoginRequest }: Omit<M
     return null
   }
 
-  const displayName = isAuthenticated ? (profileSummary?.displayName ?? "ユーザー") : "ゲスト"
+  // displayName が空文字（DB 未設定）の場合も locale 別フォールバックへ落とす
+  const rawDisplayName = profileSummary?.displayName ?? ""
+  const displayName = isAuthenticated
+    ? rawDisplayName.length > 0
+      ? rawDisplayName
+      : tHeader("user")
+    : tHeader("guest")
   const avatarUrl = isAuthenticated ? (profileSummary?.avatarUrl ?? null) : null
 
   return (
@@ -57,22 +67,22 @@ function MobileHeaderMenuDrawerInner({ onLogoutRequest, onLoginRequest }: Omit<M
       <button
         type="button"
         className="fixed inset-0 top-16 z-[60] bg-black/45 md:hidden"
-        aria-label="メニューを閉じる"
+        aria-label={tHeader("menuClose")}
         onClick={closeMenu}
       />
       <div
         id="mobile-header-menu"
         role="dialog"
         aria-modal="true"
-        aria-label="メニュー"
+        aria-label={tHeader("menu")}
         className="fixed bottom-0 right-0 top-16 z-[65] flex w-full max-w-sm flex-col border-l border-border bg-background shadow-xl md:hidden"
       >
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <p className="text-sm font-semibold text-foreground">メニュー</p>
+          <p className="text-sm font-semibold text-foreground">{tHeader("menu")}</p>
           <button
             type="button"
             onClick={closeMenu}
-            aria-label="閉じる"
+            aria-label={tCommon("close")}
             className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-secondary"
           >
             <X className="h-5 w-5" aria-hidden />
@@ -86,7 +96,7 @@ function MobileHeaderMenuDrawerInner({ onLogoutRequest, onLoginRequest }: Omit<M
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-xs text-muted-foreground">読み込み中…</p>
+                <p className="text-xs text-muted-foreground">{tCommon("loading")}</p>
               </div>
             </>
           ) : (
@@ -100,7 +110,7 @@ function MobileHeaderMenuDrawerInner({ onLogoutRequest, onLoginRequest }: Omit<M
               />
               <div className="min-w-0 flex-1">
                 {isAuthenticated ? (
-                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">ログイン中</p>
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{tHeader("loggedIn")}</p>
                 ) : null}
                 <p className="truncate text-sm font-semibold text-foreground" title={displayName}>
                   {displayName}
@@ -114,6 +124,10 @@ function MobileHeaderMenuDrawerInner({ onLogoutRequest, onLoginRequest }: Omit<M
           <AppNavMenu guestMode={!isAuthenticated} onNavigate={closeMenu} />
         </div>
 
+        <div className="shrink-0 border-t border-border px-4 py-3">
+          <LanguageSwitcher variant="inline" />
+        </div>
+
         <div className="shrink-0 border-t border-border p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           {isAuthenticated ? (
             <Button
@@ -124,7 +138,7 @@ function MobileHeaderMenuDrawerInner({ onLogoutRequest, onLoginRequest }: Omit<M
                 onLogoutRequest()
               }}
             >
-              ログアウト
+              {tHeader("logout")}
             </Button>
           ) : (
             <Button
@@ -133,7 +147,7 @@ function MobileHeaderMenuDrawerInner({ onLogoutRequest, onLoginRequest }: Omit<M
               disabled={isAuthLoading}
               onClick={onLoginRequest}
             >
-              ログイン
+              {tHeader("login")}
             </Button>
           )}
         </div>

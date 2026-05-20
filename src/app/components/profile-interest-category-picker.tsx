@@ -5,6 +5,8 @@ import {
   PARENT_CATEGORY_LABELS,
   toggleProfileParentCategory,
 } from "@/lib/profile-interest-categories"
+import { localizeStoredCategory } from "@/lib/skill-categories"
+import { useLocale } from "@/lib/i18n/useI18n"
 
 type ProfileInterestCategoryPickerProps = {
   selectedCategories: string[]
@@ -17,6 +19,7 @@ export function ProfileInterestCategoryPicker({
   onChange,
   idPrefix = "profile-interest",
 }: ProfileInterestCategoryPickerProps) {
+  const locale = useLocale()
   const handleToggle = (parentLabel: string) => {
     onChange(toggleProfileParentCategory(selectedCategories, parentLabel))
   }
@@ -44,7 +47,7 @@ export function ProfileInterestCategoryPicker({
                 onChange={() => handleToggle(parentLabel)}
                 className="h-4 w-4 shrink-0 rounded border-input bg-background text-primary focus:ring-2 focus:ring-primary focus:ring-offset-0 focus:ring-offset-background"
               />
-              <span className="text-sm text-foreground">{parentLabel}</span>
+              <span className="text-sm text-foreground">{localizeStoredCategory(parentLabel, locale)}</span>
             </label>
           </li>
         )

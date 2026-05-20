@@ -15,12 +15,19 @@ import {
   FITNESS_SUB_CATEGORY_LABELS,
   PARENT_CATEGORY_LABELS,
   PARENT_FITNESS_LABEL,
+  localizeStoredCategory,
 } from "@/lib/skill-categories"
 import { consumeHomeListScrollY } from "@/lib/home-list-scroll"
+import { useLocale, useTranslations, useTranslationsWithFallback } from "@/lib/i18n/useI18n"
 
 export default function DiscoverSkillsClient() {
   const discoverSearch = useDiscoverSearch()
   const searchKeyword = discoverSearch?.keyword ?? ""
+  const locale = useLocale()
+  const tDiscover = useTranslations("discover")
+  const tCommon = useTranslations("common")
+  const tCategories = useTranslations("categories")
+  const tSortOption = useTranslationsWithFallback("sortOptions")
 
   const [showFilters, setShowFilters] = useState(false)
   const [sortBy, setSortBy] = useState<SkillSortOptionId>("popular")
@@ -57,16 +64,16 @@ export default function DiscoverSkillsClient() {
       filters.maxDurationMinutes != null &&
       filters.minDurationMinutes > filters.maxDurationMinutes
     ) {
-      return "最小時間は最大時間以下で入力してください。"
+      return tDiscover("durationValidation")
     }
     return ""
-  }, [filters.maxDurationMinutes, filters.minDurationMinutes])
+  }, [filters.maxDurationMinutes, filters.minDurationMinutes, tDiscover])
   const priceValidationMessage = useMemo(() => {
     if (filters.minPrice != null && filters.maxPrice != null && filters.minPrice > filters.maxPrice) {
-      return "最低価格は最高価格以下で入力してください。"
+      return tDiscover("priceValidation")
     }
     return ""
-  }, [filters.maxPrice, filters.minPrice])
+  }, [filters.maxPrice, filters.minPrice, tDiscover])
 
   const handlePriceChange = (value: string, kind: "min" | "max") => {
     const normalized = value.replace(/[^\d]/g, "")
@@ -106,24 +113,24 @@ export default function DiscoverSkillsClient() {
         <div id="discover-skill-list-section" className="mb-6 scroll-mt-20">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="min-w-0">
-              <h1 className="text-xl font-bold text-foreground md:text-2xl">スキル一覧</h1>
-              <p className="mt-1 text-sm text-muted-foreground">公開中のスキルを探して購入できます</p>
+              <h1 className="text-xl font-bold text-foreground md:text-2xl">{tDiscover("title")}</h1>
+              <p className="mt-1 text-sm text-muted-foreground">{tDiscover("subtitle")}</p>
             </div>
 
             <div className="hidden items-center gap-3 md:flex">
               <Button variant="outline" className="border-border hover:bg-secondary" onClick={() => setShowFilters(true)}>
                 <SlidersHorizontal className="mr-2 h-4 w-4" aria-hidden />
-                フィルター
+                {tDiscover("filtersButton")}
               </Button>
               <select
-                aria-label="並べ替え"
+                aria-label={tDiscover("sortAria")}
                 value={sortBy}
                 onChange={(event) => setSortBy(event.target.value as SkillSortOptionId)}
                 className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground hover:bg-secondary"
               >
                 {SKILL_SORT_OPTIONS.map((option) => (
                   <option key={option.id} value={option.id}>
-                    {option.label}
+                    {tSortOption(option.id, option.label)}
                   </option>
                 ))}
               </select>
@@ -134,17 +141,17 @@ export default function DiscoverSkillsClient() {
         <div className="mb-6 flex items-center justify-between gap-3 md:hidden">
           <Button variant="outline" size="sm" className="flex-1 border-border" onClick={() => setShowFilters(true)}>
             <SlidersHorizontal className="mr-2 h-4 w-4" aria-hidden />
-            フィルター
+            {tDiscover("filtersButton")}
           </Button>
           <select
-            aria-label="並べ替え"
+            aria-label={tDiscover("sortAria")}
             value={sortBy}
             onChange={(event) => setSortBy(event.target.value as SkillSortOptionId)}
             className="h-9 flex-1 rounded-md border border-border bg-background px-3 text-sm text-foreground"
           >
             {SKILL_SORT_OPTIONS.map((option) => (
               <option key={option.id} value={option.id}>
-                {option.label}
+                {tSortOption(option.id, option.label)}
               </option>
             ))}
           </select>
@@ -160,8 +167,8 @@ export default function DiscoverSkillsClient() {
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-foreground">フィルター</h2>
-              <Button variant="ghost" size="icon" onClick={() => setShowFilters(false)} aria-label="閉じる">
+              <h2 className="text-lg font-bold text-foreground">{tDiscover("modalTitle")}</h2>
+              <Button variant="ghost" size="icon" onClick={() => setShowFilters(false)} aria-label={tCommon("close")}>
                 <X className="h-4 w-4" aria-hidden />
               </Button>
             </div>
@@ -169,7 +176,7 @@ export default function DiscoverSkillsClient() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <label htmlFor="parent-category-filter" className="text-sm font-semibold text-foreground">
-                  大カテゴリ
+                  {tDiscover("parentCategoryLabel")}
                 </label>
                 <select
                   id="parent-category-filter"
@@ -184,10 +191,10 @@ export default function DiscoverSkillsClient() {
                   }}
                   className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground"
                 >
-                  <option value="all">すべて</option>
+                  <option value="all">{tCategories("all")}</option>
                   {PARENT_CATEGORY_LABELS.map((label) => (
                     <option key={label} value={label}>
-                      {label}
+                      {localizeStoredCategory(label, locale)}
                     </option>
                   ))}
                 </select>
@@ -196,7 +203,7 @@ export default function DiscoverSkillsClient() {
               {filters.parentCategory === PARENT_FITNESS_LABEL ? (
                 <div className="space-y-2">
                   <label htmlFor="sub-category-filter" className="text-sm font-semibold text-foreground">
-                    小カテゴリ
+                    {tDiscover("subCategoryLabel")}
                   </label>
                   <select
                     id="sub-category-filter"
@@ -206,10 +213,10 @@ export default function DiscoverSkillsClient() {
                     }
                     className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground"
                   >
-                    <option value="all">すべて</option>
+                    <option value="all">{tCategories("all")}</option>
                     {FITNESS_SUB_CATEGORY_LABELS.map((label) => (
                       <option key={label} value={label}>
-                        {label}
+                        {localizeStoredCategory(label, locale)}
                       </option>
                     ))}
                   </select>
@@ -218,7 +225,7 @@ export default function DiscoverSkillsClient() {
 
               <div className="space-y-2">
                 <label htmlFor="pre-offer-filter" className="text-sm font-semibold text-foreground">
-                  事前オファー
+                  {tDiscover("preOfferLabel")}
                 </label>
                 <select
                   id="pre-offer-filter"
@@ -231,14 +238,14 @@ export default function DiscoverSkillsClient() {
                   }
                   className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground"
                 >
-                  <option value="all">すべて</option>
-                  <option value="enabled">あり</option>
-                  <option value="disabled">なし</option>
+                  <option value="all">{tCategories("all")}</option>
+                  <option value="enabled">{tDiscover("preOfferEnabled")}</option>
+                  <option value="disabled">{tDiscover("preOfferDisabled")}</option>
                 </select>
               </div>
 
               <div className="space-y-2">
-                <p className="text-sm font-semibold text-foreground">実施形式</p>
+                <p className="text-sm font-semibold text-foreground">{tDiscover("formatLabel")}</p>
                 <select
                   id="format-filter"
                   value={filters.format}
@@ -251,16 +258,16 @@ export default function DiscoverSkillsClient() {
                   }
                   className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground"
                 >
-                  <option value="all">すべて</option>
-                  <option value="online">オンライン</option>
-                  <option value="onsite">対面</option>
+                  <option value="all">{tCategories("all")}</option>
+                  <option value="online">{tDiscover("formatOnline")}</option>
+                  <option value="onsite">{tDiscover("formatOnsite")}</option>
                 </select>
               </div>
 
               {isLocationFilterVisible ? (
                 <div className="space-y-2">
                   <label htmlFor="location-filter" className="text-sm font-semibold text-foreground">
-                    実施場所
+                    {tDiscover("locationLabel")}
                   </label>
                   <select
                     id="location-filter"
@@ -268,7 +275,7 @@ export default function DiscoverSkillsClient() {
                     onChange={(event) => setFilters((prev) => ({ ...prev, locationPrefecture: event.target.value }))}
                     className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground"
                   >
-                    <option value="">都道府県を選択</option>
+                    <option value="">{tDiscover("locationPlaceholder")}</option>
                     {PREFECTURE_OPTIONS.map((prefecture) => (
                       <option key={prefecture} value={prefecture}>
                         {prefecture}
@@ -280,7 +287,7 @@ export default function DiscoverSkillsClient() {
 
               <div className="space-y-2">
                 <label htmlFor="availability-filter" className="text-sm font-semibold text-foreground">
-                  対応状況
+                  {tDiscover("availabilityLabel")}
                 </label>
                 <select
                   id="availability-filter"
@@ -293,14 +300,14 @@ export default function DiscoverSkillsClient() {
                   }
                   className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground"
                 >
-                  <option value="all">すべて</option>
-                  <option value="available">対応可能</option>
-                  <option value="full">満員対応中</option>
+                  <option value="all">{tCategories("all")}</option>
+                  <option value="available">{tDiscover("availabilityAvailable")}</option>
+                  <option value="full">{tDiscover("availabilityFull")}</option>
                 </select>
               </div>
 
               <div className="space-y-2">
-                <p className="text-sm font-semibold text-foreground">1回あたりの時間</p>
+                <p className="text-sm font-semibold text-foreground">{tDiscover("durationLabel")}</p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <input
                     type="number"
@@ -308,7 +315,7 @@ export default function DiscoverSkillsClient() {
                     step={5}
                     value={minDurationInput}
                     onChange={(event) => handleDurationChange(event.target.value, "min")}
-                    placeholder="最小時間（分）"
+                    placeholder={tDiscover("minDurationPlaceholder")}
                     className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground"
                   />
                   <input
@@ -317,7 +324,7 @@ export default function DiscoverSkillsClient() {
                     step={5}
                     value={maxDurationInput}
                     onChange={(event) => handleDurationChange(event.target.value, "max")}
-                    placeholder="最大時間（分）"
+                    placeholder={tDiscover("maxDurationPlaceholder")}
                     className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
@@ -325,7 +332,7 @@ export default function DiscoverSkillsClient() {
               </div>
 
               <div className="space-y-2">
-                <p className="text-sm font-semibold text-foreground">価格（円）</p>
+                <p className="text-sm font-semibold text-foreground">{tDiscover("priceLabel")}</p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <input
                     type="number"
@@ -333,7 +340,7 @@ export default function DiscoverSkillsClient() {
                     step={100}
                     value={minPriceInput}
                     onChange={(event) => handlePriceChange(event.target.value, "min")}
-                    placeholder="最低価格"
+                    placeholder={tDiscover("minPricePlaceholder")}
                     className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground"
                   />
                   <input
@@ -342,7 +349,7 @@ export default function DiscoverSkillsClient() {
                     step={100}
                     value={maxPriceInput}
                     onChange={(event) => handlePriceChange(event.target.value, "max")}
-                    placeholder="最高価格"
+                    placeholder={tDiscover("maxPricePlaceholder")}
                     className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
@@ -352,9 +359,9 @@ export default function DiscoverSkillsClient() {
 
             <div className="mt-6 flex items-center justify-end gap-2">
               <Button variant="outline" onClick={resetFilters}>
-                リセット
+                {tDiscover("reset")}
               </Button>
-              <Button onClick={() => setShowFilters(false)}>適用して閉じる</Button>
+              <Button onClick={() => setShowFilters(false)}>{tDiscover("applyAndClose")}</Button>
             </div>
           </section>
         </div>

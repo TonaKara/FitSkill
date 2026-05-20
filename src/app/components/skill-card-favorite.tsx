@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { getFavoriteCountAndMine } from "@/lib/favorites"
+import { useTranslations } from "@/lib/i18n/useI18n"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 
 type SkillCardFavoriteProps = {
@@ -18,6 +19,7 @@ type SkillCardFavoriteProps = {
 export function SkillCardFavorite({ skillId, initialFavoriteCount }: SkillCardFavoriteProps) {
   const router = useRouter()
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
+  const tAria = useTranslations("aria")
   /** null = 未取得（この間は 0 と誤表示しない） */
   const [count, setCount] = useState<number | null>(() =>
     typeof initialFavoriteCount === "number" ? initialFavoriteCount : null,
@@ -127,7 +129,7 @@ export function SkillCardFavorite({ skillId, initialFavoriteCount }: SkillCardFa
       disabled={loading || pending}
       aria-busy={loading || pending}
       aria-pressed={favorited}
-      aria-label={favorited ? "お気に入りから外す" : "お気に入りに追加"}
+      aria-label={favorited ? tAria("removeFavorite") : tAria("addFavorite")}
     >
       <Heart className={`h-4 w-4 shrink-0 ${favorited ? "fill-primary-readable text-primary-readable" : ""}`} />
       <span className="min-w-[0.65rem] text-xs font-medium tabular-nums leading-none text-foreground">

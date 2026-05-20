@@ -32,6 +32,17 @@ export async function notifyBuyerCheckoutRefunded(params: {
     ],
     ctaLabel: "スキルページを開く",
     ctaUrl: skillUrl,
+    localizedKeys: {
+      subjectKey: "email.checkoutRefund.subject",
+      headingKey: "email.checkoutRefund.heading",
+      introKey:
+        reason === "duplicate_payment"
+          ? "email.checkoutRefund.introDuplicate"
+          : "email.checkoutRefund.introSkillFull",
+      lineKeys: ["email.checkoutRefund.lineSkill", "email.checkoutRefund.lineDelay"],
+      ctaLabelKey: "email.checkoutRefund.cta",
+      values: { title: skillTitle },
+    },
   })
 }
 
@@ -118,6 +129,12 @@ export async function ensureSellerPurchaseNotification(params: {
       intro: "あなたのスキルが購入され、取引が開始されました。",
       ctaLabel: "取引チャットを開く",
       ctaUrl: chatUrl,
+      localizedKeys: {
+        subjectKey: "email.transactionEstablished.subject",
+        headingKey: "email.transactionEstablished.heading",
+        introKey: "email.transactionEstablished.introSeller",
+        ctaLabelKey: "email.transactionEstablished.cta",
+      },
     }),
     sendUserEventEmail({
       topic: "transaction_established",
@@ -127,6 +144,12 @@ export async function ensureSellerPurchaseNotification(params: {
       intro: "購入手続きが完了し、取引が開始されました。",
       ctaLabel: "取引チャットを開く",
       ctaUrl: chatUrl,
+      localizedKeys: {
+        subjectKey: "email.transactionEstablished.subject",
+        headingKey: "email.transactionEstablished.heading",
+        introKey: "email.transactionEstablished.introBuyer",
+        ctaLabelKey: "email.transactionEstablished.cta",
+      },
     }),
   ])
 }

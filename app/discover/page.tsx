@@ -1,11 +1,17 @@
 import type { Metadata } from "next"
 import DiscoverSkillsClient from "@/discover/DiscoverSkillsClient"
+import { getDictionary, lookupMessage } from "@/lib/i18n/dictionaries"
+import { getServerLocale } from "@/lib/i18n/server-detect"
 
-export const metadata: Metadata = {
-  title: "スキルを探す",
-  description: "公開中のスキル・サービスを検索・一覧から探せます。",
-  alternates: { canonical: "/discover" },
-  robots: { index: true, follow: true },
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getServerLocale()
+  const dict = getDictionary(locale)
+  return {
+    title: lookupMessage(dict, "metadata.discover.title"),
+    description: lookupMessage(dict, "metadata.discover.description"),
+    alternates: { canonical: "/discover" },
+    robots: { index: true, follow: true },
+  }
 }
 
 export default function DiscoverPage() {

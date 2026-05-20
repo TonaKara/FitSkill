@@ -4,6 +4,12 @@ import { createClient } from "@supabase/supabase-js"
 import { type EmailOtpType } from "@supabase/supabase-js"
 import { Resend } from "resend"
 import { buildSignupConfirmationRedirectUrl } from "@/lib/auth-email-flow"
+import {
+  formatMessage,
+  getDictionary,
+  lookupMessage,
+} from "@/lib/i18n/dictionaries"
+import { DEFAULT_LOCALE, localeToHtmlLang, type Locale } from "@/lib/i18n/locales"
 
 type GenerateLinkType = "magiclink" | "invite" | "recovery"
 
@@ -39,20 +45,25 @@ function escapeHtml(value: string): string {
     .replaceAll("'", "&#39;")
 }
 
-function renderSignupConfirmationEmail(actionLink: string): string {
+function renderSignupConfirmationEmail(actionLink: string, locale: Locale): string {
   const safeLink = escapeHtml(actionLink)
+  const dict = getDictionary(locale)
+  const heading = formatMessage(lookupMessage(dict, "email.signupConfirmation.heading"))
+  const intro = formatMessage(lookupMessage(dict, "email.signupConfirmation.intro"))
+  const cta = formatMessage(lookupMessage(dict, "email.signupConfirmation.cta"))
+  const footer = formatMessage(lookupMessage(dict, "email.footer"))
   return `<!doctype html>
-<html lang="ja">
+<html lang="${escapeHtml(localeToHtmlLang(locale))}">
   <body style="margin:0;background:#09090b;padding:28px 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:#f4f4f5;">
     <div style="max-width:560px;margin:0 auto;background:#18181b;border:1px solid #27272a;border-radius:16px;padding:26px;">
-      <h1 style="margin:0 0 16px;color:#fff;font-size:21px;font-weight:800;">メールアドレスの確認</h1>
-      <p style="margin:0 0 12px;color:#e4e4e7;font-size:14px;line-height:1.7;">GritVib へのご登録ありがとうございます。下のボタンからメールアドレスを確認してください。</p>
+      <h1 style="margin:0 0 16px;color:#fff;font-size:21px;font-weight:800;">${escapeHtml(heading)}</h1>
+      <p style="margin:0 0 12px;color:#e4e4e7;font-size:14px;line-height:1.7;">${escapeHtml(intro)}</p>
       <p style="margin:18px 0 0;">
         <a href="${safeLink}" style="display:inline-block;background:#e64a19;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;border-radius:10px;padding:12px 22px;">
-          メールアドレスを確認する
+          ${escapeHtml(cta)}
         </a>
       </p>
-      <p style="margin:20px 0 0;color:#71717a;font-size:12px;line-height:1.6;">このメールは送信専用です。返信できません。</p>
+      <p style="margin:20px 0 0;color:#71717a;font-size:12px;line-height:1.6;">${escapeHtml(footer)}</p>
     </div>
   </body>
 </html>`
@@ -111,7 +122,11 @@ function resolveResendFromAddress(): string {
   return "GritVib <notifications@gritvib.com>"
 }
 
-async function sendSignupConfirmationViaResend(to: string, actionLink: string): Promise<boolean> {
+async function sendSignupConfirmationViaResend(
+  to: string,
+  actionLink: string,
+  locale: Locale,
+): Promise<boolean> {
   const resend = getResendClient()
   if (!resend) {
     console.error("[signup-confirmation-resend] RESEND_API_KEY is not configured")
@@ -119,11 +134,13 @@ async function sendSignupConfirmationViaResend(to: string, actionLink: string): 
   }
 
   const fromAddress = resolveResendFromAddress()
+  const dict = getDictionary(locale)
+  const subject = formatMessage(lookupMessage(dict, "email.signupConfirmation.subject"))
   const { data, error } = await resend.emails.send({
     from: fromAddress,
     to,
-    subject: "GritVib メールアドレスの確認",
-    html: renderSignupConfirmationEmail(actionLink),
+    subject,
+    html: renderSignupConfirmationEmail(actionLink, locale),
   })
 
   if (error) {
@@ -144,7 +161,15 @@ async function sendSignupConfirmationViaResend(to: string, actionLink: string): 
   return true
 }
 
-export async function sendSignupConfirmationEmail(email: string): Promise<SignupConfirmationResendResult> {
+export async function sendSignupConfirmationEmail(
+  email: string,
+  /**
+   * メール本文の言語。未指定の場合は 'ja'（既存挙動と完全一致）。
+   * サインアップ時点ではまだ profile が存在しないことが多いため、呼び出し側でリクエスト
+   * Cookie や Accept-Language を見て決めることを推奨。
+   */
+  locale: Locale = DEFAULT_LOCALE,
+): Promise<SignupConfirmationResendResult> {
   if (!getSupabaseAdminClient() || !getResendClient()) {
     console.error("[signup-confirmation-resend] missing server configuration", {
       hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
@@ -168,7 +193,7 @@ export async function sendSignupConfirmationEmail(email: string): Promise<Signup
     }
 
     generatedLink = true
-    const sent = await sendSignupConfirmationViaResend(email, actionLink)
+    const sent = await sendSignupConfirmationViaResend(email, actionLink, locale)
     if (sent) {
       return { ok: true }
     }

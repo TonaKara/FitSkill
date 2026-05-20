@@ -1,13 +1,18 @@
 import type { Metadata } from "next"
 import MyPage from "@/mypage/page"
+import { getDictionary, lookupMessage } from "@/lib/i18n/dictionaries"
+import { getServerLocale } from "@/lib/i18n/server-detect"
 
-export const metadata: Metadata = {
-  title: "マイページ",
-  description:
-    "GritVibのマイページ。出品スキル、取引、Stripe連携、通知など、アカウントに関する操作はこちらから行えます。",
-  alternates: { canonical: "/mypage" },
-  openGraph: { url: "/mypage" },
-  robots: { index: false, follow: false },
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getServerLocale()
+  const dict = getDictionary(locale)
+  return {
+    title: lookupMessage(dict, "metadata.mypage.title"),
+    description: lookupMessage(dict, "metadata.mypage.description"),
+    alternates: { canonical: "/mypage" },
+    openGraph: { url: "/mypage" },
+    robots: { index: false, follow: false },
+  }
 }
 
 export default function Page() {

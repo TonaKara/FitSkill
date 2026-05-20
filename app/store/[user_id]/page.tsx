@@ -2,8 +2,9 @@ import type { Metadata } from "next"
 import { permanentRedirect } from "next/navigation"
 import { createClient } from "@supabase/supabase-js"
 import StorePage from "@/store/[user_id]/page"
+import { formatMessage, getDictionary, lookupMessage } from "@/lib/i18n/dictionaries"
+import { getServerLocale, localeToOgLocale } from "@/lib/i18n/server-detect"
 import { isUuid, normalizeCustomId } from "@/lib/profile-path"
-import { LAYOUT_DESCRIPTION } from "@/lib/site-seo"
 
 type StorePageProps = {
   params: Promise<{ user_id: string }>
@@ -58,11 +59,16 @@ export async function generateMetadata({
   const { user_id } = await params
   const identifier = user_id.trim()
   const canonicalPath = `/store/${identifier}`
+  const locale = await getServerLocale()
+  const dict = getDictionary(locale)
+  const layoutDescription = lookupMessage(dict, "metadata.layoutDescription")
+  const siteName = lookupMessage(dict, "metadata.siteName")
+  const ogLocale = localeToOgLocale(locale)
   const profile = await resolveProfile(identifier)
   if (!profile) {
     return {
-      title: "ストア",
-      description: LAYOUT_DESCRIPTION,
+      title: lookupMessage(dict, "metadata.store.fallbackTitle"),
+      description: layoutDescription,
       alternates: { canonical: canonicalPath },
       robots: { index: false, follow: true },
     }
@@ -74,12 +80,12 @@ export async function generateMetadata({
   const displayName =
     typeof profile.display_name === "string" && profile.display_name.trim().length > 0
       ? profile.display_name.trim()
-      : "出品者"
+      : lookupMessage(dict, "metadata.store.fallbackDisplayName")
   const bioTrunc = truncateDescription(typeof profile.bio === "string" ? profile.bio : null)
   const description =
     bioTrunc.length > 0
       ? bioTrunc
-      : `${displayName}さんの個人ストア。GritVibでスキルやサービスを掲載しています。`
+      : formatMessage(lookupMessage(dict, "metadata.store.descriptionTemplate"), { name: displayName })
 
   const title = displayName
   const avatarImage =
@@ -94,8 +100,8 @@ export async function generateMetadata({
       description,
       url: resolvedCanonicalPath,
       type: "website",
-      locale: "ja_JP",
-      siteName: "GritVib",
+      locale: ogLocale,
+      siteName,
       images: avatarImage ? [{ url: avatarImage }] : undefined,
     },
     twitter: {

@@ -1,4 +1,4 @@
-﻿import { render } from "@react-email/render"
+import { render } from "@react-email/render"
 import { createClient } from "@supabase/supabase-js"
 import { Resend } from "resend"
 import { requireApiUser } from "@/lib/api-auth"
@@ -6,6 +6,8 @@ import {
   parseEmailNotificationSettings,
   shouldSendEmailForTopic,
 } from "@/lib/email-notification-settings"
+import { formatMessage, getDictionary, lookupMessage } from "@/lib/i18n/dictionaries"
+import { DEFAULT_LOCALE, isSupportedLocale, type Locale } from "@/lib/i18n/locales"
 import { getAppBaseUrl } from "@/lib/site-seo"
 import InquiryMessageEmail from "../../../../src/emails/InquiryMessageEmail"
 
@@ -81,9 +83,13 @@ export async function POST(req: Request) {
       admin.from("profiles").select("display_name").eq("id", msg.sender_id).maybeSingle<{ display_name: string | null }>(),
       admin
         .from("profiles")
-        .select("display_name, email_notification_settings")
+        .select("display_name, email_notification_settings, preferred_locale")
         .eq("id", msg.recipient_id)
-        .maybeSingle<{ display_name: string | null; email_notification_settings?: unknown }>(),
+        .maybeSingle<{
+          display_name: string | null
+          email_notification_settings?: unknown
+          preferred_locale?: string | null
+        }>(),
       admin
         .from("skills")
         .select("title")
@@ -103,6 +109,13 @@ export async function POST(req: Request) {
       return Response.json({ ok: true, skipped: "recipient_email_notifications_disabled" })
     }
 
+    const rawLocale = recipientProfile?.preferred_locale
+    const recipientLocale: Locale = isSupportedLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE
+    const dict = getDictionary(recipientLocale)
+    const subjectText = formatMessage(lookupMessage(dict, "email.inquiryMessage.subject"))
+    const userFallback = formatMessage(lookupMessage(dict, "email.inquiryMessage.userFallback"))
+    const skillFallback = formatMessage(lookupMessage(dict, "email.inquiryMessage.skillFallback"))
+
     const baseUrl = getAppBaseUrl()
     const chatUrl = `${baseUrl}/inquiry/${encodeURIComponent(msg.sender_id)}?skill_id=${encodeURIComponent(
       String(msg.origin_skill_id),
@@ -110,11 +123,12 @@ export async function POST(req: Request) {
 
     const html = await render(
       InquiryMessageEmail({
-        recipientName: recipientProfile?.display_name?.trim() || "ユーザー",
-        senderName: senderProfile?.display_name?.trim() || "ユーザー",
-        skillTitle: skillRow?.title?.trim() || "スキル",
+        recipientName: recipientProfile?.display_name?.trim() || userFallback,
+        senderName: senderProfile?.display_name?.trim() || userFallback,
+        skillTitle: skillRow?.title?.trim() || skillFallback,
         messageSnippet: trimSnippet(msg.content),
         chatUrl,
+        locale: recipientLocale,
       }),
     )
 
@@ -122,7 +136,7 @@ export async function POST(req: Request) {
     await resend.emails.send({
       from: fromAddress,
       to: recipientEmail,
-      subject: "【GritVib】新しい相談メッセージが届きました",
+      subject: subjectText,
       html,
     })
 

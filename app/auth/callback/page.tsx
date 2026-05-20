@@ -9,6 +9,7 @@ import {
   isSignupEmailConfirmationNextPath,
   sanitizeAuthNextPath,
 } from "@/lib/auth-email-flow"
+import { useTranslations } from "@/lib/i18n/useI18n"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 
 type FailureReason = "missing" | "session_context" | "exchange_failed" | "otp_failed"
@@ -56,6 +57,7 @@ async function postNewUserDiscord(user: {
 
 export default function AuthCallbackPage() {
   const router = useRouter()
+  const tCallback = useTranslations("authCallback")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   useEffect(() => {
@@ -141,11 +143,11 @@ export default function AuthCallbackPage() {
     void run().catch((e: unknown) => {
       console.error("[auth/callback]", e)
       if (!signupConfirmationFlow) {
-        setErrorMessage("認証処理中にエラーが発生しました。")
+        setErrorMessage(tCallback("errorMessage"))
       }
       redirectLoginOrVerified("exchange_failed")
     })
-  }, [router])
+  }, [router, tCallback])
 
   if (errorMessage) {
     return (
@@ -155,5 +157,5 @@ export default function AuthCallbackPage() {
     )
   }
 
-  return <AuthLoadingScreen message="メール認証を確認しています…" />
+  return <AuthLoadingScreen message={tCallback("loadingMessage")} />
 }

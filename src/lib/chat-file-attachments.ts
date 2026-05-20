@@ -164,25 +164,45 @@ export function classifyChatFile(file: File): ChatFileKind | null {
   return "file"
 }
 
+/** バリデーション結果のエラー種別。表示文言は呼び出し側で locale 別に解決する。 */
+export type ChatAttachmentValidationErrorCode = "fileTooLarge" | "fileBlocked" | "fileUnsupported"
+
 export type ChatAttachmentValidationResult =
   | { ok: true; kind: ChatFileKind }
-  | { ok: false; error: string }
+  | { ok: false; code: ChatAttachmentValidationErrorCode; error: string }
+
+/**
+ * バリデーション結果のエラー文言（JA）。後方互換のため `error` フィールドにも詰めておくが、
+ * 新規呼び出し側は `code` を使って locale 別の文言を解決すること。
+ */
+const VALIDATION_ERROR_DEFAULT_MESSAGES_JA: Record<ChatAttachmentValidationErrorCode, string> = {
+  fileTooLarge: "ファイルサイズは50MB以下にしてください。",
+  fileBlocked: "セキュリティのため、この形式のファイルは送信できません。",
+  fileUnsupported:
+    "このファイル形式には対応していません。画像・動画・PDF・Office・テキスト等を選択してください。",
+}
 
 export function validateChatAttachmentFile(file: File): ChatAttachmentValidationResult {
   if (file.size > MAX_CHAT_FILE_BYTES) {
-    return { ok: false, error: "ファイルサイズは50MB以下にしてください。" }
+    return {
+      ok: false,
+      code: "fileTooLarge",
+      error: VALIDATION_ERROR_DEFAULT_MESSAGES_JA.fileTooLarge,
+    }
   }
   if (isBlockedChatAttachment(file)) {
     return {
       ok: false,
-      error: "セキュリティのため、この形式のファイルは送信できません。",
+      code: "fileBlocked",
+      error: VALIDATION_ERROR_DEFAULT_MESSAGES_JA.fileBlocked,
     }
   }
   const kind = classifyChatFile(file)
   if (!kind) {
     return {
       ok: false,
-      error: "このファイル形式には対応していません。画像・動画・PDF・Office・テキスト等を選択してください。",
+      code: "fileUnsupported",
+      error: VALIDATION_ERROR_DEFAULT_MESSAGES_JA.fileUnsupported,
     }
   }
   return { ok: true, kind }

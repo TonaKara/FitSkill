@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Loader2, Star, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { chatUi } from "@/lib/chat-ui"
+import { useTranslations } from "@/lib/i18n/useI18n"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { submitTransactionReview, type TransactionReviewRow } from "@/lib/transaction-reviews"
 import { cn } from "@/lib/utils"
@@ -12,7 +13,7 @@ type TransactionReviewCardProps = {
   transactionId: string
   userId: string
   revieweeId: string
-  peerNoun: "出品者" | "購入者"
+  peerNoun: string
   initialReview: TransactionReviewRow | null
   reviewLoading: boolean
   onReviewSaved: (row: TransactionReviewRow) => void
@@ -30,6 +31,9 @@ export function TransactionReviewCard({
   onError,
 }: TransactionReviewCardProps) {
   const supabase = getSupabaseBrowserClient()
+  const t = useTranslations("transactionReview")
+  const tModal = useTranslations("transactionReview.modal")
+  const tAria = useTranslations("aria")
   const [modalOpen, setModalOpen] = useState(false)
   const [stars, setStars] = useState(0)
   const [comment, setComment] = useState("")
@@ -49,15 +53,18 @@ export function TransactionReviewCard({
 
   const hasReview = localReview != null
   const displayLine = hasReview
-    ? `評価済み：星${localReview.stars}${
-        localReview.comment?.trim() ? ` — ${localReview.comment.trim()}` : ""
-      }`
+    ? t("doneTemplate", {
+        stars: String(localReview.stars),
+        commentSuffix: localReview.comment?.trim()
+          ? `${t("commentSeparator")}${localReview.comment.trim()}`
+          : "",
+      })
     : null
 
   const handleSubmit = async () => {
     const s = stars >= 1 && stars <= 5 ? stars : 0
     if (s < 1) {
-      onError("星を1〜5で選んでください。")
+      onError(t("errors.selectStars"))
       return
     }
     setSubmitting(true)
@@ -70,12 +77,13 @@ export function TransactionReviewCard({
         comment: comment.trim() || null,
       })
       if (error || !data) {
-        const dupMsg = "この取引にはすでに評価を送信済みです。"
+        // 既存ロジック保持: バックエンドは日本語固定メッセージで重複を返す
+        const dupMsgJa = "この取引にはすでに評価を送信済みです。"
         const msg = error?.message?.trim() ?? ""
         onError(
-          msg === dupMsg
-            ? dupMsg
-            : "評価の送信に失敗しました。時間を置いて再度お試しください。",
+          msg === dupMsgJa
+            ? t("errors.duplicate")
+            : t("errors.submitFailed"),
         )
         return
       }
@@ -91,7 +99,7 @@ export function TransactionReviewCard({
     return (
       <div className="flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-muted/50 px-4 py-4 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 shrink-0 animate-spin text-amber-500" aria-hidden />
-        評価の状態を確認しています…
+        {t("loadingState")}
       </div>
     )
   }
@@ -100,7 +108,7 @@ export function TransactionReviewCard({
     <>
       <div className="w-full max-w-md rounded-2xl border border-emerald-600/35 bg-emerald-50 px-4 py-3 text-center shadow-sm md:max-w-2xl dark:border-emerald-700/35 dark:bg-emerald-950/25">
         <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100/95">
-          取引が終了しました。{peerNoun}を評価してください。
+          {t("completedNotice", { peerNoun })}
         </p>
         {hasReview && displayLine ? (
           <p className="mt-2 break-words text-left text-sm leading-relaxed text-foreground">{displayLine}</p>
@@ -112,7 +120,7 @@ export function TransactionReviewCard({
               className="bg-emerald-600 text-white hover:bg-emerald-500"
               onClick={() => setModalOpen(true)}
             >
-              評価する
+              {t("rateButton")}
             </Button>
           </div>
         ) : null}
@@ -132,19 +140,19 @@ export function TransactionReviewCard({
           >
             <div className="mb-4 flex items-center justify-between gap-2">
               <h2 id="tx-review-title" className="text-lg font-bold text-foreground">
-                {peerNoun}を評価
+                {tModal("title", { peerNoun })}
               </h2>
               <button
                 type="button"
                 onClick={() => (submitting ? null : setModalOpen(false))}
                 className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                aria-label="閉じる"
+                aria-label={tAria("close")}
                 disabled={submitting}
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <p className="mb-3 text-sm text-muted-foreground">5段階の星とコメント（任意）を入力できます。</p>
+            <p className="mb-3 text-sm text-muted-foreground">{tModal("description")}</p>
             <div className="mb-3 flex items-center justify-center gap-1">
               {[1, 2, 3, 4, 5].map((n) => (
                 <button
@@ -153,7 +161,7 @@ export function TransactionReviewCard({
                   disabled={submitting}
                   onClick={() => setStars(n)}
                   className="rounded p-0.5 text-amber-400 transition hover:scale-110"
-                  aria-label={`${n}点`}
+                  aria-label={tModal("starAria", { n: String(n) })}
                 >
                   <Star
                     className={cn(
@@ -165,11 +173,13 @@ export function TransactionReviewCard({
                 </button>
               ))}
             </div>
-            <p className="mb-2 text-center text-sm text-muted-foreground">{stars > 0 ? `${stars} / 5` : "未選択"}</p>
+            <p className="mb-2 text-center text-sm text-muted-foreground">
+              {stars > 0 ? tModal("starsScore", { stars: String(stars) }) : tModal("starsUnselected")}
+            </p>
             <textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder="コメント（任意）"
+              placeholder={tModal("commentPlaceholder")}
               className={cn(chatUi.textarea, "mb-4 w-full min-h-[88px] md:min-h-[140px]")}
               maxLength={2000}
               disabled={submitting}
@@ -183,7 +193,7 @@ export function TransactionReviewCard({
                 onClick={() => (submitting ? null : setModalOpen(false))}
                 disabled={submitting}
               >
-                キャンセル
+                {tModal("cancel")}
               </Button>
               <Button
                 type="button"
@@ -191,7 +201,7 @@ export function TransactionReviewCard({
                 disabled={submitting}
                 onClick={() => void handleSubmit()}
               >
-                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "送信"}
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : tModal("submit")}
               </Button>
             </div>
           </div>
