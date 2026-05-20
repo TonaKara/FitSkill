@@ -7,21 +7,18 @@ import type { AppNotice } from "@/lib/notifications"
 import { adminUi } from "@/lib/admin-ui"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
+import { ANNOUNCEMENT_REASON_OPTIONS } from "@/lib/admin-announcement"
 import {
   sendAdminNotification,
   type CreateAnnouncementParams,
   userFacingAnnouncementRpcMessage,
 } from "@/lib/transaction-notifications"
 
-const ANNOUNCEMENT_REASON_OPTIONS = [
-  "利用規約違反",
-  "不適切な画像",
-  "重要なお知らせ",
-  "運営メンテナンス",
-  "運営判断",
-] as const
+type AdminAnnouncementFormProps = {
+  onSent?: () => void
+}
 
-export function AdminAnnouncementForm() {
+export function AdminAnnouncementForm({ onSent }: AdminAnnouncementFormProps) {
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
   const [title, setTitle] = useState("")
   const [reason, setReason] = useState("")
@@ -114,6 +111,7 @@ export function AdminAnnouncementForm() {
     setReason("")
     setContent("")
     setNotice({ variant: "success", message: "お知らせを作成し、通知を送信しました。" })
+    onSent?.()
   }
 
   return (

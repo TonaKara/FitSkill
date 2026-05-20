@@ -4,8 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { ChevronDown, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { NotificationToast } from "@/components/ui/notification-toast"
+import { ANNOUNCEMENT_REASON_OPTIONS } from "@/lib/admin-announcement"
+import { adminUi } from "@/lib/admin-ui"
 import type { AppNotice } from "@/lib/notifications"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import { cn } from "@/lib/utils"
 
 type AnnouncementNotificationRow = {
   id: string
@@ -14,6 +17,11 @@ type AnnouncementNotificationRow = {
   reason: string | null
   content: string | null
   created_at: string
+  is_global?: boolean | null
+}
+
+type AdminAnnouncementsListProps = {
+  reloadToken?: number
 }
 
 function formatDateTime(value: string): string {
@@ -29,19 +37,24 @@ function formatDateTime(value: string): string {
   })
 }
 
-export function AdminAnnouncementsList() {
+export function AdminAnnouncementsList({ reloadToken = 0 }: AdminAnnouncementsListProps) {
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
   const [rows, setRows] = useState<AnnouncementNotificationRow[]>([])
   const [loading, setLoading] = useState(true)
   const [notice, setNotice] = useState<AppNotice | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [savingId, setSavingId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editTitle, setEditTitle] = useState("")
+  const [editReason, setEditReason] = useState("")
+  const [editContent, setEditContent] = useState("")
   const [openIds, setOpenIds] = useState<Set<string>>(() => new Set())
 
   const loadRows = useCallback(async () => {
     setLoading(true)
     const { data, error } = await supabase
       .from("notifications")
-      .select("id, sender_id, title, reason, content, created_at")
+      .select("id, sender_id, title, reason, content, created_at, is_global")
       .eq("is_admin_origin", true)
       .eq("type", "announcement")
       .order("created_at", { ascending: false })
@@ -59,7 +72,22 @@ export function AdminAnnouncementsList() {
 
   useEffect(() => {
     void loadRows()
-  }, [loadRows])
+  }, [loadRows, reloadToken])
+
+  const startEdit = useCallback((item: AnnouncementNotificationRow) => {
+    setEditingId(item.id)
+    setEditTitle(item.title?.trim() ?? "")
+    setEditReason(item.reason?.trim() ?? "")
+    setEditContent(item.content?.trim() ?? "")
+    setOpenIds((prev) => new Set(prev).add(item.id))
+  }, [])
+
+  const cancelEdit = useCallback(() => {
+    setEditingId(null)
+    setEditTitle("")
+    setEditReason("")
+    setEditContent("")
+  }, [])
 
   const handleDelete = useCallback(
     async (id: string) => {
@@ -69,49 +97,69 @@ export function AdminAnnouncementsList() {
       }
       setDeletingId(id)
       try {
-        // notifications を id 指定で削除。削除結果を受け取って 0 件削除も失敗扱いにする。
-        const { data: deletedRows, error } = await supabase
-          .from("notifications")
-          .delete()
-          .eq("id", id)
-          .select("id")
-
-        if (error) {
-          console.error("[AdminAnnouncementsList] notifications delete failed", {
-            table: "notifications",
-            id,
-            message: error.message,
-            code: (error as { code?: string }).code ?? null,
-            details: (error as { details?: string }).details ?? null,
-            hint: (error as { hint?: string }).hint ?? null,
-          })
-          setNotice({ variant: "error", message: "お知らせの削除に失敗しました。時間を置いて再度お試しください。" })
-          return
+        const response = await fetch(`/api/admin/announcements?id=${encodeURIComponent(id)}`, {
+          method: "DELETE",
+        })
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => null)) as { error?: string } | null
+          throw new Error(payload?.error ?? "お知らせの削除に失敗しました。")
         }
 
-        if (!deletedRows || deletedRows.length === 0) {
-          console.error("[AdminAnnouncementsList] delete affected zero rows", {
-            table: "notifications",
-            id,
-          })
-          setNotice({ variant: "error", message: "削除対象が見つからないか、権限により削除できませんでした。" })
-          return
-        }
-
-        // 削除成功を確認してから UI を更新。
         setRows((prev) => prev.filter((row) => row.id !== id))
         setOpenIds((prev) => {
           const next = new Set(prev)
           next.delete(id)
           return next
         })
+        if (editingId === id) {
+          cancelEdit()
+        }
         setNotice({ variant: "success", message: "お知らせを削除しました。" })
-        await loadRows()
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "お知らせの削除に失敗しました。"
+        setNotice({ variant: "error", message })
       } finally {
         setDeletingId(null)
       }
     },
-    [loadRows, supabase],
+    [cancelEdit, editingId],
+  )
+
+  const handleSaveEdit = useCallback(
+    async (id: string) => {
+      const title = editTitle.trim()
+      const reason = editReason.trim()
+      const content = editContent.trim()
+      if (!title || !reason || !content) {
+        setNotice({ variant: "error", message: "タイトル・理由・本文を入力してください。" })
+        return
+      }
+
+      setSavingId(id)
+      try {
+        const response = await fetch("/api/admin/announcements", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, title, reason, content }),
+        })
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => null)) as { error?: string } | null
+          throw new Error(payload?.error ?? "お知らせの更新に失敗しました。")
+        }
+
+        setRows((prev) =>
+          prev.map((row) => (row.id === id ? { ...row, title, reason, content } : row)),
+        )
+        cancelEdit()
+        setNotice({ variant: "success", message: "お知らせを更新しました。" })
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "お知らせの更新に失敗しました。"
+        setNotice({ variant: "error", message })
+      } finally {
+        setSavingId(null)
+      }
+    },
+    [cancelEdit, editContent, editReason, editTitle],
   )
 
   return (
@@ -129,9 +177,10 @@ export function AdminAnnouncementsList() {
         <ul className="space-y-3">
           {rows.map((item) => {
             const open = openIds.has(item.id)
+            const isEditing = editingId === item.id
             return (
               <li key={item.id} className="overflow-hidden rounded border border-border bg-muted/40">
-                <div className="flex items-center gap-2 border-b border-border/80 px-3 py-2.5">
+                <div className="flex flex-wrap items-center gap-2 border-b border-border/80 px-3 py-2.5">
                   <button
                     type="button"
                     className="min-w-0 flex-1 text-left"
@@ -148,36 +197,109 @@ export function AdminAnnouncementsList() {
                       })
                     }
                   >
-                    <p className="truncate text-sm font-semibold text-foreground">{item.title?.trim() || "タイトルなし"}</p>
+                    <p className="truncate text-sm font-semibold text-foreground">
+                      {item.title?.trim() || "タイトルなし"}
+                    </p>
                     <p className="mt-1 text-xs text-muted-foreground">{formatDateTime(item.created_at)}</p>
                     <p className="mt-1 text-[11px] text-muted-foreground/80">
-                      送信者ID: {item.sender_id?.trim() || "不明"}
+                      {item.is_global ? "全体配信" : "個別配信"} · 送信者ID: {item.sender_id?.trim() || "不明"}
                     </p>
                   </button>
                   <ChevronDown
                     className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
                     aria-hidden
                   />
+                  {!isEditing ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs"
+                      disabled={deletingId === item.id || savingId === item.id}
+                      onClick={() => startEdit(item)}
+                    >
+                      編集
+                    </Button>
+                  ) : null}
                   <Button
                     type="button"
                     size="sm"
                     className="h-8 bg-red-700 text-xs text-white hover:bg-red-600 disabled:opacity-60"
-                    disabled={deletingId === item.id}
+                    disabled={deletingId === item.id || savingId === item.id}
                     onClick={() => void handleDelete(item.id)}
                   >
                     {deletingId === item.id ? "削除中..." : "削除"}
                   </Button>
                 </div>
                 {open ? (
-                  <div className="space-y-2 px-3 py-3 text-sm">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">理由</p>
-                      <p className="mt-1 whitespace-pre-wrap text-foreground">{item.reason?.trim() || "—"}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">本文</p>
-                      <p className="mt-1 whitespace-pre-wrap text-foreground">{item.content?.trim() || "（本文なし）"}</p>
-                    </div>
+                  <div className="space-y-3 px-3 py-3 text-sm">
+                    {isEditing ? (
+                      <>
+                        <div>
+                          <label className={cn("mb-1 block", adminUi.labelSection)}>タイトル</label>
+                          <input
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            className={cn("h-10 w-full px-3 text-sm", adminUi.input)}
+                          />
+                        </div>
+                        <div>
+                          <label className={cn("mb-1 block", adminUi.labelSection)}>理由</label>
+                          <select
+                            value={editReason}
+                            onChange={(e) => setEditReason(e.target.value)}
+                            className={cn("h-10 w-full", adminUi.select)}
+                          >
+                            <option value="">理由を選択</option>
+                            {ANNOUNCEMENT_REASON_OPTIONS.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className={cn("mb-1 block", adminUi.labelSection)}>本文</label>
+                          <textarea
+                            value={editContent}
+                            onChange={(e) => setEditContent(e.target.value)}
+                            className={cn("min-h-[120px] w-full px-3 py-2 text-sm", adminUi.input)}
+                          />
+                        </div>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className={adminUi.btnOutline}
+                            disabled={savingId === item.id}
+                            onClick={cancelEdit}
+                          >
+                            キャンセル
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="bg-red-600 text-white hover:bg-red-500"
+                            disabled={savingId === item.id}
+                            onClick={() => void handleSaveEdit(item.id)}
+                          >
+                            {savingId === item.id ? "保存中..." : "保存"}
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">理由</p>
+                          <p className="mt-1 whitespace-pre-wrap text-foreground">{item.reason?.trim() || "—"}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">本文</p>
+                          <p className="mt-1 whitespace-pre-wrap text-foreground">{item.content?.trim() || "（本文なし）"}</p>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ) : null}
               </li>
@@ -188,4 +310,3 @@ export function AdminAnnouncementsList() {
     </section>
   )
 }
-
