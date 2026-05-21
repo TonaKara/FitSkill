@@ -32,7 +32,11 @@ export function sidebarLinkClass(active: boolean, size: "main" | "sub" = "main")
 }
 
 type AppNavMenuProps = {
-  /** 未ログイン時は「スキルを探す」のみ表示 */
+  /**
+   * 未ログイン状態。「スキルを探す」は管理者専用のため、ゲスト時はメニュー全体を非表示にする。
+   * モバイルドロワーで使われたときは、上部の `flex-1` 領域が空白で残り、
+   * ログインボタン・言語切替が下に詰まる形になる（自然な余白）。
+   */
   guestMode?: boolean
   onNavigate?: () => void
   className?: string
@@ -98,34 +102,10 @@ export function AppNavMenu({ guestMode = false, onNavigate, className }: AppNavM
 
   const discoverItem = navItems.find((item) => item.id === "discover")
 
+  // 「スキルを探す」は管理者専用機能のため、ゲスト時はメニューを表示しない。
+  // モバイルドロワー親側 (`flex-1`) は空のままで、ログインボタン・言語切替が自然に下に配置される。
   if (guestMode) {
-    if (!discoverItem) {
-      return null
-    }
-    const Icon = discoverItem.icon
-    const active = discoverItem.isActive(pathname)
-    return (
-      <nav className={cn("flex flex-col", className)} aria-label={tNav("ariaMenu")}>
-        <div>
-          <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-            {tNav("sectionMenu")}
-          </p>
-          <ul className="space-y-0.5">
-            <li>
-              <Link
-                href={discoverItem.href}
-                className={cn(sidebarLinkClass(active, "main"), "flex items-center gap-3")}
-                aria-current={active ? "page" : undefined}
-                onClick={onNavigate}
-              >
-                <Icon className="h-5 w-5 shrink-0" aria-hidden />
-                {tNavItem(discoverItem.id, discoverItem.label)}
-              </Link>
-            </li>
-          </ul>
-        </div>
-      </nav>
-    )
+    return null
   }
 
   return (
@@ -158,7 +138,8 @@ export function AppNavMenu({ guestMode = false, onNavigate, className }: AppNavM
               )
             })()}
 
-            {discoverItem ? (
+            {/* 「スキルを探す」は管理者専用導線。一般ユーザーには非表示 */}
+            {discoverItem && isAdmin ? (
               <li key={discoverItem.id}>
                 <Link
                   href={discoverItem.href}

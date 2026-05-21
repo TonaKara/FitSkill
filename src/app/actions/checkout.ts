@@ -188,9 +188,18 @@ export async function createCheckoutSession(skillId: string | number): Promise<C
       /**
        * 決済完了後の取引確定は Webhook / finalize の claim に委ねる。
        * 講師口座への振込スケジュールはオンボーディング時に日次へ設定済み（`stripe.ts`）。
+       *
+       * 国際化対応:
+       * - `locale: "auto"` … Checkout 画面の表示言語をブラウザ言語から自動判定（暗黙挙動と同じだが明示）
+       * - `adaptive_pricing: { enabled: true }` … 海外の購入者向けに現地通貨での価格提示を有効化。
+       *   ・売上計上・送金は引き続き JPY（settlement currency 不変）
+       *   ・Dashboard の Adaptive Pricing 設定が無効の場合は no-op（後方互換）
+       *   ・参考: https://docs.stripe.com/payments/checkout/adaptive-pricing
        */
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
+        locale: "auto",
+        adaptive_pricing: { enabled: true },
         line_items: [
           {
             quantity: 1,

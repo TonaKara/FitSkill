@@ -1138,7 +1138,12 @@ export default function SkillDetailPage() {
           variant="outline"
           className="mb-6 border-border bg-muted text-foreground hover:border-primary hover:bg-muted/80"
         >
-          <Link href="/discover" scroll={false} className="inline-flex items-center gap-2">
+          {/**
+           * 「スキルを探す」(/discover) は管理者専用導線にしたため、
+           * 一般ユーザーはホーム ("/") に戻す。ホームも同じスキル一覧を表示しているため
+           * 「戻る」の意味合いは保たれ、隠している /discover を露出させない自然な動線になる。
+           */}
+          <Link href={isAdmin ? "/discover" : "/"} scroll={false} className="inline-flex items-center gap-2">
             <ArrowLeft className="h-4 w-4" />
             {t("backToList")}
           </Link>
