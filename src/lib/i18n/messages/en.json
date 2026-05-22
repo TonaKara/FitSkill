@@ -1607,7 +1607,11 @@
     "passwordConfirmToggleHide": "Hide confirm password",
     "passwordMismatch": "Passwords do not match.",
     "submit": "Update password",
-    "submitting": "Updating..."
+    "submitting": "Updating...",
+    "sessionCheckLoading": "Verifying your reset link…",
+    "sessionMissingTitle": "Reset link is invalid",
+    "sessionMissingDescription": "The link may have expired or been opened in a different browser. Please request a new password reset email from the login screen.",
+    "sessionMissingCta": "Return to login"
   },
   "authCallback": {
     "errorMessage": "An error occurred during authentication.",
@@ -1706,6 +1710,14 @@
       "heading": "Confirm your email address",
       "intro": "Thank you for signing up for GritVib. Please confirm your email address using the button below.",
       "cta": "Confirm email address"
+    },
+    "passwordReset": {
+      "subject": "[GritVib] Reset your password",
+      "heading": "Reset your password",
+      "intro": "We received a request to reset the password for your GritVib account. Tap the button below to set a new password.",
+      "lineExpiry": "This link expires in about 1 hour.",
+      "lineIgnore": "If you did not request this, please ignore this email — your account will not be changed.",
+      "cta": "Reset password"
     },
     "checkoutRefund": {
       "subject": "[GritVib] Your payment has been refunded",

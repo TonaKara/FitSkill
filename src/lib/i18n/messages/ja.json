@@ -1607,7 +1607,11 @@
     "passwordConfirmToggleHide": "確認用パスワードを隠す",
     "passwordMismatch": "パスワードが一致していません。",
     "submit": "パスワードを更新",
-    "submitting": "更新中..."
+    "submitting": "更新中...",
+    "sessionCheckLoading": "再設定リンクを確認しています…",
+    "sessionMissingTitle": "再設定リンクが無効です",
+    "sessionMissingDescription": "リンクの有効期限が切れているか、別のブラウザで開かれた可能性があります。お手数ですが、もう一度ログイン画面から再設定メールを送信してください。",
+    "sessionMissingCta": "ログイン画面へ戻る"
   },
   "authCallback": {
     "errorMessage": "認証処理中にエラーが発生しました。",
@@ -1706,6 +1710,14 @@
       "heading": "メールアドレスの確認",
       "intro": "GritVib へのご登録ありがとうございます。下のボタンからメールアドレスを確認してください。",
       "cta": "メールアドレスを確認する"
+    },
+    "passwordReset": {
+      "subject": "【GritVib】パスワード再設定のご案内",
+      "heading": "パスワードの再設定",
+      "intro": "GritVib アカウントのパスワード再設定リクエストを受け付けました。下のボタンから新しいパスワードを設定してください。",
+      "lineExpiry": "このリンクの有効期限は約 1 時間です。",
+      "lineIgnore": "心当たりがない場合は、このメールを無視してください。アカウントは変更されません。",
+      "cta": "パスワードを再設定する"
     },
     "checkoutRefund": {
       "subject": "【GritVib】お支払いが返金されました",

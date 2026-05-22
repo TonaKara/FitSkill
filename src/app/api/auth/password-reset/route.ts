@@ -1,6 +1,7 @@
-import { createClient } from "@supabase/supabase-js"
 import { NextRequest, NextResponse } from "next/server"
-import { getAppBaseUrl } from "@/lib/site-seo"
+import { getServerLocale } from "@/lib/i18n/server-detect"
+import { sendPasswordResetEmail } from "@/lib/password-reset-email"
+
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000
 const MAX_ATTEMPTS_PER_IP = 5
 const MAX_ATTEMPTS_PER_EMAIL = 3
@@ -44,17 +45,20 @@ function consumeAttempt(store: Map<string, RateLimitEntry>, key: string, limit: 
   return false
 }
 
-function getSupabasePublicClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  if (!url || !anonKey) {
-    return null
-  }
-  return createClient(url, anonKey)
-}
-
 const GENERIC_MESSAGE = "メールを送信しました。受信ボックスをご確認ください。"
 
+/**
+ * パスワード再設定メール送信エンドポイント。
+ *
+ * 設計のポイント:
+ * - Supabase の `auth.resetPasswordForEmail` ではなく `admin.generateLink` + Resend を経由する
+ *   独自送信に切り替えた。これは、Supabase 既定メールが PKCE の `?code=...` を含むため
+ *   **別端末・別ブラウザでメールを開くと code_verifier 不在で再設定が失敗**する問題を解消するため。
+ * - 新しい URL は `?token_hash=...&type=recovery&next=/auth/update-password` 形式で、
+ *   `/auth/callback` の `verifyOtp` 経路でセッション化される（PKCE 非依存）。
+ * - レスポンスは成功・失敗・レート制限のいずれでも同一文言を返し、アカウント有無を漏らさない
+ *   既存挙動を維持する。
+ */
 export async function POST(request: NextRequest) {
   let email = ""
   try {
@@ -76,15 +80,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: GENERIC_MESSAGE }, { status: 429 })
   }
 
-  const supabase = getSupabasePublicClient()
-  if (!supabase) {
-    return NextResponse.json({ message: GENERIC_MESSAGE })
-  }
+  // メール本文の言語は、リクエスト元の Cookie / Accept-Language から推定。
+  // 同端末・別端末いずれでも、メールを読む環境の言語と要求時の環境はおおむね一致する想定。
+  const locale = await getServerLocale()
 
   try {
-    const redirectTo = `${getAppBaseUrl()}/auth/update-password`
-    await supabase.auth.resetPasswordForEmail(email, { redirectTo })
-  } catch {
+    await sendPasswordResetEmail(email, locale)
+  } catch (error) {
+    console.error("[password-reset] unexpected error during sendPasswordResetEmail", {
+      message: error instanceof Error ? error.message : String(error),
+    })
     // アカウント有無や内部状態を推測されないよう、成功時と同一レスポンスにする。
   }
 

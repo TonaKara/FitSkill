@@ -1,6 +1,7 @@
 "use client"
 
-import { FormEvent, useMemo, useState } from "react"
+import { FormEvent, useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
 import { AuthPageShell } from "@/components/auth/auth-page-shell"
@@ -11,6 +12,14 @@ import { NotificationToast } from "@/components/ui/notification-toast"
 import { toErrorNotice, toSuccessNotice, type AppNotice } from "@/lib/notifications"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { useTranslations } from "@/lib/i18n/useI18n"
+
+/**
+ * リカバリーセッションの確立状態。
+ * `pending` … 確認中（page 初回マウントの間に `/auth/callback` 経由で確立される想定）
+ * `ready`   … 確立済み（フォーム送信可）
+ * `missing` … 未確立（リンク切れや別端末経由など。明示エラーを表示）
+ */
+type RecoverySessionStatus = "pending" | "ready" | "missing"
 
 const PASSWORD_MIN_LENGTH = 8
 
@@ -43,6 +52,44 @@ export default function UpdatePasswordPage() {
 
   const passwordRuleState = useMemo(() => getPasswordRuleState(password), [password])
   const isConfirmMatched = confirmPassword.length > 0 && password === confirmPassword
+
+  /**
+   * パスワード再設定リンク経由でこのページに来た場合、`/auth/callback` が事前に
+   * `exchangeCodeForSession` / `verifyOtp` を済ませてからリダイレクトしてくる想定。
+   * 万一セッションが未確立のままここに到達した場合（リンク期限切れ・別端末で開いた等）は、
+   * `updateUser` を呼んでも 401 で失敗するため、事前にチェックして明示エラーを出す。
+   */
+  const [sessionStatus, setSessionStatus] = useState<RecoverySessionStatus>("pending")
+  useEffect(() => {
+    let cancelled = false
+    const supabase = getSupabaseBrowserClient()
+
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession()
+      if (cancelled) {
+        return
+      }
+      setSessionStatus(data.session ? "ready" : "missing")
+    }
+
+    void checkSession()
+
+    // `/auth/callback` がリダイレクトしてくる直前後で `onAuthStateChange` の SIGNED_IN /
+    // PASSWORD_RECOVERY イベントが流れる可能性があるため購読しておく。
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (cancelled) {
+        return
+      }
+      setSessionStatus(session ? "ready" : "missing")
+    })
+
+    return () => {
+      cancelled = true
+      subscription.unsubscribe()
+    }
+  }, [])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -81,6 +128,46 @@ export default function UpdatePasswordPage() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  if (sessionStatus === "pending") {
+    return (
+      <AuthPageShell>
+        <Card className="relative z-10 w-full max-w-md border-border bg-card shadow-lg dark:border-red-500/40 dark:bg-zinc-950/95 dark:shadow-[0_0_60px_rgba(230,74,25,0.25)]">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold tracking-wide text-foreground">{t("title")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" aria-hidden />
+              {t("sessionCheckLoading")}
+            </div>
+          </CardContent>
+        </Card>
+      </AuthPageShell>
+    )
+  }
+
+  if (sessionStatus === "missing") {
+    return (
+      <AuthPageShell>
+        <Card className="relative z-10 w-full max-w-md border-border bg-card shadow-lg dark:border-red-500/40 dark:bg-zinc-950/95 dark:shadow-[0_0_60px_rgba(230,74,25,0.25)]">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold tracking-wide text-foreground">
+              {t("sessionMissingTitle")}
+            </CardTitle>
+            <CardDescription className="mt-1 text-muted-foreground">
+              {t("sessionMissingDescription")}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild className="h-11 w-full bg-red-600 text-white hover:bg-red-500">
+              <Link href="/login?mode=reset">{t("sessionMissingCta")}</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </AuthPageShell>
+    )
   }
 
   return (
