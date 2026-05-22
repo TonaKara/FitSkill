@@ -30,6 +30,12 @@ import { SkillCategoryPicker } from "@/components/skill-category-picker"
 import { PREFECTURE_OPTIONS } from "@/lib/prefectures"
 import { fetchConsultationSettings, toConsultationSkillId } from "@/lib/consultation"
 import { computeSellerFeePreview, SELLER_FEE_RATE } from "@/lib/seller-fee-preview"
+import {
+  type Currency,
+  formatCurrencyPlain,
+  majorToMinorUnits,
+  normalizeCurrency,
+} from "@/lib/currency"
 import { ALLOWED_EXTERNAL_TOOLS_ETC, ALLOWED_EXTERNAL_TOOLS_LIST } from "@/lib/allowed-external-tools"
 import { cn } from "@/lib/utils"
 import { useLocale, useTranslations } from "@/lib/i18n/useI18n"
@@ -37,14 +43,34 @@ import { localeToHtmlLang } from "@/lib/i18n/locales"
 
 type LessonFormat = "onsite" | "online"
 
-/** 出品価格の下限（円） */
-const MIN_PRICE_YEN = 500
+/**
+ * 出品価格の下限（通貨ごと）。
+ * - JPY: 500 円
+ * - USD: $5.00（500 cents 相当の最小単位）
+ *
+ * 既存挙動：Phase 3 までは UI 上 JPY 固定のため `MIN_PRICE_YEN` と同等。
+ * Phase 7 で USD 公開時に USD バリデーションが効くようになる。
+ */
+const MIN_PRICE_BY_CURRENCY: Record<Currency, number> = {
+  JPY: 500,
+  USD: 5,
+}
+/** 出品価格の下限（円） — 後方互換のため残置（i18n minPrice 表示用） */
+const MIN_PRICE_YEN = MIN_PRICE_BY_CURRENCY.JPY
 /** 1回あたりの時間の下限（分） */
 const MIN_DURATION_MINUTES = 1
 /** 最大対応人数の下限（人） */
 const MIN_MAX_CAPACITY = 1
 
-function getPriceHintMessage(priceInput: string, minMessage: string): string {
+/**
+ * 価格バリデーション。currency に応じて下限を切り替える。
+ * `priceInput` はユーザー入力（major 単位、JPY ならそのまま yen、USD なら dollar 表記）。
+ */
+function getPriceHintMessage(
+  priceInput: string,
+  minMessage: string,
+  currency: Currency = "JPY",
+): string {
   const trimmed = priceInput.trim()
   if (!trimmed) {
     return ""
@@ -53,7 +79,7 @@ function getPriceHintMessage(priceInput: string, minMessage: string): string {
   if (!Number.isFinite(n)) {
     return ""
   }
-  if (n < MIN_PRICE_YEN) {
+  if (n < MIN_PRICE_BY_CURRENCY[currency]) {
     return minMessage
   }
   return ""
@@ -65,6 +91,11 @@ const DEFAULT_FORM = {
   description: "",
   category: "",
   price: "",
+  /**
+   * 行の販売通貨。Phase 3 時点では UI 非公開のため常に 'JPY'。
+   * Phase 7 で UI セレクタが公開され、出品者が編集可能になる。
+   */
+  currency: "JPY" as Currency,
   durationMinutes: "",
   maxCapacity: "",
   format: "online" as LessonFormat,
@@ -113,6 +144,8 @@ type SkillRow = {
   description: string
   category: string
   price: number
+  /** 行の販売通貨。未指定（既存行）は 'JPY' フォールバック扱い */
+  currency?: string | null
   duration_minutes: number
   max_capacity: number
   format: LessonFormat
@@ -280,7 +313,7 @@ function CreateSkillPageContent() {
       const { data, error } = await supabase
         .from("skills")
         .select(
-          "id, user_id, title, target_audience, description, category, price, duration_minutes, max_capacity, format, location_prefecture, thumbnail_url, is_published, admin_publish_locked",
+          "id, user_id, title, target_audience, description, category, price, currency, duration_minutes, max_capacity, format, location_prefecture, thumbnail_url, is_published, admin_publish_locked",
         )
         .eq("id", editParam)
         .maybeSingle()
@@ -314,6 +347,7 @@ function CreateSkillPageContent() {
         description: row.description ?? "",
         category: loadedCategory,
         price: row.price != null ? String(row.price) : "",
+        currency: normalizeCurrency(row.currency),
         durationMinutes: row.duration_minutes != null ? String(row.duration_minutes) : "",
         maxCapacity: row.max_capacity != null ? String(row.max_capacity) : "",
         format: fmt,
@@ -378,21 +412,32 @@ function CreateSkillPageContent() {
     }
   }, [thumbnailPreview])
 
+  /**
+   * 手数料・受取額のプレビュー。表示専用。
+   * - 内部計算は「currency の最小単位 integer」で行うため通貨非依存（USD では cents 単位）。
+   * - 結果も「最小単位 integer」のため、表示時に formatCurrencyPlain で通貨記号を付与する。
+   */
   const feePreview = useMemo(() => {
     const trimmed = form.price.trim()
     if (!trimmed) {
       return null
     }
-    const n = Number(trimmed)
-    if (!Number.isFinite(n) || n <= 0) {
+    const major = Number(trimmed)
+    if (!Number.isFinite(major) || major <= 0) {
       return null
     }
-    return computeSellerFeePreview(n)
-  }, [form.price])
+    const minor = majorToMinorUnits(major, form.currency)
+    return computeSellerFeePreview(minor)
+  }, [form.price, form.currency])
+
+  const minPriceLabel = useMemo(
+    () => formatCurrencyPlain(majorToMinorUnits(MIN_PRICE_BY_CURRENCY[form.currency], form.currency), form.currency),
+    [form.currency],
+  )
 
   const updateForm = (field: keyof typeof DEFAULT_FORM, value: string) => {
     if (field === "price") {
-      setPriceError(getPriceHintMessage(value, tNotices("minPrice", { min: MIN_PRICE_YEN })))
+      setPriceError(getPriceHintMessage(value, tNotices("minPrice", { min: minPriceLabel }), form.currency))
     }
     setForm((previous) => ({ ...previous, [field]: value }))
   }
@@ -566,7 +611,11 @@ function CreateSkillPageContent() {
       return false
     }
 
-    const priceHint = getPriceHintMessage(priceTrimmed, tNotices("minPrice", { min: MIN_PRICE_YEN }))
+    const priceHint = getPriceHintMessage(
+      priceTrimmed,
+      tNotices("minPrice", { min: minPriceLabel }),
+      form.currency,
+    )
     if (priceHint) {
       setPriceError(priceHint)
       return false
@@ -668,7 +717,11 @@ function CreateSkillPageContent() {
     const description = form.description.trim()
     const category = getStoredCategoryFromPicker(categoryParent, categorySub)
     const priceTrimmed = form.price.trim()
-    const price = Number(priceTrimmed)
+    // 入力値（major 単位 = ユーザーが見ている数値）を DB の最小単位 integer に変換。
+    // - JPY: 1000 → 1000（yen そのまま、既存挙動と完全互換）
+    // - USD: 10.50 → 1050（cents）
+    const priceMajor = Number(priceTrimmed)
+    const price = majorToMinorUnits(priceMajor, form.currency)
     const durationMinutes = Math.max(
       MIN_DURATION_MINUTES,
       Math.floor(Number(form.durationMinutes)),
@@ -703,6 +756,7 @@ function CreateSkillPageContent() {
             description,
             category,
             price,
+            currency: form.currency,
             duration_minutes: durationMinutes,
             max_capacity: maxCapacity,
             format: form.format,
@@ -741,6 +795,7 @@ function CreateSkillPageContent() {
             description,
             category,
             price,
+            currency: form.currency,
             duration_minutes: durationMinutes,
             max_capacity: maxCapacity,
             format: form.format,
@@ -1035,6 +1090,47 @@ function CreateSkillPageContent() {
 
               <section className={createSkillUi.sectionLg}>
                 <h2 className="text-sm font-semibold text-foreground">{tSec("pricing")}</h2>
+                <div className="space-y-2">
+                  <label htmlFor="currency" className="text-sm font-semibold text-foreground">
+                    {tField("currency")}
+                    <RequiredFieldMark />
+                  </label>
+                  <select
+                    id="currency"
+                    value={form.currency}
+                    onChange={(event) => {
+                      const next = event.target.value as Currency
+                      setForm((previous) => ({ ...previous, currency: next }))
+                      // 通貨切替時は価格バリデーションを再評価（下限が通貨ごとに異なるため）
+                      setPriceError(
+                        getPriceHintMessage(
+                          form.price,
+                          tNotices("minPrice", {
+                            min: formatCurrencyPlain(
+                              majorToMinorUnits(MIN_PRICE_BY_CURRENCY[next], next),
+                              next,
+                            ),
+                          }),
+                          next,
+                        ),
+                      )
+                    }}
+                    className={createSkillUi.select}
+                    aria-describedby={form.currency !== "JPY" ? "currency-fx-warning" : undefined}
+                  >
+                    <option value="JPY">{tField("currencyOptionJpy")}</option>
+                    <option value="USD">{tField("currencyOptionUsd")}</option>
+                  </select>
+                  <p className="text-xs font-normal text-muted-foreground">{tField("currencyHint")}</p>
+                  {form.currency !== "JPY" ? (
+                    <p
+                      id="currency-fx-warning"
+                      className="rounded-md border border-amber-500/30 bg-amber-950/30 px-3 py-2 text-xs font-medium leading-relaxed text-amber-200"
+                    >
+                      {tField("currencyForeignWarning")}
+                    </p>
+                  ) : null}
+                </div>
                 <div className="grid min-w-0 gap-4 md:grid-cols-3">
                   <div className="space-y-2">
                     <label htmlFor="price" className="text-sm font-semibold text-foreground">
@@ -1044,7 +1140,8 @@ function CreateSkillPageContent() {
                     <Input
                       id="price"
                       type="number"
-                      min={MIN_PRICE_YEN}
+                      min={MIN_PRICE_BY_CURRENCY[form.currency]}
+                      step={form.currency === "USD" ? 0.01 : 1}
                       value={form.price}
                       onChange={(event) => updateForm("price", event.target.value)}
                       placeholder={tField("pricePlaceholder")}
@@ -1061,11 +1158,13 @@ function CreateSkillPageContent() {
                         <p>
                           {tField("fee", {
                             percent: Math.round(SELLER_FEE_RATE * 100),
-                            fee: feePreview.feeYen.toLocaleString(htmlLang),
+                            fee: formatCurrencyPlain(feePreview.feeYen, form.currency),
                           })}
                         </p>
                         <p className="font-medium text-foreground">
-                          {tField("receive", { amount: feePreview.receiveYen.toLocaleString(htmlLang) })}
+                          {tField("receive", {
+                            amount: formatCurrencyPlain(feePreview.receiveYen, form.currency),
+                          })}
                         </p>
                       </div>
                     ) : null}

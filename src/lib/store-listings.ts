@@ -5,6 +5,8 @@ export type StoreListing = {
   title: string
   category: string | null
   price: number
+  /** 行の販売通貨。未指定（古い行）は 'JPY' 扱い */
+  currency?: string | null
   created_at: string | null
   is_published: boolean | null
   admin_publish_locked: boolean | null
@@ -14,7 +16,7 @@ export type StoreListing = {
 export type StoreListingFilter = "published" | "draft" | "all"
 
 const LISTING_SELECT =
-  "id, title, category, price, created_at, is_published, admin_publish_locked, thumbnail_url"
+  "id, title, category, price, currency, created_at, is_published, admin_publish_locked, thumbnail_url"
 
 export async function fetchStoreListings(
   supabase: SupabaseClient,

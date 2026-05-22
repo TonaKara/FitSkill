@@ -68,6 +68,8 @@ type SkillFromDb = {
   target_audience: string
   category: string
   price: number
+  /** 行の販売通貨。未指定（古い行）は 'JPY' フォールバック扱い */
+  currency?: string | null
   duration_minutes: number
   format: "online" | "onsite"
   location_prefecture: string | null
@@ -284,7 +286,7 @@ export function SkillGrid({ filters, sortBy, searchKeyword }: SkillGridProps) {
       const primaryQuery = await supabase
         .from("skills")
         .select(
-          "id, title, description, target_audience, category, price, duration_minutes, format, location_prefecture, max_capacity, created_at, thumbnail_url, user_id, profiles ( display_name, avatar_url, rating_avg, review_count, is_banned ), consultation_settings ( is_enabled )",
+          "id, title, description, target_audience, category, price, currency, duration_minutes, format, location_prefecture, max_capacity, created_at, thumbnail_url, user_id, profiles ( display_name, avatar_url, rating_avg, review_count, is_banned ), consultation_settings ( is_enabled )",
         )
         .eq("is_published", true)
         .order("created_at", { ascending: false })
@@ -295,7 +297,7 @@ export function SkillGrid({ filters, sortBy, searchKeyword }: SkillGridProps) {
         const fallbackQuery = await supabase
           .from("skills")
           .select(
-            "id, title, description, target_audience, category, price, duration_minutes, format, location_prefecture, max_capacity, created_at, thumbnail_url, user_id, profiles ( display_name, avatar_url, rating_avg, review_count ), consultation_settings ( is_enabled )",
+            "id, title, description, target_audience, category, price, currency, duration_minutes, format, location_prefecture, max_capacity, created_at, thumbnail_url, user_id, profiles ( display_name, avatar_url, rating_avg, review_count ), consultation_settings ( is_enabled )",
           )
           .eq("is_published", true)
           .order("created_at", { ascending: false })
@@ -307,7 +309,7 @@ export function SkillGrid({ filters, sortBy, searchKeyword }: SkillGridProps) {
         const plainSkillsQuery = await supabase
           .from("skills")
           .select(
-            "id, title, description, target_audience, category, price, duration_minutes, format, location_prefecture, max_capacity, created_at, thumbnail_url, user_id",
+            "id, title, description, target_audience, category, price, currency, duration_minutes, format, location_prefecture, max_capacity, created_at, thumbnail_url, user_id",
           )
           .eq("is_published", true)
           .order("created_at", { ascending: false })

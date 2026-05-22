@@ -97,7 +97,6 @@ export function ThumbnailCropModal({
   const imgRef = useRef<HTMLImageElement>(null)
   const pinchZoomRef = useRef<PinchZoom>(null)
   const pinchTransformRef = useRef({ x: 0, y: 0, zoomFactor: MIN_ZOOM })
-  const initialPinchScaleRef = useRef<number | null>(null)
   const [mediaReady, setMediaReady] = useState(false)
   const [maxZoom, setMaxZoom] = useState(MAX_ZOOM_CAP)
   const [zoomFactor, setZoomFactor] = useState(MIN_ZOOM)
@@ -130,13 +129,13 @@ export function ThumbnailCropModal({
     }
     image.style.transform = make3dTransformValue({ x, y, scale })
 
-    if (initialPinchScaleRef.current === null && scale > 0) {
-      initialPinchScaleRef.current = scale
-    }
-
-    const baselineScale = initialPinchScaleRef.current ?? scale
-    const nextZoomFactor = baselineScale > 0 ? scale / baselineScale : MIN_ZOOM
-    const clampedZoomFactor = Math.min(maxZoom, Math.max(MIN_ZOOM, nextZoomFactor))
+    // react-quick-pinch-zoom の `scale` は既にライブラリ内部で
+    // "1.0 = 等倍（fit 表示）" として正規化された値なので、そのまま zoomFactor として使う。
+    // （旧コードはここで `scale / initialScale` の自前正規化を行っていたが、
+    //   スライダー操作で onUpdate が初めて発火するケースでは
+    //   `initialScale` がユーザーの設定値で固定されてしまい、ドラッグ時に
+    //   表示倍率が 1.0 に戻る／位置だけ動いて拡大が解除される、という不具合があった）
+    const clampedZoomFactor = Math.min(maxZoom, Math.max(MIN_ZOOM, scale))
     pinchTransformRef.current = { x, y, zoomFactor: clampedZoomFactor }
     setZoomFactor(clampedZoomFactor)
   }, [maxZoom])
@@ -166,7 +165,6 @@ export function ThumbnailCropModal({
       if (viewport) {
         applyBaseImageLayout(image, viewport.getBoundingClientRect())
       }
-      initialPinchScaleRef.current = null
       pinchTransformRef.current = { x: 0, y: 0, zoomFactor: MIN_ZOOM }
       setZoomFactor(MIN_ZOOM)
       setMediaReady(image.naturalWidth > 0 && image.naturalHeight > 0)
@@ -191,7 +189,6 @@ export function ThumbnailCropModal({
     setMediaReady(false)
     setMaxZoom(MAX_ZOOM_CAP)
     setZoomFactor(MIN_ZOOM)
-    initialPinchScaleRef.current = null
     pinchTransformRef.current = { x: 0, y: 0, zoomFactor: MIN_ZOOM }
   }, [open, imageSrc, cropShape])
 

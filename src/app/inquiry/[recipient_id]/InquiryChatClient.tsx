@@ -24,6 +24,7 @@ import { resolveSkillThumbnailUrl } from "@/lib/skill-thumbnail"
 import { normalizeSkillBigIntId, uniqueSkillBigIntIds } from "@/lib/skill-id-bigint"
 import { fetchConsultationChatEnabled } from "@/lib/consultation"
 import { useLocale, useTranslations } from "@/lib/i18n/useI18n"
+import { formatCurrencyPlain, normalizeCurrency } from "@/lib/currency"
 import { localeToHtmlLang } from "@/lib/i18n/locales"
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -33,6 +34,8 @@ type SkillHeaderRow = {
   user_id: string
   title: string
   price: number
+  /** 行の販売通貨。未指定（古い SELECT・古い行）は 'JPY' フォールバック */
+  currency?: string | null
   category: string
   thumbnail_url: string | null
 }
@@ -132,8 +135,6 @@ function InquirySkillContextBlock({
   source: "thread" | "nav_pending"
 }) {
   const t = useTranslations("inquiry")
-  const locale = useLocale()
-  const htmlLang = localeToHtmlLang(locale)
   const thumb = detail ? resolveSkillThumbnailUrl(detail.thumbnail_url) : resolveSkillThumbnailUrl(null)
   const purchaseHref =
     detail != null && userId != null && detail.user_id !== userId
@@ -168,7 +169,9 @@ function InquirySkillContextBlock({
               </span>
               <p className="mt-1 line-clamp-2 text-sm font-semibold text-white">{detail.title}</p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                {t("priceLine", { amount: Number(detail.price ?? 0).toLocaleString(htmlLang) })}
+                {t("priceLine", {
+                  amount: formatCurrencyPlain(Number(detail.price ?? 0), normalizeCurrency(detail.currency)),
+                })}
               </p>
               {purchaseHref ? (
                 <Button
@@ -535,7 +538,7 @@ export function InquiryChatClient() {
     void (async () => {
       const { data, error } = await supabase
         .from("skills")
-        .select("id, user_id, title, price, category, thumbnail_url")
+        .select("id, user_id, title, price, currency, category, thumbnail_url")
         .in("id", ids)
       if (cancelled || error || !data) {
         return

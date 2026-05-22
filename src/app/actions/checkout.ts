@@ -20,12 +20,18 @@ import { ensureSellerPurchaseNotification, notifyBuyerCheckoutRefunded } from "@
 import { SELLER_FEE_RATE } from "@/lib/seller-fee-preview"
 import { getAppBaseUrl } from "@/lib/site-seo"
 import { assertStripeConnectAccountOwnership } from "@/lib/stripe-account-ownership"
+import { normalizeCurrency, toStripeCurrencyCode } from "@/lib/currency"
 
 type SkillRow = {
   id: string
   title: string
   user_id: string
   price: number
+  /**
+   * 行の販売通貨。未指定（古い行・古い SELECT）の場合は 'JPY' フォールバック扱い。
+   * price 列はこの通貨の最小単位 integer（JPY=yen, USD=cents）として扱う。
+   */
+  currency?: string | null
 }
 
 type CreateCheckoutSessionResult =
@@ -58,9 +64,11 @@ function getStripeClient() {
   return new Stripe(secretKey)
 }
 
-function computeApplicationFeeAmount(totalAmountYen: number): number {
-  // 規約の手数料率 15% を円単位で適用（小数点以下は切り捨て）
-  return Math.floor(totalAmountYen * SELLER_FEE_RATE)
+function computeApplicationFeeAmount(totalAmountMinor: number): number {
+  // 規約の手数料率 15% を最小単位で適用（小数点以下は切り捨て）。
+  // 入力は「販売通貨の最小単位 integer」（JPY=yen, USD=cents）。
+  // 通貨非依存の integer 演算なので JPY/USD いずれも安全。
+  return Math.floor(totalAmountMinor * SELLER_FEE_RATE)
 }
 
 function getSupabaseAdminClient() {
@@ -114,7 +122,7 @@ export async function createCheckoutSession(skillId: string | number): Promise<C
 
     const { data: skill, error: skillError } = await supabase
       .from("skills")
-      .select("id, title, user_id, price")
+      .select("id, title, user_id, price, currency")
       .eq("id", normalizedSkillId)
       .single<SkillRow>()
 
@@ -156,6 +164,9 @@ export async function createCheckoutSession(skillId: string | number): Promise<C
       if (amount < 1) {
         return { ok: false, error: "Invalid skill price" }
       }
+      // 行の販売通貨を確定。未指定は 'JPY' フォールバック → 既存挙動と完全互換。
+      const skillCurrency = normalizeCurrency(skill.currency)
+      const stripeCurrencyCode = toStripeCurrencyCode(skillCurrency)
       const applicationFeeAmount = computeApplicationFeeAmount(amount)
 
       const { data: sellerProfile, error: spErr } = await supabase
@@ -192,9 +203,17 @@ export async function createCheckoutSession(skillId: string | number): Promise<C
        * 国際化対応:
        * - `locale: "auto"` … Checkout 画面の表示言語をブラウザ言語から自動判定（暗黙挙動と同じだが明示）
        * - `adaptive_pricing: { enabled: true }` … 海外の購入者向けに現地通貨での価格提示を有効化。
-       *   ・売上計上・送金は引き続き JPY（settlement currency 不変）
+       *   ・JPY 出品: 売上計上・送金は引き続き JPY（settlement currency 不変）
+       *   ・USD 出品: 課金通貨は USD、送金は連結口座の settlement currency へ Stripe が FX 自動変換
        *   ・Dashboard の Adaptive Pricing 設定が無効の場合は no-op（後方互換）
        *   ・参考: https://docs.stripe.com/payments/checkout/adaptive-pricing
+       *
+       * 多通貨対応:
+       * - `currency` … 行の販売通貨を Stripe 形式（小文字 ISO 4217）で渡す。JPY なら "jpy"、USD なら "usd"
+       * - `unit_amount` … 「販売通貨の最小単位 integer」をそのまま渡す（JPY=yen, USD=cents）
+       * - `application_fee_amount` … 同じく最小単位。`currency` と同一通貨でなければ Stripe がエラー
+       * - JP Connect 口座が USD 課金を受けると Stripe が cross-border charge として扱い、
+       *   出品者の payout 時に FX 変換が発生する（手数料 ~2% 発生）。
        */
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
@@ -204,7 +223,7 @@ export async function createCheckoutSession(skillId: string | number): Promise<C
           {
             quantity: 1,
             price_data: {
-              currency: "jpy",
+              currency: stripeCurrencyCode,
               unit_amount: amount,
               product_data: {
                 name: skill.title,
@@ -227,6 +246,9 @@ export async function createCheckoutSession(skillId: string | number): Promise<C
             skill_id: skill.id,
             buyer_id: user.id,
             seller_id: skill.user_id,
+            // currency と amount をスナップショット。後で finalize 側で取引行の currency に複製する。
+            skill_currency: skillCurrency,
+            amount_minor: String(amount),
             ...(reservationId ? { checkout_reservation_id: reservationId } : {}),
           },
         },
@@ -236,6 +258,8 @@ export async function createCheckoutSession(skillId: string | number): Promise<C
           buyer_id: user.id,
           seller_id: skill.user_id,
           amount: String(amount),
+          // currency をスナップショット。後で finalize 側で取引行の currency に複製する。
+          skill_currency: skillCurrency,
           ...(reservationId ? { checkout_reservation_id: reservationId } : {}),
         },
       })

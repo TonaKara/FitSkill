@@ -1,3 +1,4 @@
+import { type Currency, normalizeCurrency } from "@/lib/currency"
 import { getProfileAvatarUrl } from "@/lib/profile-avatar"
 import { resolveSkillThumbnailUrl } from "@/lib/skill-thumbnail"
 
@@ -9,6 +10,11 @@ export type SkillRowForCard = {
   duration_minutes: number
   max_capacity: number
   thumbnail_url: string | null
+  /**
+   * 行の販売通貨。DB の skills.currency 列。
+   * 未指定（古い SELECT 文・既存テスト等）の場合は normalizeCurrency() で 'JPY' フォールバック。
+   */
+  currency?: string | null
 }
 
 type ProfileEmbed = {
@@ -55,6 +61,11 @@ export function mapSkillRowToCardSkillWithInstructor(
     rating,
     reviewCount,
     price: row.price,
+    /**
+     * 行の通貨。未指定（既存 SELECT 文が currency を fetch していない／旧データ）の
+     * 場合は 'JPY' フォールバック。これにより既存呼び出しは無変更で安全に動く。
+     */
+    currency: normalizeCurrency(row.currency) satisfies Currency,
     duration: `${durationMinutes}分`,
     students: row.max_capacity,
     image: resolveSkillThumbnailUrl(row.thumbnail_url),

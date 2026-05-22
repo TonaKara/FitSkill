@@ -84,6 +84,7 @@ import {
 } from "@/lib/store-menu"
 import { useLocale, useTranslations, useTranslationsWithFallback } from "@/lib/i18n/useI18n"
 import { localeToHtmlLang } from "@/lib/i18n/locales"
+import { formatCurrencyPlain, normalizeCurrency } from "@/lib/currency"
 import { lookupJaMessage } from "@/lib/i18n/ja-canonical"
 
 type MypageSection =
@@ -177,6 +178,8 @@ type ListedSkill = {
   title: string
   category: string | null
   price: number
+  /** 行の販売通貨。未指定（古い行）は 'JPY' フォールバック */
+  currency?: string | null
   created_at: string | null
   is_published: boolean | null
   admin_publish_locked: boolean | null
@@ -188,6 +191,8 @@ type FavoriteSkillItem = {
   id: string
   title: string
   price: number
+  /** 行の販売通貨。未指定（古いデータ）は 'JPY' フォールバック */
+  currency?: string | null
   imageUrl: string
 }
 
@@ -1192,7 +1197,7 @@ export default function MypageClient() {
     setListingsError(null)
     const { data, error } = await supabase
       .from("skills")
-      .select("id, title, category, price, created_at, is_published, admin_publish_locked")
+      .select("id, title, category, price, currency, created_at, is_published, admin_publish_locked")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
 
@@ -1567,6 +1572,7 @@ export default function MypageClient() {
       id,
       title,
       price,
+      currency,
       thumbnail_url
     )
   `,
@@ -1585,6 +1591,7 @@ export default function MypageClient() {
       id: string
       title: string
       price: number
+      currency?: string | null
       thumbnail_url: string | null
     }
 
@@ -1606,6 +1613,7 @@ export default function MypageClient() {
         id: skill.id,
         title: skill.title,
         price: skill.price,
+        currency: skill.currency,
         imageUrl: resolveSkillThumbnailUrl(skill.thumbnail_url),
       })
     }
@@ -2603,7 +2611,7 @@ export default function MypageClient() {
                           </div>
                           <p className="mt-1 text-sm text-zinc-400">
                             {skill.category ?? tListings("uncategorized")} ·{" "}
-                            {tFavoritesNs("priceYen", { amount: Number(skill.price).toLocaleString(htmlLang) })}
+                            {formatCurrencyPlain(Number(skill.price), normalizeCurrency(skill.currency))}
                           </p>
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
@@ -3007,7 +3015,7 @@ export default function MypageClient() {
                               {skill.title}
                             </Link>
                             <p className="mt-1 text-sm text-zinc-400">
-                              {tFavoritesNs("priceYen", { amount: Number(skill.price).toLocaleString(htmlLang) })}
+                              {formatCurrencyPlain(Number(skill.price), normalizeCurrency(skill.currency))}
                             </p>
                           </div>
                         </div>

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { getIsAdminFromProfile } from "@/lib/admin"
 import { adminUi } from "@/lib/admin-ui"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import { formatCurrencyPlain, normalizeCurrency } from "@/lib/currency"
 type TransactionRow = {
   id: string
   created_at: string | null
@@ -14,6 +15,8 @@ type TransactionRow = {
   buyer_id: string | null
   seller_id: string | null
   price: number | null
+  /** 取引時点の通貨スナップショット。未指定（古い行）は 'JPY' フォールバック扱い */
+  currency?: string | null
   status: string | null
   stripe_payment_intent_id: string | null
 }
@@ -49,11 +52,13 @@ function formatDateTime(value: string | null): string {
   })
 }
 
-function formatPrice(value: number | null): string {
+function formatPrice(value: number | null, currency?: string | null): string {
   if (typeof value !== "number" || Number.isNaN(value)) {
     return "—"
   }
-  return `${new Intl.NumberFormat("ja-JP").format(value)}円`
+  // 通貨ごとの最小単位（JPY=yen, USD=cents）から、ヒューマンリーダブルな表記へ変換。
+  // 管理者画面は JA 想定だが、通貨記号 (¥ / $) で誤認を防ぐ。
+  return formatCurrencyPlain(value, normalizeCurrency(currency))
 }
 
 export default function AdminTransactionsPage() {
@@ -150,7 +155,7 @@ export default function AdminTransactionsPage() {
 
       let dataQuery = supabase
         .from("transactions")
-        .select("id, created_at, skill_id, buyer_id, seller_id, price, status, stripe_payment_intent_id")
+        .select("id, created_at, skill_id, buyer_id, seller_id, price, currency, status, stripe_payment_intent_id")
         .order("created_at", { ascending: false })
         .range(start, end)
       if (q.length > 0) {
@@ -330,7 +335,7 @@ export default function AdminTransactionsPage() {
                         <td className="max-w-[240px] px-3 py-2 text-foreground">{row.id}</td>
                         <td className="px-3 py-2 text-foreground">{formatDateTime(row.created_at)}</td>
                         <td className="max-w-[260px] px-3 py-2 text-foreground">{skillTitleMap[skillId] ?? "—"}</td>
-                        <td className="px-3 py-2 text-foreground">{formatPrice(row.price)}</td>
+                        <td className="px-3 py-2 text-foreground">{formatPrice(row.price, row.currency)}</td>
                         <td className="max-w-[220px] px-3 py-2 text-foreground">{buyerName || "—"}</td>
                         <td className="max-w-[220px] px-3 py-2 text-foreground">{sellerName || "—"}</td>
                         <td className="min-w-[11rem] px-3 py-2 text-foreground">

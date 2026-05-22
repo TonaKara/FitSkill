@@ -13,6 +13,7 @@ import { SkillThumbnailSurface } from "@/components/skill-thumbnail-surface"
 import { saveHomeListScrollPosition } from "@/lib/home-list-scroll"
 import { skillThumbnailContainerAspectStyle } from "@/lib/skill-thumbnail"
 import { useLocale, useTranslations } from "@/lib/i18n/useI18n"
+import { formatCurrencyPlain, normalizeCurrency } from "@/lib/currency"
 
 interface SkillCardProps {
   /** DB のスキル UUID のときのみ指定。お気に入り・件数のリアルタイム更新を有効にする */
@@ -28,6 +29,10 @@ interface SkillCardProps {
     rating: number
     reviewCount: number
     price: number
+    /**
+     * 価格の通貨コード。未指定なら 'JPY' フォールバックとなり、これまでと同じ "¥{price}" 表示。
+     */
+    currency?: string | null
     duration: string
     students: number
     image: string
@@ -176,7 +181,7 @@ export function SkillCard({ skill, favoriteSkillId, initialFavoriteCount }: Skil
         <div className="flex items-center justify-between">
           <div className="flex items-baseline gap-1">
             <span className="text-lg font-bold text-primary-readable">
-              ¥{skill.price.toLocaleString()}
+              {formatCurrencyPlain(skill.price, normalizeCurrency(skill.currency))}
             </span>
             <span className="text-xs text-muted-foreground">{tCard("perSession")}</span>
           </div>

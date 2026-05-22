@@ -14,6 +14,7 @@ import { readMypageModePreference } from "@/lib/mypage-mode-preference"
 import { buildStorePath } from "@/lib/profile-path"
 import {
   buildLastSixMonthsSales,
+  sumCompletedTransactionReceiveByCurrency,
   sumCompletedTransactionReceiveYen,
   resolveConservativeLifetimeSalesYen,
   countListingsByPublishState,
@@ -131,7 +132,7 @@ export default function MyStoreHomeClient() {
     const [txResult, skillsResult, stripeResult, profileResult] = await Promise.all([
       supabase
         .from("transactions")
-        .select("price, completed_at")
+        .select("price, currency, completed_at")
         .eq("seller_id", userId)
         .eq("status", "completed"),
       supabase.from("skills").select("is_published").eq("user_id", userId),
@@ -143,12 +144,17 @@ export default function MyStoreHomeClient() {
         .maybeSingle(),
     ])
 
-    const txRows = (txResult.data ?? []) as Array<{ price: number | null; completed_at: string | null }>
+    const txRows = (txResult.data ?? []) as Array<{
+      price: number | null
+      currency?: string | null
+      completed_at: string | null
+    }>
     const transactionLifetimeYen = sumCompletedTransactionReceiveYen(txRows)
     const lifetimeSalesYen = resolveConservativeLifetimeSalesYen(
       transactionLifetimeYen,
       stripeResult.stripe?.registered ? stripeResult.stripe.lifetimeReceiveYen : null,
     )
+    const lifetimeSalesByCurrency = sumCompletedTransactionReceiveByCurrency(txRows)
 
     const listingCounts = countListingsByPublishState(
       (skillsResult.data ?? []) as Array<{ is_published: boolean | null }>,
@@ -157,6 +163,7 @@ export default function MyStoreHomeClient() {
     setIsStripeSetupComplete(isStripeInstructorSetupComplete(profileResult.data))
     setStats({
       lifetimeSalesYen,
+      lifetimeSalesByCurrency,
       completedTransactionCount: txRows.length,
       monthlySales: buildLastSixMonthsSales(txRows),
       ...listingCounts,

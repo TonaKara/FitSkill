@@ -17,8 +17,8 @@ import {
 import { toErrorNotice, type AppNotice } from "@/lib/notifications"
 import { resolveSkillThumbnailUrl, skillThumbnailContainerAspectStyle } from "@/lib/skill-thumbnail"
 import { useLocale, useTranslations } from "@/lib/i18n/useI18n"
-import { localeToHtmlLang } from "@/lib/i18n/locales"
 import { translateToastMessage } from "@/lib/toast-i18n"
+import { formatCurrencyPlain, normalizeCurrency } from "@/lib/currency"
 
 type MyStoreListingsPanelProps = {
   userId: string
@@ -57,7 +57,6 @@ export function MyStoreListingsPanel({ userId, onNotice, onListingsChanged }: My
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
   const t = useTranslations("storeListings")
   const locale = useLocale()
-  const htmlLang = localeToHtmlLang(locale)
   const [listings, setListings] = useState<StoreListing[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -218,7 +217,7 @@ export function MyStoreListingsPanel({ userId, onNotice, onListingsChanged }: My
                     </div>
                     <p className="mt-1 text-xs font-normal text-neutral-400 dark:text-muted-foreground">
                       {skill.category ? formatSkillCategoryDisplay(skill.category) : t("uncategorized")} ·{" "}
-                      {t("priceFormat", { price: Number(skill.price).toLocaleString(htmlLang) })}
+                      {formatCurrencyPlain(Number(skill.price), normalizeCurrency(skill.currency))}
                     </p>
                   </div>
                 </div>

@@ -129,7 +129,7 @@ export default function PublicProfilePage({ resolvedProfileId }: PublicProfilePa
     const [skillsResult, ratingData] = await Promise.all([
       supabase
         .from("skills")
-        .select("id, title, category, price, duration_minutes, max_capacity, thumbnail_url")
+        .select("id, title, category, price, currency, duration_minutes, max_capacity, thumbnail_url")
         .eq("user_id", resolvedProfile.id)
         .eq("is_published", true)
         .order("created_at", { ascending: false }),

@@ -50,6 +50,7 @@ import {
 } from "@/lib/consultation"
 import { cn } from "@/lib/utils"
 import { useLocale, useTranslations } from "@/lib/i18n/useI18n"
+import { formatCurrencyPlain, normalizeCurrency } from "@/lib/currency"
 import { localeToHtmlLang } from "@/lib/i18n/locales"
 
 /** `createCheckoutSession` の日本語エラーを `formatErrorMessageOnly` の汎用文に置き換えない */
@@ -82,6 +83,8 @@ type SkillDetailRow = {
   target_audience: string
   category: string
   price: number
+  /** 行の販売通貨。未指定（古い行・古い SELECT）の場合は 'JPY' フォールバック扱い */
+  currency?: string | null
   duration_minutes: number
   max_capacity: number
   format: "online" | "onsite"
@@ -496,7 +499,7 @@ export default function SkillDetailPage() {
       supabase
         .from("skills")
         .select(
-          "id, user_id, title, description, target_audience, category, price, duration_minutes, max_capacity, format, location_prefecture, thumbnail_url, is_published, profiles ( display_name, avatar_url, custom_id, rating_avg, review_count )",
+          "id, user_id, title, description, target_audience, category, price, currency, duration_minutes, max_capacity, format, location_prefecture, thumbnail_url, is_published, profiles ( display_name, avatar_url, custom_id, rating_avg, review_count )",
         )
         .eq("id", skillId)
         .maybeSingle(),
@@ -1209,7 +1212,7 @@ export default function SkillDetailPage() {
             <section className="space-y-2">
               <h2 className="text-sm font-bold uppercase tracking-wider text-red-600 dark:text-red-400">{tSec("price")}</h2>
               <p className="text-3xl font-black text-foreground">
-                ¥{skill.price.toLocaleString(htmlLang)}
+                {formatCurrencyPlain(skill.price, normalizeCurrency(skill.currency))}
                 <span className="ml-2 text-base font-semibold text-muted-foreground">{tPrice("perSession")}</span>
               </p>
             </section>

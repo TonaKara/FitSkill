@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { canBuyerPurchaseSkill } from "@/lib/consultation"
+import { normalizeCurrency } from "@/lib/currency"
 
 /** 重複 INSERT（unique 制約）かどうか */
 function isUniqueConstraintViolation(error: { code?: string; message?: string }): boolean {
@@ -157,7 +158,7 @@ export async function createSkillPurchaseTransaction(
 
   const { data: skill, error: skillError } = await supabase
     .from("skills")
-    .select("price, user_id, title")
+    .select("price, currency, user_id, title")
     .eq("id", params.skillId)
     .single()
 
@@ -165,7 +166,12 @@ export async function createSkillPurchaseTransaction(
     return { inserted: false, errorMessage: skillError.message }
   }
 
-  const skillRow = skill as { price: unknown; user_id: string | null; title?: string | null } | null
+  const skillRow = skill as {
+    price: unknown
+    currency?: string | null
+    user_id: string | null
+    title?: string | null
+  } | null
   if (!skillRow || typeof skillRow.price !== "number") {
     return { inserted: false, errorMessage: "スキルの価格を取得できませんでした。" }
   }
@@ -209,6 +215,12 @@ export async function createSkillPurchaseTransaction(
       buyer_id: params.buyerId,
       seller_id: sellerId,
       price: skillRow.price,
+      // 取引時点のスナップショット。skills.currency が未指定（古い行）の場合は
+      // DB DEFAULT 'JPY' に任せる（明示的に null を渡すと NOT NULL 制約に違反するため
+      // フィールド自体を省略する選択肢が安全）。
+      ...(typeof skillRow.currency === "string" && skillRow.currency.length > 0
+        ? { currency: normalizeCurrency(skillRow.currency) }
+        : {}),
       status: initialStatus,
     })
     .select("id")
