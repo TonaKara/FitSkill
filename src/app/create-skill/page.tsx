@@ -4,7 +4,7 @@ import { ChangeEvent, FormEvent, Suspense, useEffect, useMemo, useRef, useState 
 import { createPortal } from "react-dom"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Info, Loader2, MapPin, X } from "lucide-react"
+import { AlertTriangle, Info, Loader2, MapPin, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -1123,12 +1123,19 @@ function CreateSkillPageContent() {
                   </select>
                   <p className="text-xs font-normal text-muted-foreground">{tField("currencyHint")}</p>
                   {form.currency !== "JPY" ? (
-                    <p
+                    <div
                       id="currency-fx-warning"
-                      className="rounded-md border border-amber-500/30 bg-amber-950/30 px-3 py-2 text-xs font-medium leading-relaxed text-amber-200"
+                      role="alert"
+                      className="flex items-start gap-2 rounded-md border border-amber-500/70 bg-amber-50 px-3 py-2.5 text-amber-900 shadow-sm dark:border-amber-400/60 dark:bg-amber-950/70 dark:text-amber-50"
                     >
-                      {tField("currencyForeignWarning")}
-                    </p>
+                      <AlertTriangle
+                        className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-300"
+                        aria-hidden
+                      />
+                      <p className="text-xs font-medium leading-relaxed">
+                        {tField("currencyForeignWarning")}
+                      </p>
+                    </div>
                   ) : null}
                 </div>
                 <div className="grid min-w-0 gap-4 md:grid-cols-3">
