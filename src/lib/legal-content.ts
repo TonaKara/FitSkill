@@ -69,14 +69,22 @@ export const TERMS_SECTIONS: readonly LegalSection[] = [
     ],
   },
   {
-    title: "第8条（対面指導に関する注意と自己責任）",
+    title: "第8条（コミュニケーションの方法）",
+    body: [
+      "本サービスに関する連絡、相談、およびサポートは、運営者が指定するチャットツール（Discord等）またはメールを通じて行うものとします。",
+      "運営者は、原則として電話やビデオ通話によるリアルタイムの口頭対応は行いません。",
+      "時差や運営者の状況により、返信までに一定の時間を要する場合があることを利用者はあらかじめ承諾するものとします。",
+    ],
+  },
+  {
+    title: "第9条（対面指導に関する注意と自己責任）",
     body: [
       "取引内容に基づき、利用者間で対面による直接指導を行う場合、必ず公共の安全な場所で実施するものとし、夜間・密室など危険を伴う場所での実施を禁止します。",
       "対面指導の実施に伴う事故、怪我、その他の損害または利用者間のトラブルについて、運営者は一切責任を負わず、すべて当事者間で解決するものとします。",
     ],
   },
   {
-    title: "第9条（取引責任とキャンセル・返品）",
+    title: "第10条（取引責任とキャンセル・返品）",
     body: [
       "スキルやコンテンツの提供方法、メッセージや成果物、動画・写真・その他ファイルのやり取り等は、当事者間で誠実に合意し履行するものとします。",
       "売買契約成立後、利用者の自己都合によるキャンセルや返金請求は認められません。",
@@ -87,7 +95,7 @@ export const TERMS_SECTIONS: readonly LegalSection[] = [
     ],
   },
   {
-    title: "第10条（知的財産権および投稿コンテンツの取扱い）",
+    title: "第11条（知的財産権および投稿コンテンツの取扱い）",
     body: [
       "本サービスを構成するすべてのプログラム、ソフトウェア、商標（「GritVib」等）、ロゴ、デザイン、および運営者が作成したテキスト・画像等の知的財産権は、すべて運営者または正当な権限を持つ第三者に帰属します。",
       "利用者が本サービス内に投稿した動画、画像、テキスト、ファイル等のコンテンツ（以下「投稿コンテンツ」といいます）の著作権は、当該コンテンツを作成した利用者に帰属します。",
@@ -97,7 +105,7 @@ export const TERMS_SECTIONS: readonly LegalSection[] = [
     ],
   },
   {
-    title: "第11条（決済・手数料および本人確認）",
+    title: "第12条（決済・手数料および本人確認）",
     body: [
       "本サービスにおける決済は、決済代行会社である Stripe のシステム（Stripe Connect および Stripe Checkout 等）を利用して行われます。",
       "プラットフォーム機能における利用者間の取引代金は、出品者の Stripe Connect アカウントに対して直接支払われます。運営者は、取引代金の受領代理人ではなく、また決済代金を預かるものではありません。",
@@ -108,13 +116,13 @@ export const TERMS_SECTIONS: readonly LegalSection[] = [
     ],
   },
   {
-    title: "第12条（出品削除・利用停止）",
+    title: "第13条（出品削除・利用停止）",
     body: [
       "規約違反、他ユーザーからの通報多数、または安全確保上必要と判断した場合、運営者は事前通知なく該当出品の削除やアカウントの利用停止、開設されたストアの閉鎖措置を行うことができます。",
     ],
   },
   {
-    title: "第13条（免責事項および追加事項）",
+    title: "第14条（免責事項および追加事項）",
     body: [
       "プラットフォーム機能において、運営者は本サービスを通じて行われる取引の当事者とはならず、契約の履行、提供されるスキルの品質や成果物の状態、返金その他取引に付随する事項について一切の保証をしません。",
       "本サービスの利用により生じた損害について、運営者に故意または重過失がある場合を除き、運営者は賠償責任を負いません。",
@@ -126,21 +134,21 @@ export const TERMS_SECTIONS: readonly LegalSection[] = [
     ],
   },
   {
-    title: "第14条（システムと規約の変更）",
+    title: "第15条（システムと規約の変更）",
     body: [
       "運営者にかかわるシステム障害、保守点検、不可抗力等により、運営者は予告なくサービスの一部または全部を停止できるものとします。",
       "運営者が必要と判断した場合、いつでも本規約を変更することができるものとします。変更後の規約は、本サービス上に掲載された時点より効力を生じるものとします。",
     ],
   },
   {
-    title: "第15条（準拠法・管轄および正本）",
+    title: "第16条（準拠法・管轄および正本）",
     body: [
       "本規約の解釈にあたっては日本法を準拠法とし、本サービスに関して紛争が生じた場合は、運営者の所在地を管轄する地方裁判所を第一審の専属的合意管轄裁判所とします。",
       "本規約の言語は日本語を正本とし、英語その他の言語による翻訳は参考資料として提供されるものです。日本語版と他言語版との間で解釈の相違が生じた場合は、日本語版が優先されるものとします。",
     ],
   },
   {
-    title: "第16条（運営者情報）",
+    title: "第17条（運営者情報）",
     body: [
       "運営者名：東 沙羅",
       "所在地：〒150-0043 東京都渋谷区道玄坂1丁目10番渋谷道玄坂東急ビル2F-C",
@@ -300,14 +308,22 @@ export const TERMS_SECTIONS_EN: readonly LegalSection[] = [
     ],
   },
   {
-    title: "Article 8 (In-Person Instruction and Self-Responsibility)",
+    title: "Article 8 (Methods of Communication)",
+    body: [
+      "All inquiries, consultations, and support relating to the Service shall be conducted via chat tools (such as Discord) or email designated by the Operator.",
+      "As a general rule, the Operator does not provide real-time verbal support via telephone or video call.",
+      "Users acknowledge and agree in advance that responses may take a certain amount of time due to time-zone differences or the Operator's circumstances.",
+    ],
+  },
+  {
+    title: "Article 9 (In-Person Instruction and Self-Responsibility)",
     body: [
       "Any in-person instruction must take place in a safe, public location. Meetings in private or dangerous locations are strictly prohibited.",
       "The Operator assumes no responsibility for accidents, injuries, or disputes arising from in-person instruction. All such matters must be resolved between the parties involved.",
     ],
   },
   {
-    title: "Article 9 (Transaction Responsibility, Cancellation and Refunds)",
+    title: "Article 10 (Transaction Responsibility, Cancellation and Refunds)",
     body: [
       "Delivery of skills/content and exchange of files must be performed in good faith between the parties.",
       "Once a contract is established, cancellations or refund requests for user convenience are not permitted.",
@@ -318,7 +334,7 @@ export const TERMS_SECTIONS_EN: readonly LegalSection[] = [
     ],
   },
   {
-    title: "Article 10 (Intellectual Property and Posted Content)",
+    title: "Article 11 (Intellectual Property and Posted Content)",
     body: [
       "All rights to the programs, software, trademarks (\"GritVib\"), logos, and designs of the Service belong to the Operator or authorized third parties.",
       "Copyright of content posted by Users (videos, images, text, files, etc.) belongs to the respective User.",
@@ -328,7 +344,7 @@ export const TERMS_SECTIONS_EN: readonly LegalSection[] = [
     ],
   },
   {
-    title: "Article 11 (Payment, Fees, and Identity Verification)",
+    title: "Article 12 (Payment, Fees, and Identity Verification)",
     body: [
       "Payments under the Service are processed via Stripe (including Stripe Connect and Stripe Checkout, etc.).",
       "On the Platform, transaction funds are paid directly to the Seller's Stripe Connect account. The Operator does not collect or hold transaction funds as a proxy.",
@@ -339,13 +355,13 @@ export const TERMS_SECTIONS_EN: readonly LegalSection[] = [
     ],
   },
   {
-    title: "Article 12 (Suspension and Termination)",
+    title: "Article 13 (Suspension and Termination)",
     body: [
       "The Operator may delete listings or suspend accounts without notice in the event of a breach of Terms, multiple reports from other users, or for safety reasons.",
     ],
   },
   {
-    title: "Article 13 (Disclaimer and Additional Provisions)",
+    title: "Article 14 (Disclaimer and Additional Provisions)",
     body: [
       "WITH RESPECT TO THE PLATFORM, THE OPERATOR IS NOT A PARTY TO TRANSACTIONS AND PROVIDES NO WARRANTY REGARDING THE PERFORMANCE OF CONTRACTS, THE QUALITY OF SKILLS OR DELIVERABLES, REFUNDS, OR ANY OTHER MATTERS INCIDENTAL TO TRANSACTIONS.",
       "THE OPERATOR SHALL NOT BE LIABLE FOR ANY DAMAGES ARISING FROM THE USE OF THE SERVICE, EXCEPT IN CASES OF WILLFUL MISCONDUCT OR GROSS NEGLIGENCE BY THE OPERATOR.",
@@ -357,20 +373,20 @@ export const TERMS_SECTIONS_EN: readonly LegalSection[] = [
     ],
   },
   {
-    title: "Article 14 (Changes to Service and Terms)",
+    title: "Article 15 (Changes to Service and Terms)",
     body: [
       "The Operator may suspend the Service for maintenance or updates without notice. The Operator may modify these Terms at any time, and such changes become effective upon being posted on the Service.",
     ],
   },
   {
-    title: "Article 15 (Governing Law, Jurisdiction, and Authoritative Version)",
+    title: "Article 16 (Governing Law, Jurisdiction, and Authoritative Version)",
     body: [
       "These Terms shall be governed by and construed in accordance with the laws of Japan. Any disputes arising in connection with the Service shall be subject to the exclusive jurisdiction of the district court having jurisdiction over the Operator's location as the court of first instance.",
       "The Japanese version of these Terms shall be the authoritative version. Translations into English or other languages are provided for reference purposes only. In the event of any discrepancy between the Japanese version and any translated version, the Japanese version shall prevail.",
     ],
   },
   {
-    title: "Article 16 (Operator Information)",
+    title: "Article 17 (Operator Information)",
     body: [
       "Operator: Sara Higashi",
       "Address: 2F-C Shibuya Dogenzaka Tokyu Bldg., 1-10-8 Dogenzaka, Shibuya-ku, Tokyo, 150-0043, Japan",
