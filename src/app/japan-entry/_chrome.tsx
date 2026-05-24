@@ -44,19 +44,6 @@ export function JapanEntryHeader() {
           >
             Manage Subscription
           </a>
-          {/* ===== TEMP: STRIPE PAYMENT TEST BUTTON — START =====
-              本番デプロイ後の決済動作確認用の暫定ボタン。
-              テスト完了後は、この `===== TEMP ... START =====` から
-              `===== TEMP ... END =====` までのブロックをまるごと削除すれば完全に消せる。 */}
-          <a
-            href="https://buy.stripe.com/aFa5kC2IWfKzgjodLN9IQ07"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex h-9 items-center justify-center rounded-md border border-dashed border-yellow-500/70 bg-yellow-500/10 px-3 text-sm font-semibold text-yellow-700 transition-colors hover:bg-yellow-500/20 dark:text-yellow-400 sm:h-10 sm:px-4"
-          >
-            テスト
-          </a>
-          {/* ===== TEMP: STRIPE PAYMENT TEST BUTTON — END ===== */}
           <Link
             href="/japan-entry/contact"
             className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:border-primary hover:bg-muted sm:h-10 sm:px-4"
