@@ -6,5 +6,9 @@ export function shouldShowSiteHeader(pathname: string): boolean {
   if (pathname === "/admin" || pathname.startsWith("/admin/")) {
     return false
   }
+  /** /japan-entry は専用の英語ランディングヘッダーを使用するため、共通ヘッダーは表示しない */
+  if (pathname === "/japan-entry" || pathname.startsWith("/japan-entry/")) {
+    return false
+  }
   return true
 }

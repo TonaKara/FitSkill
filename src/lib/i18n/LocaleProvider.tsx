@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react"
+import { usePathname } from "next/navigation"
 import {
   formatMessage,
   getDictionary,
@@ -48,6 +49,7 @@ function writeLocaleCookie(locale: Locale) {
 
 export function LocaleProvider({ initialLocale, children }: LocaleProviderProps) {
   const [locale, setLocaleState] = useState<Locale>(initialLocale)
+  const pathname = usePathname()
 
   useEffect(() => {
     // server で Cookie が無かったが、navigator にユーザー言語が乗っているケースで
@@ -67,6 +69,18 @@ export function LocaleProvider({ initialLocale, children }: LocaleProviderProps)
       writeLocaleCookie(locale)
     }
   }, [locale])
+
+  /**
+   * パス遷移ごとに Cookie を読み直し、middleware 等で書き換えられた locale を React state に反映する。
+   * （例: `/japan-entry` 配下では middleware が "en" を強制する）
+   * これにより、ソフトナビゲーション後でも client コンポーネントの useTranslations が最新ロケールに追従する。
+   */
+  useEffect(() => {
+    const fromCookie = readLocaleCookieFromDocument()
+    if (fromCookie && fromCookie !== locale) {
+      setLocaleState(fromCookie)
+    }
+  }, [pathname, locale])
 
   useEffect(() => {
     if (typeof document !== "undefined") {

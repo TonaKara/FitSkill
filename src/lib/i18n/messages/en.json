@@ -1307,6 +1307,7 @@
     "helpTitle": "Help & Guide",
     "guide": "How-to Guide",
     "contact": "Contact",
+    "japanEntry": "Japan Entry Support (English)",
     "socialTitle": "Official SNS",
     "officialX": "GritVib Official X",
     "officialInstagram": "GritVib Official Instagram",
@@ -1434,6 +1435,12 @@
       "disputeBody": "If a problem occurs—such as \"service not delivered after payment\" or \"communication has stopped\"—you can file a \"Dispute.\" Our team will investigate and assist with progress or issue a refund if necessary.",
       "contactTitle": "Contact Us",
       "contactBody": "If you have any questions or encounter technical issues, please feel free to reach out via the \"Contact\" link in the footer."
+    },
+    "japanEntry": {
+      "heading": "Japan Entry Support",
+      "intro": "Launching your indie product or SaaS in Japan? GritVib's Tokyo-based developers handle technical localization, legal compliance, and cultural translation — so your message lands the way it does at home.",
+      "body": "We don't run your accounts. You provide the visuals; we deliver high-quality Japanese text. Pay-as-you-go from $30 per post, or go monthly for steady momentum.",
+      "cta": "View Japan Entry plans"
     }
   },
   "contact": {

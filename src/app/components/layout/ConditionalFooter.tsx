@@ -8,5 +8,9 @@ export function ConditionalFooter() {
   if (pathname === "/chat" || pathname.startsWith("/chat/")) {
     return null
   }
+  /** /japan-entry は英語ランディング独自フッターを内包するため、共通フッターは表示しない */
+  if (pathname === "/japan-entry" || pathname.startsWith("/japan-entry/")) {
+    return null
+  }
   return <Footer />
 }
