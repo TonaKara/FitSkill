@@ -126,8 +126,7 @@ function HeroSection() {
         <p className="mx-auto mt-5 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
           Don&rsquo;t just translate &mdash; localize the vibe. Our team of native
           Japanese developers in Tokyo crafts content with perfect honorifics
-          (<span className="font-semibold text-foreground">Keigo</span>) and
-          cultural context that makes users feel secure and choose your brand.
+          (Keigo) and cultural context that makes users feel secure and choose your brand.
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <a
