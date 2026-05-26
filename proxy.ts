@@ -11,7 +11,7 @@ import { shouldRedirectPublicUserToMaintenance } from "@/lib/maintenance-access"
 import { getCanonicalHostname } from "@/lib/site-seo"
 
 /**
- * このミドルウェアは 403 Forbidden を返さない。
+ * このプロキシ（旧: middleware）は 403 Forbidden を返さない。
  * - 未ログインでも `/`（トップ）は通過する（Supabase セッション更新用に処理は走るが拒否しない）。
  * - `/chat/*` 未ログインは 403 ではなく `/login` へリダイレクト。
  * - メンテ時は `/maintenance` へリダイレクト。
@@ -20,6 +20,9 @@ import { getCanonicalHostname } from "@/lib/site-seo"
  * メンテ誘導・認証チェックの対象外にするパス。
  * - /sitemap.xml は拡張子ありだが明示しておく（環境によっては判定漏れ防止）
  * - ルート配下の opengraph-image・twitter-image はパスに含まれるため contains で明示
+ *
+ * Next.js 16 で `middleware` ファイル規約は `proxy` にリネームされた。
+ * ファイル名・関数名のみが変わり、`config.matcher` 等の API は同一。
  */
 function isVercelDeploymentHost(hostname: string): boolean {
   return hostname.toLowerCase().endsWith(".vercel.app")
@@ -100,7 +103,7 @@ function redirectWwwToCanonicalHost(request: NextRequest): NextResponse | null {
   return NextResponse.redirect(redirectUrl, 301)
 }
 
-function isBypassMiddlewarePath(pathname: string): boolean {
+function isBypassProxyPath(pathname: string): boolean {
   if (pathname.startsWith("/_next") || pathname.startsWith("/api")) {
     return true
   }
@@ -163,7 +166,7 @@ async function canBannedUserAccessChatPath(args: {
   return BAN_ALLOWED_TRANSACTION_STATUSES.includes(status as (typeof BAN_ALLOWED_TRANSACTION_STATUSES)[number])
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const wwwRedirect = redirectWwwToCanonicalHost(request)
   if (wwwRedirect) {
     return withVercelNoIndex(request, wwwRedirect)
@@ -171,7 +174,7 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  if (isBypassMiddlewarePath(pathname)) {
+  if (isBypassProxyPath(pathname)) {
     return ensureLocaleCookie(request, withVercelNoIndex(request, NextResponse.next()))
   }
 
