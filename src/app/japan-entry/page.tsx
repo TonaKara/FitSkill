@@ -1,5 +1,7 @@
 import Link from "next/link"
 import { ArrowRight, Check, ChevronDown, ShieldCheck, Sparkles, Zap } from "lucide-react"
+import { HeroSection } from "@/japan-entry/_hero-section"
+import { Reveal } from "@/japan-entry/_reveal"
 import { STRIPE_LINKS } from "@/japan-entry/_stripe-links"
 import { cn } from "@/lib/utils"
 
@@ -134,91 +136,47 @@ const FAQ_ITEMS: readonly FaqItem[] = [
   },
 ] as const
 
-function HeroSection() {
-  return (
-    <section className="relative overflow-hidden border-b border-border bg-background">
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px] bg-[radial-gradient(ellipse_at_top,_rgba(230,74,25,0.18),_transparent_60%)]"
-        aria-hidden
-      />
-      <div className="mx-auto w-full max-w-5xl px-5 py-20 text-center sm:px-6 md:px-8 md:py-28">
-        <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary-readable sm:text-xs sm:tracking-[0.18em]">
-          <Sparkles className="h-3.5 w-3.5" aria-hidden />
-          Built by developers in Tokyo
-        </span>
-        <h1 className="mx-auto mt-6 max-w-[18ch] text-balance text-[34px] font-black leading-[1.1] tracking-tight text-foreground sm:max-w-none sm:text-5xl md:text-6xl">
-          Instantly gain{" "}
-          <span className="whitespace-nowrap text-[#e64a19]">&lsquo;Trust&rsquo;</span>{" "}
-          <span className="whitespace-nowrap">in Japan.</span>
-        </h1>
-        <p className="mx-auto mt-6 max-w-3xl text-pretty text-[15px] font-medium leading-relaxed text-foreground/90 sm:text-lg md:text-xl">
-          Japanese users are sensitive to &lsquo;unnatural translation&rsquo; and often
-          suspect fraud. Simple automated translation ruins your sales.
-        </p>
-        <p className="mx-auto mt-5 max-w-2xl text-pretty text-sm leading-relaxed text-muted-foreground sm:text-base">
-          Don&rsquo;t just translate &mdash; localize the vibe. Our team of native
-          Japanese developers in Tokyo crafts content with perfect honorifics
-          (Keigo) and cultural context that makes users feel secure and choose your brand.
-        </p>
-        <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <a
-            href="#pricing"
-            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 sm:w-auto"
-          >
-            See pricing
-            <ArrowRight className="h-4 w-4" aria-hidden />
-          </a>
-          <a
-            href="#features"
-            className="inline-flex h-11 w-full items-center justify-center rounded-md border border-border bg-background px-6 text-sm font-semibold text-foreground transition-colors hover:border-primary hover:bg-muted sm:w-auto"
-          >
-            How it works
-          </a>
-        </div>
-        <p className="mt-6 text-pretty text-xs text-muted-foreground">
-          No retainers. No production. Just high-quality Japanese text, fast.
-        </p>
-      </div>
-    </section>
-  )
-}
-
 function FeatureSection() {
   return (
     <section
       id="features"
       className="relative border-b border-border bg-muted/50 dark:bg-muted/30"
     >
-      <div className="mx-auto w-full max-w-6xl px-5 py-16 sm:px-6 md:px-8 md:py-20">
-        <div className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-border bg-background px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground sm:text-xs sm:tracking-[0.18em]">
-            Why us
-          </span>
-          <h2 className="mt-4 text-balance text-2xl font-bold leading-tight tracking-tight text-foreground md:text-3xl">
-            Why teams launching in Japan choose us
-          </h2>
-          <p className="mx-auto mt-3 max-w-xl text-pretty text-sm leading-relaxed text-muted-foreground md:text-base">
-            We&apos;re not an agency. We&apos;re builders who happen to write Japanese natively.
-          </p>
-        </div>
-        <div className="mt-10 grid gap-5 md:mt-12 md:grid-cols-3 md:gap-6">
-          {FEATURES.map((feature) => {
+      <div className="mx-auto w-full max-w-6xl px-5 py-20 sm:px-6 md:px-8 md:py-24">
+        <Reveal>
+          <div className="mx-auto max-w-2xl text-center">
+            <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-border bg-background px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground sm:text-xs sm:tracking-[0.18em]">
+              Why us
+            </span>
+            <h2 className="mt-4 text-balance text-2xl font-bold leading-tight tracking-tight text-foreground md:text-3xl">
+              Why teams launching in Japan choose us
+            </h2>
+            <p className="mx-auto mt-3 max-w-xl text-pretty text-sm leading-relaxed text-muted-foreground md:text-base">
+              We&apos;re not an agency. We&apos;re builders who happen to write Japanese natively.
+            </p>
+          </div>
+        </Reveal>
+        <div className="mt-12 grid gap-5 md:mt-14 md:grid-cols-3 md:gap-6">
+          {FEATURES.map((feature, index) => {
             const Icon = feature.icon
             return (
-              <article
+              <Reveal
                 key={feature.title}
-                className="group flex h-full flex-col rounded-2xl border border-border bg-card p-6 shadow-sm transition-colors hover:border-primary/40 md:p-7"
+                delay={0.15 + index * 0.12}
+                className="h-full"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary-readable">
-                  <Icon className="h-5 w-5" aria-hidden />
-                </div>
-                <h3 className="mt-4 text-balance text-base font-semibold leading-snug text-foreground md:text-lg">
-                  {feature.title}
-                </h3>
-                <p className="mt-2 text-pretty text-sm leading-relaxed text-muted-foreground">
-                  {feature.body}
-                </p>
-              </article>
+                <article className="group flex h-full flex-col rounded-2xl border border-border bg-card p-6 shadow-sm transition-colors hover:border-primary/40 md:p-7">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary-readable">
+                    <Icon className="h-5 w-5" aria-hidden />
+                  </div>
+                  <h3 className="mt-4 text-balance text-base font-semibold leading-snug text-foreground md:text-lg">
+                    {feature.title}
+                  </h3>
+                  <p className="mt-2 text-pretty text-sm leading-relaxed text-muted-foreground">
+                    {feature.body}
+                  </p>
+                </article>
+              </Reveal>
             )
           })}
         </div>
@@ -372,27 +330,37 @@ function PricingSection() {
         className="pointer-events-none absolute inset-x-0 bottom-0 -z-0 h-[260px] bg-[radial-gradient(ellipse_at_bottom,_rgba(230,74,25,0.12),_transparent_70%)]"
         aria-hidden
       />
-      <div className="relative mx-auto w-full max-w-6xl px-5 py-16 sm:px-6 md:px-8 md:py-24">
-        <div className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary-readable shadow-sm sm:text-xs sm:tracking-[0.18em]">
-            <Sparkles className="h-3.5 w-3.5" aria-hidden />
-            Pricing
-          </span>
-          <h2 className="mt-4 text-balance text-2xl font-black leading-tight tracking-tight text-foreground sm:text-3xl md:text-4xl">
-            Simple pricing. No retainers.
-          </h2>
-          <p className="mx-auto mt-3 max-w-xl text-pretty text-sm leading-relaxed text-muted-foreground md:text-base">
-            Start with a single post. Upgrade the day you need to.
-          </p>
-        </div>
-        <div className="mt-10 grid gap-6 md:mt-14 md:grid-cols-3 md:items-stretch md:gap-7">
-          {PRICING_PLANS.map((plan) => (
-            <PricingCard key={plan.id} plan={plan} />
+      <div className="relative mx-auto w-full max-w-6xl px-5 py-20 sm:px-6 md:px-8 md:py-28">
+        <Reveal>
+          <div className="mx-auto max-w-2xl text-center">
+            <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary-readable shadow-sm sm:text-xs sm:tracking-[0.18em]">
+              <Sparkles className="h-3.5 w-3.5" aria-hidden />
+              Pricing
+            </span>
+            <h2 className="mt-4 text-balance text-2xl font-black leading-tight tracking-tight text-foreground sm:text-3xl md:text-4xl">
+              Simple pricing. No retainers.
+            </h2>
+            <p className="mx-auto mt-3 max-w-xl text-pretty text-sm leading-relaxed text-muted-foreground md:text-base">
+              Start with a single post. Upgrade the day you need to.
+            </p>
+          </div>
+        </Reveal>
+        <div className="mt-12 grid gap-6 md:mt-16 md:grid-cols-3 md:items-stretch md:gap-7">
+          {PRICING_PLANS.map((plan, index) => (
+            <Reveal
+              key={plan.id}
+              delay={0.2 + index * 0.14}
+              className="h-full"
+            >
+              <PricingCard plan={plan} />
+            </Reveal>
           ))}
         </div>
-        <p className="mt-8 text-pretty text-center text-xs text-muted-foreground">
-          Prices in USD. Charged via Stripe. Taxes may apply depending on your region.
-        </p>
+        <Reveal delay={0.4}>
+          <p className="mt-10 text-pretty text-center text-xs text-muted-foreground">
+            Prices in USD. Charged via Stripe. Taxes may apply depending on your region.
+          </p>
+        </Reveal>
       </div>
     </section>
   )
@@ -405,20 +373,22 @@ function DisclaimerSection() {
   ]
   return (
     <section className="border-b border-border bg-muted/50 dark:bg-muted/30">
-      <div className="mx-auto w-full max-w-4xl px-5 py-12 sm:px-6 md:px-8 md:py-16">
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm md:p-8">
-          <h2 className="text-balance text-base font-semibold leading-snug text-foreground md:text-lg">
-            How we work — and what we don&apos;t do
-          </h2>
-          <ul className="mt-4 space-y-3 text-sm leading-relaxed text-muted-foreground md:text-base">
-            {points.map((point) => (
-              <li key={point} className="flex items-start gap-2">
-                <Check className="mt-1 h-4 w-4 shrink-0 text-primary-readable" aria-hidden />
-                <span className="text-pretty">{point}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+      <div className="mx-auto w-full max-w-4xl px-5 py-16 sm:px-6 md:px-8 md:py-20">
+        <Reveal>
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm md:p-8">
+            <h2 className="text-balance text-base font-semibold leading-snug text-foreground md:text-lg">
+              How we work — and what we don&apos;t do
+            </h2>
+            <ul className="mt-4 space-y-3 text-sm leading-relaxed text-muted-foreground md:text-base">
+              {points.map((point) => (
+                <li key={point} className="flex items-start gap-2">
+                  <Check className="mt-1 h-4 w-4 shrink-0 text-primary-readable" aria-hidden />
+                  <span className="text-pretty">{point}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </Reveal>
       </div>
     </section>
   )
@@ -430,37 +400,40 @@ function FaqSection() {
       id="faq"
       className="border-b border-border bg-background"
     >
-      <div className="mx-auto w-full max-w-3xl px-5 py-16 sm:px-6 md:px-8 md:py-20">
-        <div className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-border bg-muted px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground sm:text-xs sm:tracking-[0.18em]">
-            FAQ
-          </span>
-          <h2 className="mt-4 text-balance text-2xl font-bold leading-tight tracking-tight text-foreground md:text-3xl">
-            Frequently asked questions
-          </h2>
-          <p className="mx-auto mt-3 max-w-xl text-pretty text-sm leading-relaxed text-muted-foreground md:text-base">
-            Everything you need to know before getting started.
-          </p>
-        </div>
-        <div className="mx-auto mt-10 flex max-w-2xl flex-col gap-3 md:mt-12">
-          {FAQ_ITEMS.map((item) => (
-            <details
-              key={item.question}
-              className="group rounded-2xl border border-border bg-card shadow-sm transition-colors open:border-primary/40 hover:border-primary/40"
-            >
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-2xl p-5 text-left text-sm font-semibold text-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary/40 md:p-6 md:text-base [&::-webkit-details-marker]:hidden">
-                <span className="text-balance">{item.question}</span>
-                <ChevronDown
-                  className="h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180 group-open:text-primary-readable"
-                  aria-hidden
-                />
-              </summary>
-              <div className="border-t border-border/60 px-5 pb-5 pt-4 md:px-6 md:pb-6 md:pt-5">
-                <p className="text-pretty text-sm leading-relaxed text-muted-foreground md:text-base">
-                  {item.answer}
-                </p>
-              </div>
-            </details>
+      <div className="mx-auto w-full max-w-3xl px-5 py-20 sm:px-6 md:px-8 md:py-24">
+        <Reveal>
+          <div className="mx-auto max-w-2xl text-center">
+            <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-border bg-muted px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground sm:text-xs sm:tracking-[0.18em]">
+              FAQ
+            </span>
+            <h2 className="mt-4 text-balance text-2xl font-bold leading-tight tracking-tight text-foreground md:text-3xl">
+              Frequently asked questions
+            </h2>
+            <p className="mx-auto mt-3 max-w-xl text-pretty text-sm leading-relaxed text-muted-foreground md:text-base">
+              Everything you need to know before getting started.
+            </p>
+          </div>
+        </Reveal>
+        <div className="mx-auto mt-12 flex max-w-2xl flex-col gap-3 md:mt-14">
+          {FAQ_ITEMS.map((item, index) => (
+            <Reveal key={item.question} delay={0.15 + index * 0.08} y={20}>
+              <details
+                className="group rounded-2xl border border-border bg-card shadow-sm transition-colors open:border-primary/40 hover:border-primary/40"
+              >
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-2xl p-5 text-left text-sm font-semibold text-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary/40 md:p-6 md:text-base [&::-webkit-details-marker]:hidden">
+                  <span className="text-balance">{item.question}</span>
+                  <ChevronDown
+                    className="h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180 group-open:text-primary-readable"
+                    aria-hidden
+                  />
+                </summary>
+                <div className="border-t border-border/60 px-5 pb-5 pt-4 md:px-6 md:pb-6 md:pt-5">
+                  <p className="text-pretty text-sm leading-relaxed text-muted-foreground md:text-base">
+                    {item.answer}
+                  </p>
+                </div>
+              </details>
+            </Reveal>
           ))}
         </div>
       </div>
@@ -478,29 +451,35 @@ function CtaSection() {
         className="pointer-events-none absolute inset-x-0 bottom-0 -z-0 h-[420px] bg-[radial-gradient(ellipse_at_bottom,_rgba(230,74,25,0.16),_transparent_65%)]"
         aria-hidden
       />
-      <div className="relative mx-auto w-full max-w-4xl px-5 py-16 text-center sm:px-6 md:px-8 md:py-24">
-        <h2 className="text-balance text-2xl font-black leading-tight tracking-tight text-foreground sm:text-3xl md:text-4xl">
-          Ready to land in Japan?
-        </h2>
-        <p className="mx-auto mt-4 max-w-2xl text-pretty text-sm leading-relaxed text-muted-foreground md:text-base">
-          Pick a plan and check out via Stripe — or message us first if you&apos;d
-          like to talk through your launch. We respond from Tokyo, in English.
-        </p>
-        <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <a
-            href="#pricing"
-            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 sm:w-auto"
-          >
-            Choose a plan
-            <ArrowRight className="h-4 w-4" aria-hidden />
-          </a>
-          <Link
-            href="/japan-entry/contact"
-            className="inline-flex h-11 w-full items-center justify-center rounded-md border border-border bg-background px-6 text-sm font-semibold text-foreground transition-colors hover:border-primary hover:bg-muted sm:w-auto"
-          >
-            Talk to us
-          </Link>
-        </div>
+      <div className="relative mx-auto w-full max-w-4xl px-5 py-20 text-center sm:px-6 md:px-8 md:py-28">
+        <Reveal>
+          <h2 className="text-balance text-2xl font-black leading-tight tracking-tight text-foreground sm:text-3xl md:text-4xl">
+            Ready to land in Japan?
+          </h2>
+        </Reveal>
+        <Reveal delay={0.15}>
+          <p className="mx-auto mt-4 max-w-2xl text-pretty text-sm leading-relaxed text-muted-foreground md:text-base">
+            Pick a plan and check out via Stripe — or message us first if you&apos;d
+            like to talk through your launch. We respond from Tokyo, in English.
+          </p>
+        </Reveal>
+        <Reveal delay={0.3}>
+          <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <a
+              href="#pricing"
+              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 sm:w-auto"
+            >
+              Choose a plan
+              <ArrowRight className="h-4 w-4" aria-hidden />
+            </a>
+            <Link
+              href="/japan-entry/contact"
+              className="inline-flex h-11 w-full items-center justify-center rounded-md border border-border bg-background px-6 text-sm font-semibold text-foreground transition-colors hover:border-primary hover:bg-muted sm:w-auto"
+            >
+              Talk to us
+            </Link>
+          </div>
+        </Reveal>
       </div>
     </section>
   )
