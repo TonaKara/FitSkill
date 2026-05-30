@@ -17,6 +17,8 @@ export const EMAIL_NOTIFICATION_TOPIC_KEYS = [
   "dispute_result",
   "account_notice",
   "inquiry_chat",
+  /** FromHere の自分のプロダクトに、自分以外のユーザーがコメントしたとき */
+  "fromhere_comment",
 ] as const
 
 export type EmailNotificationTopicKey = (typeof EMAIL_NOTIFICATION_TOPIC_KEYS)[number]
@@ -37,6 +39,7 @@ export const DEFAULT_EMAIL_NOTIFICATION_SETTINGS: EmailNotificationSettings = {
   dispute_result: true,
   account_notice: true,
   inquiry_chat: true,
+  fromhere_comment: true,
 }
 
 /** アカウント設定 UI 用ラベル（キー順） */
@@ -63,6 +66,11 @@ export const EMAIL_NOTIFICATION_TOPIC_ITEMS: {
     hint: "利用停止や出品のモデレーションなど",
   },
   { key: "inquiry_chat", label: "相談チャットの新着メッセージ" },
+  {
+    key: "fromhere_comment",
+    label: "FromHere のコメント通知",
+    hint: "自分のプロダクトに他のユーザーからコメントが付いたとき",
+  },
 ]
 
 function isRecord(value: unknown): value is Record<string, unknown> {

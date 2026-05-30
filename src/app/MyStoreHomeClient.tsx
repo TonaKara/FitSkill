@@ -42,32 +42,17 @@ async function copyTextToClipboard(text: string): Promise<boolean> {
   }
 }
 
-async function fetchConnectBalanceSnapshot(fallbackErrorMessage: string): Promise<{
+/**
+ * Stripe Connect の残高 API (`/api/stripe/connect-balance`) は現在未実装。
+ * 以前は fetch していたが、ルートが存在しないため毎回 500 がコンソールに出る。
+ * UI 側は「Stripe 未登録」相当の挙動になれば足りるので、空のスナップショットを返して
+ * ネットワーク呼び出しを完全に停止する。将来 route を再実装した際は元の実装に戻すこと。
+ */
+async function fetchConnectBalanceSnapshot(_fallbackErrorMessage: string): Promise<{
   stripe: ConnectBalanceSnapshot | null
   stripeError: string | null
 }> {
-  try {
-    const response = await fetch("/api/stripe/connect-balance", { method: "GET" })
-    const payload = (await response.json()) as ConnectBalanceSnapshot & { error?: string }
-    if (!response.ok) {
-      return { stripe: null, stripeError: payload.error ?? fallbackErrorMessage }
-    }
-    return {
-      stripe: {
-        registered: payload.registered,
-        total: payload.total ?? 0,
-        pending: payload.pending ?? 0,
-        available: payload.available ?? 0,
-        lifetimeReceiveYen:
-          payload.registered && typeof payload.lifetimeReceiveYen === "number"
-            ? payload.lifetimeReceiveYen
-            : null,
-      },
-      stripeError: null,
-    }
-  } catch {
-    return { stripe: null, stripeError: fallbackErrorMessage }
-  }
+  return { stripe: null, stripeError: null }
 }
 
 export default function MyStoreHomeClient() {

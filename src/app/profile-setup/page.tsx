@@ -103,6 +103,14 @@ export default function ProfileSetupPage() {
         router.replace("/login")
         return
       }
+      // 本体に必要な基本情報（誕生日）が未登録なら、その入力ページへ先に誘導する。
+      // FromHere 経由などで本体 signup フォームを通っていないユーザーが該当する。
+      const metadata = (data.user.user_metadata ?? {}) as Record<string, unknown>
+      const metaBirthday = typeof metadata.birthday === "string" ? metadata.birthday.trim() : ""
+      if (metaBirthday.length === 0) {
+        router.replace("/profile-setup/basic")
+        return
+      }
       clearSignupPendingVerificationEmail()
       clearSignupVerificationResent()
       setUserId(data.user.id)

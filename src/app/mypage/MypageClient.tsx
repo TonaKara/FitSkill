@@ -960,43 +960,19 @@ export default function MypageClient() {
     if (!userId || section !== "payout") {
       return
     }
-    /** Stripe 復帰の finalize 中は未確定のため残高 API を叩かない（404/エラー表示のちらつき防止） */
+    /** Stripe 復帰の finalize 中は未確定のため残高表示も止める（ちらつき防止） */
     if (stripeReturnParam === "return") {
       return
     }
-
-    let cancelled = false
-    const loadConnectBalance = async () => {
-      setConnectBalanceLoading(true)
-      setConnectBalanceError(null)
-      try {
-        const response = await fetch("/api/stripe/connect-balance", { method: "GET" })
-        const payload = (await response.json()) as ConnectBalanceResponse
-        if (cancelled) {
-          return
-        }
-        if (!response.ok) {
-          setConnectBalance(null)
-          setConnectBalanceError(payload.error ?? tToasts("balanceFetchFailed"))
-          return
-        }
-        setConnectBalance(payload)
-      } catch {
-        if (!cancelled) {
-          setConnectBalance(null)
-          setConnectBalanceError(tToasts("balanceFetchFailed"))
-        }
-      } finally {
-        if (!cancelled) {
-          setConnectBalanceLoading(false)
-        }
-      }
-    }
-
-    void loadConnectBalance()
-    return () => {
-      cancelled = true
-    }
+    /**
+     * Stripe Connect 残高 API (`/api/stripe/connect-balance`) は現在未実装。
+     * fetch すると 500 がコンソールに出続けるだけなので、UI 上は「未取得」のまま
+     * 描画させ、ネットワーク呼び出しは行わない。
+     * 将来 route が復活したら下の処理を `await fetch(...)` に戻す。
+     */
+    setConnectBalance(null)
+    setConnectBalanceError(null)
+    setConnectBalanceLoading(false)
   }, [userId, section, stripeReturnParam, isStripeRegistered, stripeConnectAccountId, stripeConnectChargesEnabled])
 
   const resolveStripeAccessToken = useCallback(async () => {

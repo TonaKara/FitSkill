@@ -74,7 +74,7 @@ export function InquiryInboxList({
             <Link
               href={threadHref(t.peer_id, t.last_origin_skill_id)}
               className={`flex gap-3 px-3 py-3 transition-colors md:px-4 ${
-                active ? "bg-red-950/40 ring-1 ring-inset ring-red-500/30" : "hover:bg-zinc-900/80"
+                active ? "bg-red-950/40 ring-1 ring-inset ring-red-500/30" : "hover:bg-orange-500/20"
               }`}
             >
               <ProfileAvatar

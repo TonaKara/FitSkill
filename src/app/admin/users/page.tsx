@@ -45,14 +45,14 @@ export default function AdminUsersPage() {
 
       <div className="space-y-3">
         <label className={adminUi.label} htmlFor="admin-user-search">
-          検索（ユーザーID・表示名）
+          検索（ユーザーID・表示名・ハンドル）
         </label>
         <Input
           id="admin-user-search"
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="ユーザーID または 表示名の一部で絞り込み"
+          placeholder="ID / 表示名 / 本体ハンドル(custom_id) / FromHere ハンドルの一部で絞り込み"
           className={adminUi.filterInput}
         />
       </div>

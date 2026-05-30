@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { cookies, headers } from "next/headers";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Zen_Maru_Gothic } from "next/font/google";
 import { ConsoleGuard } from "@/components/ConsoleGuard";
 import { AccessibilityModeSync } from "@/components/AccessibilityModeSync";
 import { AppShellLayout } from "@/components/layout/AppShellLayout";
@@ -47,6 +47,20 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+/**
+ * 「編集部セレクト」など、楽しげで柔らかな印象を出したい見出し用の丸ゴシック。
+ * 筑紫A丸ゴシック / キルゴに近い雰囲気を持つ Google Fonts の Zen Maru Gothic。
+ * 日本語グリフは Google Fonts 側で subsetting されないため `preload: false` で警告を抑止。
+ * `--font-zen-maru` を CSS 変数として公開し、Tailwind の任意値で適用する想定。
+ */
+const zenMaruGothic = Zen_Maru_Gothic({
+  variable: "--font-zen-maru",
+  weight: ["400", "500", "700", "900"],
+  subsets: ["latin"],
+  display: "swap",
+  preload: false,
 });
 
 const siteUrl = getCanonicalSiteUrl();
@@ -117,7 +131,7 @@ export default async function RootLayout({
     <html
       lang={localeToHtmlLang(initialLocale)}
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-[100svh] min-h-[100svh] antialiased md:h-full md:min-h-full`}
+      className={`${geistSans.variable} ${geistMono.variable} ${zenMaruGothic.variable} h-[100svh] min-h-[100svh] antialiased md:h-full md:min-h-full`}
     >
       <body className="flex h-[100svh] min-h-[100svh] flex-col overflow-hidden md:h-full md:min-h-full md:overflow-visible">
         <LocaleProvider initialLocale={initialLocale}>

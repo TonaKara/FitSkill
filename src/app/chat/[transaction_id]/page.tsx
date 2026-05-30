@@ -371,6 +371,7 @@ export default function ChatTransactionPage() {
   const tHeader = useTranslations("chat.header")
   const tPeer = useTranslations("chat.peer")
   const tList = useTranslations("chat.list")
+  const tSidebar = useTranslations("chat.sidebar")
   const locale = useLocale()
   const htmlLang = localeToHtmlLang(locale)
   const transactionId =
@@ -435,6 +436,7 @@ export default function ChatTransactionPage() {
   const [notice, setNotice] = useState<AppNotice | null>(null)
   const [myTransactionReview, setMyTransactionReview] = useState<TransactionReviewRow | null>(null)
   const [myTransactionReviewLoading, setMyTransactionReviewLoading] = useState(false)
+  const [skillTitle, setSkillTitle] = useState<string | null>(null)
 
   const listRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -659,6 +661,29 @@ export default function ChatTransactionPage() {
       void loadTransactionAndPeer()
     }
   }, [userId, transactionId, loadTransactionAndPeer])
+
+  useEffect(() => {
+    if (!transaction?.skill_id) {
+      setSkillTitle(null)
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      const { data } = await supabase
+        .from("skills")
+        .select("title")
+        .eq("id", transaction.skill_id)
+        .maybeSingle()
+      if (cancelled) {
+        return
+      }
+      const title = (data as { title?: string | null } | null)?.title ?? null
+      setSkillTitle(title && title.trim().length > 0 ? title.trim() : null)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [supabase, transaction?.skill_id])
 
   useEffect(() => {
     if (!transactionId || !userId || !transaction) {
@@ -949,6 +974,79 @@ export default function ChatTransactionPage() {
   }, [messages, myTransactionReview, myTransactionReviewLoading, transaction?.status])
 
   const otherName = otherProfile?.display_name?.trim() || tPeer("fallback")
+  const otherProfilePath = useMemo(() => {
+    if (!transaction) {
+      return null
+    }
+    const otherId = transaction.buyer_id === userId ? transaction.seller_id : transaction.buyer_id
+    return buildProfilePath(String(otherId), otherProfile?.custom_id ?? null)
+  }, [transaction, userId, otherProfile?.custom_id])
+
+  const currencyFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat(locale === "ja" ? "ja-JP" : "en-US", {
+        style: "currency",
+        currency: "JPY",
+        maximumFractionDigits: 0,
+      }),
+    [locale],
+  )
+
+  const formatDateTime = useCallback((iso: string | null) => {
+    if (!iso) {
+      return null
+    }
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) {
+      return null
+    }
+    const yyyy = d.getFullYear()
+    const mm = String(d.getMonth() + 1).padStart(2, "0")
+    const dd = String(d.getDate()).padStart(2, "0")
+    const hh = String(d.getHours()).padStart(2, "0")
+    const mi = String(d.getMinutes()).padStart(2, "0")
+    return `${yyyy}/${mm}/${dd} ${hh}:${mi}`
+  }, [])
+
+  const statusLabel = useMemo(() => {
+    switch (transaction?.status) {
+      case "active":
+        return tSidebar("statusActive")
+      case "pending":
+        return tSidebar("statusPending")
+      case "in_progress":
+        return tSidebar("statusInProgress")
+      case "approval_pending":
+        return tSidebar("statusApprovalPending")
+      case "disputed":
+        return tSidebar("statusDisputed")
+      case "completed":
+        return tSidebar("statusCompleted")
+      case "canceled":
+        return tSidebar("statusCanceled")
+      case "refunded":
+        return tSidebar("statusRefunded")
+      default:
+        return tSidebar("statusUnknown")
+    }
+  }, [transaction?.status, tSidebar])
+
+  const statusBadgeClass = useMemo(() => {
+    switch (transaction?.status) {
+      case "approval_pending":
+        return "border-amber-500/40 bg-amber-500/15 text-amber-700 dark:text-amber-200"
+      case "disputed":
+        return "border-red-500/50 bg-red-500/15 text-red-700 dark:text-red-200"
+      case "completed":
+        return "border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-200"
+      case "canceled":
+      case "refunded":
+        return "border-zinc-500/40 bg-zinc-500/15 text-zinc-700 dark:text-zinc-200"
+      default:
+        return "border-blue-500/40 bg-blue-500/15 text-blue-700 dark:text-blue-200"
+    }
+  }, [transaction?.status])
+
   const isSeller = Boolean(userId && transaction && transaction.seller_id === userId)
   const isBuyer = Boolean(userId && transaction && transaction.buyer_id === userId)
   const isRatingTerminal =
@@ -1473,7 +1571,7 @@ export default function ChatTransactionPage() {
 
   if (authLoading || !transactionId) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black text-muted-foreground">
+      <div className="flex min-h-[calc(100dvh-4rem)] items-center justify-center bg-background text-muted-foreground">
         <Loader2 className="h-8 w-8 animate-spin text-red-500" aria-hidden />
       </div>
     )
@@ -1482,7 +1580,7 @@ export default function ChatTransactionPage() {
   if (!userId) {
     const redirectTo = transactionId ? `/login?redirect=${encodeURIComponent(chatPathWithQuery)}` : "/login"
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-black px-4 text-foreground">
+      <div className="flex min-h-[calc(100dvh-4rem)] flex-col items-center justify-center gap-4 bg-background px-4 text-foreground">
         <p className="text-center text-sm text-muted-foreground">{t("loginRequired")}</p>
         <Button
           type="button"
@@ -1497,7 +1595,7 @@ export default function ChatTransactionPage() {
 
   if (txLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black text-muted-foreground">
+      <div className="flex min-h-[calc(100dvh-4rem)] items-center justify-center bg-background text-muted-foreground">
         <Loader2 className="h-8 w-8 animate-spin text-red-500" aria-hidden />
         <span className="ml-2 text-sm">{t("txLoading")}</span>
       </div>
@@ -1506,7 +1604,7 @@ export default function ChatTransactionPage() {
 
   if (loadError || !transaction) {
     return (
-      <div className="min-h-screen bg-black px-4 py-10 text-foreground">
+      <div className="min-h-[calc(100dvh-4rem)] bg-background px-4 py-10 text-foreground">
         <div className="mx-auto max-w-2xl">
           <Button
             type="button"
@@ -1527,11 +1625,271 @@ export default function ChatTransactionPage() {
 
   return (
     <div
-      className="flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground"
+      className="flex h-[calc(100dvh-4rem)] flex-col overflow-hidden bg-background text-foreground lg:flex-row"
       onPointerDownCapture={dismissDisputePickerIfOutside}
     >
       {notice ? <NotificationToast notice={notice} onClose={() => setNotice(null)} /> : null}
-      <header className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur">
+
+      <aside className="hidden lg:flex lg:h-full lg:w-80 lg:shrink-0 lg:flex-col lg:overflow-y-auto lg:border-r lg:border-border lg:bg-card/40 xl:w-96">
+        <div className="border-b border-border px-5 py-4">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="-ml-2 h-8 px-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+            onClick={handleHeaderBack}
+          >
+            <ArrowLeft className="mr-1.5 h-4 w-4" />
+            {t("backLabel")}
+          </Button>
+          <h2 className="mt-2 text-base font-semibold text-foreground">{tSidebar("overviewHeading")}</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">{tHeader("txChat")}</p>
+        </div>
+
+        <div className="flex flex-1 flex-col gap-5 px-5 py-5">
+          <section>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {tSidebar("peerHeading")}
+            </p>
+            <div className="flex items-center gap-3">
+              {otherProfilePath ? (
+                <Link href={otherProfilePath} className="shrink-0" aria-label={tSidebar("viewProfile")}>
+                  <ProfileAvatar
+                    avatarUrl={otherProfile?.avatar_url ?? null}
+                    alt={otherName}
+                    className="h-14 w-14 border border-border"
+                    sizes="56px"
+                  />
+                </Link>
+              ) : (
+                <ProfileAvatar
+                  avatarUrl={otherProfile?.avatar_url ?? null}
+                  alt={otherName}
+                  className="h-14 w-14 border border-border"
+                  sizes="56px"
+                />
+              )}
+              <div className="min-w-0">
+                <p className="truncate text-base font-semibold text-foreground">{otherName}</p>
+                {otherProfilePath ? (
+                  <Link
+                    href={otherProfilePath}
+                    className="text-xs text-red-500 hover:text-red-400 hover:underline"
+                  >
+                    {tSidebar("viewProfile")}
+                  </Link>
+                ) : null}
+              </div>
+            </div>
+          </section>
+
+          <section className="space-y-3 rounded-xl border border-border bg-background/60 p-4">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {tSidebar("skillLabel")}
+              </p>
+              <p className="mt-1 line-clamp-2 text-sm font-medium text-foreground">
+                {skillTitle ?? tSidebar("skillLoading")}
+              </p>
+              {transaction.skill_id ? (
+                <Link
+                  href={`/skills/${transaction.skill_id}`}
+                  className="mt-1 inline-block text-xs text-red-500 hover:text-red-400 hover:underline"
+                >
+                  {tSidebar("openSkill")}
+                </Link>
+              ) : null}
+            </div>
+
+            <div className="flex items-baseline justify-between gap-2 border-t border-border pt-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {tSidebar("priceLabel")}
+              </p>
+              <p className="text-sm font-semibold tabular-nums text-foreground">
+                {currencyFormatter.format(Number(transaction.price ?? 0))}
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {tSidebar("statusLabel")}
+              </p>
+              <span className={cn("rounded-full border px-2.5 py-0.5 text-xs font-medium", statusBadgeClass)}>
+                {statusLabel}
+              </span>
+            </div>
+          </section>
+
+          {transaction.applied_at || transaction.completed_at || transaction.disputed_at ? (
+            <section>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {tSidebar("timelineHeading")}
+              </p>
+              <dl className="space-y-1.5 text-xs">
+                {transaction.applied_at ? (
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-muted-foreground">{tSidebar("appliedAt")}</dt>
+                    <dd className="text-right tabular-nums text-foreground">
+                      {formatDateTime(transaction.applied_at)}
+                    </dd>
+                  </div>
+                ) : null}
+                {transaction.applied_at && isApprovalPending ? (
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-muted-foreground">{tSidebar("autoCompleteAt")}</dt>
+                    <dd className="text-right tabular-nums text-foreground">
+                      {formatAppliedDeadline(transaction.applied_at)}
+                    </dd>
+                  </div>
+                ) : null}
+                {transaction.disputed_at ? (
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-muted-foreground">{tSidebar("disputedAt")}</dt>
+                    <dd className="text-right tabular-nums text-foreground">
+                      {formatDateTime(transaction.disputed_at)}
+                    </dd>
+                  </div>
+                ) : null}
+                {transaction.completed_at ? (
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-muted-foreground">{tSidebar("completedAt")}</dt>
+                    <dd className="text-right tabular-nums text-foreground">
+                      {formatDateTime(transaction.completed_at)}
+                    </dd>
+                  </div>
+                ) : null}
+              </dl>
+            </section>
+          ) : null}
+
+          {(isSeller && !isDisputed) || (isBuyer && isApprovalPending) ? (
+            <section>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {tSidebar("actionsHeading")}
+              </p>
+              {isSeller && !isDisputed ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={
+                    isClosed ||
+                    completing ||
+                    isApprovalPending ||
+                    !SELLER_APPLY_COMPLETION_STATUSES.has(transaction.status)
+                  }
+                  onClick={() => setRequestAgreementOpen(true)}
+                  className="w-full justify-center border-amber-600/50 bg-amber-50 text-amber-900 hover:border-amber-500 hover:bg-amber-100 dark:border-amber-600/60 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/70"
+                >
+                  {completing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {tAct("processing")}
+                    </>
+                  ) : isApprovalPending ? (
+                    tAct("applyPending")
+                  ) : isCanceledOrRefunded ? (
+                    tAct("applyCanceled")
+                  ) : isCompleted ? (
+                    tAct("applyClosed")
+                  ) : (
+                    tAct("applyCta")
+                  )}
+                </Button>
+              ) : null}
+              {isBuyer && isApprovalPending ? (
+                <div className="space-y-2">
+                  <p className="text-xs leading-relaxed text-amber-700 dark:text-amber-200/90">
+                    {tApprov("intro")}
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={completing}
+                    onClick={() => setApproveAgreementOpen(true)}
+                    className="w-full justify-center bg-emerald-600 text-white hover:bg-emerald-500"
+                  >
+                    {tAct("approveCompletion")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={completing}
+                    onClick={() => setShowDisputeReasonPicker((prev) => !prev)}
+                    className="w-full justify-center border-red-500/50 bg-red-50 text-red-800 hover:bg-red-100 dark:border-red-500/50 dark:bg-red-950/30 dark:text-red-100 dark:hover:bg-red-950/60"
+                  >
+                    {tAct("openDispute")}
+                  </Button>
+                </div>
+              ) : null}
+              {completeError && !showDisputeReasonPicker ? (
+                <p className="mt-2 text-xs text-red-400">{completeError}</p>
+              ) : null}
+            </section>
+          ) : null}
+
+          {isBannedUser || isCanceledOrRefunded || isCompleted || isDisputed ? (
+            <section>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {tSidebar("noticesHeading")}
+              </p>
+              {isBannedUser ? (
+                <p className="text-xs leading-relaxed text-amber-800 dark:text-amber-200">{tBanner("banned")}</p>
+              ) : isCanceledOrRefunded ? (
+                <p className="text-xs leading-relaxed text-muted-foreground">{tBanner("canceled")}</p>
+              ) : isCompleted ? (
+                <p className="text-xs leading-relaxed text-muted-foreground">{tBanner("closed")}</p>
+              ) : isDisputed ? (
+                <div className="space-y-2">
+                  <div className="rounded-md border border-amber-500/30 bg-amber-50 px-3 py-2 text-xs leading-snug text-amber-950 dark:bg-amber-950/35 dark:text-amber-50/95">
+                    {isBuyer
+                      ? tBanner("disputedBuyer")
+                      : isSeller
+                        ? tBanner("disputedSeller")
+                        : tBanner("disputedBuyer")}
+                  </div>
+                  {canViewDisputeSubmission ? (
+                    <div className="space-y-2 rounded-md border border-border bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                      {transaction.disputed_reason ? (
+                        <p>
+                          <span className="text-muted-foreground">{tDispSub("reasonLabel")}</span>{" "}
+                          {(() => {
+                            const key = DISPUTE_REASON_VALUE_TO_KEY[transaction.disputed_reason ?? ""]
+                            return key ? tDispReasons(key) : transaction.disputed_reason
+                          })()}
+                        </p>
+                      ) : null}
+                      {transaction.disputed_reason_detail ? (
+                        <p className="whitespace-pre-wrap">
+                          <span className="text-muted-foreground">{tDispSub("detailLabel")}</span>{" "}
+                          {transaction.disputed_reason_detail}
+                        </p>
+                      ) : null}
+                      {transaction.disputed_evidence_url?.trim() ? (
+                        <DisputeEvidenceImage
+                          pathOrUrl={transaction.disputed_evidence_url}
+                          alt={tDispSub("evidenceAlt")}
+                          className="mt-1"
+                          chatThumbnail
+                        />
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+
+          <div className="mt-auto border-t border-border pt-3 text-[11px] text-muted-foreground">
+            <span>{tSidebar("transactionIdLabel")}: </span>
+            <span className="font-mono text-foreground">{String(transaction.id)}</span>
+          </div>
+        </div>
+      </aside>
+
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <header className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur lg:hidden">
         <div className="mx-auto flex max-w-2xl flex-col gap-3 px-4 py-3">
           <div className="flex items-center gap-3">
             <Button
@@ -1680,11 +2038,47 @@ export default function ChatTransactionPage() {
         </div>
       </header>
 
+      <header className="sticky top-0 z-10 hidden border-b border-border bg-card/95 backdrop-blur lg:flex lg:items-center lg:justify-between lg:gap-4 lg:px-6 lg:py-4">
+        <div className="flex min-w-0 items-center gap-3">
+          {otherProfilePath ? (
+            <Link href={otherProfilePath} className="shrink-0" aria-label={tSidebar("viewProfile")}>
+              <ProfileAvatar
+                avatarUrl={otherProfile?.avatar_url ?? null}
+                alt={otherName}
+                className="h-10 w-10 border border-border"
+                sizes="40px"
+              />
+            </Link>
+          ) : (
+            <ProfileAvatar
+              avatarUrl={otherProfile?.avatar_url ?? null}
+              alt={otherName}
+              className="h-10 w-10 border border-border"
+              sizes="40px"
+            />
+          )}
+          <div className="min-w-0">
+            <p className="truncate text-base font-semibold text-foreground">{otherName}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {skillTitle ?? tHeader("txChat")}
+            </p>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          <span className="hidden text-xs tabular-nums text-muted-foreground xl:inline">
+            {currencyFormatter.format(Number(transaction.price ?? 0))}
+          </span>
+          <span className={cn("rounded-full border px-2.5 py-0.5 text-xs font-medium", statusBadgeClass)}>
+            {statusLabel}
+          </span>
+        </div>
+      </header>
+
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
       <div
         ref={listRef}
         onScroll={handleMessageListScroll}
-        className="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col gap-3 overflow-y-auto px-4 py-4"
+        className="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col gap-3 overflow-y-auto px-4 py-4 lg:max-w-3xl lg:px-6 xl:max-w-4xl"
       >
         {messagesLoading ? (
           <div className="flex flex-1 items-center justify-center py-12">
@@ -1852,7 +2246,7 @@ export default function ChatTransactionPage() {
         <form
           ref={composerFormRef}
           onSubmit={(e) => void handleSend(e)}
-          className="mx-auto flex max-w-2xl flex-col gap-2 px-4 py-3"
+          className="mx-auto flex max-w-2xl flex-col gap-2 px-4 py-3 lg:max-w-3xl lg:px-6 xl:max-w-4xl"
         >
           {file ? (
             <div className="relative overflow-hidden rounded-lg border border-border bg-muted/40 p-2">
@@ -1964,7 +2358,11 @@ export default function ChatTransactionPage() {
             )}
           </p>
         </form>
-        {sendError ? <p className="mx-auto max-w-2xl px-4 pb-2 text-center text-xs text-red-400">{sendError}</p> : null}
+        {sendError ? (
+          <p className="mx-auto max-w-2xl px-4 pb-2 text-center text-xs text-red-400 lg:max-w-3xl lg:px-6 xl:max-w-4xl">
+            {sendError}
+          </p>
+        ) : null}
       </footer>
 
       {showDisputeReasonPicker && isBuyer && isApprovalPending ? (
@@ -2120,6 +2518,7 @@ export default function ChatTransactionPage() {
         </>
       ) : null}
 
+      </div>
       </div>
 
       {isSeller || isBuyer ? (
