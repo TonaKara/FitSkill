@@ -34,7 +34,7 @@ import type { HomeData, HomeProduct } from "@/fromhere/_data"
  */
 import { HOME_RANKING_THRESHOLD } from "@/fromhere/_home-config"
 import type { AdminReviewListItem } from "@/fromhere/_admin-reviews-data"
-import { ReviewsCarousel } from "@/fromhere/_reviews-carousel"
+import { MobileReviewsRotator, ReviewsCarousel } from "@/fromhere/_reviews-carousel"
 import {
   type LoginStreakBadgeId,
   getNextLoginStreakBadge,
@@ -511,21 +511,44 @@ export function FromHerePage({
       {/* ----- ヘッダー下フィルタ。検索窓を大きくし、期間/並べ替えは廃止 ----- */}
       <section className="sticky top-16 z-20 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="mx-auto w-full max-w-7xl px-4 py-3 md:px-8">
-          <div className="relative w-full">
-            <Search
-              className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground"
-              aria-hidden
-            />
-            <Input
-              type="search"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder={tFilters("searchPlaceholder")}
-              className="h-12 w-full border-border bg-background pl-11 pr-4 text-base shadow-sm focus-visible:ring-2 focus-visible:ring-primary"
-            />
+          {/**
+           * スマホ (md 未満): 検索バーの右にネイティブ `<select>` を配置してカテゴリを
+           * 1 タップで切り替えられるコンパクト UI に。
+           * デスクトップ (md 以上): 検索バー下に従来の横スクロール ピル UI を表示する。
+           */}
+          <div className="flex w-full items-stretch gap-2">
+            <div className="relative min-w-0 flex-1">
+              <Search
+                className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground"
+                aria-hidden
+              />
+              <Input
+                type="search"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder={tFilters("searchPlaceholder")}
+                className="h-12 w-full border-border bg-background pl-11 pr-4 text-base shadow-sm focus-visible:ring-2 focus-visible:ring-primary"
+              />
+            </div>
+            {/* スマホ専用カテゴリピッカー (md 以上では下のピル UI を使うため非表示) */}
+            <select
+              value={category}
+              onChange={(e) =>
+                commitFilters({ category: e.target.value as FromHereCategory | "all" })
+              }
+              aria-label={tFilters("categoryHeading")}
+              className="md:hidden h-12 shrink-0 rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              {CATEGORIES.map((c) => (
+                <option key={c.key} value={c.key}>
+                  {tFilters(c.i18nKey)}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div className="mt-3 -mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 md:-mx-8 md:px-8">
+          {/* md 以上のみ: 横スクロールのピル形式カテゴリ一覧 */}
+          <div className="mt-3 -mx-4 hidden gap-1.5 overflow-x-auto px-4 pb-1 md:-mx-8 md:flex md:px-8">
             {CATEGORIES.map((c) => {
               const active = category === c.key
               return (
@@ -549,6 +572,28 @@ export function FromHerePage({
           </div>
         </div>
       </section>
+
+      {/**
+       * スマホ専用: 「編集部セレクト」を検索窓直下に配置する。
+       * lg 以上ではサイドバーの SidebarCard で同じ内容を表示するため、ここでは非表示。
+       * - 2 件以上のときは `MobileReviewsRotator` が 1 件ずつ横スライドで切り替える。
+       * - 表示件数は最大 15 件、切替間隔はデスクトップ版と同じ 3000ms。
+       */}
+      {initialReviews.length > 0 ? (
+        <section className="border-b border-border bg-background lg:hidden">
+          <div className="mx-auto w-full max-w-7xl px-4 py-3 md:px-8">
+            <header className="mb-2">
+              <h2 className="text-lg font-bold text-foreground md:text-xl">
+                {tSidebar("reviewHeading")}
+              </h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {tSidebar("reviewSubheading")}
+              </p>
+            </header>
+            <MobileReviewsRotator reviews={initialReviews} />
+          </div>
+        </section>
+      ) : null}
 
       <div className="mx-auto w-full max-w-7xl px-4 pt-6 md:px-8">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -606,26 +651,27 @@ export function FromHerePage({
           </div>
 
           <aside className="space-y-5 lg:sticky lg:top-[10.5rem] lg:self-start">
-            <SidebarCard
-              heading={tSidebar("reviewHeading")}
-              hint={tSidebar("reviewSubheading")}
-              /**
-               * 「編集部セレクト」(5 文字) を単色 + 丸ゴシック (Zen Maru Gothic) で
-               * 柔らかく楽しげに見せつつ大きく目立たせる。
-               * - `font-[family-name:var(--font-zen-maru)]` で layout.tsx 側で読み込んだ
-               *   Zen Maru Gothic を Tailwind の任意値経由で適用
-               * - `font-medium` (500) で控えめにわずかな太みを与える。
-               *   SidebarCard 既定の `font-bold` (700) を上書きするため明示指定。
-               * - `tracking-tight` で字間を引き締めて存在感を出す
-               * - lg ではサイドバー幅 320px に収まる範囲で text-3xl (30px) と大胆に
-               * サブテキスト (`hint`) は `mt-2` で見出しとくっつかないように間隔を確保し、
-               * SidebarCard 既定の muted スタイルで控えめに添える。
-               */
-              headingClassName="font-[family-name:var(--font-zen-maru),system-ui] font-medium tracking-tight text-2xl md:text-3xl lg:text-3xl"
-              hintClassName="mt-2 whitespace-normal leading-snug text-muted-foreground"
-            >
-              <ReviewsCarousel reviews={initialReviews} isAdmin={isAdmin} />
-            </SidebarCard>
+            {/**
+             * サイドバーの「編集部セレクト」は lg 以上専用。
+             * スマホでは検索窓直下の `MobileReviewsRotator` が同じ内容を横スライドで
+             * 表示するため、サイドバー側は `hidden lg:block` で隠して二重表示を防ぐ。
+             */}
+            <div className="hidden lg:block">
+              <SidebarCard
+                heading={tSidebar("reviewHeading")}
+                hint={tSidebar("reviewSubheading")}
+                /**
+                 * 「編集部セレクト」見出しは ProductSection (「今月のトッププロダクト」等) の
+                 * 見出しと完全に揃える: `text-lg font-bold text-foreground md:text-xl`。
+                 * フォントもサイト既定の Geist Sans。
+                 * サブテキスト (`hint`) は `mt-2` で見出しとの間隔を確保。
+                 */
+                headingClassName="text-lg font-bold text-foreground md:text-xl"
+                hintClassName="mt-2 whitespace-normal leading-snug text-muted-foreground"
+              >
+                <ReviewsCarousel reviews={initialReviews} isAdmin={isAdmin} />
+              </SidebarCard>
+            </div>
 
             <SidebarCard
               icon={<Lightbulb className="h-4 w-4" aria-hidden />}

@@ -145,7 +145,12 @@ export function ReviewsCarousel({
   )
 }
 
-function ReviewCard({ review }: { review: AdminReviewListItem }) {
+/**
+ * 個別のレビューカード。
+ * - デスクトップ版 `ReviewsCarousel` とスマホ版 `MobileReviewsRotator` の両方から
+ *   再利用するため export している。
+ */
+export function ReviewCard({ review }: { review: AdminReviewListItem }) {
   return (
     <Link
       href={`/fromhere/reviews/${review.slug}`}
@@ -179,5 +184,100 @@ function ReviewCard({ review }: { review: AdminReviewListItem }) {
         </p>
       </div>
     </Link>
+  )
+}
+
+type MobileReviewsRotatorProps = {
+  reviews: AdminReviewListItem[]
+  /** 自動切替の間隔 ms。デスクトップ版と揃えて既定 3000ms。 */
+  intervalMs?: number
+  /** 表示する最大件数（既定 15）。 */
+  maxItems?: number
+}
+
+/**
+ * スマホ向けの「編集部セレクト」横スライドカルーセル。
+ *
+ * 仕様:
+ * - 1 件ずつ表示し、`intervalMs` (既定 3000ms) ごとに右から左へスライドする。
+ * - 2 件以上のときだけ自動切替を行う。1 件のときは固定表示。
+ * - 表示対象は最大 `maxItems` (既定 15) 件まで。
+ * - `translate-x` + `transition` の純 CSS アニメーションで実装し、JS 計算は index 管理だけ。
+ * - タップ中（ポインタがホバー / フォーカス）は一時停止して、ユーザーが目で追える余裕を残す。
+ * - インジケータドットを最大 15 個まで表示。10 件超は密度が上がるので幅を細めに調整。
+ *
+ * デスクトップ版 (`ReviewsCarousel`) との違い:
+ * - こちらは 1 件横スライド、向こうは 5 件 1 ページ縦スライド。
+ * - 共通の `ReviewCard` を再利用するため、見た目の一貫性は保たれる。
+ */
+export function MobileReviewsRotator({
+  reviews,
+  intervalMs = 3000,
+  maxItems = 15,
+}: MobileReviewsRotatorProps) {
+  const visible = reviews.slice(0, maxItems)
+  const [idx, setIdx] = useState(0)
+  const [paused, setPaused] = useState(false)
+
+  useEffect(() => {
+    if (visible.length <= 1 || paused) return
+    const id = window.setInterval(() => {
+      setIdx((prev) => (prev + 1) % visible.length)
+    }, intervalMs)
+    return () => window.clearInterval(id)
+  }, [visible.length, paused, intervalMs])
+
+  /** reviews 数が変わって表示中 index が範囲外になった場合の補正 */
+  useEffect(() => {
+    if (idx >= visible.length && visible.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 範囲外 index を即時補正
+      setIdx(0)
+    }
+  }, [visible.length, idx])
+
+  if (visible.length === 0) {
+    return null
+  }
+
+  return (
+    <div
+      className="w-full"
+      onPointerEnter={() => setPaused(true)}
+      onPointerLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+      aria-live="polite"
+    >
+      <div className="overflow-hidden">
+        <ul
+          className="flex transition-transform duration-500 ease-out"
+          style={{ transform: `translateX(-${idx * 100}%)` }}
+        >
+          {visible.map((review) => (
+            <li
+              key={review.id}
+              className="w-full shrink-0"
+              aria-hidden={visible[idx]?.id !== review.id}
+            >
+              <ReviewCard review={review} />
+            </li>
+          ))}
+        </ul>
+      </div>
+      {visible.length > 1 ? (
+        <div className="mt-2 flex flex-wrap items-center justify-center gap-1">
+          {visible.map((_, i) => (
+            <span
+              key={i}
+              aria-current={i === idx ? "true" : undefined}
+              className={cn(
+                "h-1.5 rounded-full transition-all",
+                i === idx ? "w-5 bg-primary" : "w-1.5 bg-muted-foreground/40",
+              )}
+            />
+          ))}
+        </div>
+      ) : null}
+    </div>
   )
 }
