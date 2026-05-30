@@ -5,6 +5,9 @@ import { ArrowLeft, ChevronDown } from "lucide-react"
 import { fetchAllPublishedAdminReviewsWithBody } from "@/fromhere/_admin-reviews-data"
 import { getDictionary, lookupMessage } from "@/lib/i18n/dictionaries"
 import { getServerLocale } from "@/lib/i18n/server-detect"
+import { getSiteUrl } from "@/lib/site-seo"
+
+const siteBase = getSiteUrl().replace(/\/$/, "")
 
 /**
  * /fromhere/reviews — 編集部によるレビューの一覧ページ。
@@ -26,19 +29,32 @@ export async function generateMetadata(): Promise<Metadata> {
   const dict = getDictionary(locale)
   const title = lookupMessage(dict, "fromhere.reviewsIndex.metaTitle")
   const description = lookupMessage(dict, "fromhere.reviewsIndex.metaDescription")
+  /**
+   * OGP / Twitter Card 画像は本体トップ (`/`) と完全に同じ `public/og-home.png` を
+   * 絶対 URL で指定する。クローラ側でも画像 URL がトップと一致するので、
+   * キャッシュも共有されシェア時の見た目が完全に揃う。
+   */
+  const ogImage = {
+    url: `${siteBase}/og-home.png`,
+    width: 1200,
+    height: 630,
+    alt: title,
+  } as const
   return {
     title,
     description,
     alternates: { canonical: "/fromhere/reviews" },
     openGraph: {
-      url: "/fromhere/reviews",
+      url: `${siteBase}/fromhere/reviews`,
       title,
       description,
+      images: [ogImage],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
+      images: [ogImage.url],
     },
   }
 }

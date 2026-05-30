@@ -51,18 +51,30 @@ async function getSupabase() {
 }
 
 /** ----------------------------------------------------------
- *  最新の公開済みレビューを N 件取得（ホーム用）
+ *  最新の公開済みレビューを N 件取得（ホーム用 = 「編集部セレクト」表示）
+ *
+ *  - **アイコン画像なし (iconUrl が解決できない)** のレビューはホームの
+ *    「編集部セレクト」枠から除外する。画像がないと一覧カードの見栄えが崩れ、
+ *    また連続スクロールアニメーションでの存在感が弱いため UX 上 hide する判断。
+ *    （一覧ページ `/fromhere/reviews` 側 = アコーディオン UI では引き続き表示する）
+ *  - 画像なしレビューが混ざる可能性に備え、内部の fetch limit は要求件数の倍程度に
+ *    広げ、JS 側で filter してから先頭 `limit` 件を返す。
  * ---------------------------------------------------------- */
 export async function fetchLatestPublishedAdminReviews(
   limit = ADMIN_REVIEW_HOME_LIMIT,
 ): Promise<AdminReviewListItem[]> {
   const supabase = await getSupabase()
+  /**
+   * 画像なしを除外した後でも要求件数を満たせるように、DB からは少し余分に取得する。
+   * 200 件は `fetchAllPublishedAdminReviewsWithBody` と揃えた上限で十分。
+   */
+  const fetchLimit = Math.min(Math.max(limit * 3, limit + 20), 200)
   const { data, error } = await supabase
     .from("newvibes_admin_reviews")
     .select("id, slug, title, summary, icon_path, icon_url, status, published_at, created_at, updated_at")
     .eq("status", "published")
     .order("published_at", { ascending: false, nullsFirst: false })
-    .limit(limit)
+    .limit(fetchLimit)
   if (error) {
     console.warn(
       "[fetchLatestPublishedAdminReviews] failed",
@@ -70,7 +82,10 @@ export async function fetchLatestPublishedAdminReviews(
     )
     return []
   }
-  return (data ?? []).map(mapRowToListItem)
+  return (data ?? [])
+    .map(mapRowToListItem)
+    .filter((row) => typeof row.iconUrl === "string" && row.iconUrl.length > 0)
+    .slice(0, limit)
 }
 
 /** ----------------------------------------------------------
