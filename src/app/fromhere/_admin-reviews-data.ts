@@ -98,6 +98,32 @@ export async function fetchPublishedAdminReviewBySlug(
 }
 
 /** ----------------------------------------------------------
+ *  公開済みレビューを body 込みで全件取得（一覧ページ用）
+ *  - 並びは `published_at desc`
+ *  - 件数は最大 200 件 (アコーディオン UI で一覧表示する想定。
+ *    現実的にこれを超える運用は想定していないため十分なリミット)
+ * ---------------------------------------------------------- */
+export async function fetchAllPublishedAdminReviewsWithBody(): Promise<AdminReviewDetail[]> {
+  const supabase = await getSupabase()
+  const { data, error } = await supabase
+    .from("newvibes_admin_reviews")
+    .select(
+      "id, slug, title, summary, body, icon_path, icon_url, status, published_at, created_at, updated_at",
+    )
+    .eq("status", "published")
+    .order("published_at", { ascending: false, nullsFirst: false })
+    .limit(200)
+  if (error) {
+    console.warn(
+      "[fetchAllPublishedAdminReviewsWithBody] failed",
+      error.message ?? error,
+    )
+    return []
+  }
+  return (data ?? []).map(mapRowToDetail)
+}
+
+/** ----------------------------------------------------------
  *  管理一覧（draft 含む）を全件返す
  *  - 並びは `created_at desc`
  *  - 件数は最大 200 件（運営用なのでハードリミットで十分）

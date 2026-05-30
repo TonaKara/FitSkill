@@ -1359,6 +1359,7 @@
     "japanEntry": "Japan Entry Support (English)",
     "boardTitle": "Boards",
     "fromhere": "FromHere",
+    "fromhereReviews": "Editor's reviews",
     "socialTitle": "Official SNS",
     "officialX": "GritVib Official X",
     "officialInstagram": "GritVib Official Instagram",
@@ -1458,6 +1459,15 @@
       "metaTitle": "{title} — Editor's review | FromHere",
       "back": "← Back to home",
       "officialBadge": "Editor's pick"
+    },
+    "reviewsIndex": {
+      "metaTitle": "Editor's reviews — FromHere",
+      "metaDescription": "All editor-curated product reviews. Tap a review to expand and read the full body in place.",
+      "title": "Editor's reviews",
+      "subtitle": "All product reviews curated by the editorial team!",
+      "empty": "No published reviews yet.",
+      "back": "← Back to home",
+      "count": "{count} total"
     },
     "adminReviews": {
       "title": "Editor's reviews",

@@ -222,28 +222,64 @@ export function MobileReviewsRotator({
   maxItems = 15,
 }: MobileReviewsRotatorProps) {
   const visible = reviews.slice(0, maxItems)
+  /**
+   * シームレスループのため、`visible` の末尾に **先頭要素のコピー** を 1 つだけ追加した
+   * リストでレンダリングする。`idx` が `visible.length` (= 末尾コピー) に到達した瞬間に
+   * transition を一旦無効化して `idx=0` にジャンプ復帰させることで、
+   *   ... → 最後の要素 → (見た目同じ) 先頭コピー → 先頭 (実体) → ...
+   * という連続スクロールが成立し、「右に戻る」動きが画面に現れなくなる。
+   */
+  const slides = visible.length > 0 ? [...visible, visible[0]!] : []
   const [idx, setIdx] = useState(0)
   const [paused, setPaused] = useState(false)
+  /** transition を一時的に無効化したいときだけ false にする */
+  const [animEnabled, setAnimEnabled] = useState(true)
 
   useEffect(() => {
     if (visible.length <= 1 || paused) return
     const id = window.setInterval(() => {
-      setIdx((prev) => (prev + 1) % visible.length)
+      setIdx((prev) => prev + 1)
     }, intervalMs)
     return () => window.clearInterval(id)
   }, [visible.length, paused, intervalMs])
 
   /** reviews 数が変わって表示中 index が範囲外になった場合の補正 */
   useEffect(() => {
-    if (idx >= visible.length && visible.length > 0) {
+    if (idx > visible.length && visible.length > 0) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- 範囲外 index を即時補正
       setIdx(0)
     }
   }, [visible.length, idx])
 
+  /**
+   * シームレスループのジャンプ復帰処理。
+   * - `idx === visible.length` (= 末尾コピーの位置) までスライドし終わった瞬間に呼ばれる。
+   * - 一旦 transition を無効化して `idx=0` (実体先頭) に戻し、次フレームで transition を
+   *   再有効化することで「右に戻る」動きを見せずに無限ループする。
+   */
+  const handleTransitionEnd = () => {
+    if (idx === visible.length && visible.length > 1) {
+      setAnimEnabled(false)
+      setIdx(0)
+    }
+  }
+
+  /** `animEnabled` が false の状態を 1 フレームだけ保持し、次のフレームで戻す */
+  useEffect(() => {
+    if (animEnabled) return
+    const raf = window.requestAnimationFrame(() => {
+      // 二重 requestAnimationFrame で確実に「translateX 0 への即時移動」を描画させてから戻す
+      window.requestAnimationFrame(() => setAnimEnabled(true))
+    })
+    return () => window.cancelAnimationFrame(raf)
+  }, [animEnabled])
+
   if (visible.length === 0) {
     return null
   }
+
+  /** インジケータドット用の「実体上の現在 index」(末尾コピー位置は先頭扱い) */
+  const indicatorIdx = idx % visible.length
 
   return (
     <div
@@ -256,14 +292,18 @@ export function MobileReviewsRotator({
     >
       <div className="overflow-hidden">
         <ul
-          className="flex transition-transform duration-500 ease-out"
+          className={cn(
+            "flex",
+            animEnabled && "transition-transform duration-500 ease-out",
+          )}
           style={{ transform: `translateX(-${idx * 100}%)` }}
+          onTransitionEnd={handleTransitionEnd}
         >
-          {visible.map((review) => (
+          {slides.map((review, i) => (
             <li
-              key={review.id}
+              key={`${review.id}-${i}`}
               className="w-full shrink-0"
-              aria-hidden={visible[idx]?.id !== review.id}
+              aria-hidden={i !== indicatorIdx}
             >
               <ReviewCard review={review} />
             </li>
@@ -275,10 +315,10 @@ export function MobileReviewsRotator({
           {visible.map((_, i) => (
             <span
               key={i}
-              aria-current={i === idx ? "true" : undefined}
+              aria-current={i === indicatorIdx ? "true" : undefined}
               className={cn(
                 "h-1.5 rounded-full transition-all",
-                i === idx ? "w-5 bg-primary" : "w-1.5 bg-muted-foreground/40",
+                i === indicatorIdx ? "w-5 bg-primary" : "w-1.5 bg-muted-foreground/40",
               )}
             />
           ))}

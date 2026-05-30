@@ -1359,6 +1359,7 @@
     "japanEntry": "日本進出支援サービス（英語）",
     "boardTitle": "掲示板",
     "fromhere": "FromHere",
+    "fromhereReviews": "編集部によるレビュー",
     "socialTitle": "公式SNS",
     "officialX": "GritVib公式X",
     "officialInstagram": "GritVib公式Instagram",
@@ -1458,6 +1459,15 @@
       "metaTitle": "{title} — 運営レビュー | FromHere",
       "back": "← ホームに戻る",
       "officialBadge": "運営レビュー"
+    },
+    "reviewsIndex": {
+      "metaTitle": "編集部によるレビュー — FromHere",
+      "metaDescription": "編集部がピックアップしたプロダクトのレビュー一覧。各レビューを開くと本文をその場で読むことができます。",
+      "title": "編集部によるレビュー",
+      "subtitle": "編集部がピックアップしたプロダクトのレビューをまとめてご紹介します！",
+      "empty": "公開されているレビューはまだありません。",
+      "back": "← ホームに戻る",
+      "count": "全 {count} 件"
     },
     "adminReviews": {
       "title": "運営レビュー管理",

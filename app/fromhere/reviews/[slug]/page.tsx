@@ -67,13 +67,6 @@ export default async function Page({ params }: PageProps) {
   const backLabel = lookupMessage(dict, "fromhere.reviews.back")
   const editLabel = lookupMessage(dict, "fromhere.adminReviews.edit")
 
-  /**
-   * 本文は管理画面側で改行を含む長文として保存する想定。
-   * 段落区切り (`\n\n`) を `<p>` に変換し、その内側の改行は `<br>` で残す。
-   * 安全のため React の自動エスケープに任せ、HTML を直接挿入しない。
-   */
-  const paragraphs = review.body.split(/\n{2,}/g).map((para) => para.split(/\n/g))
-
   return (
     <main className="mx-auto box-border w-full min-w-0 max-w-3xl px-4 py-8 md:px-8">
       <div className="mb-8 flex items-center justify-between gap-3">
@@ -129,17 +122,22 @@ export default async function Page({ params }: PageProps) {
 
         <hr className="my-8 border-border" />
 
-        <div className="prose prose-sm md:prose-base max-w-none text-foreground/90 dark:prose-invert">
-          {paragraphs.map((lines, pi) => (
-            <p key={pi} className="whitespace-pre-line">
-              {lines.map((line, li) => (
-                <span key={li}>
-                  {line}
-                  {li < lines.length - 1 ? <br /> : null}
-                </span>
-              ))}
-            </p>
-          ))}
+        {/**
+         * 本文表示。
+         *
+         * - 管理画面 (`AdminReviewForm`) で `<textarea>` に入力された内容を、改行・空行・
+         *   連続スペース込みでそのまま表示する (= 入力時の見た目をそのまま反映)。
+         * - `whitespace-pre-wrap` で:
+         *     - `\n` がそのまま改行になる
+         *     - `\n\n` (空行) が空行として表示される
+         *     - 連続スペースも折り畳まれず保持される
+         *     - 自動折返しは通常通り (ブラウザ幅に応じてラップ)
+         * - `break-words` で長い URL 等が画面幅を突き抜けるのを防ぐ。
+         * - HTML はパースせず React のテキストノードとして安全に挿入される
+         *   (XSS の心配なし)。
+         */}
+        <div className="whitespace-pre-wrap break-words text-base leading-relaxed text-foreground/90 md:text-lg">
+          {review.body}
         </div>
 
         {review.publishedAt ? (

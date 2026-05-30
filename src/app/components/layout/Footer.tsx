@@ -57,6 +57,9 @@ export function Footer() {
                 <Link href="/fromhere" className={baseLinkClass}>
                   {t("fromhere")}
                 </Link>
+                <Link href="/fromhere/reviews" className={baseLinkClass}>
+                  {t("fromhereReviews")}
+                </Link>
               </nav>
             </section>
           </div>
