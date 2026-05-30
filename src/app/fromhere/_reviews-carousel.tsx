@@ -154,7 +154,13 @@ export function ReviewCard({ review }: { review: AdminReviewListItem }) {
   return (
     <Link
       href={`/fromhere/reviews/${review.slug}`}
-      className="group flex gap-3 rounded-lg border border-border bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-background"
+      /**
+       * カード自身は不透明な白 (テーマの `bg-background`) を保つ。
+       * 親 (編集部セレクト欄) がアクセントカラーで色付けされていても、
+       * カードはくっきり白く浮き上がるよう `/60` の透過は使わない。
+       * hover 時は border の強調のみ。
+       */
+      className="group flex gap-3 rounded-lg border border-border bg-background p-3 transition-colors hover:border-primary/40"
     >
       {review.iconUrl ? (
         // eslint-disable-next-line @next/next/no-img-element -- Supabase Storage 公開URL

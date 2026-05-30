@@ -2,13 +2,13 @@
 
 import "server-only"
 
+import { revalidatePath } from "next/cache"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 import { requireActionUser } from "@/lib/supabase/action-auth"
 import { requireActionAdmin } from "@/lib/supabase/action-admin"
 import { getSupabaseAdminClient } from "@/lib/supabase/admin"
 import { getBanStatusFromProfile } from "@/lib/ban"
-
 import {
   buildBaseSlug,
   buildRandomFallbackSlug,
@@ -42,6 +42,26 @@ import { validateFromHereCommentBody } from "@/fromhere/_comment-validation"
  * ---------------------------------------------------------- */
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * FromHere 配下のサーバーキャッシュをまとめて無効化するヘルパ。
+ *
+ * - クライアントから `router.refresh()` を呼ぶより `revalidatePath` の方が大幅に高速
+ *   （余分な RSC fetch を抑え、対象ルートだけを次回アクセス時に再生成する）。
+ * - 個別ページ (`/fromhere/p/[slug]`, `/fromhere/u/[handle]` 等) のキャッシュは
+ *   呼び出し側で必要に応じて追加で `revalidatePath` する。
+ * - `try/catch` で包んで失敗を握りつぶし、Action 自体の成功は阻害しない
+ *   （単一のキャッシュ無効化失敗で投稿そのものが中断されると UX が悪い）。
+ */
+function safeRevalidate(...paths: string[]) {
+  for (const path of paths) {
+    try {
+      revalidatePath(path)
+    } catch (error) {
+      console.warn("[fromhere/revalidate] failed", { path, error })
+    }
+  }
+}
 
 const ALLOWED_STATUSES = ["draft", "published", "archived"] as const
 export type FromHereProductStatus = (typeof ALLOWED_STATUSES)[number]
@@ -95,22 +115,43 @@ export type DeleteFromHereProductResult =
  *  レートリミット
  *  - PATCH: 60s / 20 回、3600s / 200 回
  *  - DELETE: 60s / 5 回、3600s / 30 回
+ *
+ *  dev / test 環境では、繰り返しの動作確認で簡単に詰まらないように
+ *  上限を大きく緩めている。本番 (`NODE_ENV === "production"`) では
+ *  従来通りの厳しめの閾値を維持する。
  * ---------------------------------------------------------- */
 type Limit = { windowMs: number; max: number }
 type RateBucket = Map<string, { count: number; resetAt: number }>
 
-const PATCH_LIMITS: Limit[] = [
-  { windowMs: 60_000, max: 20 },
-  { windowMs: 60 * 60_000, max: 200 },
-]
-const DELETE_LIMITS: Limit[] = [
-  { windowMs: 60_000, max: 5 },
-  { windowMs: 60 * 60_000, max: 30 },
-]
-const CREATE_LIMITS: Limit[] = [
-  { windowMs: 60 * 1000, max: 3 },
-  { windowMs: 60 * 60 * 1000, max: 20 },
-]
+const IS_PRODUCTION = process.env.NODE_ENV === "production"
+
+const PATCH_LIMITS: Limit[] = IS_PRODUCTION
+  ? [
+      { windowMs: 60_000, max: 20 },
+      { windowMs: 60 * 60_000, max: 200 },
+    ]
+  : [
+      { windowMs: 60_000, max: 1000 },
+      { windowMs: 60 * 60_000, max: 10000 },
+    ]
+const DELETE_LIMITS: Limit[] = IS_PRODUCTION
+  ? [
+      { windowMs: 60_000, max: 5 },
+      { windowMs: 60 * 60_000, max: 30 },
+    ]
+  : [
+      { windowMs: 60_000, max: 1000 },
+      { windowMs: 60 * 60_000, max: 10000 },
+    ]
+const CREATE_LIMITS: Limit[] = IS_PRODUCTION
+  ? [
+      { windowMs: 60 * 1000, max: 3 },
+      { windowMs: 60 * 60 * 1000, max: 20 },
+    ]
+  : [
+      { windowMs: 60 * 1000, max: 1000 },
+      { windowMs: 60 * 60 * 1000, max: 10000 },
+    ]
 const patchBuckets: RateBucket[] = PATCH_LIMITS.map(() => new Map())
 const deleteBuckets: RateBucket[] = DELETE_LIMITS.map(() => new Map())
 const createBuckets: RateBucket[] = CREATE_LIMITS.map(() => new Map())
@@ -224,15 +265,37 @@ async function tryInsertProductWithSlug(
   }
   const code = (error as { code?: string }).code ?? ""
   const message = error.message ?? ""
+  const details = (error as { details?: string }).details ?? ""
+  const hint = (error as { hint?: string }).hint ?? ""
   if (code === "23505") {
     if (message.includes("slug")) {
+      console.warn("[fromhere/products insert] slug conflict, retrying", {
+        slug: params.slug,
+      })
       return "conflict"
     }
     if (message.includes("product_url")) {
+      console.warn("[fromhere/products insert] duplicate product_url (db unique)", {
+        productUrl: params.sanitized.productUrl,
+      })
       return "duplicate_url"
     }
+    console.warn("[fromhere/products insert] 23505 unique violation (other)", {
+      code,
+      message,
+      details,
+      hint,
+    })
     return "conflict"
   }
+  console.error("[fromhere/products insert] db error", {
+    code,
+    message,
+    details,
+    hint,
+    slug: params.slug,
+    userId: params.userId,
+  })
   return "error"
 }
 
@@ -335,18 +398,34 @@ export async function createFromHereProductAction(input: {
    */
   firstComment?: unknown
 }): Promise<CreateFromHereProductResult> {
+  console.info("[fromhere/products create] action invoked", {
+    hasTitle: typeof input.title === "string" && (input.title as string).length > 0,
+    hasTagline: typeof input.tagline === "string" && (input.tagline as string).length > 0,
+    hasProductUrl: typeof input.productUrl === "string" && (input.productUrl as string).length > 0,
+    hasAppIcon: typeof input.appIconPath === "string" && (input.appIconPath as string).length > 0,
+    hasScreenshot:
+      typeof input.screenshotPath === "string" && (input.screenshotPath as string).length > 0,
+    scheduledDate: input.scheduledDate,
+    category: input.category,
+    tagsCount: Array.isArray(input.tags) ? input.tags.length : 0,
+    hasFirstComment:
+      typeof input.firstComment === "string" && (input.firstComment as string).length > 0,
+  })
   try {
     const auth = await requireActionUser()
     if (!auth.ok) {
+      console.warn("[fromhere/products create] unauthorized")
       return { ok: false, error: "unauthorized" }
     }
     const userId = auth.session.user.id
 
     if (await isUserBanned(auth.session.supabase, userId)) {
+      console.warn("[fromhere/products create] user banned", { userId })
       return { ok: false, error: "banned" }
     }
 
     if (!consumeRate(createBuckets, CREATE_LIMITS, userId)) {
+      console.warn("[fromhere/products create] rate limited", { userId })
       return { ok: false, error: "rate_limited" }
     }
 
@@ -376,6 +455,20 @@ export async function createFromHereProductAction(input: {
       requireAppIcon: true,
     })
     if (!validation.ok) {
+      console.warn("[fromhere/products create] validation failed", {
+        userId,
+        error: validation.error,
+        draftPreview: {
+          titleLen: draft.title.length,
+          taglineLen: draft.tagline.length,
+          descriptionLen: draft.description.length,
+          category: draft.category,
+          tagsCount: draft.tags.length,
+          productUrl: draft.productUrl,
+          hasAppIcon: !!draft.appIconPath,
+          hasScreenshot: !!draft.screenshotPath,
+        },
+      })
       return { ok: false, error: validation.error }
     }
     const sanitized = validation.value
@@ -383,6 +476,10 @@ export async function createFromHereProductAction(input: {
     // 公開日 (JST) を検証して posted_at (UTC ISO) に変換
     const scheduled = parseFromHereScheduledDateToUtcIso(input.scheduledDate)
     if (!scheduled.ok) {
+      console.warn("[fromhere/products create] scheduledDate invalid", {
+        userId,
+        scheduledDate: input.scheduledDate,
+      })
       return { ok: false, error: "scheduledDate" }
     }
     const postedAtIso = scheduled.iso
@@ -397,6 +494,10 @@ export async function createFromHereProductAction(input: {
     if (typeof input.firstComment === "string" && input.firstComment.trim().length > 0) {
       const fc = validateFromHereCommentBody(input.firstComment)
       if (!fc.ok) {
+        console.warn("[fromhere/products create] firstComment validation failed", {
+          userId,
+          error: fc.error,
+        })
         return {
           ok: false,
           error: fc.error === "tooLong" ? "firstCommentTooLong" : "firstComment",
@@ -429,6 +530,10 @@ export async function createFromHereProductAction(input: {
         sanitized.appIconPath,
       )
       if (!exists) {
+        console.warn("[fromhere/products create] appIcon storage object missing", {
+          userId,
+          path: sanitized.appIconPath,
+        })
         return { ok: false, error: "appIcon" }
       }
     }
@@ -439,6 +544,10 @@ export async function createFromHereProductAction(input: {
         sanitized.screenshotPath,
       )
       if (!exists) {
+        console.warn("[fromhere/products create] screenshot storage object missing", {
+          userId,
+          path: sanitized.screenshotPath,
+        })
         return { ok: false, error: "screenshot" }
       }
     }
@@ -446,7 +555,7 @@ export async function createFromHereProductAction(input: {
     // 同一 URL の重複投稿（同一 maker のみ）を弾く
     const { data: dup, error: dupError } = await cookieClient
       .from("newvibes_products")
-      .select("id")
+      .select("id, status")
       .eq("maker_id", userId)
       .eq("product_url", sanitized.productUrl)
       .neq("status", "archived")
@@ -456,6 +565,12 @@ export async function createFromHereProductAction(input: {
       return { ok: false, error: "internal" }
     }
     if (dup && dup.length > 0) {
+      console.warn("[fromhere/products create] duplicate productUrl for maker", {
+        userId,
+        productUrl: sanitized.productUrl,
+        existingId: dup[0]?.id,
+        existingStatus: dup[0]?.status,
+      })
       return { ok: false, error: "duplicate" }
     }
 
@@ -465,6 +580,10 @@ export async function createFromHereProductAction(input: {
       postedAtIso,
     })
     if (!inserted.ok) {
+      console.error("[fromhere/products create] insertProductWithUniqueSlug failed", {
+        userId,
+        error: inserted.error,
+      })
       return { ok: false, error: inserted.error }
     }
 
@@ -517,6 +636,17 @@ export async function createFromHereProductAction(input: {
         )
       }
     }
+
+    /**
+     * 投稿直後にホーム / 一覧 / 自分のプロダクト一覧のキャッシュを invalidate。
+     * これによりクライアント側で `router.refresh()` を呼ばなくても、リダイレクト先の
+     * /fromhere は次回 fetch で最新状態になる（= リダイレクトが体感で速くなる）。
+     */
+    safeRevalidate(
+      "/fromhere",
+      "/fromhere/my/products",
+      `/fromhere/p/${inserted.product.slug}`,
+    )
 
     return { ok: true, product: inserted.product }
   } catch (error) {
@@ -753,6 +883,17 @@ export async function updateFromHereProductContentAction(input: {
       console.error("[fromhere/products content] update failed", updateError)
       return { ok: false, error: "internal" }
     }
+
+    /**
+     * 編集成功時のキャッシュ無効化。
+     * - 詳細ページ (`/fromhere/p/[slug]`) はもちろん、ホームの一覧表示にも反映される。
+     * - 公開日変更 (`scheduledDate`) 時は一覧の並び順も変わるため `/fromhere` も invalidate。
+     */
+    safeRevalidate(
+      "/fromhere",
+      "/fromhere/my/products",
+      `/fromhere/p/${updated.slug as string}`,
+    )
 
     return {
       ok: true,

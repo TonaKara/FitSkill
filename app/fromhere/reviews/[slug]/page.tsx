@@ -8,6 +8,15 @@ import { detectIsFromHereAdmin } from "@/lib/fromhere-admin-check"
 import { getDictionary, lookupMessage } from "@/lib/i18n/dictionaries"
 import { getServerLocale } from "@/lib/i18n/server-detect"
 
+/**
+ * /fromhere/reviews/[slug] — 編集部セレクトのレビュー詳細ページ。
+ *
+ * ブログ風のシンプルなレイアウト:
+ * - ページ全体に外枠 (border/card 背景) は持たず、本文を `<main>` 直下に並べる。
+ * - 見出し / 本文の最大幅は `max-w-3xl` (≒ ブログ可読幅) を維持。
+ * - 「運営レビュー」バッジは UI 上は表示しない（i18n キー自体は他箇所参照のため残す）。
+ */
+
 export const dynamic = "force-dynamic"
 
 type PageProps = {
@@ -56,7 +65,6 @@ export default async function Page({ params }: PageProps) {
   const locale = await getServerLocale()
   const dict = getDictionary(locale)
   const backLabel = lookupMessage(dict, "fromhere.reviews.back")
-  const badgeLabel = lookupMessage(dict, "fromhere.reviews.officialBadge")
   const editLabel = lookupMessage(dict, "fromhere.adminReviews.edit")
 
   /**
@@ -68,7 +76,7 @@ export default async function Page({ params }: PageProps) {
 
   return (
     <main className="mx-auto box-border w-full min-w-0 max-w-3xl px-4 py-8 md:px-8">
-      <div className="mb-6 flex items-center justify-between gap-3">
+      <div className="mb-8 flex items-center justify-between gap-3">
         <Link
           href="/fromhere"
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -87,14 +95,21 @@ export default async function Page({ params }: PageProps) {
         ) : null}
       </div>
 
-      <article className="rounded-2xl border border-border bg-card p-6 md:p-8">
-        <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+      {/**
+       * ブログ風レイアウト:
+       *   - `<article>` には外枠 (border/bg-card/角丸/padding) を一切付けず、
+       *     `<main>` の余白に直接コンテンツを並べる。
+       *   - ヘッダー (アイコン + タイトル + summary) → 区切り線 → 本文 → 公開日 の縦並び。
+       *   - 「運営レビュー」バッジは UI から削除。
+       */}
+      <article>
+        <header className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
           {review.iconUrl ? (
             // eslint-disable-next-line @next/next/no-img-element -- Supabase Storage 公開URLのため <img> でよい
             <img
               src={review.iconUrl}
               alt=""
-              className="h-20 w-20 shrink-0 rounded-2xl border border-border object-cover shadow-sm"
+              className="h-20 w-20 shrink-0 rounded-2xl object-cover shadow-sm"
             />
           ) : (
             <div
@@ -105,18 +120,14 @@ export default async function Page({ params }: PageProps) {
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
-              <span aria-hidden>🐾</span>
-              {badgeLabel}
-            </span>
-            <h1 className="mt-2 text-2xl font-bold leading-tight text-foreground md:text-3xl">
+            <h1 className="text-3xl font-bold leading-tight text-foreground md:text-4xl">
               {review.title}
             </h1>
-            <p className="mt-2 text-base text-foreground/90 md:text-lg">{review.summary}</p>
+            <p className="mt-3 text-base text-muted-foreground md:text-lg">{review.summary}</p>
           </div>
-        </div>
+        </header>
 
-        <hr className="my-6 border-border" />
+        <hr className="my-8 border-border" />
 
         <div className="prose prose-sm md:prose-base max-w-none text-foreground/90 dark:prose-invert">
           {paragraphs.map((lines, pi) => (
@@ -132,7 +143,7 @@ export default async function Page({ params }: PageProps) {
         </div>
 
         {review.publishedAt ? (
-          <p className="mt-8 text-xs text-muted-foreground">
+          <p className="mt-10 text-xs text-muted-foreground">
             {new Date(review.publishedAt).toLocaleString(locale === "ja" ? "ja-JP" : "en-US")}
           </p>
         ) : null}

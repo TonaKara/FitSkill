@@ -155,6 +155,11 @@ export function AdminReviewForm({ mode, initial }: Props) {
         }
       }
       setNotice({ variant: "success", message: t("deleteSuccess") })
+      /**
+       * `deleteFromHereAdminReviewAction` 内で `revalidatePath` を呼んでいるため
+       * サーバー側 Data Cache は最新。加えて `router.refresh()` で Client Router
+       * Cache の古い /fromhere/admin/reviews を確実に invalidate する。
+       */
       router.push("/fromhere/admin/reviews")
       router.refresh()
     } catch (err) {
@@ -209,10 +214,12 @@ export function AdminReviewForm({ mode, initial }: Props) {
       setNotice({ variant: "success", message: t("saveSuccess") })
       /**
        * 完了後の遷移先:
-       *   - 新規作成 (`create`) → FromHere トップへ (`/fromhere`) 戻り、公開直後の
-       *     並びを確認できるようにする。
-       *   - 更新 (`edit`) → 既存通りレビュー管理一覧 (`/fromhere/admin/reviews`) へ。
-       *     管理操作の流れを途切れさせないため。
+       *   - 新規作成 (`create`) → FromHere トップへ (`/fromhere`)。
+       *   - 更新 (`edit`) → レビュー管理一覧 (`/fromhere/admin/reviews`)。
+       *
+       * Server Action 内で `revalidatePath` を呼んでいるためサーバー側 Data Cache は
+       * 最新。加えて `router.refresh()` で Client Router Cache も確実に invalidate
+       * して、遷移先で最新状態が確実に反映されるようにする。
        */
       router.push(mode === "create" ? "/fromhere" : "/fromhere/admin/reviews")
       router.refresh()

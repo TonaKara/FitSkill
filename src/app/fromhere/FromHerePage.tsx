@@ -578,9 +578,10 @@ export function FromHerePage({
        * lg 以上ではサイドバーの SidebarCard で同じ内容を表示するため、ここでは非表示。
        * - 2 件以上のときは `MobileReviewsRotator` が 1 件ずつ横スライドで切り替える。
        * - 表示件数は最大 15 件、切替間隔はデスクトップ版と同じ 3000ms。
+       * - サイドバー版と同じ「薄いオレンジ」背景でブランド統一感を出す。
        */}
       {initialReviews.length > 0 ? (
-        <section className="border-b border-border bg-background lg:hidden">
+        <section className="border-b border-primary/20 bg-primary/5 lg:hidden">
           <div className="mx-auto w-full max-w-7xl px-4 py-3 md:px-8">
             <header className="mb-2">
               <h2 className="text-lg font-bold text-foreground md:text-xl">
@@ -665,9 +666,17 @@ export function FromHerePage({
                  * 見出しと完全に揃える: `text-lg font-bold text-foreground md:text-xl`。
                  * フォントもサイト既定の Geist Sans。
                  * サブテキスト (`hint`) は `mt-2` で見出しとの間隔を確保。
+                 *
+                 * `className`: 既定の `bg-card` を上書きしてアクセントカラーに寄せた
+                 *  薄い背景を当てる。色は `--primary` (= `#e64a19` 系のブランドカラー) を
+                 *  そのまま使い、透明度を抑えてほんのり色付け:
+                 *   - 背景: `bg-primary/5` (約 5% 透明)
+                 *   - 枠線: `border-primary/20` (約 20% 透明)
+                 *  CSS 変数経由でテーマ追従するため、ライト/ダーク両モードで自然に馴染む。
                  */
                 headingClassName="text-lg font-bold text-foreground md:text-xl"
                 hintClassName="mt-2 whitespace-normal leading-snug text-muted-foreground"
+                className="bg-primary/5 border-primary/20"
               >
                 <ReviewsCarousel reviews={initialReviews} isAdmin={isAdmin} />
               </SidebarCard>
@@ -843,14 +852,25 @@ type SidebarCardProps = {
   hint?: string
   /** hint テキストにスタイル拡張 (折り返し許可・色変更など) を当てるためのスロット */
   hintClassName?: string
+  /** ルート `<section>` に追加クラスを当てる (背景色や枠の上書きなど) */
+  className?: string
   children: React.ReactNode
 }
 
-function SidebarCard({ id, icon, heading, headingClassName, hint, hintClassName, children }: SidebarCardProps) {
+function SidebarCard({
+  id,
+  icon,
+  heading,
+  headingClassName,
+  hint,
+  hintClassName,
+  className,
+  children,
+}: SidebarCardProps) {
   return (
     <section
       id={id}
-      className="rounded-2xl border border-border bg-card p-4 scroll-mt-32"
+      className={cn("rounded-2xl border border-border bg-card p-4 scroll-mt-32", className)}
     >
       <div className="mb-3 flex items-center gap-2">
         {icon ? (

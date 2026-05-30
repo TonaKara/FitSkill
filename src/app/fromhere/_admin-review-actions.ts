@@ -2,11 +2,11 @@
 
 import "server-only"
 
+import { revalidatePath } from "next/cache"
 import { randomUUID } from "node:crypto"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 import { requireActionAdmin } from "@/lib/supabase/action-admin"
-
 import {
   buildBaseSlug,
   buildRandomFallbackSlug,
@@ -19,6 +19,24 @@ import {
   type AdminReviewInputErrorKey,
 } from "@/fromhere/_admin-review-validation"
 import { resolveIconUrl } from "@/fromhere/_admin-reviews-data"
+
+/**
+ * FromHere の運営レビュー関連ページのキャッシュをまとめて invalidate。
+ *
+ * - クライアントの `router.refresh()` だけに頼ると、リダイレクト先で重い RSC fetch が
+ *   2 回走り体感が遅くなる。Server Action 内で `revalidatePath` を呼べばクライアントの
+ *   余分な refresh が不要になる。
+ * - 失敗を握りつぶし、レビュー操作の成功は阻害しない。
+ */
+function safeRevalidate(...paths: string[]) {
+  for (const path of paths) {
+    try {
+      revalidatePath(path)
+    } catch (error) {
+      console.warn("[fromhere/admin-reviews/revalidate] failed", { path, error })
+    }
+  }
+}
 
 /** ----------------------------------------------------------
  *  FromHere 運営レビュー Server Actions (admin 専用)
@@ -177,6 +195,12 @@ export async function createFromHereAdminReviewAction(input: {
       return { ok: false, error: "internal" }
     }
 
+    /**
+     * 新規作成したレビューは FromHere トップの「編集部セレクト」カルーセルにも反映される。
+     * 一覧 / トップ / 当該詳細ページのキャッシュを invalidate しておく。
+     */
+    safeRevalidate("/fromhere", "/fromhere/admin/reviews", `/fromhere/reviews/${data.slug}`)
+
     return { ok: true, review: toAdminReviewSummary(data) }
   } catch (error) {
     console.error("[fromhere/admin/reviews create] unexpected", error)
@@ -245,6 +269,12 @@ export async function updateFromHereAdminReviewAction(input: {
       return { ok: false, error: "not_found" }
     }
 
+    /**
+     * 更新内容 (タイトル / 本文 / 公開状態) は FromHere トップと当該詳細ページに反映。
+     * 管理一覧も更新を反映させたいので併せて invalidate。
+     */
+    safeRevalidate("/fromhere", "/fromhere/admin/reviews", `/fromhere/reviews/${data.slug}`)
+
     return { ok: true, review: toAdminReviewSummary(data) }
   } catch (error) {
     console.error("[fromhere/admin/reviews update] unexpected", error)
@@ -278,6 +308,12 @@ export async function deleteFromHereAdminReviewAction(input: {
       console.error("[fromhere/admin/reviews delete] delete failed", error)
       return { ok: false, error: "internal" }
     }
+
+    /**
+     * 削除後は FromHere トップ・管理一覧から該当レビューを消す必要がある。
+     * 詳細 URL は知らないため、トップ / 一覧のみ invalidate。
+     */
+    safeRevalidate("/fromhere", "/fromhere/admin/reviews")
 
     return { ok: true, deleted: true }
   } catch (error) {

@@ -341,6 +341,91 @@ export default function FromHereSubmitPage() {
     }
   }, [])
 
+  /**
+   * ページ内のあらゆる `<a>` クリック (= ヘッダーのロゴ、サイドメニュー、フッター等)
+   * を document-level の capture フェーズで横取りして離脱確認モーダルを出す。
+   *
+   * App Router (Next.js 16) には公式の navigation guard API がないため、
+   * クリックイベントを capture フェーズで掴むしか方法がない。`Link` (`next/link`)
+   * は最終的に `<a>` を出力するので、これで十分カバーできる。
+   *
+   * スキップ条件 (= ネイティブ動作を維持):
+   *   - 修飾キー押下 (Cmd/Ctrl/Shift/Alt) / 右クリック・中クリック
+   *   - `target="_blank"` などの新規タブ遷移
+   *   - `download` 属性付き
+   *   - `mailto:` / `tel:` / `javascript:` / アンカーのみ (`#xxx`)
+   *   - 同一パス + 同一クエリ (ハッシュ内移動など)
+   *   - 別オリジン
+   *   - `data-bypass-leave-guard` 属性が付いたリンク (= 後述の cancel ボタン等)
+   *
+   * `leavingRef.current === true` のとき (= 確認モーダル経由で離脱処理中) は素通し。
+   */
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    function onDocClick(event: MouseEvent) {
+      if (leavingRef.current) return
+      if (event.defaultPrevented) return
+      if (event.button !== 0) return
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+
+      const target = event.target
+      if (!(target instanceof Element)) return
+      const link = target.closest("a[href]") as HTMLAnchorElement | null
+      if (!link) return
+
+      /**
+       * フォーム内のクリックには関与しない。
+       *
+       * - 投稿ボタン (`<button type="submit">`) は `<a>` ではないので元々 intercept
+       *   されないが、念のためフォーム内の `<a>` (= プレビュー内の外部リンクや
+       *   `← FromHere` リンク) も捌かない方針にして、フォーム送信などの React 側
+       *   イベント処理と完全に独立させる。
+       * - `← FromHere` リンクは既に `onClick + requestLeaveTo` で確認モーダルを
+       *   出すように実装されているため、ここでスキップしても挙動は変わらない。
+       */
+      if (link.closest("form")) return
+
+      // 明示的にスキップ指定されたリンク
+      if (link.dataset.bypassLeaveGuard === "true") return
+      // 別タブ / ダウンロード等のネイティブ動作はそのまま
+      if (link.target && link.target !== "_self") return
+      if (link.hasAttribute("download")) return
+
+      const rawHref = link.getAttribute("href") || ""
+      if (!rawHref) return
+      if (rawHref.startsWith("#")) return
+      if (rawHref.startsWith("mailto:")) return
+      if (rawHref.startsWith("tel:")) return
+      if (rawHref.startsWith("javascript:")) return
+
+      let url: URL
+      try {
+        url = new URL(link.href, window.location.href)
+      } catch {
+        return
+      }
+      if (url.origin !== window.location.origin) return
+
+      // 同一パス + 同一クエリならハッシュ移動などとみなしてスキップ
+      if (
+        url.pathname === window.location.pathname &&
+        url.search === window.location.search
+      ) {
+        return
+      }
+
+      event.preventDefault()
+      event.stopPropagation()
+      setLeaveModal({ open: true, target: url.pathname + url.search + url.hash })
+    }
+
+    document.addEventListener("click", onDocClick, { capture: true })
+    return () => {
+      document.removeEventListener("click", onDocClick, { capture: true })
+    }
+  }, [])
+
   /** 破棄して離脱する処理。画像 Storage と localStorage を掃除してから遷移する */
   const confirmLeave = async () => {
     if (leavingRef.current) return
@@ -529,15 +614,81 @@ export default function FromHereSubmitPage() {
     !firstCommentTooLong &&
     isSafeProductUrl(productUrl)
 
+  /**
+   * 投稿可否 (`canSubmit`) の現在値と、その内訳をコンソールに出力するデバッグ用ログ。
+   *
+   * 「投稿ボタンが押せない」「押しても何も起きない」原因の切り分けを容易にするため、
+   * どの条件が false になっているかを表示する。production でも常に出すが、
+   * info レベルなので通常時はノイズにならない。
+   */
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    console.info("[fromhere/products create] canSubmit state", {
+      canSubmit,
+      reasons: {
+        isSubmitting,
+        isUploading,
+        localValidationOk: localValidation.ok,
+        localValidationError: localValidation.ok ? null : localValidation.error,
+        scheduledDateOk: scheduledDateValidation.ok,
+        scheduledDateInput: scheduledDate,
+        firstCommentTooLong,
+        productUrlIsSafe: isSafeProductUrl(productUrl),
+      },
+    })
+  }, [
+    canSubmit,
+    isSubmitting,
+    isUploading,
+    localValidation,
+    scheduledDateValidation,
+    scheduledDate,
+    firstCommentTooLong,
+    productUrl,
+  ])
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setNotice(null)
+
+    /**
+     * デバッグ目的の事前ダンプ。
+     * 投稿が始まらない / すぐに弾かれる場合に「どの条件で止まっているか」を
+     * ブラウザコンソールから確認できるようにする。
+     */
+    if (typeof window !== "undefined") {
+      console.info("[fromhere/products create] handleSubmit invoked", {
+        canSubmit,
+        isSubmitting,
+        isUploading,
+        localValidationOk: localValidation.ok,
+        localValidationError: localValidation.ok ? null : localValidation.error,
+        scheduledDateOk: scheduledDateValidation.ok,
+        scheduledDateInput: scheduledDate,
+        firstCommentTooLong,
+        firstCommentLength: firstComment.trim().length,
+        productUrl,
+        productUrlIsSafe: isSafeProductUrl(productUrl),
+        appIconState: appIcon.state,
+        screenshotState: screenshot.state,
+      })
+    }
+
     if (!canSubmit || !localValidation.ok) {
+      if (typeof window !== "undefined") {
+        console.warn(
+          "[fromhere/products create] aborted by client-side guard (canSubmit/localValidation)",
+          {
+            canSubmit,
+            localValidationOk: localValidation.ok,
+          },
+        )
+      }
       return
     }
     setIsSubmitting(true)
     try {
-      const result = await createFromHereProductAction({
+      const payload = {
         title: localValidation.value.title,
         tagline: localValidation.value.tagline,
         description: localValidation.value.description ?? "",
@@ -548,13 +699,23 @@ export default function FromHereSubmitPage() {
         screenshotPath: localValidation.value.screenshotPath,
         scheduledDate,
         firstComment: firstComment.trim().length > 0 ? firstComment : undefined,
-      })
+      } as const
+
+      if (typeof window !== "undefined") {
+        console.info("[fromhere/products create] calling server action with payload", payload)
+      }
+
+      const result = await createFromHereProductAction(payload)
+
+      if (typeof window !== "undefined") {
+        console.info("[fromhere/products create] server action returned", result)
+      }
 
       if (!result.ok) {
         if (typeof window !== "undefined") {
-           
           console.error("[fromhere/products create] action failed", {
             errorKey: result.error,
+            payload,
           })
         }
         if (result.error === "unauthorized") {
@@ -577,9 +738,21 @@ export default function FromHereSubmitPage() {
       if (typeof window !== "undefined") {
         window.localStorage.removeItem(SUBMIT_DRAFT_STORAGE_KEY)
       }
+      /**
+       * 遷移は `router.replace` + `router.refresh` の組み合わせで行う。
+       * - Server Action 内で `revalidatePath("/fromhere")` を呼んでいるためサーバー側
+       *   Data Cache は最新だが、Client 側 Router Cache を確実に invalidate するため
+       *   `router.refresh()` も併用する（万一 Router Cache に古い /fromhere が残って
+       *   いる場合の保険）。
+       * - 順序は `replace → refresh`。先に遷移を開始しておき、refresh は遷移後の
+       *   page に対する追加 fetch として扱う。
+       */
       router.replace("/fromhere")
       router.refresh()
     } catch (error) {
+      if (typeof window !== "undefined") {
+        console.error("[fromhere/products create] unexpected exception in handleSubmit", error)
+      }
       setNotice(toErrorNotice(error, false))
     } finally {
       setIsSubmitting(false)

@@ -213,7 +213,11 @@ export function EditProductPageClient({ product }: Props) {
       }
 
       setNotice(toSuccessNotice(t("successToast")))
-      // 編集後は商品詳細にリダイレクトして refresh を発火し、フィードを最新化する。
+      /**
+       * 編集後は商品詳細にリダイレクト。Server Action 内で `revalidatePath` を
+       * 呼んでいるため Data Cache は最新だが、Client Router Cache も `router.refresh()`
+       * で確実に invalidate して、編集内容が確実に詳細ページに反映されるようにする。
+       */
       router.replace(`/fromhere/p/${product.slug}`)
       router.refresh()
     } catch (error) {
