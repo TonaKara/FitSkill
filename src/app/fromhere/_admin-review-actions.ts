@@ -167,6 +167,35 @@ export async function createFromHereAdminReviewAction(input: {
     }
     const value = validation.value
 
+    /**
+     * 二重投稿ガード:
+     *   フォーム側の `submitting` フラグだけだとタブ複数 / 通信ジッタによる多重 POST を
+     *   防ぎきれない。同じ管理者が直近 60 秒以内に同一タイトル+本文のレビューを
+     *   作成済みなら、新規 insert は行わず既存レコードをそのまま返す。
+     *   （アイコン差し替えなど内容に意味のある差分があるケースは別レコードとして
+     *    扱いたいため、タイトル + 本文の組合せで一意性を判定する）
+     */
+    const dedupSinceIso = new Date(Date.now() - 60_000).toISOString()
+    const { data: recentDup } = await supabase
+      .from("newvibes_admin_reviews")
+      .select(
+        "id, slug, title, summary, body, icon_path, icon_url, status, published_at, created_at, updated_at",
+      )
+      .eq("created_by", user.id)
+      .eq("title", value.title)
+      .eq("body", value.body)
+      .gte("created_at", dedupSinceIso)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (recentDup) {
+      console.warn("[fromhere/admin/reviews create] duplicate suppressed", {
+        userId: user.id,
+        existingId: recentDup.id,
+      })
+      return { ok: true, review: toAdminReviewSummary(recentDup) }
+    }
+
     const requestedSlug = typeof input.slug === "string" ? input.slug.trim() : ""
     const baseSlug =
       requestedSlug && FROMHERE_SLUG_REGEX.test(requestedSlug)

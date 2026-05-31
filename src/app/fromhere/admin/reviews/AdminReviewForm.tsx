@@ -130,6 +130,7 @@ export function AdminReviewForm({ mode, initial }: Props) {
     if (deleting || submitting) return
     if (!window.confirm(t("deleteConfirm"))) return
     setDeleting(true)
+    let succeeded = false
     try {
       const result = await deleteFromHereAdminReviewAction({ id: initial.id })
       if (!result.ok) {
@@ -154,6 +155,7 @@ export function AdminReviewForm({ mode, initial }: Props) {
           /* 削除失敗は通知しない */
         }
       }
+      succeeded = true
       setNotice({ variant: "success", message: t("deleteSuccess") })
       /**
        * `deleteFromHereAdminReviewAction` 内で `revalidatePath` を呼んでいるため
@@ -165,7 +167,10 @@ export function AdminReviewForm({ mode, initial }: Props) {
     } catch (err) {
       setNotice(toErrorNotice(err, false, { unknownErrorMessage: t("deleteFailed") }))
     } finally {
-      setDeleting(false)
+      // 成功時は遷移完了までボタンを無効化したままにし、二重操作を防ぐ。
+      if (!succeeded) {
+        setDeleting(false)
+      }
     }
   }
 
@@ -174,6 +179,7 @@ export function AdminReviewForm({ mode, initial }: Props) {
     if (submitting) return
     setErrors(new Set())
     setSubmitting(true)
+    let succeeded = false
     try {
       const result =
         mode === "create"
@@ -211,6 +217,7 @@ export function AdminReviewForm({ mode, initial }: Props) {
         }
         return
       }
+      succeeded = true
       setNotice({ variant: "success", message: t("saveSuccess") })
       /**
        * 完了後の遷移先:
@@ -226,7 +233,11 @@ export function AdminReviewForm({ mode, initial }: Props) {
     } catch (err) {
       setNotice(toErrorNotice(err, false, { unknownErrorMessage: t("saveFailed") }))
     } finally {
-      setSubmitting(false)
+      // 成功時は遷移完了までボタンを無効化したままにし、二重投稿を防ぐ。
+      // 失敗時のみリトライできるようにフラグを戻す。
+      if (!succeeded) {
+        setSubmitting(false)
+      }
     }
   }
 
