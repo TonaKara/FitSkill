@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { SiInstagram, SiX } from "@icons-pack/react-simple-icons"
+import { SiInstagram, SiNote, SiX } from "@icons-pack/react-simple-icons"
 import { useTranslations } from "@/lib/i18n/useI18n"
 
 const baseLinkClass =
@@ -85,6 +85,15 @@ export function Footer() {
                   className="text-zinc-200 transition-opacity hover:opacity-75"
                 >
                   <SiInstagram className="h-6 w-6 fill-current" />
+                </a>
+                <a
+                  href="https://note.com/gritvib"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={t("officialNote")}
+                  className="text-zinc-200 transition-opacity hover:opacity-75"
+                >
+                  <SiNote className="h-6 w-6 fill-current" />
                 </a>
               </div>
             </div>

@@ -1363,6 +1363,7 @@
     "socialTitle": "Official SNS",
     "officialX": "GritVib Official X",
     "officialInstagram": "GritVib Official Instagram",
+    "officialNote": "GritVib Official note",
     "copyright": "© 2026 GritVib"
   },
   "fromhere": {
@@ -1457,7 +1458,7 @@
     },
     "reviews": {
       "metaTitle": "{title} — Editor's review | FromHere",
-      "back": "← Back to home",
+      "back": "Back to home",
       "officialBadge": "Editor's pick"
     },
     "reviewsIndex": {
@@ -1466,7 +1467,7 @@
       "title": "Editor's reviews",
       "subtitle": "All product reviews curated by the editorial team!",
       "empty": "No published reviews yet.",
-      "back": "← Back to home",
+      "back": "Back to home",
       "count": "{count} total"
     },
     "adminReviews": {

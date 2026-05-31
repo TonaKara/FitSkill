@@ -1363,6 +1363,7 @@
     "socialTitle": "公式SNS",
     "officialX": "GritVib公式X",
     "officialInstagram": "GritVib公式Instagram",
+    "officialNote": "GritVib公式note",
     "copyright": "© 2026 GritVib"
   },
   "fromhere": {
@@ -1457,7 +1458,7 @@
     },
     "reviews": {
       "metaTitle": "{title} — 運営レビュー | FromHere",
-      "back": "← ホームに戻る",
+      "back": "ホームに戻る",
       "officialBadge": "運営レビュー"
     },
     "reviewsIndex": {
@@ -1466,7 +1467,7 @@
       "title": "編集部によるレビュー",
       "subtitle": "編集部がピックアップしたプロダクトのレビューをまとめてご紹介します！",
       "empty": "公開されているレビューはまだありません。",
-      "back": "← ホームに戻る",
+      "back": "ホームに戻る",
       "count": "全 {count} 件"
     },
     "adminReviews": {
