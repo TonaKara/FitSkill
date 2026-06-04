@@ -8,11 +8,12 @@ import {
   resolveStripePaymentIntentIdForCheckoutSession,
 } from "@/lib/checkout-fulfillment"
 import {
-  isJapanEntryServiceMetadata,
-  notifyJapanEntryPurchaseToDiscord,
-  notifyJapanEntrySubscriptionCanceledToDiscord,
-  propagateJapanEntryMetadataToSubscription,
-} from "@/lib/japan-entry/purchase-discord"
+  applyGritvibCheckoutCompleted,
+  applyGritvibSubscriptionSync,
+  isGritvibCheckoutSessionForWebhook,
+  propagateGritvibMetadataToSubscription,
+  shouldSyncGritvibSubscription,
+} from "@/lib/talk/stripe-webhook"
 import { ensureSellerPurchaseNotification, notifyBuyerCheckoutRefunded } from "@/lib/purchase-notification"
 
 function getEnv(name: string): string {
@@ -238,25 +239,21 @@ export async function POST(req: Request) {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session
-        /**
-         * Japan Entry Support の Payment Link 由来の session には skill_id 等が無いため、
-         * 既存の Skill 取引フロー（createTransactionFromCheckoutSession）に流すと throw する。
-         * service=japan_entry のメタデータで先に分岐させ、Subscription への metadata 伝搏 →
-         * Discord 通知の順で処理する。
-         *
-         * JES の通知系処理は決済本体（Stripe 側で完結）および thank-you ページ遷移
-         * （Stripe の After payment 設定）から独立している。ここで例外が漏れても
-         * 顧客体験に影響しないため、try/catch で完全に握り潰し Webhook 全体を 500 に
-         * しない（500 で Stripe からの再送ループ → 最終的に Webhook 無効化されるリスクを排除）。
-         */
-        if (isJapanEntryServiceMetadata(session.metadata)) {
+        if (await isGritvibCheckoutSessionForWebhook(session, stripe, supabase)) {
+          /**
+           * GritVib (人間チャットサービス) のサブスク開始。
+           * - Subscription に service=gritvib を伝搬 (以降のイベントで識別するため)
+           * - email から auth.users.id を解決して gritvib_chat_members を有効化
+           *
+           * 失敗しても Webhook 全体は 200 にする (再送ループ回避)。
+           */
           try {
-            await propagateJapanEntryMetadataToSubscription(session, stripe)
-            await notifyJapanEntryPurchaseToDiscord(session)
-          } catch (jesError) {
-            console.error("[stripe webhook] japan-entry purchase handling failed", {
+            await propagateGritvibMetadataToSubscription(session, stripe)
+            await applyGritvibCheckoutCompleted(session, stripe, supabase)
+          } catch (gritvibError) {
+            console.error("[stripe webhook] gritvib checkout handling failed", {
               sessionId: session.id,
-              error: jesError instanceof Error ? jesError.message : String(jesError),
+              error: gritvibError instanceof Error ? gritvibError.message : String(gritvibError),
             })
           }
           break
@@ -266,14 +263,14 @@ export async function POST(req: Request) {
       }
       case "checkout.session.async_payment_succeeded": {
         const session = event.data.object as Stripe.Checkout.Session
-        if (isJapanEntryServiceMetadata(session.metadata)) {
+        if (await isGritvibCheckoutSessionForWebhook(session, stripe, supabase)) {
           try {
-            await propagateJapanEntryMetadataToSubscription(session, stripe)
-            await notifyJapanEntryPurchaseToDiscord(session)
-          } catch (jesError) {
-            console.error("[stripe webhook] japan-entry async-success handling failed", {
+            await propagateGritvibMetadataToSubscription(session, stripe)
+            await applyGritvibCheckoutCompleted(session, stripe, supabase)
+          } catch (gritvibError) {
+            console.error("[stripe webhook] gritvib async-success handling failed", {
               sessionId: session.id,
-              error: jesError instanceof Error ? jesError.message : String(jesError),
+              error: gritvibError instanceof Error ? gritvibError.message : String(gritvibError),
             })
           }
           break
@@ -283,29 +280,36 @@ export async function POST(req: Request) {
       }
       case "checkout.session.expired": {
         const session = event.data.object as Stripe.Checkout.Session
-        if (isJapanEntryServiceMetadata(session.metadata)) {
-          /** JES は予約ロジックを持たないため expire は何もしない */
+        if (await isGritvibCheckoutSessionForWebhook(session, stripe, supabase)) {
+          /** GritVib は予約ロジックを持たないため expire は何もしない */
           break
         }
         await releaseSkillCheckoutReservation(supabase, { checkoutSessionId: session.id })
         break
       }
+      case "customer.subscription.updated": {
+        const subscription = event.data.object as Stripe.Subscription
+        if (await shouldSyncGritvibSubscription(subscription, stripe, supabase)) {
+          try {
+            await applyGritvibSubscriptionSync(subscription, stripe, supabase)
+          } catch (gritvibError) {
+            console.error("[stripe webhook] gritvib subscription update failed", {
+              subscriptionId: subscription.id,
+              error: gritvibError instanceof Error ? gritvibError.message : String(gritvibError),
+            })
+          }
+        }
+        break
+      }
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription
-        /**
-         * Subscription metadata に service=japan_entry が入っているもののみ通知対象。
-         * Subscription metadata は checkout.session.completed のハンドラで Stripe API 経由で
-         * 自動付与している（Stripe Dashboard 側の手動設定不要）。
-         *
-         * JES 解約通知の失敗は Webhook 全体を 500 にしない（既存処理に影響を波及させないため）。
-         */
-        if (isJapanEntryServiceMetadata(subscription.metadata)) {
+        if (await shouldSyncGritvibSubscription(subscription, stripe, supabase)) {
           try {
-            await notifyJapanEntrySubscriptionCanceledToDiscord(subscription, stripe)
-          } catch (jesError) {
-            console.error("[stripe webhook] japan-entry cancel handling failed", {
+            await applyGritvibSubscriptionSync(subscription, stripe, supabase)
+          } catch (gritvibError) {
+            console.error("[stripe webhook] gritvib cancel handling failed", {
               subscriptionId: subscription.id,
-              error: jesError instanceof Error ? jesError.message : String(jesError),
+              error: gritvibError instanceof Error ? gritvibError.message : String(gritvibError),
             })
           }
         }

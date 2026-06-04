@@ -11,14 +11,20 @@ function staticEntries(lastModified: Date): MetadataRoute.Sitemap {
     { url: buildSitemapEntryUrl("/about"), lastModified, changeFrequency: "monthly", priority: 0.8 },
     { url: buildSitemapEntryUrl("/guide"), lastModified, changeFrequency: "monthly", priority: 0.8 },
     { url: buildSitemapEntryUrl("/contact"), lastModified, changeFrequency: "monthly", priority: 0.6 },
-    { url: buildSitemapEntryUrl("/legal/terms"), lastModified, changeFrequency: "yearly", priority: 0.3 },
-    { url: buildSitemapEntryUrl("/legal/privacy-policy"), lastModified, changeFrequency: "yearly", priority: 0.3 },
+    { url: buildSitemapEntryUrl("/legal/terms"), lastModified, changeFrequency: "yearly", priority: 0.4 },
+    {
+      url: buildSitemapEntryUrl("/legal/privacy-policy"),
+      lastModified,
+      changeFrequency: "yearly",
+      priority: 0.4,
+    },
     {
       url: buildSitemapEntryUrl("/legal/specified-commercial-transactions"),
       lastModified,
       changeFrequency: "yearly",
-      priority: 0.3,
+      priority: 0.4,
     },
+    { url: buildSitemapEntryUrl("/legal/contact"), lastModified, changeFrequency: "monthly", priority: 0.5 },
   ]
 }
 

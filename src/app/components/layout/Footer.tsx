@@ -45,21 +45,6 @@ export function Footer() {
                 <Link href="/contact" className={baseLinkClass}>
                   {t("contact")}
                 </Link>
-                <Link href="/japan-entry" prefetch={false} className={baseLinkClass}>
-                  {t("japanEntry")}
-                </Link>
-              </nav>
-            </section>
-
-            <section className="space-y-4">
-              <h2 className="text-base font-semibold text-white">{t("boardTitle")}</h2>
-              <nav className="flex flex-col gap-2">
-                <Link href="/fromhere" className={baseLinkClass}>
-                  {t("fromhere")}
-                </Link>
-                <Link href="/fromhere/reviews" className={baseLinkClass}>
-                  {t("fromhereReviews")}
-                </Link>
               </nav>
             </section>
           </div>

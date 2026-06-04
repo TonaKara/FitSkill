@@ -30,7 +30,7 @@ export default function AdminCmsPage() {
       const { data } = await supabase
         .from("cms_settings")
         .select(
-          "id, site_name, address, email, phone, price_info, payment_method, delivery_info, return_policy, refund_policy, service_terms",
+          "id, site_name, operations_manager, address, email, phone, price_info, payment_method, delivery_info, refund_policy, service_terms",
         )
         .eq("id", CMS_SETTINGS_SINGLETON_ID)
         .maybeSingle()

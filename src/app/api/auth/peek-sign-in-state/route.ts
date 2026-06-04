@@ -85,26 +85,26 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as { email?: unknown }
     email = normalizeEmail(body.email)
   } catch {
-    return NextResponse.json({ found: false, pendingFirstPasswordLogin: false }, { status: 400 })
+    return NextResponse.json({ pendingFirstPasswordLogin: false }, { status: 400 })
   }
 
   if (!isLikelyEmail(email)) {
-    return NextResponse.json({ found: false, pendingFirstPasswordLogin: false })
+    return NextResponse.json({ pendingFirstPasswordLogin: false })
   }
 
   const admin = getSupabaseAdminClient()
   if (!admin) {
-    return NextResponse.json({ found: false, pendingFirstPasswordLogin: false, skipped: true })
+    return NextResponse.json({ pendingFirstPasswordLogin: false })
   }
 
   const { data, error } = await admin.rpc("peek_auth_user_sign_in_state", { p_email: email })
   if (error) {
-    console.error("[peek-sign-in-state] rpc", error)
-    return NextResponse.json({ found: false, pendingFirstPasswordLogin: false })
+    console.error("[peek-sign-in-state] rpc failed")
+    return NextResponse.json({ pendingFirstPasswordLogin: false })
   }
 
   if (data == null || typeof data !== "object") {
-    return NextResponse.json({ found: false, pendingFirstPasswordLogin: false })
+    return NextResponse.json({ pendingFirstPasswordLogin: false })
   }
 
   const row = data as PeekRow
@@ -117,8 +117,13 @@ export async function POST(request: NextRequest) {
     typeof row.last_sign_in_at === "string" &&
     row.last_sign_in_at.trim().length > 0
 
+  /**
+   * メール登録有無は返さない（列挙対策）。
+   * `pendingFirstPasswordLogin: true` は「確認済み・未初回ログイン」のみ。
+   * 未登録メールと既ログイン済みはどちらも false（区別不可）。
+   * 初回ログイン案内は ?signup_verified=1 等のクライアント側印も併用する。
+   */
   return NextResponse.json({
-    found: true,
     pendingFirstPasswordLogin: confirmed && !hasSignedIn,
   })
 }

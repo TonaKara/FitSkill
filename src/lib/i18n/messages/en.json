@@ -326,13 +326,13 @@
     "viewLink": "View notice under the Specified Commercial Transactions Act",
     "labels": {
       "siteName": "Seller Name",
+      "operationsManager": "Operations manager",
       "address": "Address",
       "email": "Email address",
       "phone": "Phone number",
       "priceInfo": "Price",
       "paymentMethod": "Payment method and timing",
       "deliveryInfo": "Provision/delivery timing",
-      "returnPolicy": "Returns",
       "refundPolicy": "Refunds and cancellation",
       "serviceTerms": "Other terms of sale"
     }
@@ -973,6 +973,9 @@
     "openPurchaseCta": "Start a transaction with this skill (purchase page)",
     "pendingContextHint": "Messages you send below will be delivered as an inquiry about this skill.",
     "readUpdateFailed": "Failed to update read status: {reason}",
+    "readUpdateFailedGeneric": "Failed to update read status.",
+    "messagesLoadFailed": "Could not load messages. Please try again later.",
+    "inboxLoadFailed": "Could not load the list. Please try again later.",
     "invalidUrl": "Invalid URL.",
     "selfChatForbidden": "You can't chat with yourself.",
     "preChatChecking": "Checking inquiry settings…",
@@ -1343,8 +1346,23 @@
     "termsTitle": "GritVib Terms of Service",
     "privacyTitle": "GritVib Privacy Policy",
     "commercialTitle": "Notation Based on the Act on Specified Commercial Transactions",
-    "backToHome": "Back to top page",
-    "documentEnd": ""
+    "backToHome": "Top",
+    "documentEnd": "",
+    "contactTitle": "Contact",
+    "contactDescription": "Send us your questions or feedback below.",
+    "contactNameLabel": "Nickname",
+    "contactEmailLabel": "Email address",
+    "contactSubjectLabel": "Subject",
+    "contactMessageLabel": "Your message",
+    "contactSubmit": "Send",
+    "contactSubmitting": "Sending…",
+    "contactSuccessTitle": "Your inquiry has been received",
+    "contactSuccessBody": "If we determine that a reply is necessary, we will respond within 1–2 business days.",
+    "contactErrorRequired": "Some required fields are empty.",
+    "contactErrorEmail": "Please enter a valid email address.",
+    "contactErrorSubjectTooLong": "Subject must be {max} characters or fewer.",
+    "contactErrorSubmit": "Failed to send. Please try again later.",
+    "contactLinkLabel": "Contact"
   },
   "footer": {
     "aboutTitle": "About",
@@ -2461,8 +2479,10 @@
   },
   "metadata": {
     "siteName": "GritVib",
-    "layoutTitleDefault": "GritVib | Empowering Every Challenger. Turn Your Passion into Value.",
-    "layoutDescription": "GritVib lets anyone open a store and sell their skills for free. No qualifications required - the things you love and the experience you've built can become valuable to others. Start easily from social media and turn what you love into a meaningful side hustle.",
+    "layoutTitleDefault": "Living as a human being. | GritVib",
+    "layoutDescription": "Instead of ChatGPT, a human is your chat partner. It's not perfect. Because we're human.",
+    "gritvibHomeTitle": "Living as a human being. | GritVib",
+    "gritvibHomeDescription": "Instead of ChatGPT, a human is your chat partner. It's not perfect. Because we're human.",
     "homeTitle": "GritVib | Empowering Every Challenger. Turn Your Passion into Value.",
     "homeDescription": "GritVib lets anyone open a store and sell their skills for free. No qualifications required - the things you love and the experience you've built can become valuable to others. Start easily from social media and turn what you love into a meaningful side hustle.",
     "about": {
@@ -2494,6 +2514,10 @@
       "description": "Send questions, bug reports, or media inquiries to the GritVib team. Our staff will review your message.",
       "successTitle": "Your inquiry has been received",
       "successDescription": "Thank you for contacting GritVib. We have received your message and will respond if necessary."
+    },
+    "legalContact": {
+      "title": "Contact",
+      "description": "Send your questions or feedback to GritVib. We will respond if a reply is necessary."
     },
     "login": {
       "title": "Log in",

@@ -16,6 +16,7 @@ type MypageInquirySectionProps = {
 export function MypageInquirySection({ userId, mode }: MypageInquirySectionProps) {
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
   const tMy = useTranslations("mypage")
+  const tInquiry = useTranslations("inquiry")
   const [threads, setThreads] = useState<InquiryInboxListRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -28,7 +29,7 @@ export function MypageInquirySection({ userId, mode }: MypageInquirySectionProps
     const { rows, error: fetchError } = await fetchInquiryInboxList(supabase)
     if (fetchError) {
       setThreads([])
-      setError(fetchError)
+      setError(tInquiry("inboxLoadFailed"))
       setLoading(false)
       return
     }

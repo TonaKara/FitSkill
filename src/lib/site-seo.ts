@@ -102,61 +102,71 @@ export function getAppBaseUrl(): string {
   return getSiteUrl()
 }
 
-/** ルートレイアウトのデフォルト（子ページが title を上書きしない場合）— トップ以外の既定 */
-export const LAYOUT_TITLE_DEFAULT =
-  "GritVib | 挑戦するすべての人に、「好き」を価値にする選択肢を。"
+/** ルートレイアウトのデフォルト（子ページが title を上書きしない場合） */
+export const LAYOUT_TITLE_DEFAULT = "人として、生きるということ。| GritVib"
 
 export const LAYOUT_DESCRIPTION =
-  "GritVib（グリット・ヴィブ）は、誰でも自分のスキルを売るためのストアを無料で簡単に作れるサービスです。特別な資格がなくても、あなたの日々の積み重ねや「好き」の経験が誰かの価値になります。SNSから手軽に始めて、あなたの「好き」をもっと大切にする副業に。"
+  "ChatGPTの代わりに、人間がチャットの相手になります。完璧ではありません。人間だからです。"
 
-/** トップページ（https://gritvib.com/）専用の検索・OG テキスト（画像内テキストではない） */
-export const HOME_TITLE_ABSOLUTE =
+/** 現行トップ (`/`) — 人間チャットサービスの検索・OG テキスト */
+export const GRITVIB_LANDING_TITLE_ABSOLUTE = "人として、生きるということ。| GritVib"
+
+export const GRITVIB_LANDING_DESCRIPTION =
+  "ChatGPTの代わりに、人間がチャットの相手になります。完璧ではありません。人間だからです。"
+
+/**
+ * トップ (`/`) の OGP 用静止画。
+ *
+ * - 保存場所: `public/og-gritvib-landing.png`（リポジトリ直下の public フォルダ）
+ * - 実ファイル: 1024 × 537 px（`public/og-gritvib-landing.png`）
+ * - 形式: PNG
+ */
+export const GRITVIB_LANDING_OG_IMAGE_PATH = "/og-gritvib-landing.png"
+
+export const GRITVIB_LANDING_OG_IMAGE_SIZE = { width: 1024, height: 537 } as const
+
+/**
+ * 旧スキルマーケット (`/store`) 向けの検索・OG テキスト。
+ * `metadata.homeTitle` / `metadata.homeDescription`（i18n）と揃える。
+ */
+export const STORE_HOME_TITLE_ABSOLUTE =
   "GritVib | 挑戦するすべての人に、「好き」を価値にする選択肢を。"
 
-export const HOME_DESCRIPTION =
+export const STORE_HOME_DESCRIPTION =
   "GritVib（グリット・ヴィブ）は、誰でも自分のスキルを売るためのストアを無料で簡単に作れるサービスです。特別な資格がなくても、あなたの日々の積み重ねや「好き」の経験が誰かの価値になります。SNSから手軽に始めて、あなたの「好き」をもっと大切にする副業に。"
 
-/** 検索向けキーワード（日本語版・ブランド → サービス → 利用シーン → ジャンル） */
+/** @deprecated {@link STORE_HOME_TITLE_ABSOLUTE} を使用 */
+export const HOME_TITLE_ABSOLUTE = STORE_HOME_TITLE_ABSOLUTE
+
+/** @deprecated {@link STORE_HOME_DESCRIPTION} を使用 */
+export const HOME_DESCRIPTION = STORE_HOME_DESCRIPTION
+
+/** 検索向けキーワード（日本語・現行 GritVib 人間チャット） */
 export const SITE_KEYWORDS = [
   "GritVib",
   "グリットヴィブ",
   "グリット・ヴィブ",
   "gritvib.com",
-  "個人ストア",
-  "スキルシェア",
-  "スキルマーケット",
-  "スキル",
-  "趣味",
-  "副業",
-  "経歴不問",
-  "オンライン相談",
-  "オンラインレッスン",
-  "デジタルコンテンツ",
-  "コーチング",
-  "勉強",
-  "料理",
-  "ゲーム",
-  "フィットネス",
+  "人間チャット",
+  "チャット",
+  "サブスクリプション",
+  "月額3000円",
+  "対話",
+  "人と話す",
+  "AIではない",
+  "通知なし",
 ] as const
 
-/** 英語版キーワード（検索意図を補強する世界共通語彙） */
+/** 英語版キーワード */
 export const SITE_KEYWORDS_EN = [
   "GritVib",
   "gritvib.com",
-  "personal store",
-  "skill sharing",
-  "skill marketplace",
-  "skills",
-  "hobbies",
-  "side hustle",
-  "online consultation",
-  "online lessons",
-  "digital content",
-  "coaching",
-  "study",
-  "cooking",
-  "gaming",
-  "fitness",
+  "human chat",
+  "subscription chat",
+  "conversation",
+  "not AI",
+  "slow reply",
+  "text chat",
 ] as const
 
 /**

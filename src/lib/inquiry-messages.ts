@@ -1,6 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { normalizeSkillBigIntId } from "@/lib/skill-id-bigint"
 
+/** クライアントへ返す問い合わせ取得エラー（詳細はサーバー／開発者ログのみ） */
+export const INQUIRY_CLIENT_FETCH_FAILED = "INQUIRY_FETCH_FAILED" as const
+export const INQUIRY_CLIENT_SEND_FAILED = "INQUIRY_SEND_FAILED" as const
+export const INQUIRY_CLIENT_READ_FAILED = "INQUIRY_READ_FAILED" as const
+export type InquiryClientError =
+  | typeof INQUIRY_CLIENT_FETCH_FAILED
+  | typeof INQUIRY_CLIENT_SEND_FAILED
+  | typeof INQUIRY_CLIENT_READ_FAILED
+
 /** bigint 相当のスキル ID（アプリ内は十進文字列で統一） */
 export type SkillBigIntId = string
 const INQUIRY_NOTIFICATION_TYPE = "inquiry_message"
@@ -69,7 +78,7 @@ function isMissingPostgrestRpc(err: { message?: string } | null): boolean {
 async function fetchInquiryInboxListFromMessagesTable(
   supabase: SupabaseClient,
   userId: string,
-): Promise<{ rows: InquiryInboxListRow[]; error: string | null }> {
+): Promise<{ rows: InquiryInboxListRow[]; error: InquiryClientError | null }> {
   const { data, error } = await supabase
     .from("inquiry_messages")
     .select("sender_id, recipient_id, content, created_at, origin_skill_id, is_read")
@@ -78,7 +87,7 @@ async function fetchInquiryInboxListFromMessagesTable(
     .limit(1000)
 
   if (error) {
-    return { rows: [], error: error.message }
+    return { rows: [], error: INQUIRY_CLIENT_FETCH_FAILED }
   }
 
   const byPeer = new Map<string, InquiryInboxListRow>()
@@ -113,7 +122,7 @@ async function fetchInquiryInboxListFromMessagesTable(
 
 export async function fetchInquiryInboxList(
   supabase: SupabaseClient,
-): Promise<{ rows: InquiryInboxListRow[]; error: string | null }> {
+): Promise<{ rows: InquiryInboxListRow[]; error: InquiryClientError | null }> {
   const { data, error } = await supabase.rpc("inquiry_inbox_list")
   if (!error) {
     const rows = (data ?? [])
@@ -123,7 +132,7 @@ export async function fetchInquiryInboxList(
   }
 
   if (!isMissingPostgrestRpc(error)) {
-    return { rows: [], error: error.message }
+    return { rows: [], error: INQUIRY_CLIENT_FETCH_FAILED }
   }
 
   const { data: session } = await supabase.auth.getUser()
@@ -133,17 +142,11 @@ export async function fetchInquiryInboxList(
     if (!fromTable.error) {
       return fromTable
     }
-    const te = fromTable.error.toLowerCase()
-    const looksLikeOldTable =
-      te.includes("column") || te.includes("does not exist") || te.includes("42703")
-    if (!looksLikeOldTable) {
-      return { rows: [], error: `${error.message}（代替: ${fromTable.error}）` }
-    }
   }
 
   const { data: legacyData, error: legacyError } = await supabase.rpc("inquiry_inbox_threads")
   if (legacyError) {
-    return { rows: [], error: legacyError.message }
+    return { rows: [], error: INQUIRY_CLIENT_FETCH_FAILED }
   }
 
   const legacyRows: Array<InquiryInboxListRow | null> = (legacyData ?? []).map((raw: unknown) => {
@@ -172,7 +175,7 @@ export async function fetchInquiryInboxList(
 export async function fetchInquiryThreadMessages(
   supabase: SupabaseClient,
   peerId: string,
-): Promise<{ rows: InquiryMessageRow[]; error: string | null }> {
+): Promise<{ rows: InquiryMessageRow[]; error: InquiryClientError | null }> {
   const { data, error } = await supabase.rpc("inquiry_thread_messages", { p_peer_id: peerId })
   if (!error) {
     const rows = (data ?? [])
@@ -182,13 +185,13 @@ export async function fetchInquiryThreadMessages(
   }
 
   if (!isMissingPostgrestRpc(error)) {
-    return { rows: [], error: error.message }
+    return { rows: [], error: INQUIRY_CLIENT_FETCH_FAILED }
   }
 
   const { data: session } = await supabase.auth.getUser()
   const uid = session.user?.id
   if (!uid) {
-    return { rows: [], error: error.message }
+    return { rows: [], error: INQUIRY_CLIENT_FETCH_FAILED }
   }
 
   // 現行スキーマ（sender_id / recipient_id）向けフォールバック
@@ -207,13 +210,6 @@ export async function fetchInquiryThreadMessages(
     return { rows, error: null }
   }
 
-  const tableErr = tableError.message.toLowerCase()
-  const looksLikeOldTable =
-    tableErr.includes("column") || tableErr.includes("does not exist") || tableErr.includes("42703")
-  if (!looksLikeOldTable) {
-    return { rows: [], error: `${error.message}（代替: ${tableError.message}）` }
-  }
-
   // 旧スキーマ（buyer_id / seller_id）向けフォールバック
   const { data: legacyData, error: legacyError } = await supabase
     .from("inquiry_messages")
@@ -224,7 +220,7 @@ export async function fetchInquiryThreadMessages(
     .order("created_at", { ascending: true })
 
   if (legacyError) {
-    return { rows: [], error: `${error.message}（代替: ${legacyError.message}）` }
+    return { rows: [], error: INQUIRY_CLIENT_FETCH_FAILED }
   }
 
   const legacyRows: InquiryMessageRow[] = []
@@ -260,10 +256,10 @@ export async function insertInquiryMessage(
     origin_skill_id: unknown
     content: string
   },
-): Promise<{ row: InquiryMessageRow | null; error: string | null }> {
+): Promise<{ row: InquiryMessageRow | null; error: InquiryClientError | null }> {
   const origin = normalizeSkillBigIntId(payload.origin_skill_id)
   if (origin == null) {
-    return { row: null, error: "origin_skill_id が不正です。" }
+    return { row: null, error: INQUIRY_CLIENT_SEND_FAILED }
   }
 
   const { data, error } = await supabase
@@ -279,11 +275,11 @@ export async function insertInquiryMessage(
     .single()
 
   if (error || !data) {
-    return { row: null, error: error?.message ?? "insert failed" }
+    return { row: null, error: INQUIRY_CLIENT_SEND_FAILED }
   }
   const row = mapInquiryMessageRow(data as Record<string, unknown>)
   if (!row) {
-    return { row: null, error: "返却行の整形に失敗しました。" }
+    return { row: null, error: INQUIRY_CLIENT_SEND_FAILED }
   }
 
   // チャット受信者向けの in-app 通知を追加（失敗しても送信自体は成功扱い）
@@ -298,7 +294,7 @@ export async function insertInquiryMessage(
     is_read: false,
   })
   if (notifError) {
-    console.warn("[inquiry] notifications insert failed:", notifError.message)
+    /* 通知失敗は送信成功扱いのまま（詳細は出さない） */
   }
   return { row, error: null }
 }
@@ -308,7 +304,7 @@ export async function markInquiryThreadRead(
   supabase: SupabaseClient,
   viewerId: string,
   peerId: string,
-): Promise<{ error: string | null }> {
+): Promise<{ error: InquiryClientError | null }> {
   const { error } = await supabase
     .from("inquiry_messages")
     .update({ is_read: true })
@@ -316,5 +312,5 @@ export async function markInquiryThreadRead(
     .eq("sender_id", peerId)
     .eq("is_read", false)
 
-  return { error: error?.message ?? null }
+  return { error: error ? INQUIRY_CLIENT_READ_FAILED : null }
 }

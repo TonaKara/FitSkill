@@ -2,7 +2,7 @@
 
 import { Fragment, useMemo } from "react"
 import Link from "next/link"
-import { ArrowRight, BadgeCheck, Globe2, Handshake, ShieldCheck } from "lucide-react"
+import { BadgeCheck, Handshake, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ALLOWED_EXTERNAL_TOOLS_ETC } from "@/lib/allowed-external-tools"
 import { CONTENT_PAGE_MAIN_CLASS } from "@/lib/content-page-layout"
@@ -55,7 +55,6 @@ export default function GuidePage() {
   const tSeller = useTranslations("guide.seller")
   const tBuyer = useTranslations("guide.buyer")
   const tSupport = useTranslations("guide.support")
-  const tJapanEntry = useTranslations("guide.japanEntry")
 
   // 表示用ラベル: 日本語は ALLOWED_EXTERNAL_TOOLS_ETC をそのまま、英語時のみ自然な etc. 表記。
   const toolsLabel = locale === "en" ? "Zoom, YouTube, Discord, etc." : ALLOWED_EXTERNAL_TOOLS_ETC
@@ -146,30 +145,6 @@ export default function GuidePage() {
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.body}</p>
             </article>
           ))}
-        </div>
-      </section>
-
-      <section className="mt-8 overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-accent via-accent/60 to-background p-5 md:p-7">
-        <div className="mb-4 flex items-center gap-2">
-          <Globe2 className="h-5 w-5 text-primary-readable" aria-hidden />
-          <h2 className="text-xl font-bold text-foreground">{tJapanEntry("heading")}</h2>
-          <span className="ml-1 inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-primary-readable">
-            English
-          </span>
-        </div>
-        <p className="text-sm leading-relaxed text-muted-foreground md:text-base">
-          {tJapanEntry("intro")}
-        </p>
-        <p className="mt-3 text-sm leading-relaxed text-muted-foreground md:text-base">
-          {tJapanEntry("body")}
-        </p>
-        <div className="mt-5">
-          <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90">
-            <Link href="/japan-entry" prefetch={false}>
-              {tJapanEntry("cta")}
-              <ArrowRight className="h-4 w-4" aria-hidden />
-            </Link>
-          </Button>
         </div>
       </section>
     </main>

@@ -23,17 +23,45 @@ export function buildAuthCallbackRedirectUrl(nextPath: string): string {
 
 export const SIGNUP_CONFIRMATION_NEXT_PATH = "/profile-setup"
 
-/** メール確認リンクの `next` が新規登録フローか */
-export function isSignupEmailConfirmationNextPath(nextPath: string): boolean {
-  return sanitizeAuthNextPath(nextPath) === sanitizeAuthNextPath(SIGNUP_CONFIRMATION_NEXT_PATH)
+/** GritVib 人間チャット (`/talk/register`) 用の確認後遷移先 */
+export const GRITVIB_SIGNUP_CONFIRMATION_NEXT_PATH = "/talk/onboard"
+
+const SIGNUP_CONFIRMATION_NEXT_PATHS = [
+  SIGNUP_CONFIRMATION_NEXT_PATH,
+  GRITVIB_SIGNUP_CONFIRMATION_NEXT_PATH,
+] as const
+
+/** 確認メールの `next` パラメータ（許可リスト） */
+export function sanitizeSignupConfirmationNextPath(raw: string | null | undefined): string {
+  const value = String(raw ?? "").trim()
+  for (const allowed of SIGNUP_CONFIRMATION_NEXT_PATHS) {
+    if (sanitizeAuthNextPath(value) === sanitizeAuthNextPath(allowed)) {
+      return allowed
+    }
+  }
+  return SIGNUP_CONFIRMATION_NEXT_PATH
 }
 
-export function buildSignupVerifiedLoginUrl(): string {
+/** メール確認リンクの `next` が新規登録フローか */
+export function isSignupEmailConfirmationNextPath(nextPath: string): boolean {
+  const safe = sanitizeAuthNextPath(nextPath)
+  return SIGNUP_CONFIRMATION_NEXT_PATHS.some(
+    (allowed) => sanitizeAuthNextPath(allowed) === safe,
+  )
+}
+
+export function buildSignupVerifiedLoginUrl(nextPath?: string): string {
+  const safe = sanitizeSignupConfirmationNextPath(nextPath ?? SIGNUP_CONFIRMATION_NEXT_PATH)
+  if (safe === GRITVIB_SIGNUP_CONFIRMATION_NEXT_PATH) {
+    return "/talk/login?signup_verified=1"
+  }
   return "/login?signup_verified=1"
 }
 
-export function buildSignupConfirmationRedirectUrl(): string {
-  return buildAuthCallbackRedirectUrl(SIGNUP_CONFIRMATION_NEXT_PATH)
+export function buildSignupConfirmationRedirectUrl(
+  nextPath: string = SIGNUP_CONFIRMATION_NEXT_PATH,
+): string {
+  return buildAuthCallbackRedirectUrl(sanitizeSignupConfirmationNextPath(nextPath))
 }
 
 export const SIGNUP_PENDING_VERIFICATION_EMAIL_KEY = "gritvib.signup.pending_verification_email"

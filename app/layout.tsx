@@ -86,9 +86,6 @@ export async function generateMetadata(): Promise<Metadata> {
       template: "%s | GritVib",
     },
     description,
-    alternates: {
-      canonical: siteUrl,
-    },
     applicationName: "GritVib",
     keywords: [...getLocalizedSiteKeywords(locale)],
     authors: [{ name: "GritVib", url: siteUrl }],
@@ -112,7 +109,6 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     icons: {
       icon: [
-        { url: "/favicon.svg", type: "image/svg+xml" },
         { url: "/favicon.ico", sizes: "any" },
         { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
       ],

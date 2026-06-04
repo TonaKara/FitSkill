@@ -3,14 +3,17 @@ import {
   pickLocaleFromAcceptLanguage,
   readLocaleCookieFromHeader,
 } from "@/lib/i18n/detect-locale"
+import { sanitizeSignupConfirmationNextPath } from "@/lib/auth-email-flow"
 import {
   sendSignupConfirmationEmail,
+  updatePendingSignupEmailIfAllowed,
   type SignupConfirmationResendFailureReason,
+  type UpdatePendingSignupEmailFailureReason,
 } from "@/lib/signup-confirmation-resend"
 
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000
 const MAX_ATTEMPTS_PER_IP = 8
-const MAX_ATTEMPTS_PER_EMAIL = 1
+const MAX_ATTEMPTS_PER_EMAIL = 3
 
 type RateLimitEntry = {
   count: number
@@ -67,6 +70,19 @@ const DELIVERY_FAILURE_MESSAGE =
 const LINK_FAILURE_MESSAGE =
   "確認用リンクの作成に失敗しました。時間を置いて再度お試しください。解決しない場合はお問い合わせください。"
 
+function resolveEmailChangeFailureMessage(reason: UpdatePendingSignupEmailFailureReason): string {
+  switch (reason) {
+    case "not_found":
+      return "登録情報が見つかりません。もう一度「はじめる」から登録し直してください。"
+    case "already_confirmed":
+      return "このアカウントはすでにメール確認済みです。ログイン画面からお試しください。"
+    case "email_taken":
+      return "このメールアドレスはすでに登録されています。"
+    default:
+      return FAILURE_MESSAGE
+  }
+}
+
 function resolveFailureMessage(reason: SignupConfirmationResendFailureReason): string {
   if (reason === "missing_config") {
     return CONFIG_FAILURE_MESSAGE
@@ -79,9 +95,19 @@ function resolveFailureMessage(reason: SignupConfirmationResendFailureReason): s
 
 export async function POST(request: NextRequest) {
   let email = ""
+  let previousEmail = ""
+  let nextPath = sanitizeSignupConfirmationNextPath(null)
   try {
-    const body = (await request.json()) as { email?: unknown }
+    const body = (await request.json()) as {
+      email?: unknown
+      previousEmail?: unknown
+      next?: unknown
+    }
     email = normalizeEmail(body.email)
+    previousEmail = normalizeEmail(body.previousEmail)
+    nextPath = sanitizeSignupConfirmationNextPath(
+      typeof body.next === "string" ? body.next : null,
+    )
   } catch {
     return NextResponse.json({ message: FAILURE_MESSAGE, delivered: false }, { status: 400 })
   }
@@ -93,27 +119,36 @@ export async function POST(request: NextRequest) {
   const now = Date.now()
   const ip = getClientIp(request)
   if (isRateLimited(ipAttempts, ip, MAX_ATTEMPTS_PER_IP, now)) {
-    return NextResponse.json({ message: FAILURE_MESSAGE, delivered: false, reason: "rate_limited" }, { status: 429 })
+    return NextResponse.json({ message: FAILURE_MESSAGE, delivered: false }, { status: 429 })
   }
 
   if (isRateLimited(emailAttempts, email, MAX_ATTEMPTS_PER_EMAIL, now)) {
     return NextResponse.json(
       {
-        message: "確認メールの再送は1回までです。届かない場合はお問い合わせください。",
+        message: "確認メールの再送回数の上限に達しました。しばらくしてから再度お試しください。",
         delivered: false,
-        reason: "rate_limited",
       },
       { status: 429 },
     )
   }
 
+  if (previousEmail && previousEmail !== email) {
+    const change = await updatePendingSignupEmailIfAllowed(previousEmail, email)
+    if (!change.ok) {
+      return NextResponse.json(
+        { message: resolveEmailChangeFailureMessage(change.reason), delivered: false },
+        { status: change.reason === "email_taken" ? 409 : 400 },
+      )
+    }
+  }
+
   const cookieLocale = readLocaleCookieFromHeader(request.headers.get("cookie"))
   const locale = cookieLocale ?? pickLocaleFromAcceptLanguage(request.headers.get("accept-language"))
-  const result = await sendSignupConfirmationEmail(email, locale)
+  const result = await sendSignupConfirmationEmail(email, locale, nextPath)
   if (!result.ok) {
-    console.error("[resend-signup-confirmation] delivery failed", { email, reason: result.reason })
+    console.error("[resend-signup-confirmation] delivery failed")
     return NextResponse.json(
-      { message: resolveFailureMessage(result.reason), delivered: false, reason: result.reason },
+      { message: resolveFailureMessage(result.reason), delivered: false },
       { status: result.reason === "missing_config" ? 503 : 502 },
     )
   }

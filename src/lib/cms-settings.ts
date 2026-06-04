@@ -2,6 +2,7 @@ export const CMS_SETTINGS_SINGLETON_ID = 1
 
 export type CmsSettingsValues = {
   site_name: string
+  operations_manager: string
   address: string
   email: string
   phone: string
@@ -21,6 +22,7 @@ export type CmsSettingsRow = CmsSettingsValues & {
 
 export const EMPTY_CMS_SETTINGS: CmsSettingsValues = {
   site_name: "",
+  operations_manager: "",
   address: "",
   email: "",
   phone: "",
@@ -35,6 +37,8 @@ export const EMPTY_CMS_SETTINGS: CmsSettingsValues = {
 export function normalizeCmsSettings(row: Partial<CmsSettingsRow> | null | undefined): CmsSettingsValues {
   return {
     site_name: typeof row?.site_name === "string" ? row.site_name : "",
+    operations_manager:
+      typeof row?.operations_manager === "string" ? row.operations_manager : "",
     address: typeof row?.address === "string" ? row.address : "",
     email: typeof row?.email === "string" ? row.email : "",
     phone: typeof row?.phone === "string" ? row.phone : "",
@@ -49,13 +53,13 @@ export function normalizeCmsSettings(row: Partial<CmsSettingsRow> | null | undef
 
 export const CMS_SETTINGS_FIELDS: Array<{ key: keyof CmsSettingsValues; label: string; multiline?: boolean }> = [
   { key: "site_name", label: "販売事業者名" },
+  { key: "operations_manager", label: "運営責任者" },
   { key: "address", label: "所在地", multiline: true },
   { key: "email", label: "メールアドレス" },
   { key: "phone", label: "電話番号" },
   { key: "price_info", label: "販売価格" },
   { key: "payment_method", label: "支払方法・支払時期", multiline: true },
   { key: "delivery_info", label: "提供役務の提供時期・引き渡し時期", multiline: true },
-  { key: "return_policy", label: "返品について", multiline: true },
   { key: "refund_policy", label: "返金・キャンセルについて", multiline: true },
   { key: "service_terms", label: "その他の販売条件", multiline: true },
 ]

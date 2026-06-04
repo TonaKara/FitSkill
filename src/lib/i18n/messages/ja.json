@@ -326,13 +326,13 @@
     "viewLink": "特定商取引法に基づく表記を見る",
     "labels": {
       "siteName": "販売事業者名",
+      "operationsManager": "運営責任者",
       "address": "所在地",
       "email": "メールアドレス",
       "phone": "電話番号",
       "priceInfo": "販売価格",
       "paymentMethod": "支払方法・支払時期",
       "deliveryInfo": "提供役務の提供時期・引き渡し時期",
-      "returnPolicy": "返品について",
       "refundPolicy": "返金・キャンセルについて",
       "serviceTerms": "その他の販売条件"
     }
@@ -973,6 +973,9 @@
     "openPurchaseCta": "このスキルで取引を始める（購入ページへ）",
     "pendingContextHint": "下の送信欄から送るメッセージは、このスキルについての相談として届きます。",
     "readUpdateFailed": "既読更新に失敗しました: {reason}",
+    "readUpdateFailedGeneric": "既読の更新に失敗しました。",
+    "messagesLoadFailed": "メッセージを読み込めませんでした。時間をおいて再度お試しください。",
+    "inboxLoadFailed": "一覧を読み込めませんでした。時間をおいて再度お試しください。",
     "invalidUrl": "URL が不正です。",
     "selfChatForbidden": "自分自身とはチャットできません。",
     "preChatChecking": "相談設定を確認しています…",
@@ -1343,8 +1346,23 @@
     "termsTitle": "GritVib 利用規約",
     "privacyTitle": "GritVib プライバシーポリシー",
     "commercialTitle": "特定商取引法に基づく表記",
-    "backToHome": "トップページに戻る",
-    "documentEnd": "以上"
+    "backToHome": "トップへ",
+    "documentEnd": "以上",
+    "contactTitle": "お問い合わせ",
+    "contactDescription": "ご質問・ご意見などはこちらからお送りください。",
+    "contactNameLabel": "ニックネーム",
+    "contactEmailLabel": "メールアドレス",
+    "contactSubjectLabel": "件名",
+    "contactMessageLabel": "お問い合わせ内容",
+    "contactSubmit": "送信する",
+    "contactSubmitting": "送信中…",
+    "contactSuccessTitle": "お問い合わせを受け付けました",
+    "contactSuccessBody": "運営側で返信が必要だと判断した場合、1〜2 営業日以内にご返信いたします。",
+    "contactErrorRequired": "未入力の項目があります。",
+    "contactErrorEmail": "メールアドレスの形式が正しくありません。",
+    "contactErrorSubjectTooLong": "件名は{max}文字以内で入力してください。",
+    "contactErrorSubmit": "送信に失敗しました。時間をおいて再度お試しください。",
+    "contactLinkLabel": "お問い合わせ"
   },
   "footer": {
     "aboutTitle": "サービスについて",
@@ -2461,8 +2479,10 @@
   },
   "metadata": {
     "siteName": "GritVib",
-    "layoutTitleDefault": "GritVib | 挑戦するすべての人に、「好き」を価値にする選択肢を。",
-    "layoutDescription": "GritVib（グリット・ヴィブ）は、誰でも自分のスキルを売るためのストアを無料で簡単に作れるサービスです。特別な資格がなくても、あなたの日々の積み重ねや「好き」の経験が誰かの価値になります。SNSから手軽に始めて、あなたの「好き」をもっと大切にする副業に。",
+    "layoutTitleDefault": "人として、生きるということ。| GritVib",
+    "layoutDescription": "ChatGPTの代わりに、人間がチャットの相手になります。完璧ではありません。人間だからです。",
+    "gritvibHomeTitle": "人として、生きるということ。| GritVib",
+    "gritvibHomeDescription": "ChatGPTの代わりに、人間がチャットの相手になります。完璧ではありません。人間だからです。",
     "homeTitle": "GritVib | 挑戦するすべての人に、「好き」を価値にする選択肢を。",
     "homeDescription": "GritVib（グリット・ヴィブ）は、誰でも自分のスキルを売るためのストアを無料で簡単に作れるサービスです。特別な資格がなくても、あなたの日々の積み重ねや「好き」の経験が誰かの価値になります。SNSから手軽に始めて、あなたの「好き」をもっと大切にする副業に。",
     "about": {
@@ -2494,6 +2514,10 @@
       "description": "GritVib（グリット・ヴィブ）へのご質問・不具合報告・取材などのお問い合わせはこちらから。運営チームが内容を確認します。",
       "successTitle": "お問い合わせを受け付けました",
       "successDescription": "GritVibへのお問い合わせを受け付けました。内容を確認のうえ、必要に応じてご返信します。"
+    },
+    "legalContact": {
+      "title": "お問い合わせ",
+      "description": "GritVib へのご質問やご意見はこちらからお送りください。内容を確認のうえ、必要に応じてご返信いたします。"
     },
     "login": {
       "title": "ログイン",

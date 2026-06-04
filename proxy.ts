@@ -35,48 +35,12 @@ function withVercelNoIndex(request: NextRequest, response: NextResponse): NextRe
   return response
 }
 
-function isJapanEntryPath(pathname: string): boolean {
-  return pathname === "/japan-entry" || pathname.startsWith("/japan-entry/")
-}
-
-/**
- * /japan-entry 配下は英語専用ランディングのため、ロケール Cookie を強制的に "en" へ切り替える。
- * - request.cookies を上書きすることで、同一リクエストの RSC（layout.tsx 等）も "en" で描画される。
- * - 一度この Cookie が "en" になれば、その後ヘッダー・フッター経由で他ページへ遷移しても英語表示が維持される。
- */
-function applyJapanEntryLocaleOverride(request: NextRequest): void {
-  if (!isJapanEntryPath(request.nextUrl.pathname)) {
-    return
-  }
-  request.cookies.set(LOCALE_COOKIE_NAME, "en")
-}
-
-function setEnglishLocaleCookieIfJapanEntry(
-  request: NextRequest,
-  response: NextResponse,
-): NextResponse {
-  if (!isJapanEntryPath(request.nextUrl.pathname)) {
-    return response
-  }
-  response.cookies.set(LOCALE_COOKIE_NAME, "en", {
-    path: "/",
-    maxAge: LOCALE_COOKIE_MAX_AGE,
-    sameSite: "lax",
-  })
-  return response
-}
-
 /**
  * Cookie に locale が無いリクエストでは Accept-Language から推定し、
  * レスポンスに Set-Cookie する。
  * Cookie の有無を変えるだけで再描画は行わない（既存セッション処理に影響なし）。
- *
- * /japan-entry は専用ランディングのため、Cookie の現在値に関わらず常に "en" を Set-Cookie する。
  */
 function ensureLocaleCookie(request: NextRequest, response: NextResponse): NextResponse {
-  if (isJapanEntryPath(request.nextUrl.pathname)) {
-    return setEnglishLocaleCookieIfJapanEntry(request, response)
-  }
   const existing = request.cookies.get(LOCALE_COOKIE_NAME)?.value
   if (existing && isSupportedLocale(existing)) {
     return response
@@ -101,6 +65,11 @@ function redirectWwwToCanonicalHost(request: NextRequest): NextResponse | null {
   redirectUrl.protocol = "https:"
   redirectUrl.port = ""
   return NextResponse.redirect(redirectUrl, 301)
+}
+
+/** 旧スキルマーケット（`/store`）。現行 GritVib トップへ誘導する。 */
+function isLegacyStorePath(pathname: string): boolean {
+  return pathname === "/store" || pathname.startsWith("/store/")
 }
 
 function isBypassProxyPath(pathname: string): boolean {
@@ -174,15 +143,16 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
+  if (isLegacyStorePath(pathname)) {
+    return ensureLocaleCookie(
+      request,
+      withVercelNoIndex(request, NextResponse.redirect(new URL("/", request.url))),
+    )
+  }
+
   if (isBypassProxyPath(pathname)) {
     return ensureLocaleCookie(request, withVercelNoIndex(request, NextResponse.next()))
   }
-
-  /**
-   * /japan-entry 配下では同一リクエスト中の RSC（layout.tsx）が "en" を読めるよう、
-   * NextResponse.next({ request }) の前に request.cookies を上書きする。
-   */
-  applyJapanEntryLocaleOverride(request)
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -214,7 +184,12 @@ export async function proxy(request: NextRequest) {
   if (authUser) {
     const { isBanned, isAdmin } = await getBanStatusFromProfile(supabase, authUser.id)
     const allowForBannedBase =
-      pathname === "/" || pathname === "/banned" || pathname === "/contact" || pathname === "/contact/success"
+      pathname === "/" ||
+      pathname === "/banned" ||
+      pathname === "/contact" ||
+      pathname === "/contact/success" ||
+      pathname === "/legal" ||
+      pathname.startsWith("/legal/")
     const allowBannedChat = await canBannedUserAccessChatPath({
       pathname,
       userId: authUser.id,

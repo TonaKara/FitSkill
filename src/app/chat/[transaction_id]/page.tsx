@@ -52,7 +52,8 @@ import { fetchMyTransactionReview, type TransactionReviewRow } from "@/lib/trans
 import { ALLOWED_EXTERNAL_TOOLS_SLASH } from "@/lib/allowed-external-tools"
 import { lookupJaMessage } from "@/lib/i18n/ja-canonical"
 import { chatUi } from "@/lib/chat-ui"
-import { cn, getUnknownErrorMessage } from "@/lib/utils"
+import { safeClientLogError } from "@/lib/safe-client-log"
+import { cn } from "@/lib/utils"
 import type { AppNotice } from "@/lib/notifications"
 import { useLocale, useTranslations } from "@/lib/i18n/useI18n"
 import { localeToHtmlLang } from "@/lib/i18n/locales"
@@ -1398,13 +1399,8 @@ export default function ChatTransactionPage() {
         router.push("/login")
         return
       }
-      const userMsg = getUnknownErrorMessage(error, tErr("approveGenericFailed"))
-      console.error("[tx-complete] error", {
-        transactionId,
-        message: userMsg,
-        raw: error instanceof Error ? { name: error.name, message: error.message } : String(error),
-      })
-      setCompleteError(userMsg)
+      safeClientLogError("[tx-complete] error")
+      setCompleteError(tErr("approveGenericFailed"))
     } finally {
       setCompleting(false)
     }

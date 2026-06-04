@@ -31,7 +31,7 @@ export function InquiryListClient() {
     const { rows, error: fetchError } = await fetchInquiryInboxList(supabase)
     if (fetchError) {
       setThreads([])
-      setError(fetchError)
+      setError(t("inboxLoadFailed"))
       setLoading(false)
       return
     }

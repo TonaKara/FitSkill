@@ -132,10 +132,6 @@ export function AdminTableCard({
   const [actionReasonMap, setActionReasonMap] = useState<Record<string, string>>({})
   const [reportedUserStatusMap, setReportedUserStatusMap] = useState<Record<string, string>>({})
   const [productPublishedMap, setProductPublishedMap] = useState<Record<string, boolean>>({})
-  /** profiles 行に紐づく FromHere の handle マップ (id -> handle)。
-   *  ユーザー管理画面の検索で「FromHere ハンドル」もヒット対象にするために使う。 */
-  const [fromHereHandlesById, setFromHereHandlesById] = useState<Record<string, string>>({})
-
   const updateReason = (rowKey: string, reason: string) => {
     setActionReasonMap((prev) => ({ ...prev, [rowKey]: reason }))
   }
@@ -203,14 +199,10 @@ export function AdminTableCard({
         const id = normalizeSearchText(row.id)
         const name = normalizeSearchText(row.display_name)
         const customId = normalizeSearchText(row.custom_id)
-        const fromHereHandle = normalizeSearchText(
-          fromHereHandlesById[String(row.id ?? "")] ?? "",
-        )
         return (
           id.includes(q) ||
           name.includes(q) ||
-          (customId.length > 0 && customId.includes(q)) ||
-          (fromHereHandle.length > 0 && fromHereHandle.includes(q))
+          (customId.length > 0 && customId.includes(q))
         )
       })
     }
@@ -222,14 +214,7 @@ export function AdminTableCard({
       return rows.filter((row) => {
         const reportedUserId = normalizeSearchText(row.reported_user_id)
         const name = normalizeSearchText(row.display_name)
-        const fromHereHandle = normalizeSearchText(
-          fromHereHandlesById[String(row.reported_user_id ?? "")] ?? "",
-        )
-        return (
-          reportedUserId.includes(q) ||
-          name.includes(q) ||
-          (fromHereHandle.length > 0 && fromHereHandle.includes(q))
-        )
+        return reportedUserId.includes(q) || name.includes(q)
       })
     }
     if (tableName === "skills") {
@@ -244,7 +229,7 @@ export function AdminTableCard({
       })
     }
     return rows
-  }, [fromHereHandlesById, profileSearch, rows, skillSearch, tableName])
+  }, [profileSearch, rows, skillSearch, tableName])
   const isAdminProfilesView =
     tableName === "profiles" &&
     stableFilters.some(
@@ -975,43 +960,6 @@ export function AdminTableCard({
           setProductPublishedMap({})
         }
 
-        /**
-         * ユーザー管理画面 (profiles / admin_reported_users_summary) では、
-         * 検索フィルタに「FromHere の handle」も含めたいので、対象ユーザー ID 群について
-         * newvibes_profiles.handle を補足取得して in-memory map を作る。
-         * - 公開列のため anon でも SELECT 可能（RLS で許可済み）。
-         * - 行数 ≤ limit のため追加コストは限定的。
-         */
-        if (tableName === "profiles" || tableName === "admin_reported_users_summary") {
-          const idColumn = tableName === "profiles" ? "id" : "reported_user_id"
-          const targetIds = [
-            ...new Set(
-              fetchedRows
-                .map((row) => String(row[idColumn] ?? ""))
-                .filter((id) => id.length > 0),
-            ),
-          ]
-          if (targetIds.length > 0) {
-            const { data: handleRows, error: handleError } = await supabase
-              .from("newvibes_profiles")
-              .select("id, handle")
-              .in("id", targetIds)
-            if (handleError) {
-              console.error("[AdminTableCard] newvibes handle load failed:", handleError)
-              setFromHereHandlesById({})
-            } else {
-              const nextMap: Record<string, string> = {}
-              for (const row of (handleRows ?? []) as { id: string; handle: string }[]) {
-                nextMap[row.id] = row.handle
-              }
-              setFromHereHandlesById(nextMap)
-            }
-          } else {
-            setFromHereHandlesById({})
-          }
-        } else {
-          setFromHereHandlesById({})
-        }
       } catch (error) {
         console.error(`[AdminTableCard] unexpected error on ${tableName}:`, error)
         if (!cancelled) {

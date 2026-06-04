@@ -9,6 +9,7 @@ import { ChatComposerTextarea } from "@/components/chat/ChatComposerTextarea"
 import { Button } from "@/components/ui/button"
 import { InquiryInboxList, type InquiryPeerProfile } from "@/components/inquiry/InquiryInboxList"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import { safeClientLogError } from "@/lib/safe-client-log"
 import { buildStorePath } from "@/lib/profile-path"
 import { ProfileAvatar } from "@/components/profile-avatar"
 import {
@@ -324,7 +325,7 @@ export function InquiryChatClient() {
     const { rows, error } = await fetchInquiryThreadMessages(supabase, peerId)
     if (error) {
       setMessages([])
-      setMessagesError(error)
+      setMessagesError(t("messagesLoadFailed"))
     } else {
       setMessages(rows)
     }
@@ -337,8 +338,7 @@ export function InquiryChatClient() {
     }
     const { error: readErr } = await markInquiryThreadRead(supabase, userId, peerId)
     if (readErr) {
-      console.warn("[inquiry] mark read", readErr)
-      setReadStatusError(t("readUpdateFailed", { reason: readErr }))
+      setReadStatusError(t("readUpdateFailedGeneric"))
       return
     }
     setReadStatusError(null)
@@ -658,7 +658,7 @@ export function InquiryChatClient() {
       )
       .subscribe((status) => {
         if (status === "CHANNEL_ERROR") {
-          console.error("[inquiry] inquiry_messages realtime subscription failed", { peerId, status })
+          safeClientLogError("[inquiry] inquiry_messages realtime subscription failed")
         }
       })
 
@@ -690,7 +690,7 @@ export function InquiryChatClient() {
     })
     setSending(false)
     if (error || !row) {
-      setSendError(error ?? t("sendFailedFallback"))
+      setSendError(t("sendFailedFallback"))
       return
     }
     setText("")

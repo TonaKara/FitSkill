@@ -52,7 +52,7 @@ export default function AdminUsersPage() {
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="ID / 表示名 / 本体ハンドル(custom_id) / FromHere ハンドルの一部で絞り込み"
+          placeholder="ID / 表示名 / ハンドル(custom_id) の一部で絞り込み"
           className={adminUi.filterInput}
         />
       </div>

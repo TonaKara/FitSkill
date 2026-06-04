@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     const subject = String(body.subject ?? "").trim() || "（件名なし）"
     const submitterProfileId = String(body.submitter_profile_id ?? "").trim()
     const baseUrl = getSiteUrl().replace(/\/$/, "")
-    const adminContactsUrl = `${baseUrl}/admin/contacts`
+    const adminContactsUrl = `${baseUrl}/talk/admin?view=inquiries`
     const senderLines =
       submitterProfileId.length > 0
         ? [

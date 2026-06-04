@@ -18,9 +18,6 @@ const ADMIN_TABS = [
   { href: "/admin/reports", label: "通報一覧" },
   { href: "/admin/contacts", label: "問い合わせ一覧" },
   { href: "/admin/disputes", label: "異議申し立て" },
-  // FromHere の投稿(プロダクト/ユーザー)を検索し、運営判断で非公開化/BANを行うページ。
-  // 「異議申し立て」と「CMS設定」の間に挿入する。
-  { href: "/admin/posts", label: "投稿管理" },
   { href: "/admin/cms", label: "CMS設定" },
   { href: "/admin/maintenance", label: "メンテナンス設定" },
 ] as const

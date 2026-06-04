@@ -19,7 +19,8 @@ const nextConfig: NextConfig = {
     ]
   },
   async redirects() {
-    return [{ source: "/profile/:path*", destination: "/store/:path*", permanent: true }]
+    /** 旧ストア用プロフィール URL は現行トップへ（`/store` は middleware で遮断）。 */
+    return [{ source: "/profile/:path*", destination: "/", permanent: true }]
   },
   async rewrites() {
     return [

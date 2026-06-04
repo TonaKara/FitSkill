@@ -67,7 +67,11 @@ export default function AuthCallbackPage() {
     const signupConfirmationFlow = isSignupEmailConfirmationNextPath(nextPath)
 
     const redirectLoginOrVerified = (reason: FailureReason) => {
-      router.replace(signupConfirmationFlow ? buildSignupVerifiedLoginUrl() : buildLoginRedirectUrl(reason))
+      router.replace(
+        signupConfirmationFlow
+          ? buildSignupVerifiedLoginUrl(nextPath)
+          : buildLoginRedirectUrl(reason),
+      )
     }
 
     const run = async () => {
