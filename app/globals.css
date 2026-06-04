@@ -311,5 +311,26 @@
   body {
     overscroll-behavior-y: none;
   }
+
+  /*
+   * iOS Safari: フォーカス時に 16px 未満の入力でビューポートが拡大される。
+   * text-sm 等のユーティリティより優先して 16px に揃える（アクセシビリティ維持）。
+   */
+  input:not(
+      [type="button"],
+      [type="submit"],
+      [type="reset"],
+      [type="checkbox"],
+      [type="radio"],
+      [type="hidden"],
+      [type="file"],
+      [type="image"],
+      [type="range"],
+      [type="color"]
+    ),
+  textarea,
+  select {
+    font-size: 1rem !important;
+  }
 }
 

@@ -2,28 +2,9 @@
 
 import { useCallback, useLayoutEffect, useRef, useState } from "react"
 import { cn } from "@/lib/utils"
+import { syncTextareaAutoGrow } from "@/lib/textarea-auto-grow"
 
-const MIN_ROWS = 1
 const MAX_ROWS = 6
-/** text-sm + leading-6 に合わせた1行の高さ（px） */
-const LINE_HEIGHT_PX = 24
-const PADDING_Y_PX = 16
-
-function maxTextareaHeightPx(): number {
-  return LINE_HEIGHT_PX * MAX_ROWS + PADDING_Y_PX
-}
-
-function minTextareaHeightPx(): number {
-  return LINE_HEIGHT_PX * MIN_ROWS + PADDING_Y_PX
-}
-
-function measureTextareaContentHeight(el: HTMLTextAreaElement): number {
-  const previousHeight = el.style.height
-  el.style.height = "0px"
-  const contentHeight = el.scrollHeight
-  el.style.height = previousHeight
-  return contentHeight
-}
 
 export type ChatComposerTextareaProps = {
   value: string
@@ -50,20 +31,17 @@ export function ChatComposerTextarea({
   "aria-label": ariaLabel,
 }: ChatComposerTextareaProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const [heightPx, setHeightPx] = useState(minTextareaHeightPx)
+  const [heightPx, setHeightPx] = useState<number | undefined>(undefined)
+  const [maxHeightPx, setMaxHeightPx] = useState<number | undefined>(undefined)
   const [overflowY, setOverflowY] = useState<"auto" | "hidden">("hidden")
 
   const syncHeight = useCallback(() => {
     const el = textareaRef.current
-    if (!el) {
-      return
-    }
-    const maxHeight = maxTextareaHeightPx()
-    const minHeight = minTextareaHeightPx()
-    const contentHeight = measureTextareaContentHeight(el)
-    const next = Math.min(Math.max(contentHeight, minHeight), maxHeight)
-    setHeightPx(next)
-    setOverflowY(contentHeight > maxHeight ? "auto" : "hidden")
+    if (!el) return
+    const next = syncTextareaAutoGrow(el, MAX_ROWS)
+    setHeightPx(next.heightPx)
+    setMaxHeightPx(next.maxHeightPx)
+    setOverflowY(next.overflowY)
   }, [])
 
   useLayoutEffect(() => {
@@ -101,13 +79,11 @@ export function ChatComposerTextarea({
     onSubmit()
   }
 
-  const maxHeight = maxTextareaHeightPx()
-
   return (
     <textarea
       ref={textareaRef}
       id={id}
-      rows={MIN_ROWS}
+      rows={1}
       value={value}
       disabled={disabled}
       placeholder={placeholder}
@@ -127,7 +103,7 @@ export function ChatComposerTextarea({
       )}
       style={{
         height: heightPx,
-        maxHeight,
+        maxHeight: maxHeightPx,
         overflowY,
       }}
     />

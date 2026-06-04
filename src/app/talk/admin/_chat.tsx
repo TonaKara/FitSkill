@@ -33,6 +33,7 @@ import {
   type GritvibAdminThreadSummary,
 } from "@/talk/admin/_actions"
 import { ChatImageAttachment } from "@/talk/_chat-image"
+import { TalkComposerTextarea } from "@/talk/_composer-textarea"
 import {
   useGritvibChatImageUrls,
   usePreloadGritvibChatImages,
@@ -806,7 +807,6 @@ function AdminThreadConversation({
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const listRef = useRef<HTMLDivElement | null>(null)
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const scrollToBottom = useCallback(() => {
@@ -914,15 +914,6 @@ function AdminThreadConversation({
     return () => URL.revokeObjectURL(url)
   }, [pendingImage])
 
-  const handleDraftChange = (value: string) => {
-    setDraft(value)
-    const node = textareaRef.current
-    if (node) {
-      node.style.height = "auto"
-      node.style.height = `${Math.min(node.scrollHeight, 200)}px`
-    }
-  }
-
   const handleAttachImage = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null
     event.target.value = ""
@@ -982,9 +973,6 @@ function AdminThreadConversation({
     setMessages((prev) => mergeGritvibChatMessage(prev, optimistic))
     setDraft("")
     setPendingImage(null)
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto"
-    }
     scrollToBottom()
     setErrorMessage(null)
     setIsSending(true)
@@ -1180,15 +1168,12 @@ function AdminThreadConversation({
               <ImagePlus className="h-5 w-5" aria-hidden />
             </button>
 
-            <textarea
-              ref={textareaRef}
+            <TalkComposerTextarea
               value={draft}
-              onChange={(event) => handleDraftChange(event.target.value)}
+              onChange={setDraft}
               onKeyDown={handleKeyDown}
               placeholder={`${adminNickname} として返信`}
-              rows={1}
               maxLength={MESSAGE_BODY_MAX_LENGTH}
-              className="block max-h-[200px] w-full resize-none rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm leading-relaxed text-black placeholder:text-zinc-400 focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
             />
 
             <button
