@@ -396,10 +396,6 @@ export function InquiryChatClient() {
   }, [messagesLoading, userId, markPeerInquiryAsRead])
 
   useEffect(() => {
-    initialScrollDoneRef.current = false
-  }, [peerId, skillIdFromQuery])
-
-  useEffect(() => {
     if (!messages.length) {
       return
     }
@@ -515,7 +511,7 @@ export function InquiryChatClient() {
   const scrollToBottom = useChatScrollToBottomOnOpen(messagesScrollRef, {
     ready: !preChatGuardPending && !messagesLoading,
     messageCount: inquiryTimeline.length,
-    resetKey: peerId,
+    resetKey: `${peerId}:${skillIdFromQuery ?? ""}`,
     layoutKey: skillIdsLoadKey,
   })
 
