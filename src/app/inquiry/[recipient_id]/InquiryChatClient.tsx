@@ -6,6 +6,7 @@ import Link from "next/link"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, Loader2 } from "lucide-react"
 import { ChatComposerTextarea } from "@/components/chat/ChatComposerTextarea"
+import { useChatScrollToBottomOnOpen } from "@/lib/use-chat-scroll-to-bottom-on-open"
 import { Button } from "@/components/ui/button"
 import { InquiryInboxList, type InquiryPeerProfile } from "@/components/inquiry/InquiryInboxList"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
@@ -234,25 +235,10 @@ export function InquiryChatClient() {
   const [skillDetailById, setSkillDetailById] = useState<Record<string, SkillHeaderRow>>({})
   const messagesScrollRef = useRef<HTMLDivElement | null>(null)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
-  const initialScrollDoneRef = useRef(false)
 
   const [text, setText] = useState("")
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
-
-  const forceScrollToBottom = useCallback(() => {
-    const el = messagesScrollRef.current
-    if (!el) {
-      return
-    }
-    requestAnimationFrame(() => {
-      el.scrollTop = el.scrollHeight
-      requestAnimationFrame(() => {
-        el.scrollTop = el.scrollHeight
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
-      })
-    })
-  }, [])
 
   const skillIdFromQuery = useMemo(() => {
     const raw = searchParams.get("skill_id")
@@ -526,6 +512,18 @@ export function InquiryChatClient() {
 
   const skillIdsLoadKey = useMemo(() => [...skillIdsToLoad].sort().join(","), [skillIdsToLoad])
 
+  const scrollToBottom = useChatScrollToBottomOnOpen(messagesScrollRef, {
+    ready: !preChatGuardPending && !messagesLoading,
+    messageCount: inquiryTimeline.length,
+    resetKey: peerId,
+    layoutKey: skillIdsLoadKey,
+  })
+
+  const forceScrollToBottom = useCallback(() => {
+    scrollToBottom()
+    messagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" })
+  }, [scrollToBottom])
+
   useEffect(() => {
     if (!skillIdsLoadKey) {
       return
@@ -558,32 +556,6 @@ export function InquiryChatClient() {
       cancelled = true
     }
   }, [supabase, skillIdsLoadKey])
-
-  useEffect(() => {
-    if (preChatGuardPending || messagesLoading || initialScrollDoneRef.current || inquiryTimeline.length === 0) {
-      return
-    }
-    if (!messagesScrollRef.current) {
-      return
-    }
-    const el = messagesScrollRef.current
-    const raf1 = requestAnimationFrame(() => {
-      el.scrollTop = el.scrollHeight
-      const raf2 = requestAnimationFrame(() => {
-        el.scrollTop = el.scrollHeight
-        messagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" })
-        const timeoutId = window.setTimeout(() => {
-          el.scrollTop = el.scrollHeight
-          initialScrollDoneRef.current = true
-        }, 80)
-        void timeoutId
-      })
-      void raf2
-    })
-    return () => {
-      cancelAnimationFrame(raf1)
-    }
-  }, [preChatGuardPending, messagesLoading, inquiryTimeline.length, skillIdsLoadKey, skillIdFromQuery, peerId])
 
   const peerProfile = peerProfiles[peerId]
   const peerName = peerProfile?.display_name?.trim() || t("anonymousUser")

@@ -34,6 +34,8 @@ import {
 } from "@/talk/admin/_actions"
 import { ChatImageAttachment } from "@/talk/_chat-image"
 import { TalkComposerTextarea } from "@/talk/_composer-textarea"
+import { messageActionButtonClass } from "@/talk/_message-bubble-actions"
+import { useChatScrollToBottomOnOpen } from "@/lib/use-chat-scroll-to-bottom-on-open"
 import {
   useGritvibChatImageUrls,
   usePreloadGritvibChatImages,
@@ -809,13 +811,20 @@ function AdminThreadConversation({
   const listRef = useRef<HTMLDivElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-  const scrollToBottom = useCallback(() => {
-    requestAnimationFrame(() => {
-      const el = listRef.current
-      if (!el) return
-      el.scrollTop = el.scrollHeight
-    })
-  }, [])
+  const imageLoadScrollKey = useMemo(
+    () =>
+      messages
+        .map((m) => (m.imagePath ? getImageUrl(m.imagePath) ?? "pending" : ""))
+        .join("|"),
+    [messages, getImageUrl],
+  )
+
+  const scrollToBottom = useChatScrollToBottomOnOpen(listRef, {
+    ready: !loading,
+    messageCount: messages.length,
+    resetKey: threadMemberId,
+    layoutKey: imageLoadScrollKey,
+  })
 
   /** 選択スレッドの履歴を取得。 */
   useEffect(() => {
@@ -1081,7 +1090,7 @@ function AdminThreadConversation({
         </div>
       )}
 
-      <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-6">
+      <div ref={listRef} className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-6">
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
           {loading ? (
             <div className="flex items-center justify-center py-10 text-zinc-500">
@@ -1208,20 +1217,9 @@ function AdminMessageBubble({
   return (
     <div className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
       <div className="group relative max-w-[80%]">
-        {onDelete ? (
-          <button
-            type="button"
-            onClick={onDelete}
-            aria-label="メッセージを削除"
-            className="absolute -right-2 -top-2 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 opacity-0 shadow-sm transition-opacity hover:text-black focus:opacity-100 group-hover:opacity-100"
-          >
-            <X className="h-3.5 w-3.5" aria-hidden />
-          </button>
-        ) : null}
-
         <div
           className={[
-            "overflow-hidden rounded-2xl text-sm leading-relaxed",
+            "relative overflow-hidden rounded-2xl text-sm leading-relaxed",
             isMine
               ? "bg-black text-white"
               : "border border-zinc-200 bg-white text-black",
@@ -1236,6 +1234,16 @@ function AdminMessageBubble({
           ) : null}
           {message.body ? (
             <p className="whitespace-pre-wrap break-words px-4 py-3">{message.body}</p>
+          ) : null}
+          {onDelete ? (
+            <button
+              type="button"
+              onClick={onDelete}
+              aria-label="メッセージを削除"
+              className={`${messageActionButtonClass} right-1.5 top-1.5`}
+            >
+              <X className="h-3.5 w-3.5" aria-hidden />
+            </button>
           ) : null}
         </div>
         {!message.pending ? (

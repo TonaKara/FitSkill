@@ -32,6 +32,7 @@ import { createTransactionNotification, NOTIFICATION_TYPE } from "@/lib/transact
 import { DisputeEvidenceImage } from "@/components/DisputeEvidenceImage"
 import { ChatAttachmentFileCard } from "@/components/chat/ChatAttachmentFileCard"
 import { ChatComposerTextarea } from "@/components/chat/ChatComposerTextarea"
+import { useChatScrollToBottomOnOpen } from "@/lib/use-chat-scroll-to-bottom-on-open"
 import { TransactionReviewCard } from "@/components/chat/TransactionReviewCard"
 import {
   buildChatFileMessageContent,
@@ -450,22 +451,18 @@ export default function ChatTransactionPage() {
   const disputeFormPanelRef = useRef<HTMLDivElement>(null)
   const expandedImageRef = useRef<HTMLImageElement>(null)
   const shouldAutoScrollRef = useRef(true)
-  const initialAutoScrollDoneRef = useRef(false)
+
+  const scrollToBottom = useChatScrollToBottomOnOpen(listRef, {
+    ready: Boolean(transaction && userId && !messagesLoading),
+    messageCount: messages.length,
+    resetKey: transactionId,
+  })
 
   const forceScrollToBottom = useCallback(() => {
     shouldAutoScrollRef.current = true
-    const el = listRef.current
-    if (!el) {
-      return
-    }
-    requestAnimationFrame(() => {
-      el.scrollTop = el.scrollHeight
-      requestAnimationFrame(() => {
-        el.scrollTop = el.scrollHeight
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
-      })
-    })
-  }, [])
+    scrollToBottom()
+    messagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" })
+  }, [scrollToBottom])
 
   const handlePinchZoomUpdate = useCallback(({ x, y, scale }: UpdateAction) => {
     const img = expandedImageRef.current
@@ -965,14 +962,10 @@ export default function ChatTransactionPage() {
   }, [supabase, transactionId, transaction, userId, markPeerMessagesAsRead, loadMessages])
 
   useEffect(() => {
-    if (!messagesEndRef.current) {
-      return
-    }
-    if (!initialAutoScrollDoneRef.current || shouldAutoScrollRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
-      initialAutoScrollDoneRef.current = true
-    }
-  }, [messages, myTransactionReview, myTransactionReviewLoading, transaction?.status])
+    if (!shouldAutoScrollRef.current) return
+    scrollToBottom()
+    messagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" })
+  }, [messages, myTransactionReview, myTransactionReviewLoading, transaction?.status, scrollToBottom])
 
   const otherName = otherProfile?.display_name?.trim() || tPeer("fallback")
   const otherProfilePath = useMemo(() => {
