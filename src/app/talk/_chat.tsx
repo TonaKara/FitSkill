@@ -42,6 +42,8 @@ import {
   createOptimisticGritvibMessage,
   mapGritvibChatMessageRow,
   mergeGritvibChatMessage,
+  mergeGritvibChatMessageAfterRealtime,
+  reconcileGritvibChatMessagesFromServer,
   removeOptimisticGritvibMessage,
   replaceOptimisticGritvibMessage,
   type GritvibChatMessageRow,
@@ -171,7 +173,10 @@ export function ChatPage({
       safeClientLogError("[talk/chat] history fetch failed")
       return
     }
-    setMessages((rows ?? []).map((row) => mapGritvibChatMessageRow(row as GritvibChatMessageRow)))
+    const fetched = (rows ?? []).map((row) =>
+      mapGritvibChatMessageRow(row as GritvibChatMessageRow),
+    )
+    setMessages((prev) => reconcileGritvibChatMessagesFromServer(prev, fetched))
   }, [supabase, userId])
 
   /** 初回ロード: 過去メッセージ + サブスク状態を取得する。 */
@@ -266,7 +271,7 @@ export function ChatPage({
 
     const appendFromPayload = (row: GritvibChatMessageRow) => {
       const next = mapGritvibChatMessageRow(row)
-      setMessages((prev) => mergeGritvibChatMessage(prev, next))
+      setMessages((prev) => mergeGritvibChatMessageAfterRealtime(prev, next))
       scrollToBottom()
     }
 

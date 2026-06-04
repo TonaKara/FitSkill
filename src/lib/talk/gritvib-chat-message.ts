@@ -76,6 +76,65 @@ export function mapGritvibChatMessageRow(row: GritvibChatMessageRow): GritvibCha
   }
 }
 
+/** 送信待ちの楽観メッセージかどうか。 */
+export function isPendingGritvibChatMessage(m: GritvibChatMessageView): boolean {
+  return m.pending === true || m.id.startsWith("pending-")
+}
+
+function gritvibChatMessageContentKey(
+  m: Pick<GritvibChatMessage, "senderRole" | "senderUserId" | "body" | "imagePath">,
+): string {
+  return `${m.senderRole}:${m.senderUserId}:${m.body ?? ""}:${m.imagePath ?? ""}`
+}
+
+/** 楽観表示とサーバー確定メッセージが同一内容か（重複表示の判定用）。 */
+export function gritvibPendingMatchesConfirmed(
+  pending: GritvibChatMessageView,
+  confirmed: GritvibChatMessage,
+): boolean {
+  return gritvibChatMessageContentKey(pending) === gritvibChatMessageContentKey(confirmed)
+}
+
+function filterPendingWithoutConfirmedMatch(
+  pending: GritvibChatMessageView[],
+  confirmed: GritvibChatMessage[],
+): GritvibChatMessageView[] {
+  return pending.filter(
+    (p) => !confirmed.some((c) => gritvibPendingMatchesConfirmed(p, c)),
+  )
+}
+
+/**
+ * サーバーから再取得した一覧とローカル state をマージする。
+ * 定期同期で楽観表示が一瞬消えるのを防ぐ。
+ */
+export function reconcileGritvibChatMessagesFromServer(
+  prev: GritvibChatMessageView[],
+  fetched: GritvibChatMessage[],
+): GritvibChatMessageView[] {
+  const stillPending = filterPendingWithoutConfirmedMatch(
+    prev.filter(isPendingGritvibChatMessage),
+    fetched,
+  )
+  let next: GritvibChatMessageView[] = [...fetched]
+  for (const p of stillPending) {
+    next = mergeGritvibChatMessage(next, p)
+  }
+  return next
+}
+
+/** Realtime INSERT 時: 同一内容の楽観表示を除去してからマージする。 */
+export function mergeGritvibChatMessageAfterRealtime(
+  prev: GritvibChatMessageView[],
+  incoming: GritvibChatMessage,
+): GritvibChatMessageView[] {
+  const withoutMatchingPending = prev.filter(
+    (m) =>
+      !(isPendingGritvibChatMessage(m) && gritvibPendingMatchesConfirmed(m, incoming)),
+  )
+  return mergeGritvibChatMessage(withoutMatchingPending, incoming)
+}
+
 /** Realtime / 送信直後の重複挿入を防ぎつつ時系列でマージする。 */
 export function mergeGritvibChatMessage<T extends GritvibChatMessage>(
   prev: T[],

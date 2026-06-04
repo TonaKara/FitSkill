@@ -40,6 +40,8 @@ import {
   createOptimisticGritvibMessage,
   mapGritvibChatMessageRow,
   mergeGritvibChatMessage,
+  mergeGritvibChatMessageAfterRealtime,
+  reconcileGritvibChatMessagesFromServer,
   removeOptimisticGritvibMessage,
   replaceOptimisticGritvibMessage,
   type GritvibChatMessageRow,
@@ -841,7 +843,7 @@ function AdminThreadConversation({
         },
         (payload) => {
           const next = mapGritvibChatMessageRow(payload.new as GritvibChatMessageRow)
-          setMessages((prev) => mergeGritvibChatMessage(prev, next))
+          setMessages((prev) => mergeGritvibChatMessageAfterRealtime(prev, next))
           scrollToBottom()
         },
       )
@@ -870,7 +872,9 @@ function AdminThreadConversation({
       void (async () => {
         const result = await fetchGritvibAdminThreadMessagesAction(threadMemberId)
         if (result.ok) {
-          setMessages(result.messages)
+          setMessages((prev) =>
+            reconcileGritvibChatMessagesFromServer(prev, result.messages),
+          )
         }
       })()
     }, 5000)
