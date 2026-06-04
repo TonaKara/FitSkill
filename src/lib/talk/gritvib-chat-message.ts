@@ -9,6 +9,51 @@ export type GritvibChatMessage = {
   createdAt: string
 }
 
+/** 送信直後の楽観表示用（サーバー確定前）。 */
+export type GritvibChatMessageView = GritvibChatMessage & {
+  pending?: boolean
+  /** 画像アップロード完了前のローカル preview URL (blob:)。 */
+  localImageUrl?: string
+}
+
+export function createOptimisticGritvibMessage(input: {
+  optimisticId: string
+  threadMemberId: string
+  senderRole: "member" | "operator"
+  senderUserId: string
+  body: string | null
+  imagePath: string | null
+  localImageUrl?: string
+}): GritvibChatMessageView {
+  return {
+    id: input.optimisticId,
+    threadMemberId: input.threadMemberId,
+    senderRole: input.senderRole,
+    senderUserId: input.senderUserId,
+    body: input.body,
+    imagePath: input.imagePath,
+    createdAt: new Date().toISOString(),
+    pending: true,
+    localImageUrl: input.localImageUrl,
+  }
+}
+
+export function replaceOptimisticGritvibMessage(
+  prev: GritvibChatMessageView[],
+  optimisticId: string,
+  confirmed: GritvibChatMessage,
+): GritvibChatMessageView[] {
+  const without = prev.filter((m) => m.id !== optimisticId)
+  return mergeGritvibChatMessage(without, confirmed)
+}
+
+export function removeOptimisticGritvibMessage(
+  prev: GritvibChatMessageView[],
+  optimisticId: string,
+): GritvibChatMessageView[] {
+  return prev.filter((m) => m.id !== optimisticId)
+}
+
 export type GritvibChatMessageRow = {
   id: string
   thread_member_id: string
@@ -32,10 +77,10 @@ export function mapGritvibChatMessageRow(row: GritvibChatMessageRow): GritvibCha
 }
 
 /** Realtime / 送信直後の重複挿入を防ぎつつ時系列でマージする。 */
-export function mergeGritvibChatMessage(
-  prev: GritvibChatMessage[],
-  next: GritvibChatMessage,
-): GritvibChatMessage[] {
+export function mergeGritvibChatMessage<T extends GritvibChatMessage>(
+  prev: T[],
+  next: T,
+): T[] {
   if (prev.some((m) => m.id === next.id)) {
     return prev
   }

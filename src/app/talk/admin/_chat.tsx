@@ -37,9 +37,13 @@ import {
   usePreloadGritvibChatImages,
 } from "@/lib/talk/chat-image-urls"
 import {
+  createOptimisticGritvibMessage,
   mapGritvibChatMessageRow,
   mergeGritvibChatMessage,
+  removeOptimisticGritvibMessage,
+  replaceOptimisticGritvibMessage,
   type GritvibChatMessageRow,
+  type GritvibChatMessageView,
 } from "@/lib/talk/gritvib-chat-message"
 import {
   listGritvibAdminMemberChargesAction,
@@ -771,7 +775,7 @@ function AdminThreadConversation({
 }) {
   const threadMemberId = thread.memberId
 
-  const [messages, setMessages] = useState<GritvibAdminMessage[]>([])
+  const [messages, setMessages] = useState<GritvibChatMessageView[]>([])
   const [loading, setLoading] = useState(true)
   const { getImageUrl, preloadFromMessages } = useGritvibChatImageUrls()
   usePreloadGritvibChatImages(messages, preloadFromMessages)
@@ -927,44 +931,70 @@ function AdminThreadConversation({
   const submitMessage = useCallback(async () => {
     if (isSending) return
     const trimmedBody = draft.trim()
-    if (trimmedBody.length === 0 && !pendingImage) return
+    const imageFile = pendingImage
+    if (trimmedBody.length === 0 && !imageFile) return
     if (trimmedBody.length > MESSAGE_BODY_MAX_LENGTH) {
       setErrorMessage(`メッセージは ${MESSAGE_BODY_MAX_LENGTH} 文字以内にしてください。`)
       return
     }
-    setIsSending(true)
+
+    const optimisticId = `pending-${crypto.randomUUID()}`
+    let plannedImagePath: string | null = null
+    let localImageUrl: string | undefined
+    if (imageFile) {
+      const ext = guessImageExtension(imageFile.type, imageFile.name)
+      plannedImagePath = `${adminUserId}/${crypto.randomUUID()}.${ext}`
+      localImageUrl = URL.createObjectURL(imageFile)
+    }
+
+    const optimistic = createOptimisticGritvibMessage({
+      optimisticId,
+      threadMemberId,
+      senderRole: "operator",
+      senderUserId: adminUserId,
+      body: trimmedBody.length > 0 ? trimmedBody : null,
+      imagePath: plannedImagePath,
+      localImageUrl,
+    })
+
+    setMessages((prev) => mergeGritvibChatMessage(prev, optimistic))
+    setDraft("")
+    setPendingImage(null)
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto"
+    }
+    scrollToBottom()
     setErrorMessage(null)
+    setIsSending(true)
+
     try {
-      let uploadedPath: string | null = null
-      if (pendingImage) {
-        const ext = guessImageExtension(pendingImage.type, pendingImage.name)
-        /**
-         * operator の画像は admin の uid ディレクトリに入れる (storage RLS の
-         * `owner = auth.uid()` 制約と整合させるため)。
-         */
-        const path = `${adminUserId}/${crypto.randomUUID()}.${ext}`
+      if (imageFile && plannedImagePath) {
         const { error: uploadError } = await supabase.storage
           .from(STORAGE_BUCKET)
-          .upload(path, pendingImage, {
-            contentType: pendingImage.type,
+          .upload(plannedImagePath, imageFile, {
+            contentType: imageFile.type,
             upsert: false,
           })
         if (uploadError) {
           console.error("[talk/admin] upload failed", uploadError)
+          setMessages((prev) => removeOptimisticGritvibMessage(prev, optimisticId))
           setErrorMessage("画像のアップロードに失敗しました。")
           return
         }
-        uploadedPath = path
       }
 
       const result = await sendGritvibAdminMessageAction({
         threadMemberId,
         body: trimmedBody,
-        imagePath: uploadedPath,
+        imagePath: plannedImagePath,
       })
 
       if (!result.ok) {
         console.error("[talk/admin] send failed", result.reason)
+        setMessages((prev) => removeOptimisticGritvibMessage(prev, optimisticId))
+        if (plannedImagePath) {
+          await supabase.storage.from(STORAGE_BUCKET).remove([plannedImagePath])
+        }
         if (result.reason === "forbidden") {
           setErrorMessage("権限がありません。")
         } else if (result.reason === "not_found") {
@@ -976,24 +1006,23 @@ function AdminThreadConversation({
         } else {
           setErrorMessage("送信に失敗しました。時間をおいて再度お試しください。")
         }
-        if (uploadedPath) {
-          await supabase.storage.from(STORAGE_BUCKET).remove([uploadedPath])
-        }
         return
       }
 
-      setMessages((prev) => mergeGritvibChatMessage(prev, result.message))
+      setMessages((prev) => replaceOptimisticGritvibMessage(prev, optimisticId, result.message))
       scrollToBottom()
-      setDraft("")
-      setPendingImage(null)
-      if (textareaRef.current) {
-        textareaRef.current.style.height = "auto"
-      }
       onAfterSend()
     } catch (err) {
       console.error("[talk/admin] submit error", err)
+      setMessages((prev) => removeOptimisticGritvibMessage(prev, optimisticId))
+      if (plannedImagePath) {
+        await supabase.storage.from(STORAGE_BUCKET).remove([plannedImagePath])
+      }
       setErrorMessage("送信に失敗しました。時間をおいて再度お試しください。")
     } finally {
+      if (localImageUrl) {
+        URL.revokeObjectURL(localImageUrl)
+      }
       setIsSending(false)
     }
   }, [
@@ -1001,6 +1030,7 @@ function AdminThreadConversation({
     draft,
     isSending,
     pendingImage,
+    scrollToBottom,
     supabase,
     threadMemberId,
     onAfterSend,
@@ -1012,6 +1042,7 @@ function AdminThreadConversation({
   }
 
   const handleDeleteMessage = async (messageId: string) => {
+    if (messageId.startsWith("pending-")) return
     if (!confirm("このメッセージを削除しますか? 相手側からも見えなくなります。")) return
     const result = await deleteGritvibAdminMessageAction(messageId)
     if (!result.ok) {
@@ -1059,10 +1090,13 @@ function AdminThreadConversation({
                  */
                 isMine={message.senderRole === "operator"}
                 imageUrl={
-                  message.imagePath ? getImageUrl(message.imagePath) : undefined
+                  message.localImageUrl ??
+                  (message.imagePath ? getImageUrl(message.imagePath) : undefined)
                 }
                 onDelete={
-                  message.senderRole === "operator" && message.senderUserId === adminUserId
+                  message.senderRole === "operator" &&
+                  message.senderUserId === adminUserId &&
+                  !message.pending
                     ? () => handleDeleteMessage(message.id)
                     : undefined
                 }
@@ -1129,8 +1163,7 @@ function AdminThreadConversation({
               placeholder={`${adminNickname} として返信`}
               rows={1}
               maxLength={MESSAGE_BODY_MAX_LENGTH}
-              disabled={isSending}
-              className="block max-h-[200px] w-full resize-none rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm leading-relaxed text-black placeholder:text-zinc-400 focus:border-black focus:outline-none focus:ring-1 focus:ring-black disabled:cursor-not-allowed disabled:bg-zinc-50"
+              className="block max-h-[200px] w-full resize-none rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm leading-relaxed text-black placeholder:text-zinc-400 focus:border-black focus:outline-none focus:ring-1 focus:ring-black"
             />
 
             <button
@@ -1157,7 +1190,7 @@ function AdminMessageBubble({
   imageUrl,
   onDelete,
 }: {
-  message: GritvibAdminMessage
+  message: GritvibChatMessageView
   isMine: boolean
   imageUrl?: string
   onDelete?: () => void
@@ -1182,11 +1215,12 @@ function AdminMessageBubble({
             isMine
               ? "bg-black text-white"
               : "border border-zinc-200 bg-white text-black",
+            message.pending ? "opacity-90" : "",
           ].join(" ")}
         >
-          {message.imagePath ? (
+          {message.imagePath || message.localImageUrl ? (
             <ChatImageAttachment
-              imagePath={message.imagePath}
+              imagePath={message.imagePath ?? ""}
               imageUrl={imageUrl}
             />
           ) : null}
@@ -1194,9 +1228,11 @@ function AdminMessageBubble({
             <p className="whitespace-pre-wrap break-words px-4 py-3">{message.body}</p>
           ) : null}
         </div>
-        <p className="mt-1 text-right text-[10px] text-zinc-400">
-          {formatJa(message.createdAt)}
-        </p>
+        {!message.pending ? (
+          <p className="mt-1 text-right text-[10px] text-zinc-400">
+            {formatJa(message.createdAt)}
+          </p>
+        ) : null}
       </div>
     </div>
   )

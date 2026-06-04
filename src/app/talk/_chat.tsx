@@ -39,10 +39,13 @@ import {
 import { TALK_STRIPE_LINKS } from "@/talk/_stripe-links"
 import { GritvibSubscribeButton } from "@/talk/_subscribe-button"
 import {
+  createOptimisticGritvibMessage,
   mapGritvibChatMessageRow,
   mergeGritvibChatMessage,
-  type GritvibChatMessage,
+  removeOptimisticGritvibMessage,
+  replaceOptimisticGritvibMessage,
   type GritvibChatMessageRow,
+  type GritvibChatMessageView,
 } from "@/lib/talk/gritvib-chat-message"
 
 /**
@@ -66,7 +69,7 @@ const GRITVIB_CHAT_MESSAGE_SELECT =
   "id, thread_member_id, sender_role, sender_user_id, body, image_path, created_at"
 const REALTIME_POLL_MS = 5000
 
-type Message = GritvibChatMessage
+type Message = GritvibChatMessageView
 
 export function ChatPage({
   userId,
@@ -368,7 +371,8 @@ export function ChatPage({
   const submitMessage = useCallback(async () => {
     if (isSending) return
     const trimmedBody = draft.trim()
-    if (trimmedBody.length === 0 && !pendingImage) return
+    const imageFile = pendingImage
+    if (trimmedBody.length === 0 && !imageFile) return
     if (trimmedBody.length > MESSAGE_BODY_MAX_LENGTH) {
       setErrorMessage(`メッセージは ${MESSAGE_BODY_MAX_LENGTH} 文字以内で入力してください。`)
       return
@@ -377,33 +381,62 @@ export function ChatPage({
       setErrorMessage("サブスクリプションが有効ではないため送信できません。")
       return
     }
-    setIsSending(true)
+
+    const optimisticId = `pending-${crypto.randomUUID()}`
+    let plannedImagePath: string | null = null
+    let localImageUrl: string | undefined
+    if (imageFile) {
+      const ext = guessImageExtension(imageFile.type, imageFile.name)
+      plannedImagePath = `${userId}/${crypto.randomUUID()}.${ext}`
+      localImageUrl = URL.createObjectURL(imageFile)
+    }
+
+    const optimistic = createOptimisticGritvibMessage({
+      optimisticId,
+      threadMemberId: userId,
+      senderRole: "member",
+      senderUserId: userId,
+      body: trimmedBody.length > 0 ? trimmedBody : null,
+      imagePath: plannedImagePath,
+      localImageUrl,
+    })
+
+    setMessages((prev) => mergeGritvibChatMessage(prev, optimistic))
+    setDraft("")
+    setPendingImage(null)
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto"
+    }
+    scrollToBottom()
     setErrorMessage(null)
+    setIsSending(true)
+
     try {
-      let uploadedPath: string | null = null
-      if (pendingImage) {
-        const ext = guessImageExtension(pendingImage.type, pendingImage.name)
-        const path = `${userId}/${crypto.randomUUID()}.${ext}`
+      if (imageFile && plannedImagePath) {
         const { error: uploadError } = await supabase.storage
           .from(STORAGE_BUCKET)
-          .upload(path, pendingImage, {
-            contentType: pendingImage.type,
+          .upload(plannedImagePath, imageFile, {
+            contentType: imageFile.type,
             upsert: false,
           })
         if (uploadError) {
           safeClientLogError("[talk/chat] upload failed")
+          setMessages((prev) => removeOptimisticGritvibMessage(prev, optimisticId))
           setErrorMessage("画像のアップロードに失敗しました。")
           return
         }
-        uploadedPath = path
       }
 
       const result = await sendGritvibChatMessageAction({
         body: trimmedBody,
-        imagePath: uploadedPath,
+        imagePath: plannedImagePath,
       })
 
       if (!result.ok) {
+        setMessages((prev) => removeOptimisticGritvibMessage(prev, optimisticId))
+        if (plannedImagePath) {
+          await supabase.storage.from(STORAGE_BUCKET).remove([plannedImagePath])
+        }
         if (result.reason === "subscription_required") {
           setCanSend(false)
           setErrorMessage("サブスクリプションが有効ではないため送信できません。")
@@ -416,29 +449,28 @@ export function ChatPage({
         } else {
           setErrorMessage("送信に失敗しました。時間をおいて再度お試しください。")
         }
-        // 画像をアップロード済みなら掃除
-        if (uploadedPath) {
-          await supabase.storage.from(STORAGE_BUCKET).remove([uploadedPath])
-        }
         return
       }
 
-      setMessages((prev) => mergeGritvibChatMessage(prev, result.message))
+      setMessages((prev) => replaceOptimisticGritvibMessage(prev, optimisticId, result.message))
       scrollToBottom()
-      setDraft("")
-      setPendingImage(null)
-      if (textareaRef.current) {
-        textareaRef.current.style.height = "auto"
-      }
     } catch (err) {
       safeClientLogError("[talk/chat] submit error")
+      setMessages((prev) => removeOptimisticGritvibMessage(prev, optimisticId))
+      if (plannedImagePath) {
+        await supabase.storage.from(STORAGE_BUCKET).remove([plannedImagePath])
+      }
       setErrorMessage("送信に失敗しました。時間をおいて再度お試しください。")
     } finally {
+      if (localImageUrl) {
+        URL.revokeObjectURL(localImageUrl)
+      }
       setIsSending(false)
     }
   }, [canSend, draft, isSending, pendingImage, scrollToBottom, supabase, userId])
 
   const handleDeleteMessage = async (messageId: string) => {
+    if (messageId.startsWith("pending-")) return
     if (!confirm("このメッセージを削除しますか? 相手側からも見えなくなります。")) return
     const result = await deleteGritvibChatMessageAction(messageId)
     if (!result.ok) {
@@ -604,10 +636,11 @@ export function ChatPage({
                 message={message}
                 isMine={message.senderUserId === userId}
                 imageUrl={
-                  message.imagePath ? getImageUrl(message.imagePath) : undefined
+                  message.localImageUrl ??
+                  (message.imagePath ? getImageUrl(message.imagePath) : undefined)
                 }
                 onDelete={
-                  message.senderUserId === userId
+                  message.senderUserId === userId && !message.pending
                     ? () => handleDeleteMessage(message.id)
                     : undefined
                 }
@@ -695,7 +728,7 @@ export function ChatPage({
               }
               rows={1}
               maxLength={MESSAGE_BODY_MAX_LENGTH}
-              disabled={isSending || canSend === false}
+              disabled={canSend === false}
               className="block max-h-[200px] w-full resize-none rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-sm leading-relaxed text-black placeholder:text-zinc-400 focus:border-black focus:outline-none focus:ring-1 focus:ring-black disabled:cursor-not-allowed disabled:bg-zinc-50"
             />
 
@@ -760,6 +793,7 @@ function MessageBubble({
             isMine
               ? "bg-black text-white"
               : "border border-zinc-200 bg-white text-black",
+            message.pending ? "opacity-90" : "",
           ].join(" ")}
         >
           {message.imagePath ? (
