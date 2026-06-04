@@ -2,6 +2,7 @@ import "server-only"
 
 import type { SupabaseClient, User } from "@supabase/supabase-js"
 import { requireActionUser } from "@/lib/supabase/action-auth"
+import { logTalkServerError } from "@/lib/talk/server-safe-log"
 
 /**
  * GritVib 管理画面用の認可ヘルパー。
@@ -35,7 +36,7 @@ export async function requireGritvibAdminUser(): Promise<RequireGritvibAdminResu
     .maybeSingle()
 
   if (error) {
-    console.error("[talk/admin] read profiles failed", error)
+    logTalkServerError("[talk/admin] read profiles failed")
     return { ok: false, reason: "internal" }
   }
   if (!data?.is_admin) {

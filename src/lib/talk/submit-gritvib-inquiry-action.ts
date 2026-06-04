@@ -10,6 +10,7 @@ import {
   GRITVIB_INQUIRY_SUBJECT_MAX_LENGTH,
 } from "@/lib/talk/inquiry-constants"
 import { notifyGritvibInquiryDiscord } from "@/lib/talk/notify-inquiry-discord"
+import { logTalkServerError } from "@/lib/talk/server-safe-log"
 
 const CONTENT_MAX_LENGTH = 2000
 
@@ -53,7 +54,7 @@ export async function submitGritvibInquiryAction(input: {
 
   const admin = getSupabaseAdminClient()
   if (!admin) {
-    console.error("[talk/inquiry] service role client unavailable")
+    logTalkServerError("[talk/inquiry] service role client unavailable")
     return { ok: false, reason: "internal" }
   }
 
@@ -82,7 +83,7 @@ export async function submitGritvibInquiryAction(input: {
     .single()
 
   if (insertError || !inserted) {
-    console.error("[talk/inquiry] insert failed", insertError)
+    logTalkServerError("[talk/inquiry] insert failed", insertError)
     return { ok: false, reason: "internal" }
   }
 
@@ -96,7 +97,7 @@ export async function submitGritvibInquiryAction(input: {
       inquiryId: typeof inserted.id === "number" ? inserted.id : null,
     })
   } catch (err) {
-    console.error("[talk/inquiry] discord notify failed", err)
+    logTalkServerError("[talk/inquiry] discord notify failed", err)
   }
 
   return { ok: true }

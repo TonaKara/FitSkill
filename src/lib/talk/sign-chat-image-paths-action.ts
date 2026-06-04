@@ -5,6 +5,7 @@ import "server-only"
 import { normalizeGritvibChatImagePath } from "@/lib/talk/chat-image-path"
 import { getSupabaseAdminClient } from "@/lib/supabase/admin"
 import { requireActionUser } from "@/lib/supabase/action-auth"
+import { logTalkServerError } from "@/lib/talk/server-safe-log"
 
 const STORAGE_BUCKET = "gritvib-chat-photos"
 const SIGNED_URL_TTL_SEC = 3600
@@ -29,7 +30,7 @@ export async function signGritvibChatImagePathsAction(
 
   const admin = getSupabaseAdminClient()
   if (!admin) {
-    console.error("[talk/chat-images] service role client unavailable")
+    logTalkServerError("[talk/chat-images] service role client unavailable")
     return { ok: false, reason: "internal" }
   }
 
@@ -61,7 +62,7 @@ export async function signGritvibChatImagePathsAction(
       .not("image_path", "is", null)
 
     if (error) {
-      console.error("[talk/chat-images] message access check failed", error)
+      logTalkServerError("[talk/chat-images] message access check failed", error)
       return { ok: false, reason: "internal" }
     }
 
@@ -80,7 +81,7 @@ export async function signGritvibChatImagePathsAction(
         .from(STORAGE_BUCKET)
         .createSignedUrl(path, SIGNED_URL_TTL_SEC)
       if (error || !data?.signedUrl) {
-        console.error("[talk/chat-images] admin createSignedUrl failed")
+        logTalkServerError("[talk/chat-images] admin createSignedUrl failed")
         return
       }
       urls[path] = data.signedUrl

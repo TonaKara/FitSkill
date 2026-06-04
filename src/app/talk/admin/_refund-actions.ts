@@ -5,6 +5,7 @@ import "server-only"
 import Stripe from "stripe"
 import { getSupabaseAdminClient } from "@/lib/supabase/admin"
 import { requireGritvibAdminUser } from "@/lib/talk/admin-auth"
+import { logTalkServerError } from "@/lib/talk/server-safe-log"
 
 /**
  * GritVib 管理画面の Stripe 返金関連 Server Actions。
@@ -105,7 +106,7 @@ export async function listGritvibAdminMemberChargesAction(
     .maybeSingle()
 
   if (memberError) {
-    console.error("[talk/admin] read member for charges failed", memberError)
+    logTalkServerError("[talk/admin] read member for charges failed")
     return { ok: false, reason: "internal" }
   }
   if (!member) {
@@ -178,7 +179,7 @@ export async function listGritvibAdminMemberChargesAction(
 
     return { ok: true, charges: items, stripeCustomerId: member.stripe_customer_id }
   } catch (err) {
-    console.error("[talk/admin] stripe charges list failed", err)
+    logTalkServerError("[talk/admin] stripe charges list failed")
     return { ok: false, reason: "internal" }
   }
 }
@@ -215,13 +216,10 @@ export async function refundGritvibAdminChargeAction(
       if (err.code === "charge_already_refunded") {
         return { ok: false, reason: "already_refunded" }
       }
-      console.error("[talk/admin] stripe refund failed", {
-        code: err.code,
-        type: err.type,
-      })
+      logTalkServerError("[talk/admin] stripe refund failed")
       return { ok: false, reason: "stripe_error" }
     }
-    console.error("[talk/admin] refund unexpected error", err)
+    logTalkServerError("[talk/admin] refund unexpected error")
     return { ok: false, reason: "internal" }
   }
 }

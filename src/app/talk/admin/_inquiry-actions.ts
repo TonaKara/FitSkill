@@ -4,6 +4,7 @@ import "server-only"
 
 import { getSupabaseAdminClient } from "@/lib/supabase/admin"
 import { requireGritvibAdminUser } from "@/lib/talk/admin-auth"
+import { logTalkServerError } from "@/lib/talk/server-safe-log"
 import {
   GRITVIB_INQUIRY_SOURCE,
   GRITVIB_INQUIRY_SUBJECT_LEGACY,
@@ -101,7 +102,7 @@ export async function listGritvibInquiriesAction(input?: {
 
   const { data, error } = await query
   if (error) {
-    console.error("[talk/admin/inquiries] list failed", error)
+    logTalkServerError("[talk/admin/inquiries] list failed", error)
     return { ok: false, reason: "internal" }
   }
 
@@ -114,7 +115,7 @@ export async function listGritvibInquiriesAction(input?: {
     .eq("status", "pending")
 
   if (countError) {
-    console.error("[talk/admin/inquiries] pending count failed", countError)
+    logTalkServerError("[talk/admin/inquiries] pending count failed", countError)
   }
 
   return {
@@ -151,7 +152,7 @@ export async function fetchGritvibInquiryDetailAction(
     .maybeSingle()
 
   if (error) {
-    console.error("[talk/admin/inquiries] detail failed", error)
+    logTalkServerError("[talk/admin/inquiries] detail failed", error)
     return { ok: false, reason: "internal" }
   }
   if (!data) {
@@ -204,7 +205,7 @@ export async function updateGritvibInquiryStatusAction(input: {
     .maybeSingle()
 
   if (error) {
-    console.error("[talk/admin/inquiries] status update failed", error)
+    logTalkServerError("[talk/admin/inquiries] status update failed", error)
     return { ok: false, reason: "internal" }
   }
   if (!data) {
@@ -239,7 +240,7 @@ export async function getGritvibInquiryAttachmentUrlAction(
     .maybeSingle()
 
   if (error) {
-    console.error("[talk/admin/inquiries] attachment path failed", error)
+    logTalkServerError("[talk/admin/inquiries] attachment path failed", error)
     return { ok: false, reason: "internal" }
   }
 
@@ -254,7 +255,7 @@ export async function getGritvibInquiryAttachmentUrlAction(
     .createSignedUrl(path, ATTACHMENT_SIGNED_TTL_SEC)
 
   if (signError || !signed?.signedUrl) {
-    console.error("[talk/admin/inquiries] signed url failed", signError)
+    logTalkServerError("[talk/admin/inquiries] signed url failed", signError)
     return { ok: false, reason: "internal" }
   }
 

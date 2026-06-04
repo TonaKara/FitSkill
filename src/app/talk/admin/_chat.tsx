@@ -21,6 +21,7 @@ import {
   RotateCcw,
   X,
 } from "lucide-react"
+import { safeClientLogError } from "@/lib/safe-client-log"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import {
   deleteGritvibAdminMessageAction,
@@ -53,6 +54,11 @@ import {
   type GritvibAdminCharge,
 } from "@/talk/admin/_refund-actions"
 import { AdminInquiriesPanel } from "@/talk/admin/_inquiries"
+import { AdminSubscriptionCapacitySettings } from "@/talk/admin/_capacity-settings"
+import {
+  describeGritvibChatSubscriptionStatus,
+  isGritvibChatSubscriptionActive,
+} from "@/lib/talk/gritvib-subscription-capacity"
 import { listGritvibInquiriesAction } from "@/talk/admin/_inquiry-actions"
 import { MobileAdminSheet } from "@/talk/admin/_mobile-admin-sheet"
 import {
@@ -122,33 +128,11 @@ function formatAmount(amount: number, currency: string): string {
   }
 }
 
-function isGritvibSubscriptionActive(status: string): boolean {
-  return status === "active" || status === "trialing"
-}
-
-function describeSubscriptionStatus(status: string): string {
-  switch (status) {
-    case "active":
-      return "有効"
-    case "trialing":
-      return "トライアル中"
-    case "past_due":
-      return "支払期限超過"
-    case "canceled":
-      return "解約済み"
-    case "incomplete":
-      return "未完了"
-    case "incomplete_expired":
-      return "未完了 (期限切れ)"
-    case "unpaid":
-      return "未払い"
-    case "paused":
-      return "一時停止"
-    case "inactive":
-      return "未加入"
-    default:
-      return status
-  }
+function isThreadSubscriptionActive(thread: GritvibAdminThreadSummary): boolean {
+  return isGritvibChatSubscriptionActive(
+    thread.subscriptionStatus,
+    thread.subscriptionCurrentPeriodEnd,
+  )
 }
 
 function guessImageExtension(mimeType: string, filename: string): string {
@@ -215,7 +199,7 @@ export function AdminChatPage({
       if (result.ok) {
         setThreads(result.threads)
       } else {
-        console.error("[talk/admin] refresh threads failed", result.reason)
+        safeClientLogError("[talk/admin] refresh threads failed")
       }
     } finally {
       setRefreshing(false)
@@ -235,7 +219,7 @@ export function AdminChatPage({
     void (async () => {
       const result = await markGritvibAdminThreadReadAction(selectedMemberId)
       if (!result.ok) {
-        console.error("[talk/admin] mark thread read failed", result.reason)
+        safeClientLogError("[talk/admin] mark thread read failed")
         return
       }
       await refreshThreads()
@@ -268,9 +252,14 @@ export function AdminChatPage({
         { event: "DELETE", schema: "public", table: "gritvib_chat_messages" },
         () => scheduleRefresh(),
       )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "gritvib_chat_members" },
+        () => scheduleRefresh(),
+      )
       .subscribe((status) => {
         if (status === "CHANNEL_ERROR") {
-          console.error("[talk/admin] thread list realtime subscription failed", status)
+          safeClientLogError("[talk/admin] thread list realtime subscription failed")
         }
       })
     return () => {
@@ -389,6 +378,7 @@ export function AdminChatPage({
       <div className="relative flex min-h-0 flex-1">
         {/* スレッド一覧（スマホでも常に背面に表示） */}
         <aside className="flex min-h-0 w-full flex-col border-r border-zinc-200 md:w-80 md:flex-none">
+          <AdminSubscriptionCapacitySettings />
           <ThreadList
             threads={threads}
             selectedMemberId={selectedMemberId}
@@ -420,7 +410,10 @@ export function AdminChatPage({
         {clientMounted && isMobileLayout && selectedThread ? (
           <MobileAdminSheet
             title={selectedThread.nickname}
-            subtitle={describeSubscriptionStatus(selectedThread.subscriptionStatus)}
+            subtitle={describeGritvibChatSubscriptionStatus(
+              selectedThread.subscriptionStatus,
+              selectedThread.subscriptionCurrentPeriodEnd,
+            )}
             onClose={() => handleSelectThread(null)}
           >
             <AdminThreadConversation
@@ -562,7 +555,7 @@ function ThreadList({
             : thread.unreadCount === 0 && !threadHasNoMessages(thread)
       if (!matchesQueue) return false
       if (queueFilter === "unsent") {
-        const active = isGritvibSubscriptionActive(thread.subscriptionStatus)
+        const active = isThreadSubscriptionActive(thread)
         if (subscriptionFilter === "active" && !active) return false
         if (subscriptionFilter === "inactive" && active) return false
       }
@@ -709,12 +702,15 @@ function ThreadList({
                       <span
                         className={[
                           "inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px]",
-                          isGritvibSubscriptionActive(thread.subscriptionStatus)
+                          isThreadSubscriptionActive(thread)
                             ? "bg-green-50 text-green-700"
                             : "bg-zinc-100 text-zinc-500",
                         ].join(" ")}
                       >
-                        {describeSubscriptionStatus(thread.subscriptionStatus)}
+                        {describeGritvibChatSubscriptionStatus(
+                          thread.subscriptionStatus,
+                          thread.subscriptionCurrentPeriodEnd,
+                        )}
                       </span>
                     </div>
                   </div>
@@ -807,7 +803,7 @@ function AdminThreadConversation({
       const result = await fetchGritvibAdminThreadMessagesAction(threadMemberId)
       if (cancelled) return
       if (!result.ok) {
-        console.error("[talk/admin] fetch thread failed", result.reason)
+        safeClientLogError("[talk/admin] fetch thread failed")
         setMessages([])
         setLoading(false)
         return
@@ -863,7 +859,7 @@ function AdminThreadConversation({
       )
       .subscribe((status) => {
         if (status === "CHANNEL_ERROR") {
-          console.error("[talk/admin] thread realtime subscription failed", status)
+          safeClientLogError("[talk/admin] thread realtime subscription failed")
         }
       })
 
@@ -980,7 +976,7 @@ function AdminThreadConversation({
             upsert: false,
           })
         if (uploadError) {
-          console.error("[talk/admin] upload failed", uploadError)
+          safeClientLogError("[talk/admin] upload failed")
           setMessages((prev) => removeOptimisticGritvibMessage(prev, optimisticId))
           setErrorMessage("画像のアップロードに失敗しました。")
           return
@@ -994,7 +990,7 @@ function AdminThreadConversation({
       })
 
       if (!result.ok) {
-        console.error("[talk/admin] send failed", result.reason)
+        safeClientLogError("[talk/admin] send failed")
         setMessages((prev) => removeOptimisticGritvibMessage(prev, optimisticId))
         if (plannedImagePath) {
           await supabase.storage.from(STORAGE_BUCKET).remove([plannedImagePath])
@@ -1017,7 +1013,7 @@ function AdminThreadConversation({
       scrollToBottom()
       onAfterSend()
     } catch (err) {
-      console.error("[talk/admin] submit error", err)
+      safeClientLogError("[talk/admin] submit error")
       setMessages((prev) => removeOptimisticGritvibMessage(prev, optimisticId))
       if (plannedImagePath) {
         await supabase.storage.from(STORAGE_BUCKET).remove([plannedImagePath])
@@ -1050,7 +1046,7 @@ function AdminThreadConversation({
     if (!confirm("このメッセージを削除しますか? 相手側からも見えなくなります。")) return
     const result = await deleteGritvibAdminMessageAction(messageId)
     if (!result.ok) {
-      console.error("[talk/admin] delete failed", result.reason)
+      safeClientLogError("[talk/admin] delete failed")
       setErrorMessage("削除に失敗しました。時間をおいて再度お試しください。")
       return
     }
@@ -1067,7 +1063,10 @@ function AdminThreadConversation({
         <div className="border-b border-zinc-200 px-4 py-3 text-sm">
           <p className="truncate font-medium text-black">{thread.nickname}</p>
           <p className="mt-0.5 truncate text-xs text-zinc-500">
-            {describeSubscriptionStatus(thread.subscriptionStatus)}
+            {describeGritvibChatSubscriptionStatus(
+              thread.subscriptionStatus,
+              thread.subscriptionCurrentPeriodEnd,
+            )}
           </p>
         </div>
       )}

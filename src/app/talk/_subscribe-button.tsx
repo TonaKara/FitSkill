@@ -10,10 +10,15 @@ export function GritvibSubscribeButton({
   accountEmail,
   className,
   label = "有効にする",
+  disabled = false,
+  disabledTitle = "現在、満員のため新規のご参加は一時停止しています。",
 }: {
   accountEmail: string
   className?: string
   label?: string
+  /** 満員などで決済へ進めないとき */
+  disabled?: boolean
+  disabledTitle?: string
 }) {
   const [open, setOpen] = useState(false)
   const titleId = useId()
@@ -41,9 +46,12 @@ export function GritvibSubscribeButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
+        disabled={disabled}
+        title={disabled ? disabledTitle : undefined}
+        aria-disabled={disabled}
         className={
           className ??
-          "inline-flex h-8 items-center justify-center rounded-full bg-black px-4 text-xs font-medium text-white transition-colors hover:bg-zinc-800"
+          "inline-flex h-8 items-center justify-center rounded-full bg-black px-4 text-xs font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-500 disabled:hover:bg-zinc-300"
         }
       >
         {label}

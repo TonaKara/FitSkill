@@ -2,6 +2,7 @@ import type Stripe from "stripe"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { tryNotifyGritvibSubscriptionPurchaseDiscord } from "@/lib/purchase-notification"
 import { resolveGritvibSubscriptionPeriodEndIso } from "@/lib/talk/stripe-subscription-period"
+import { logTalkServerError } from "@/lib/talk/server-safe-log"
 
 /**
  * GritVib (人間チャットサービス) のサブスクと Supabase を同期するための Webhook ヘルパー群。
@@ -67,7 +68,7 @@ async function gritvibMemberExistsForEmail(
     { p_email: email },
   )
   if (rpcError) {
-    console.error("[talk/stripe] resolve user_id for member check failed", {
+    logTalkServerError("[talk/stripe] resolve user_id for member check failed", {
       error: rpcError.message,
     })
     return false
@@ -82,7 +83,7 @@ async function gritvibMemberExistsForEmail(
     .maybeSingle()
 
   if (memberError) {
-    console.error("[talk/stripe] member lookup failed", { error: memberError.message })
+    logTalkServerError("[talk/stripe] member lookup failed", { error: memberError.message })
     return false
   }
   return Boolean(memberRow?.nickname)
@@ -129,7 +130,7 @@ export async function shouldSyncGritvibSubscription(
     .eq("stripe_customer_id", customerId)
     .maybeSingle()
   if (linkedError) {
-    console.error("[talk/stripe] linked member lookup failed", { error: linkedError.message })
+    logTalkServerError("[talk/stripe] linked member lookup failed", { error: linkedError.message })
     return false
   }
   if (linked?.id) {
@@ -163,7 +164,7 @@ export async function propagateGritvibMetadataToSubscription(
       metadata: { service: GRITVIB_SERVICE_TAG },
     })
   } catch (error) {
-    console.error("[talk/stripe] failed to propagate metadata to subscription", {
+    logTalkServerError("[talk/stripe] failed to propagate metadata to subscription", {
       subscriptionId,
       sessionId: session.id,
       error: error instanceof Error ? error.message : String(error),
@@ -186,12 +187,12 @@ export async function applyGritvibCheckoutCompleted(
 ): Promise<void> {
   const customerId = resolveCustomerId(session.customer)
   if (!customerId) {
-    console.warn("[talk/stripe] checkout session has no customer", { sessionId: session.id })
+    logTalkServerError("[talk/stripe] checkout session has no customer", { sessionId: session.id })
     return
   }
   const email = await resolveCustomerEmail(stripe, session.customer, session.customer_email)
   if (!email) {
-    console.error("[talk/stripe] could not resolve customer email", {
+    logTalkServerError("[talk/stripe] could not resolve customer email", {
       customerId,
       sessionId: session.id,
     })
@@ -203,7 +204,7 @@ export async function applyGritvibCheckoutCompleted(
     { p_email: email },
   )
   if (rpcError) {
-    console.error("[talk/stripe] resolve user_id rpc failed", {
+    logTalkServerError("[talk/stripe] resolve user_id rpc failed", {
       email,
       error: rpcError.message,
     })
@@ -218,7 +219,7 @@ export async function applyGritvibCheckoutCompleted(
      * チャージは Stripe 側で受け付けているので、ここでは ERR ログだけ残す
      * (運用で個別対応する。リファンドはダッシュボードから行う)。
      */
-    console.warn("[talk/stripe] no matching user for stripe customer", { customerId })
+    logTalkServerError("[talk/stripe] no matching user for stripe customer", { customerId })
     return
   }
 
@@ -229,14 +230,14 @@ export async function applyGritvibCheckoutCompleted(
     .maybeSingle()
 
   if (memberFetchError) {
-    console.error("[talk/stripe] failed to fetch chat member before checkout update", {
+    logTalkServerError("[talk/stripe] failed to fetch chat member before checkout update", {
       userId,
       error: memberFetchError.message,
     })
     return
   }
   if (!memberRow?.nickname) {
-    console.warn("[talk/stripe] chat member row missing for checkout", { userId, customerId })
+    logTalkServerError("[talk/stripe] chat member row missing for checkout", { userId, customerId })
     return
   }
 
@@ -256,7 +257,7 @@ export async function applyGritvibCheckoutCompleted(
     .eq("id", userId)
 
   if (updateError) {
-    console.error("[talk/stripe] failed to update chat_members on checkout completed", {
+    logTalkServerError("[talk/stripe] failed to update chat_members on checkout completed", {
       userId,
       customerId,
       error: updateError.message,
@@ -290,7 +291,7 @@ export async function applyGritvibSubscriptionSync(
 ): Promise<void> {
   const customerId = resolveCustomerId(subscription.customer)
   if (!customerId) {
-    console.warn("[talk/stripe] subscription has no customer", {
+    logTalkServerError("[talk/stripe] subscription has no customer", {
       subscriptionId: subscription.id,
     })
     return
@@ -309,7 +310,7 @@ export async function applyGritvibSubscriptionSync(
     .select("id")
 
   if (byCustomerError) {
-    console.error("[talk/stripe] failed to sync subscription state by customer", {
+    logTalkServerError("[talk/stripe] failed to sync subscription state by customer", {
       customerId,
       subscriptionId: subscription.id,
       error: byCustomerError.message,
@@ -322,7 +323,7 @@ export async function applyGritvibSubscriptionSync(
 
   const email = await resolveCustomerEmail(stripe, subscription.customer, null)
   if (!email) {
-    console.warn("[talk/stripe] subscription sync skipped: no customer email", {
+    logTalkServerError("[talk/stripe] subscription sync skipped: no customer email", {
       customerId,
       subscriptionId: subscription.id,
     })
@@ -334,7 +335,7 @@ export async function applyGritvibSubscriptionSync(
     { p_email: email },
   )
   if (rpcError) {
-    console.error("[talk/stripe] subscription sync resolve user failed", {
+    logTalkServerError("[talk/stripe] subscription sync resolve user failed", {
       email,
       error: rpcError.message,
     })
@@ -351,7 +352,7 @@ export async function applyGritvibSubscriptionSync(
     .eq("id", userId)
 
   if (byUserError) {
-    console.error("[talk/stripe] failed to sync subscription state by user", {
+    logTalkServerError("[talk/stripe] failed to sync subscription state by user", {
       userId,
       customerId,
       subscriptionId: subscription.id,
@@ -401,7 +402,7 @@ async function resolveCustomerEmail(
       return c.email.trim().toLowerCase()
     }
   } catch (error) {
-    console.error("[talk/stripe] failed to retrieve customer email", {
+    logTalkServerError("[talk/stripe] failed to retrieve customer email", {
       customerId: id,
       error: error instanceof Error ? error.message : String(error),
     })
@@ -424,7 +425,7 @@ async function fetchSubscriptionState(
       currentPeriodEndIso: resolveGritvibSubscriptionPeriodEndIso(sub),
     }
   } catch (error) {
-    console.error("[talk/stripe] failed to retrieve subscription state", {
+    logTalkServerError("[talk/stripe] failed to retrieve subscription state", {
       subscriptionId: id,
       error: error instanceof Error ? error.message : String(error),
     })

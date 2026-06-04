@@ -287,7 +287,7 @@ export function TalkLandingPage({
                   initial="hidden"
                   animate="show"
                   exit="exit"
-                  className="mx-auto flex w-full max-w-[18rem] flex-col items-center gap-5 sm:max-w-md md:max-w-4xl md:gap-7"
+                  className="mx-auto flex w-full max-w-[21rem] flex-col items-center gap-5 sm:max-w-md md:max-w-4xl md:gap-7"
                 >
                   <motion.p
                     variants={titleLineVariants.gritVib}
@@ -297,23 +297,23 @@ export function TalkLandingPage({
                   </motion.p>
 
                   {/*
-                    スマホ:
-                      - 縦並び。「人として、」を左寄せ・「生きるということ。」を右寄せにして
-                        和文の余韻を演出する従来の構成を維持。
+                    スマホ (< md):
+                      - 縦並び。「人として、」を左寄せ・「生きるということ。」を右寄せ。
+                      - 各行は whitespace-nowrap で句の途中改行を禁止（「と。」だけ落ちるのを防ぐ）。
                     PC (md 以上):
                       - 横並びにして「人として、生きるということ。」を 1 行で見せる。
-                      - 上記の self-start / self-end / text-left / text-right はリセット。
+                      - self-start / self-end / nowrap はリセット。
                   */}
                   <motion.h1 className="flex w-full flex-col items-stretch gap-5 md:flex-row md:items-baseline md:justify-center md:gap-3">
                     <motion.span
                       variants={titleLineVariants.first}
-                      className="self-start text-left text-4xl font-medium leading-[1.2] tracking-tight md:self-auto md:text-center md:text-6xl"
+                      className="max-md:whitespace-nowrap max-md:break-keep self-start text-left text-4xl font-medium leading-[1.2] tracking-tight md:self-auto md:whitespace-normal md:text-center md:text-6xl"
                     >
                       人として、
                     </motion.span>
                     <motion.span
                       variants={titleLineVariants.second}
-                      className="self-end text-right text-4xl font-medium leading-[1.2] tracking-tight md:self-auto md:text-center md:text-6xl"
+                      className="max-md:whitespace-nowrap max-md:break-keep self-end text-right text-4xl font-medium leading-[1.2] tracking-tight md:self-auto md:whitespace-normal md:text-center md:text-6xl"
                     >
                       生きるということ。
                     </motion.span>

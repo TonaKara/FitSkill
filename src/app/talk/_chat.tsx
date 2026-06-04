@@ -28,6 +28,7 @@ import {
   deleteGritvibChatMessageAction,
   hideGritvibChatMessageAction,
   getGritvibChatSendabilityAction,
+  getGritvibSubscriptionCapacityStatusAction,
   recoverGritvibSubscriptionFromStripeAction,
   sendGritvibChatMessageAction,
 } from "@/talk/_chat-actions"
@@ -38,6 +39,7 @@ import {
 } from "@/lib/talk/chat-image-urls"
 import { TALK_STRIPE_LINKS } from "@/talk/_stripe-links"
 import { GritvibSubscribeButton } from "@/talk/_subscribe-button"
+import type { GritvibSubscriptionCapacityStatus } from "@/lib/talk/gritvib-subscription-capacity"
 import {
   createOptimisticGritvibMessage,
   mapGritvibChatMessageRow,
@@ -101,6 +103,8 @@ export function ChatPage({
   const [pendingImage, setPendingImage] = useState<File | null>(null)
   const [pendingImagePreview, setPendingImagePreview] = useState<string | null>(null)
   const [canSend, setCanSend] = useState<boolean | null>(null)
+  const [subscriptionCapacity, setSubscriptionCapacity] =
+    useState<GritvibSubscriptionCapacityStatus | null>(null)
   const [isSending, setIsSending] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [loadingHistory, setLoadingHistory] = useState(true)
@@ -183,10 +187,12 @@ export function ChatPage({
   useEffect(() => {
     let cancelled = false
     void (async () => {
-      const [{ data: hideRows, error: hideError }, sendability] = await Promise.all([
-        supabase.from("gritvib_chat_message_hides").select("message_id"),
-        getGritvibChatSendabilityAction(),
-      ])
+      const [{ data: hideRows, error: hideError }, sendability, capacity] =
+        await Promise.all([
+          supabase.from("gritvib_chat_message_hides").select("message_id"),
+          getGritvibChatSendabilityAction(),
+          getGritvibSubscriptionCapacityStatusAction(),
+        ])
       if (cancelled) return
       await loadMessages()
       if (cancelled) return
@@ -198,6 +204,9 @@ export function ChatPage({
       )
       const initialCanSend = sendability.ok ? sendability.canSend : false
       setCanSend(initialCanSend)
+      if (capacity.ok) {
+        setSubscriptionCapacity(capacity.status)
+      }
       setLoadingHistory(false)
       scrollToBottom()
 
@@ -668,8 +677,20 @@ export function ChatPage({
           </div>
         ) : (
           <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 border-t border-zinc-200 bg-zinc-50 px-4 py-3 text-center text-xs text-zinc-600">
-            <span>サブスクリプションが有効ではないため、メッセージは送信できません。</span>
-            <GritvibSubscribeButton accountEmail={accountEmail} />
+            <span>
+              サブスクリプションが有効ではないため、メッセージは送信できません。
+            </span>
+            <GritvibSubscribeButton
+              accountEmail={accountEmail}
+              disabled={
+                subscriptionCapacity != null && !subscriptionCapacity.acceptingNew
+              }
+              label={
+                subscriptionCapacity != null && !subscriptionCapacity.acceptingNew
+                  ? "満員"
+                  : "有効にする"
+              }
+            />
           </div>
         )
       ) : null}

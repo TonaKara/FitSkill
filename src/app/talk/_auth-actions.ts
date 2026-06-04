@@ -8,6 +8,7 @@ import {
   validateGritvibNickname,
   type GritvibNicknameInvalidReason,
 } from "@/lib/talk/nickname-rules"
+import { logTalkServerError } from "@/lib/talk/server-safe-log"
 
 /**
  * GritVib (人間チャットサービス) の認証関連 Server Actions。
@@ -50,7 +51,7 @@ export async function checkGritvibNicknameAvailabilityAction(
    */
   const supabaseAdmin = getSupabaseAdminClient()
   if (!supabaseAdmin) {
-    console.error("[talk/auth] admin client unavailable")
+    logTalkServerError("[talk/auth] admin client unavailable")
     return { ok: false, reason: "internal" }
   }
   const { data, error } = await supabaseAdmin.rpc(
@@ -58,7 +59,7 @@ export async function checkGritvibNicknameAvailabilityAction(
     { p_nickname: validation.value },
   )
   if (error) {
-    console.error("[talk/auth] nickname check rpc error", error)
+    logTalkServerError("[talk/auth] nickname check rpc error", error)
     return { ok: false, reason: "internal" }
   }
   return { ok: true, available: data !== true }
@@ -83,7 +84,7 @@ export async function completeGritvibOnboardingAction(
     "gritvib_chat_self_member_profile",
   )
   if (existingError) {
-    console.error("[talk/auth] read self member profile failed", existingError)
+    logTalkServerError("[talk/auth] read self member profile failed", existingError)
     return { ok: false, reason: "internal" }
   }
   const existing = Array.isArray(existingRows) ? existingRows[0] : null
@@ -99,7 +100,7 @@ export async function completeGritvibOnboardingAction(
       { p_nickname: validation.value },
     )
     if (takenError) {
-      console.error("[talk/auth] nickname pre-check rpc error", takenError)
+      logTalkServerError("[talk/auth] nickname pre-check rpc error", takenError)
     } else if (taken === true) {
       return { ok: false, reason: "nickname_taken" }
     }
@@ -119,7 +120,7 @@ export async function completeGritvibOnboardingAction(
     if (pgErrorCode === "23505") {
       return { ok: false, reason: "nickname_taken" }
     }
-    console.error("[talk/auth] insert chat_members failed", insertError)
+    logTalkServerError("[talk/auth] insert chat_members failed", insertError)
     return { ok: false, reason: "internal" }
   }
 

@@ -5,6 +5,7 @@ import "server-only"
 import { getSupabaseAdminClient } from "@/lib/supabase/admin"
 import { requireGritvibAdminUser } from "@/lib/talk/admin-auth"
 import { mapGritvibChatMessageRow } from "@/lib/talk/gritvib-chat-message"
+import { logTalkServerError } from "@/lib/talk/server-safe-log"
 
 /**
  * GritVib 管理画面 (運営オペレーター用) の Server Actions。
@@ -111,7 +112,7 @@ export async function listGritvibAdminThreadsAction(): Promise<ListThreadsResult
   const { user: adminUser } = adminCheck.session
   const supabaseAdmin = getSupabaseAdminClient()
   if (!supabaseAdmin) {
-    console.error("[talk/admin] supabase admin client missing (SUPABASE_SERVICE_ROLE_KEY?)")
+    logTalkServerError("[talk/admin] supabase admin client missing (SUPABASE_SERVICE_ROLE_KEY?)")
     return { ok: false, reason: "internal" }
   }
 
@@ -123,7 +124,7 @@ export async function listGritvibAdminThreadsAction(): Promise<ListThreadsResult
     )
 
   if (membersError) {
-    console.error("[talk/admin] fetch members failed", membersError)
+    logTalkServerError("[talk/admin] fetch members failed", membersError)
     return { ok: false, reason: "internal" }
   }
 
@@ -149,7 +150,7 @@ export async function listGritvibAdminThreadsAction(): Promise<ListThreadsResult
     .eq("admin_user_id", adminUser.id)
 
   if (readError) {
-    console.error("[talk/admin] fetch thread reads failed", readError)
+    logTalkServerError("[talk/admin] fetch thread reads failed", readError)
     return { ok: false, reason: "internal" }
   }
 
@@ -165,7 +166,7 @@ export async function listGritvibAdminThreadsAction(): Promise<ListThreadsResult
     .order("created_at", { ascending: true })
 
   if (messagesError) {
-    console.error("[talk/admin] fetch messages failed", messagesError)
+    logTalkServerError("[talk/admin] fetch messages failed", messagesError)
     return { ok: false, reason: "internal" }
   }
 
@@ -298,7 +299,7 @@ export async function markGritvibAdminThreadReadAction(
     .maybeSingle()
 
   if (memberError) {
-    console.error("[talk/admin] mark read verify member failed", memberError)
+    logTalkServerError("[talk/admin] mark read verify member failed", memberError)
     return { ok: false, reason: "internal" }
   }
   if (!memberRow) return { ok: false, reason: "not_found" }
@@ -314,7 +315,7 @@ export async function markGritvibAdminThreadReadAction(
   )
 
   if (upsertError) {
-    console.error("[talk/admin] mark thread read failed", upsertError)
+    logTalkServerError("[talk/admin] mark thread read failed", upsertError)
     return { ok: false, reason: "internal" }
   }
 
@@ -347,7 +348,7 @@ export async function fetchGritvibAdminThreadMessagesAction(
     .maybeSingle()
 
   if (memberError) {
-    console.error("[talk/admin] verify member failed", memberError)
+    logTalkServerError("[talk/admin] verify member failed", memberError)
     return { ok: false, reason: "internal" }
   }
   if (!memberRow) {
@@ -361,7 +362,7 @@ export async function fetchGritvibAdminThreadMessagesAction(
     .order("created_at", { ascending: true })
 
   if (error) {
-    console.error("[talk/admin] fetch thread messages failed", error)
+    logTalkServerError("[talk/admin] fetch thread messages failed", error)
     return { ok: false, reason: "internal" }
   }
 
@@ -418,7 +419,7 @@ export async function sendGritvibAdminMessageAction(input: {
     .eq("id", threadMemberId)
     .maybeSingle()
   if (targetError) {
-    console.error("[talk/admin] check target thread failed", targetError)
+    logTalkServerError("[talk/admin] check target thread failed", targetError)
     return { ok: false, reason: "internal" }
   }
   if (!target) {
@@ -440,7 +441,7 @@ export async function sendGritvibAdminMessageAction(input: {
     .single()
 
   if (insertError || !inserted) {
-    console.error("[talk/admin] insert operator message failed", insertError)
+    logTalkServerError("[talk/admin] insert operator message failed", insertError)
     return { ok: false, reason: "internal" }
   }
 
@@ -469,7 +470,7 @@ export async function deleteGritvibAdminMessageAction(
     .maybeSingle()
 
   if (targetError) {
-    console.error("[talk/admin] read message failed", targetError)
+    logTalkServerError("[talk/admin] read message failed", targetError)
     return { ok: false, reason: "internal" }
   }
   if (!target) return { ok: false, reason: "not_found" }
@@ -488,7 +489,7 @@ export async function deleteGritvibAdminMessageAction(
     .eq("id", trimmed)
 
   if (deleteError) {
-    console.error("[talk/admin] delete message failed", deleteError)
+    logTalkServerError("[talk/admin] delete message failed", deleteError)
     return { ok: false, reason: "internal" }
   }
 
@@ -497,7 +498,7 @@ export async function deleteGritvibAdminMessageAction(
       .from("gritvib-chat-photos")
       .remove([target.image_path])
     if (storageError) {
-      console.warn("[talk/admin] storage remove failed", storageError)
+      logTalkServerError("[talk/admin] storage remove failed", storageError)
     }
   }
 

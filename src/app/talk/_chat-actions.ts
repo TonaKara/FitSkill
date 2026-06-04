@@ -10,6 +10,9 @@ import {
   type GritvibChatMessage,
 } from "@/lib/talk/gritvib-chat-message"
 import { resolveGritvibSubscriptionPeriodEndIso } from "@/lib/talk/stripe-subscription-period"
+import type { GritvibSubscriptionCapacityStatus } from "@/lib/talk/gritvib-subscription-capacity"
+import { loadGritvibMemberSubscriptionCapacityStatus } from "@/lib/talk/gritvib-subscription-capacity-store"
+import { logTalkServerError } from "@/lib/talk/server-safe-log"
 
 /**
  * GritVib (人間チャットサービス) のチャット関連 Server Actions。
@@ -57,6 +60,10 @@ type SendabilityResult =
   | { ok: true; canSend: boolean }
   | { ok: false; reason: "unauthenticated" | "internal" }
 
+type SubscriptionCapacityResult =
+  | { ok: true; status: GritvibSubscriptionCapacityStatus }
+  | { ok: false; reason: "unauthenticated" | "internal" }
+
 export async function sendGritvibChatMessageAction(input: {
   body?: string | null
   imagePath?: string | null
@@ -93,7 +100,7 @@ export async function sendGritvibChatMessageAction(input: {
     { p_member_id: user.id },
   )
   if (canSendError) {
-    console.error("[talk/chat] sendability rpc error", canSendError)
+    logTalkServerError("[talk/chat] sendability rpc error")
     return { ok: false, reason: "internal" }
   }
   if (canSend !== true) {
@@ -115,7 +122,7 @@ export async function sendGritvibChatMessageAction(input: {
     .single()
 
   if (insertError || !inserted) {
-    console.error("[talk/chat] insert message failed", insertError)
+    logTalkServerError("[talk/chat] insert message failed")
     return { ok: false, reason: "internal" }
   }
 
@@ -145,7 +152,7 @@ export async function deleteGritvibChatMessageAction(
     .maybeSingle()
 
   if (targetError) {
-    console.error("[talk/chat] read message failed", targetError)
+    logTalkServerError("[talk/chat] read message failed")
     return { ok: false, reason: "internal" }
   }
   if (!target) {
@@ -162,7 +169,7 @@ export async function deleteGritvibChatMessageAction(
     .eq("thread_member_id", user.id)
 
   if (deleteError) {
-    console.error("[talk/chat] delete message failed", deleteError)
+    logTalkServerError("[talk/chat] delete message failed")
     return { ok: false, reason: "internal" }
   }
 
@@ -172,7 +179,7 @@ export async function deleteGritvibChatMessageAction(
       .remove([target.image_path])
     if (storageError) {
       // 画像の物理削除に失敗しても、メッセージ本体の DELETE は完了しているので致命視しない。
-      console.warn("[talk/chat] storage remove failed", storageError)
+      logTalkServerError("[talk/chat] storage remove failed")
     }
   }
 
@@ -201,7 +208,7 @@ export async function hideGritvibChatMessageAction(
     .maybeSingle()
 
   if (targetError) {
-    console.error("[talk/chat] read message for hide failed", targetError)
+    logTalkServerError("[talk/chat] read message for hide failed")
     return { ok: false, reason: "internal" }
   }
   if (!target) {
@@ -220,7 +227,7 @@ export async function hideGritvibChatMessageAction(
     if (insertError.code === "23505") {
       return { ok: false, reason: "already_hidden" }
     }
-    console.error("[talk/chat] hide message failed", insertError)
+    logTalkServerError("[talk/chat] hide message failed")
     return { ok: false, reason: "internal" }
   }
 
@@ -238,10 +245,27 @@ export async function getGritvibChatSendabilityAction(): Promise<SendabilityResu
     p_member_id: user.id,
   })
   if (error) {
-    console.error("[talk/chat] sendability rpc error", error)
+    logTalkServerError("[talk/chat] sendability rpc error")
     return { ok: false, reason: "internal" }
   }
   return { ok: true, canSend: data === true }
+}
+
+/** 新規サブスク受付枠（満員時は UI で「有効にする」を無効化するだけ）。 */
+export async function getGritvibSubscriptionCapacityStatusAction(): Promise<SubscriptionCapacityResult> {
+  const sessionResult = await requireActionUser()
+  if (!sessionResult.ok) {
+    return { ok: false, reason: "unauthenticated" }
+  }
+  const { supabase } = sessionResult.session
+
+  try {
+    const status = await loadGritvibMemberSubscriptionCapacityStatus(supabase)
+    return { ok: true, status }
+  } catch (err) {
+    logTalkServerError("[talk/chat] subscription capacity load failed", err)
+    return { ok: false, reason: "internal" }
+  }
 }
 
 /**
@@ -286,13 +310,13 @@ export async function recoverGritvibSubscriptionFromStripeAction(): Promise<Reco
 
   const stripeSecret = process.env.STRIPE_SECRET_KEY?.trim()
   if (!stripeSecret) {
-    console.error("[talk/recovery] STRIPE_SECRET_KEY missing")
+    logTalkServerError("[talk/recovery] STRIPE_SECRET_KEY missing")
     return { ok: false, reason: "stripe_not_configured" }
   }
 
   const supabaseAdmin = getSupabaseAdminClient()
   if (!supabaseAdmin) {
-    console.error("[talk/recovery] supabase admin client missing")
+    logTalkServerError("[talk/recovery] supabase admin client missing")
     return { ok: false, reason: "internal" }
   }
 
@@ -303,7 +327,7 @@ export async function recoverGritvibSubscriptionFromStripeAction(): Promise<Reco
     .maybeSingle()
 
   if (memberError) {
-    console.error("[talk/recovery] fetch chat_members failed", memberError)
+    logTalkServerError("[talk/recovery] fetch chat_members failed")
     return { ok: false, reason: "internal" }
   }
   if (!memberRow?.nickname) {
@@ -352,7 +376,7 @@ export async function recoverGritvibSubscriptionFromStripeAction(): Promise<Reco
       .select("subscription_status, subscription_current_period_end")
 
     if (updateError) {
-      console.error("[talk/recovery] update chat_members failed")
+      logTalkServerError("[talk/recovery] update chat_members failed")
       return { ok: false, reason: "internal" }
     }
     if (!updatedRows?.length) {
@@ -384,11 +408,7 @@ export async function recoverGritvibSubscriptionFromStripeAction(): Promise<Reco
       (updated.subscription_current_period_end == null ||
         new Date(updated.subscription_current_period_end).getTime() > Date.now())
 
-    console.info("[talk/recovery] recovered subscription from stripe", {
-      userId: user.id,
-      status: updated.subscription_status,
-      canSend,
-    })
+    logTalkServerError("[talk/recovery] recovered subscription from stripe")
 
     if (!canSend) {
       return { ok: false, reason: "subscription_inactive" }
@@ -396,7 +416,7 @@ export async function recoverGritvibSubscriptionFromStripeAction(): Promise<Reco
 
     return { ok: true, canSend: true }
   } catch (err) {
-    console.error("[talk/recovery] stripe lookup failed", err)
+    logTalkServerError("[talk/recovery] stripe lookup failed")
     return { ok: false, reason: "internal" }
   }
 }
