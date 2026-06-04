@@ -37,6 +37,11 @@ import {
   usePreloadGritvibChatImages,
 } from "@/lib/talk/chat-image-urls"
 import {
+  mapGritvibChatMessageRow,
+  mergeGritvibChatMessage,
+  type GritvibChatMessageRow,
+} from "@/lib/talk/gritvib-chat-message"
+import {
   listGritvibAdminMemberChargesAction,
   refundGritvibAdminChargeAction,
   type GritvibAdminCharge,
@@ -81,15 +86,7 @@ type MessageRow = {
 }
 
 function rowToMessage(row: MessageRow): GritvibAdminMessage {
-  return {
-    id: row.id,
-    threadMemberId: row.thread_member_id,
-    senderRole: row.sender_role,
-    senderUserId: row.sender_user_id,
-    body: row.body,
-    imagePath: row.image_path,
-    createdAt: row.created_at,
-  }
+  return mapGritvibChatMessageRow(row)
 }
 
 function formatJa(dt: string | null): string {
@@ -265,7 +262,11 @@ export function AdminChatPage({
         { event: "DELETE", schema: "public", table: "gritvib_chat_messages" },
         () => scheduleRefresh(),
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR") {
+          console.error("[talk/admin] thread list realtime subscription failed", status)
+        }
+      })
     return () => {
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
       void supabase.removeChannel(channel)
@@ -835,11 +836,8 @@ function AdminThreadConversation({
           filter: `thread_member_id=eq.${threadMemberId}`,
         },
         (payload) => {
-          const next = rowToMessage(payload.new as MessageRow)
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === next.id)) return prev
-            return [...prev, next].sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-          })
+          const next = mapGritvibChatMessageRow(payload.new as GritvibChatMessageRow)
+          setMessages((prev) => mergeGritvibChatMessage(prev, next))
           scrollToBottom()
         },
       )
@@ -857,8 +855,24 @@ function AdminThreadConversation({
           setMessages((prev) => prev.filter((m) => m.id !== removedId))
         },
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR") {
+          console.error("[talk/admin] thread realtime subscription failed", status)
+        }
+      })
+
+    const pollId = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return
+      void (async () => {
+        const result = await fetchGritvibAdminThreadMessagesAction(threadMemberId)
+        if (result.ok) {
+          setMessages(result.messages)
+        }
+      })()
+    }, 5000)
+
     return () => {
+      window.clearInterval(pollId)
       void supabase.removeChannel(channel)
     }
   }, [supabase, threadMemberId, scrollToBottom])
@@ -968,6 +982,8 @@ function AdminThreadConversation({
         return
       }
 
+      setMessages((prev) => mergeGritvibChatMessage(prev, result.message))
+      scrollToBottom()
       setDraft("")
       setPendingImage(null)
       if (textareaRef.current) {

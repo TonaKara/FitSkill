@@ -38,6 +38,12 @@ import {
 } from "@/lib/talk/chat-image-urls"
 import { TALK_STRIPE_LINKS } from "@/talk/_stripe-links"
 import { GritvibSubscribeButton } from "@/talk/_subscribe-button"
+import {
+  mapGritvibChatMessageRow,
+  mergeGritvibChatMessage,
+  type GritvibChatMessage,
+  type GritvibChatMessageRow,
+} from "@/lib/talk/gritvib-chat-message"
 
 /**
  * GritVib (人間チャットサービス) のチャット画面。
@@ -56,26 +62,11 @@ const STORAGE_BUCKET = "gritvib-chat-photos"
 const MESSAGE_BODY_MAX_LENGTH = 2000
 const IMAGE_MAX_BYTES = 5 * 1024 * 1024
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+const GRITVIB_CHAT_MESSAGE_SELECT =
+  "id, thread_member_id, sender_role, sender_user_id, body, image_path, created_at"
+const REALTIME_POLL_MS = 5000
 
-type Message = {
-  id: string
-  threadMemberId: string
-  senderRole: "member" | "operator"
-  senderUserId: string
-  body: string | null
-  imagePath: string | null
-  createdAt: string
-}
-
-type MessageRow = {
-  id: string
-  thread_member_id: string
-  sender_role: "member" | "operator"
-  sender_user_id: string
-  body: string | null
-  image_path: string | null
-  created_at: string
-}
+type Message = GritvibChatMessage
 
 export function ChatPage({
   userId,
@@ -167,31 +158,33 @@ export function ChatPage({
     })
   }, [])
 
+  const loadMessages = useCallback(async () => {
+    const { data: rows, error: rowsError } = await supabase
+      .from("gritvib_chat_messages")
+      .select(GRITVIB_CHAT_MESSAGE_SELECT)
+      .eq("thread_member_id", userId)
+      .order("created_at", { ascending: true })
+    if (rowsError) {
+      safeClientLogError("[talk/chat] history fetch failed")
+      return
+    }
+    setMessages((rows ?? []).map((row) => mapGritvibChatMessageRow(row as GritvibChatMessageRow)))
+  }, [supabase, userId])
+
   /** 初回ロード: 過去メッセージ + サブスク状態を取得する。 */
   useEffect(() => {
     let cancelled = false
     void (async () => {
-      const [{ data: rows, error: rowsError }, { data: hideRows, error: hideError }, sendability] =
-        await Promise.all([
-          supabase
-            .from("gritvib_chat_messages")
-            .select(
-              "id, thread_member_id, sender_role, sender_user_id, body, image_path, created_at",
-            )
-            .eq("thread_member_id", userId)
-            .order("created_at", { ascending: true }),
-          supabase.from("gritvib_chat_message_hides").select("message_id"),
-          getGritvibChatSendabilityAction(),
-        ])
+      const [{ data: hideRows, error: hideError }, sendability] = await Promise.all([
+        supabase.from("gritvib_chat_message_hides").select("message_id"),
+        getGritvibChatSendabilityAction(),
+      ])
       if (cancelled) return
-      if (rowsError) {
-        safeClientLogError("[talk/chat] history fetch failed")
-      }
+      await loadMessages()
+      if (cancelled) return
       if (hideError) {
         safeClientLogError("[talk/chat] hidden ids fetch failed")
       }
-      const list = (rows ?? []).map(rowToMessage)
-      setMessages(list)
       setHiddenMessageIds(
         new Set((hideRows ?? []).map((row) => row.message_id as string).filter(Boolean)),
       )
@@ -256,12 +249,26 @@ export function ChatPage({
     return () => {
       cancelled = true
     }
-  }, [supabase, userId, scrollToBottom, justSubscribed, router])
+  }, [supabase, userId, scrollToBottom, justSubscribed, router, loadMessages])
 
-  /** Realtime: 自分のスレッド (`thread_member_id = userId`) の INSERT / DELETE を購読。 */
+  /** Realtime + 定期同期: 自分のスレッドの INSERT / DELETE。 */
   useEffect(() => {
+    const channelId = `gritvib_chat_messages:${userId}`
+    const topic = `realtime:${channelId}`
+    for (const existing of supabase.getChannels()) {
+      if (existing.topic === topic) {
+        void supabase.removeChannel(existing)
+      }
+    }
+
+    const appendFromPayload = (row: GritvibChatMessageRow) => {
+      const next = mapGritvibChatMessageRow(row)
+      setMessages((prev) => mergeGritvibChatMessage(prev, next))
+      scrollToBottom()
+    }
+
     const channel = supabase
-      .channel(`gritvib_chat_messages:${userId}`)
+      .channel(channelId)
       .on(
         "postgres_changes",
         {
@@ -271,12 +278,7 @@ export function ChatPage({
           filter: `thread_member_id=eq.${userId}`,
         },
         (payload) => {
-          const next = rowToMessage(payload.new as MessageRow)
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === next.id)) return prev
-            return [...prev, next].sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-          })
-          scrollToBottom()
+          appendFromPayload(payload.new as GritvibChatMessageRow)
         },
       )
       .on(
@@ -293,12 +295,22 @@ export function ChatPage({
           setMessages((prev) => prev.filter((m) => m.id !== removedId))
         },
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR") {
+          safeClientLogError("[talk/chat] realtime subscription failed")
+        }
+      })
+
+    const pollId = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return
+      void loadMessages()
+    }, REALTIME_POLL_MS)
 
     return () => {
+      window.clearInterval(pollId)
       void supabase.removeChannel(channel)
     }
-  }, [supabase, userId, scrollToBottom])
+  }, [supabase, userId, scrollToBottom, loadMessages])
 
   /** 添付画像の preview を Object URL で生成する。 */
   useEffect(() => {
@@ -411,7 +423,8 @@ export function ChatPage({
         return
       }
 
-      // Realtime で受信して画面に挿入される想定。ローカル状態は draft / image だけクリア。
+      setMessages((prev) => mergeGritvibChatMessage(prev, result.message))
+      scrollToBottom()
       setDraft("")
       setPendingImage(null)
       if (textareaRef.current) {
@@ -423,7 +436,7 @@ export function ChatPage({
     } finally {
       setIsSending(false)
     }
-  }, [canSend, draft, isSending, pendingImage, supabase, userId])
+  }, [canSend, draft, isSending, pendingImage, scrollToBottom, supabase, userId])
 
   const handleDeleteMessage = async (messageId: string) => {
     if (!confirm("このメッセージを削除しますか? 相手側からも見えなくなります。")) return
@@ -762,18 +775,6 @@ function MessageBubble({
       </div>
     </div>
   )
-}
-
-function rowToMessage(row: MessageRow): Message {
-  return {
-    id: row.id,
-    threadMemberId: row.thread_member_id,
-    senderRole: row.sender_role,
-    senderUserId: row.sender_user_id,
-    body: row.body,
-    imagePath: row.image_path,
-    createdAt: row.created_at,
-  }
 }
 
 function guessImageExtension(mimeType: string, filename: string): string {

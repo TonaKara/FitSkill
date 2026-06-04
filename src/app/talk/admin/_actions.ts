@@ -4,6 +4,7 @@ import "server-only"
 
 import { getSupabaseAdminClient } from "@/lib/supabase/admin"
 import { requireGritvibAdminUser } from "@/lib/talk/admin-auth"
+import { mapGritvibChatMessageRow } from "@/lib/talk/gritvib-chat-message"
 
 /**
  * GritVib 管理画面 (運営オペレーター用) の Server Actions。
@@ -66,7 +67,7 @@ type FetchMessagesResult =
   | { ok: false; reason: "unauthenticated" | "forbidden" | "not_found" | "internal" }
 
 type SendAdminMessageResult =
-  | { ok: true; messageId: string }
+  | { ok: true; message: GritvibAdminMessage }
   | {
       ok: false
       reason:
@@ -433,7 +434,9 @@ export async function sendGritvibAdminMessageAction(input: {
       body: trimmedBody.length > 0 ? trimmedBody : null,
       image_path: trimmedImagePath.length > 0 ? trimmedImagePath : null,
     })
-    .select("id")
+    .select(
+      "id, thread_member_id, sender_role, sender_user_id, body, image_path, created_at",
+    )
     .single()
 
   if (insertError || !inserted) {
@@ -441,7 +444,7 @@ export async function sendGritvibAdminMessageAction(input: {
     return { ok: false, reason: "internal" }
   }
 
-  return { ok: true, messageId: inserted.id }
+  return { ok: true, message: mapGritvibChatMessageRow(inserted) }
 }
 
 export async function deleteGritvibAdminMessageAction(

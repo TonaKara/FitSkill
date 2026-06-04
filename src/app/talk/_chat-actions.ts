@@ -5,6 +5,10 @@ import "server-only"
 import Stripe from "stripe"
 import { getSupabaseAdminClient } from "@/lib/supabase/admin"
 import { requireActionUser } from "@/lib/supabase/action-auth"
+import {
+  mapGritvibChatMessageRow,
+  type GritvibChatMessage,
+} from "@/lib/talk/gritvib-chat-message"
 import { resolveGritvibSubscriptionPeriodEndIso } from "@/lib/talk/stripe-subscription-period"
 
 /**
@@ -26,7 +30,7 @@ import { resolveGritvibSubscriptionPeriodEndIso } from "@/lib/talk/stripe-subscr
 const MESSAGE_BODY_MAX_LENGTH = 2000
 
 type SendMessageResult =
-  | { ok: true; messageId: string }
+  | { ok: true; message: GritvibChatMessage }
   | {
       ok: false
       reason:
@@ -105,7 +109,9 @@ export async function sendGritvibChatMessageAction(input: {
       body: trimmedBody.length > 0 ? trimmedBody : null,
       image_path: trimmedImagePath.length > 0 ? trimmedImagePath : null,
     })
-    .select("id")
+    .select(
+      "id, thread_member_id, sender_role, sender_user_id, body, image_path, created_at",
+    )
     .single()
 
   if (insertError || !inserted) {
@@ -113,7 +119,7 @@ export async function sendGritvibChatMessageAction(input: {
     return { ok: false, reason: "internal" }
   }
 
-  return { ok: true, messageId: inserted.id }
+  return { ok: true, message: mapGritvibChatMessageRow(inserted) }
 }
 
 export async function deleteGritvibChatMessageAction(
