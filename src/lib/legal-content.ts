@@ -7,7 +7,7 @@ export const TERMS_SECTIONS: readonly LegalSection[] = [
   {
     title: "第1条（目的および本サービスの性質）",
     body: [
-      "1. 本規約は、GritVib運営事務局（東沙羅を中心とする運営チーム。以下、総称して「運営者」といいます）が提供する、1対1の人間による対話・チャットサービス（以下「本サービス」といいます）の利用条件を定めるものです。",
+      "1. 本規約は、GritVib（東沙羅を中心とする運営チーム。以下、総称して「運営者」といいます）が提供する、1対1の人間による対話・チャットサービス（以下「本サービス」といいます）の利用条件を定めるものです。",
       "2. 本サービスは、AI等の自動生成ツールに頼らず、運営者のチームメンバー（生身の人間）が1対1でテキストのやり取りを行う属人的かつ実験的なサービスです。",
       "3. 利用者は、運営の効率化および持続可能性の観点から、対話を担当するメンバーが状況に応じて随時変更される（常に同一の担当者が対応するわけではない）ことをあらかじめ承諾するものとします。なお、担当者の割り当ては運営者の裁量によるものとし、利用者が特定の担当者を指定または固定することはできません。",
     ],
@@ -35,6 +35,7 @@ export const TERMS_SECTIONS: readonly LegalSection[] = [
       "2. 決済は Stripe, Inc. が提供する決済システムを利用して行われます。",
       "3. 本サービスは、決済完了と同時に役務提供（チャット可能な状態の付与）が開始される性質上、法律上のクーリング・オフの対象外となります。理由の如何を問わず、支払われた利用料金の返金、および日割り計算による精算は一切行いません。",
       "4. サブスクリプションプランの解約は、次回決済日の前日までにシステム内（または運営者指定の方法）にて利用者自身が解約手続きを行うものとします。",
+      "5. 利用者は、決済の際にStripeの画面においてクレジットカード名義等の会員情報を入力することに同意するものとします。運営者は、当該決済情報を本サービスのサブスクリプション管理および本人確認・問い合わせ対応の目的にのみ使用し、日々のチャット対応において運営者が利用者の実名を閲覧・利用することはありません。",
     ],
   },
   {
@@ -62,19 +63,20 @@ export const TERMS_SECTIONS: readonly LegalSection[] = [
 /** GritVib（人間チャットサービス）専用のプライバシーポリシー（日本語正本）。 */
 export const PRIVACY_SECTIONS: readonly LegalSection[] = [
   {
-    title: "1. 個人情報の収集について",
+    title: "1. 個人情報の収集および外部ツールの利用について",
     body: [
-      "本サービスでは、アカウント登録および運用のために、以下の最小限の情報のみを収集します。",
+      "本サービスでは、アカウント登録、認証、および運用のために、以下の最小限の情報のみを収集します。また、データの安全な保管と管理のため、米国Supabase, Inc.が提供するバックエンドプラットフォーム（Supabase）を利用してデータを暗号化のうえ保存します。",
       "(1) アカウント情報：メールアドレス、ニックネーム、パスワード",
-      "(2) 決済関連情報：クレジットカード情報等（※これらの情報は決済代行会社 Stripe, Inc. が直接取得・管理し、本サービスのサーバーには保存されません）",
+      "(2) 決済関連情報：クレジットカード名義、カード情報等（※これらの情報は決済代行会社 Stripe, Inc. が直接取得・管理します。運営者はStripeの管理画面を通じて名義やメールアドレスを閲覧できますが、本サービスのサーバーやSupabaseには保存されません）",
       "(3) サービス利用情報：チャットメッセージ、お問い合わせ内容",
     ],
   },
   {
-    title: "2. 個人情報の記載禁止（匿名性の維持）",
+    title: "2. 決済情報とチャットアカウントの分離（匿名性の維持）",
     body: [
-      "本サービスは、生身の人間同士が匿名性を保って対話を行う場所です。利用者は、チャットメッセージ内やニックネームに、本名、住所、電話番号、勤務先、SNSのアカウント名などの個人を特定できる情報（自己のものか他者のものかを問いません）を記載してはならないものとします。",
-      "万一記載された場合、運営者は事前の通知なく当該メッセージを削除することがあります。",
+      "1. 本サービスは、生身の人間同士が匿名性を保って対話を行う場所です。日々のチャット対応において、運営者（担当メンバーを含む）の画面には利用者のニックネームのみが表示され、Stripe上の決済情報（実名・クレジットカード名義等）が表示されることはありません。",
+      "2. 運営者は、サブスクリプションの管理、本人確認、または利用者から決済に関する問い合わせを受けた場合など、業務上不可欠な場合を除き、決済情報とチャットアカウントを照合・閲覧することはありません。",
+      "3. 利用者は、チャットメッセージ内において、本名、住所、電話番号、勤務先、SNSのアカウント名などの個人を特定できる情報を記載してはならないものとします。万一記載された場合、運営者は事前の通知なく当該メッセージを削除することがあります。",
     ],
   },
   {
@@ -82,8 +84,8 @@ export const PRIVACY_SECTIONS: readonly LegalSection[] = [
     body: [
       "収集した情報は、以下の目的の範囲内でのみ利用します。",
       "(1) 本サービスの提供・運営（アカウント管理、ログイン認証）",
-      "(2) サブスクリプション決済の処理および管理",
-      "(3) お問い合わせ対応および重要なお知らせの通知",
+      "(2) サブスクリプション決済の処理、管理、および本人確認",
+      "(3) 決済等に関するお問い合わせ対応および重要なお知らせの通知",
     ],
   },
   {
@@ -97,7 +99,7 @@ export const PRIVACY_SECTIONS: readonly LegalSection[] = [
   {
     title: "5. データの「人間による学習」について",
     body: [
-      "本サービスで取得したチャット情報は、AI（人工知能）のトレーニングには一切使用されません。ただし、運営者である「人間」により深く学習されます。",
+      "本サービスで取得したチャット情報は、AI（人工知能）の学習には一切使用されません。ただし、運営者という「人間」により深く学習されます。",
     ],
   },
   {
@@ -111,7 +113,7 @@ export const PRIVACY_SECTIONS: readonly LegalSection[] = [
     title: "7. お問い合わせ先",
     body: [
       "個人情報の取扱いに関するお問い合わせは、本サービス内のお問い合わせフォームより運営者宛てにご連絡ください。",
-      "運営者名: 東 沙羅",
+      "運営者名: GritVib（代表者：東 沙羅）",
       "所在地: 〒150-0043 東京都渋谷区道玄坂1丁目10番渋谷道玄坂東急ビル2F-C",
     ],
   },
@@ -128,7 +130,7 @@ export const TERMS_SECTIONS_EN: readonly LegalSection[] = [
   {
     title: "Article 1 (Purpose and Nature of the Service)",
     body: [
-      "1. These Terms of Service (the \"Terms\") set forth the conditions for using the one-to-one human conversation and chat service (the \"Service\") provided by the GritVib operations office (an operations team centered on Sara Azuma; collectively, the \"Operator\").",
+      "1. These Terms of Service (the \"Terms\") set forth the conditions for using the one-to-one human conversation and chat service (the \"Service\") provided by GritVib (an operations team centered on Sara Azuma; collectively, the \"Operator\").",
       "2. The Service is a personal and experimental offering in which team members of the Operator (real human beings) engage in one-to-one text exchanges without relying on AI or other automated generation tools.",
       "3. For operational efficiency and sustainability, Users acknowledge in advance that the team member who handles a conversation may change from time to time depending on circumstances (the same person will not always respond). Assignment of team members is at the Operator's discretion, and Users may not designate or fix a particular person in charge.",
     ],
@@ -156,6 +158,7 @@ export const TERMS_SECTIONS_EN: readonly LegalSection[] = [
       "2. Payment is processed through the payment system provided by Stripe, Inc.",
       "3. Because performance of the Service (granting access to chat) begins upon completion of payment, the Service is not subject to statutory cooling-off rights. For any reason whatsoever, paid fees will not be refunded, and no prorated settlement will be made.",
       "4. Cancellation of a subscription plan must be completed by the User by the day before the next billing date through the system (or by a method designated by the Operator).",
+      "5. Users agree to enter membership information such as the name on the credit card on Stripe's payment screen when making payment. The Operator uses such payment information only for subscription management of the Service and identity verification or responses to inquiries, and does not view or use Users' real names in day-to-day chat support.",
     ],
   },
   {
@@ -183,19 +186,20 @@ export const TERMS_SECTIONS_EN: readonly LegalSection[] = [
 /** GritVib（人間チャットサービス）専用のプライバシーポリシー（英語版。日本語正本に準拠）。 */
 export const PRIVACY_SECTIONS_EN: readonly LegalSection[] = [
   {
-    title: "1. Collection of Personal Information",
+    title: "1. Collection of Personal Information and Use of External Tools",
     body: [
-      "For account registration and operation of the Service, we collect only the following minimum information.",
+      "For account registration, authentication, and operation of the Service, we collect only the following minimum information. For secure storage and management of data, we use the backend platform Supabase provided by Supabase, Inc. (United States) and store data with encryption.",
       "(1) Account information: email address, nickname, and password",
-      "(2) Payment-related information: credit card information and similar data (Note: this information is collected and managed directly by the payment processor Stripe, Inc., and is not stored on the Service's servers)",
+      "(2) Payment-related information: name on the credit card, card information, and similar data (Note: this information is collected and managed directly by the payment processor Stripe, Inc. The Operator may view names and email addresses through Stripe's dashboard, but it is not stored on the Service's servers or in Supabase)",
       "(3) Service usage information: chat messages and inquiry content",
     ],
   },
   {
-    title: "2. Prohibition of Personal Information in Messages (Maintaining Anonymity)",
+    title: "2. Separation of Payment Information and Chat Accounts (Maintaining Anonymity)",
     body: [
-      "The Service is a place for real human beings to converse while preserving anonymity. Users must not include personally identifiable information in chat messages or nicknames—whether their own or another person's—including real names, addresses, phone numbers, employers, or social media account names.",
-      "If such information is posted, the Operator may delete the relevant message without prior notice.",
+      "1. The Service is a place for real human beings to converse while preserving anonymity. In day-to-day chat support, only the User's nickname is shown on screens used by the Operator (including team members in charge); payment information on Stripe (real names, names on credit cards, etc.) is not displayed.",
+      "2. Except where operationally necessary—such as subscription management, identity verification, or when the Operator receives an inquiry regarding payment—the Operator does not cross-reference or view payment information together with chat accounts.",
+      "3. Users must not include personally identifiable information in chat messages, including real names, addresses, phone numbers, employers, or social media account names. If such information is posted, the Operator may delete the relevant message without prior notice.",
     ],
   },
   {
@@ -203,8 +207,8 @@ export const PRIVACY_SECTIONS_EN: readonly LegalSection[] = [
     body: [
       "Collected information is used only for the following purposes.",
       "(1) Provision and operation of the Service (account management and login authentication)",
-      "(2) Processing and management of subscription payments",
-      "(3) Responding to inquiries and sending important notices",
+      "(2) Processing and management of subscription payments, and identity verification",
+      "(3) Responding to inquiries regarding payments and sending important notices",
     ],
   },
   {
@@ -218,7 +222,7 @@ export const PRIVACY_SECTIONS_EN: readonly LegalSection[] = [
   {
     title: "5. \"Learning by Humans\" Regarding Data",
     body: [
-      "Chat information obtained through the Service is not used for AI (artificial intelligence) training in any form. However, it is learned more deeply by the Operator, who is a human being.",
+      "Chat information obtained through the Service is not used for AI (artificial intelligence) learning in any form. However, it is learned more deeply by the Operator as a human being.",
     ],
   },
   {
@@ -232,7 +236,7 @@ export const PRIVACY_SECTIONS_EN: readonly LegalSection[] = [
     title: "7. Contact",
     body: [
       "For inquiries regarding the handling of personal information, please contact the Operator via the inquiry form within the Service.",
-      "Operator Name: Sara Azuma",
+      "Operator Name: GritVib (Representative: Sara Azuma)",
       "Address: 2F-C Shibuya Dogenzaka Tokyu Bldg., 1-10-8 Dogenzaka, Shibuya-ku, Tokyo, 150-0043, Japan",
     ],
   },
