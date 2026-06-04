@@ -182,6 +182,7 @@ export function AdminChatPage({
 
   const [threads, setThreads] = useState<GritvibAdminThreadSummary[]>(initialThreads)
   const [refreshing, setRefreshing] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
 
   const isMobileLayout = useGritvibAdminMobileLayout()
   const clientMounted = useClientMounted()
@@ -190,6 +191,19 @@ export function AdminChatPage({
     () => threads.find((t) => t.memberId === selectedMemberId) ?? null,
     [threads, selectedMemberId],
   )
+
+  const handleSignOut = useCallback(async () => {
+    if (signingOut) return
+    setSigningOut(true)
+    try {
+      await supabase.auth.signOut()
+    } catch {
+      safeClientLogError("[talk/admin] signOut failed")
+    } finally {
+      router.replace("/")
+      router.refresh()
+    }
+  }, [router, signingOut, supabase])
 
   /** 一覧を再取得して state に反映。 */
   const refreshThreads = useCallback(async () => {
@@ -358,6 +372,14 @@ export function AdminChatPage({
             >
               トップへ
             </Link>
+            <button
+              type="button"
+              onClick={() => void handleSignOut()}
+              disabled={signingOut}
+              className="inline-flex h-8 shrink-0 items-center justify-center rounded-full border border-zinc-300 px-2.5 text-xs text-zinc-700 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60 md:px-3"
+            >
+              {signingOut ? "ログアウト中…" : "ログアウト"}
+            </button>
           </div>
         </div>
         <AdminViewNav

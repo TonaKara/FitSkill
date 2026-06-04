@@ -20,7 +20,7 @@ import { LegalFoot } from "@/talk/_legal-foot"
  *   Phase 3: 「生きるということ。」が奥から立ち上がる。
  *   Phase 4: 3 行の文字がふっと手前に拡大しながら消える。
  *   Phase 5: 入れ替わりで 4 行のコピーが順に立ち上がる。
- *   Phase 6: 最後に「はじめる」「ログイン」CTA が立ち上がる。
+ *   Phase 6: CTA を 5 ブロック（導入→3行→締め→ボタン→注釈）で順に立ち上げる。
  *
  * デザイン要件:
  *   - 色は白と黒だけ。アイコン画像なし。
@@ -92,18 +92,18 @@ const titleLineGritVibVariants = makeTitleLineVariants(0.35)
 const titleLineFirstVariants = makeTitleLineVariants(1.25)
 const titleLineSecondVariants = makeTitleLineVariants(2.15)
 
-/** CTA: 4 行のコピー → 「はじめる」「ログイン」 の順に立ち上げる */
+/** CTA: 5 ブロックを順に立ち上げる（ブロック内の行は同時に表示） */
 const ctaContainerVariants: Variants = {
   hidden: {},
   show: {
     transition: {
-      delayChildren: 0.2,
-      staggerChildren: 0.6,
+      delayChildren: 0.28,
+      staggerChildren: 0.78,
     },
   },
 }
 
-const ctaItemVariants: Variants = {
+const ctaBlockVariants: Variants = {
   hidden: {
     opacity: 0,
     scale: 0.55,
@@ -117,25 +117,9 @@ const ctaItemVariants: Variants = {
     z: 0,
     rotateX: 0,
     filter: "blur(0px)",
-    transition: { duration: 1.05, ease: EASE_OUT_EXPO },
+    transition: { duration: 1.2, ease: EASE_OUT_EXPO },
   },
 }
-
-/**
- * CTA 末尾の小さな注釈の発火タイミング (cta フェーズ開始からの秒数)。
- *
- *   ctaContainer の `delayChildren: 0.2` + `staggerChildren: 0.6` で各 child が立ち上がる。
- *   注釈は最後 (8 番目) の child なので親の stagger に乗せると 0.2 + 0.6*7 = 4.4s に発火するが、
- *   `transition.delay` を子に書くと stagger 計算と相互作用して読みにくくなり、実際に
- *   「ログインより先に出る」現象を引き起こしていた。
- *
- *   そこで注釈は親の variants 連携から **外し**、フェーズ切替後の絶対経過秒で個別 delay 指定する。
- *
- *   ログイン (= index 6) の発火: 0.2 + 0.6*6 = 3.80s
- *   ログイン完了:                3.80 + 1.05 = 4.85s
- *   注釈はその完了後に少し余韻を置いて出すため 5.0s 後にする。
- */
-const CTA_NOTICE_DELAY_SEC = 5.0
 
 /**
  * タイトル 3 行表示が落ち着くまでの合計時間 (ms)。
@@ -258,7 +242,7 @@ export function TalkLandingPage({
         second: instantVariants,
       }
 
-  const ctaVariants = animationsEnabled ? ctaItemVariants : instantVariants
+  const ctaVariants = animationsEnabled ? ctaBlockVariants : instantVariants
   const showTitlePhase = animationsEnabled && phase === "title"
 
   return (
@@ -334,48 +318,36 @@ export function TalkLandingPage({
                   className="mx-auto flex w-full max-w-md flex-col items-center gap-5 pt-4 sm:max-w-lg sm:gap-5 sm:pt-16 md:max-w-5xl md:gap-6 md:pt-20"
                 >
                   <h1 className="sr-only">人として、生きるということ。| GritVib</h1>
-                  {/*
-                    1: 最も目立たせる問いかけ。大きく・太く・黒で、視線を最初に確実に集める。
-                  */}
-                  <motion.p
-                    variants={ctaVariants}
-                    className="mb-1 text-center text-xl font-semibold leading-snug text-black sm:mb-3 sm:text-2xl md:mb-4 md:text-3xl"
-                  >
-                    現代に生きる私たちが目指すべき場所は、
-                    <br className="md:hidden" />
-                    本当に時代の最先端なのか。
-                  </motion.p>
 
-                  {/* 2〜4: 補助コピー。落ち着いた zinc-700 で淡々と。 */}
-                  <motion.p
+                  <motion.div
                     variants={ctaVariants}
-                    className="text-balance text-center text-sm leading-relaxed text-zinc-700 sm:text-base md:text-lg"
+                    className="flex w-full flex-col items-center gap-4"
                   >
-                    ここは、ChatGPTの代わりに、人間がチャットの相手をする場所です。
-                  </motion.p>
-                  <motion.p
-                    variants={ctaVariants}
-                    className="text-balance text-center text-sm leading-relaxed text-zinc-700 sm:text-base md:text-lg"
-                  >
-                    24時間即レスはしません。
-                  </motion.p>
-                  <motion.p
-                    variants={ctaVariants}
-                    className="text-balance text-center text-sm leading-relaxed text-zinc-700 sm:text-base md:text-lg"
-                  >
-                    完璧な回答はしません。
-                  </motion.p>
-                  <motion.p
-                    variants={ctaVariants}
-                    className="text-balance text-center text-sm leading-relaxed text-zinc-700 sm:text-base md:text-lg"
-                  >
-                    対等な立場で話します。
-                  </motion.p>
+                    <p className="text-center text-xl font-semibold leading-snug text-black sm:text-2xl md:text-3xl">
+                      現代に生きる私たちが目指すべき場所は、
+                      <br className="md:hidden" />
+                      本当に時代の最先端なのか。
+                    </p>
+                    <p className="text-balance text-center text-sm leading-relaxed text-zinc-700 sm:text-base md:text-lg">
+                      ここは、ChatGPTの代わりに、人間がチャットの相手をする場所です。
+                    </p>
+                  </motion.div>
 
-                  {/*
-                    5: 控えめに目立たせる結論コピー。
-                    短いキメ台詞なので冒頭の問いに迫るくらいの文字サイズに上げて存在感を確保する。
-                  */}
+                  <motion.div
+                    variants={ctaVariants}
+                    className="flex w-full flex-col items-center gap-4"
+                  >
+                    <p className="text-balance text-center text-sm leading-relaxed text-zinc-700 sm:text-base md:text-lg">
+                      24時間即レスはしません。
+                    </p>
+                    <p className="text-balance text-center text-sm leading-relaxed text-zinc-700 sm:text-base md:text-lg">
+                      完璧な回答はしません。
+                    </p>
+                    <p className="text-balance text-center text-sm leading-relaxed text-zinc-700 sm:text-base md:text-lg">
+                      対等な立場で話します。
+                    </p>
+                  </motion.div>
+
                   <motion.p
                     variants={ctaVariants}
                     className="text-center text-lg font-medium leading-snug text-black sm:text-xl md:text-2xl"
@@ -383,15 +355,16 @@ export function TalkLandingPage({
                     人間だからです。
                   </motion.p>
 
-                  <motion.div variants={ctaVariants} className="mt-2 sm:mt-4">
+                  <motion.div
+                    variants={ctaVariants}
+                    className="mt-2 flex w-full flex-col items-center gap-3 sm:mt-4"
+                  >
                     <Link
                       href={startHref}
                       className="inline-flex h-12 w-64 items-center justify-center rounded-full bg-black text-base font-medium text-white transition-colors hover:bg-zinc-800 sm:h-14 sm:w-72"
                     >
                       はじめる
                     </Link>
-                  </motion.div>
-                  <motion.div variants={ctaVariants}>
                     {isLoggedIn ? (
                       <button
                         type="button"
@@ -410,28 +383,10 @@ export function TalkLandingPage({
                       </Link>
                     )}
                   </motion.div>
-                  {/*
-                    注釈は親 stagger の連鎖から独立させ、絶対 delay でログインの後に出す。
-                    `variants` を渡さず direct な initial/animate にしているので、親の
-                    `ctaContainerVariants` の hidden/show 切替には引きずられない。
-                  */}
+
                   <motion.p
-                    initial={
-                      animationsEnabled
-                        ? { opacity: 0, y: 4, filter: "blur(4px)" }
-                        : false
-                    }
-                    animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                    transition={
-                      animationsEnabled
-                        ? {
-                            duration: 0.7,
-                            ease: EASE_OUT_EXPO,
-                            delay: CTA_NOTICE_DELAY_SEC,
-                          }
-                        : { duration: 0 }
-                    }
-                    className="mt-1 text-center text-[11px] leading-relaxed text-zinc-500 sm:mt-2 sm:text-xs"
+                    variants={ctaVariants}
+                    className="text-center text-[11px] leading-relaxed text-zinc-500 sm:text-xs"
                   >
                     ※月額 ¥3,000（税込）のサブスクリプションサービスです。
                   </motion.p>
