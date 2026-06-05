@@ -14,7 +14,6 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
   ExternalLink,
-  EyeOff,
   Loader2,
   Menu,
   Shield,
@@ -32,9 +31,8 @@ import {
   recoverGritvibSubscriptionFromStripeAction,
   sendGritvibChatMessageAction,
 } from "@/talk/_chat-actions"
-import { ChatImageAttachment } from "@/talk/_chat-image"
 import { TalkComposerTextarea } from "@/talk/_composer-textarea"
-import { messageActionButtonClass } from "@/talk/_message-bubble-actions"
+import { TalkMessageBubble } from "@/talk/_message-bubble"
 import { useChatScrollToBottomOnOpen } from "@/lib/use-chat-scroll-to-bottom-on-open"
 import {
   useGritvibChatImageUrls,
@@ -54,6 +52,10 @@ import {
   type GritvibChatMessageRow,
   type GritvibChatMessageView,
 } from "@/lib/talk/gritvib-chat-message"
+import {
+  readMemberChatCache,
+  writeMemberChatCache,
+} from "@/lib/talk/gritvib-chat-session-cache"
 
 /**
  * GritVib (人間チャットサービス) のチャット画面。
@@ -98,8 +100,11 @@ export function ChatPage({
    */
   const justSubscribed = searchParams.get("sub") === "ok"
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
-  const [messages, setMessages] = useState<Message[]>([])
-  const [hiddenMessageIds, setHiddenMessageIds] = useState<Set<string>>(() => new Set())
+  const initialCache = useMemo(() => readMemberChatCache(userId), [userId])
+  const [messages, setMessages] = useState<Message[]>(() => initialCache?.messages ?? [])
+  const [hiddenMessageIds, setHiddenMessageIds] = useState<Set<string>>(
+    () => new Set(initialCache?.hiddenMessageIds ?? []),
+  )
   const { getImageUrl, preloadFromMessages } = useGritvibChatImageUrls()
   usePreloadGritvibChatImages(messages, preloadFromMessages)
   const [draft, setDraft] = useState("")
@@ -110,7 +115,7 @@ export function ChatPage({
     useState<GritvibSubscriptionCapacityStatus | null>(null)
   const [isSending, setIsSending] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [loadingHistory, setLoadingHistory] = useState(true)
+  const [loadingHistory, setLoadingHistory] = useState(() => initialCache === null)
   const [signingOut, setSigningOut] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   /** Checkout 直後 (`?sub=ok`) の Webhook 反映待ちのみ UI に出す。 */
@@ -173,6 +178,14 @@ export function ChatPage({
     messageCount: visibleMessages.length,
     layoutKey: imageLoadScrollKey,
   })
+
+  useEffect(() => {
+    if (loadingHistory) return
+    writeMemberChatCache(userId, {
+      messages,
+      hiddenMessageIds: [...hiddenMessageIds],
+    })
+  }, [userId, messages, hiddenMessageIds, loadingHistory])
 
   const loadMessages = useCallback(async () => {
     const { data: rows, error: rowsError } = await supabase
@@ -431,6 +444,7 @@ export function ChatPage({
         if (uploadError) {
           safeClientLogError("[talk/chat] upload failed")
           setMessages((prev) => removeOptimisticGritvibMessage(prev, optimisticId))
+          if (localImageUrl) URL.revokeObjectURL(localImageUrl)
           setErrorMessage("画像のアップロードに失敗しました。")
           return
         }
@@ -443,6 +457,7 @@ export function ChatPage({
 
       if (!result.ok) {
         setMessages((prev) => removeOptimisticGritvibMessage(prev, optimisticId))
+        if (localImageUrl) URL.revokeObjectURL(localImageUrl)
         if (plannedImagePath) {
           await supabase.storage.from(STORAGE_BUCKET).remove([plannedImagePath])
         }
@@ -466,14 +481,12 @@ export function ChatPage({
     } catch (err) {
       safeClientLogError("[talk/chat] submit error")
       setMessages((prev) => removeOptimisticGritvibMessage(prev, optimisticId))
+      if (localImageUrl) URL.revokeObjectURL(localImageUrl)
       if (plannedImagePath) {
         await supabase.storage.from(STORAGE_BUCKET).remove([plannedImagePath])
       }
       setErrorMessage("送信に失敗しました。時間をおいて再度お試しください。")
     } finally {
-      if (localImageUrl) {
-        URL.revokeObjectURL(localImageUrl)
-      }
       setIsSending(false)
     }
   }, [canSend, draft, isSending, pendingImage, scrollToBottom, supabase, userId])
@@ -625,9 +638,12 @@ export function ChatPage({
         </div>
       </header>
 
-      <div ref={listRef} className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-6">
+      <div
+        ref={listRef}
+        className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-6 [scrollbar-gutter:stable]"
+      >
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
-          {loadingHistory ? (
+          {loadingHistory && visibleMessages.length === 0 ? (
             <div className="flex items-center justify-center py-10 text-zinc-500">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
               読み込み中…
@@ -640,14 +656,16 @@ export function ChatPage({
             </p>
           ) : (
             visibleMessages.map((message) => (
-              <MessageBubble
+              <TalkMessageBubble
                 key={message.id}
-                message={message}
                 isMine={message.senderUserId === userId}
+                body={message.body}
+                imagePath={message.imagePath}
                 imageUrl={
                   message.localImageUrl ??
                   (message.imagePath ? getImageUrl(message.imagePath) : undefined)
                 }
+                pending={message.pending}
                 onDelete={
                   message.senderUserId === userId && !message.pending
                     ? () => handleDeleteMessage(message.id)
@@ -764,66 +782,6 @@ export function ChatPage({
           </div>
         </div>
       </form>
-    </div>
-  )
-}
-
-function MessageBubble({
-  message,
-  isMine,
-  imageUrl,
-  onDelete,
-  onHide,
-}: {
-  message: Message
-  isMine: boolean
-  imageUrl?: string
-  onDelete?: () => void
-  onHide?: () => void
-}) {
-  return (
-    <div className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
-      <div className="group relative max-w-[80%]">
-        <div
-          className={[
-            "relative overflow-hidden rounded-2xl text-sm leading-relaxed",
-            isMine
-              ? "bg-black text-white"
-              : "border border-zinc-200 bg-white text-black",
-            message.pending ? "opacity-90" : "",
-          ].join(" ")}
-        >
-          {message.imagePath ? (
-            <ChatImageAttachment
-              imagePath={message.imagePath}
-              imageUrl={imageUrl}
-            />
-          ) : null}
-          {message.body ? (
-            <p className="whitespace-pre-wrap break-words px-4 py-3">{message.body}</p>
-          ) : null}
-          {onHide ? (
-            <button
-              type="button"
-              onClick={onHide}
-              aria-label="メッセージを非表示"
-              className={`${messageActionButtonClass} left-1.5 top-1.5`}
-            >
-              <EyeOff className="h-3.5 w-3.5" aria-hidden />
-            </button>
-          ) : null}
-          {onDelete ? (
-            <button
-              type="button"
-              onClick={onDelete}
-              aria-label="メッセージを削除"
-              className={`${messageActionButtonClass} right-1.5 top-1.5`}
-            >
-              <X className="h-3.5 w-3.5" aria-hidden />
-            </button>
-          ) : null}
-        </div>
-      </div>
     </div>
   )
 }

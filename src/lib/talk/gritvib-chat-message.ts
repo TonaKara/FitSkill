@@ -43,8 +43,15 @@ export function replaceOptimisticGritvibMessage(
   optimisticId: string,
   confirmed: GritvibChatMessage,
 ): GritvibChatMessageView[] {
+  const optimistic = prev.find((m) => m.id === optimisticId)
   const without = prev.filter((m) => m.id !== optimisticId)
-  return mergeGritvibChatMessage(without, confirmed)
+  const view: GritvibChatMessageView = {
+    ...confirmed,
+    ...(optimistic?.localImageUrl
+      ? { localImageUrl: optimistic.localImageUrl }
+      : {}),
+  }
+  return mergeGritvibChatMessage(without, view)
 }
 
 export function removeOptimisticGritvibMessage(
@@ -104,19 +111,35 @@ function filterPendingWithoutConfirmedMatch(
   )
 }
 
+/** 送信直後など、DB 反映前の確定メッセージを一覧同期から守る時間。 */
+const LOCAL_MESSAGE_GRACE_MS = 120_000
+
+function messageCreatedAtMs(m: GritvibChatMessage): number {
+  const ms = new Date(m.createdAt).getTime()
+  return Number.isNaN(ms) ? 0 : ms
+}
+
 /**
  * サーバーから再取得した一覧とローカル state をマージする。
- * 定期同期で楽観表示が一瞬消えるのを防ぐ。
+ * 定期同期で楽観表示・送信直後の確定メッセージが一瞬消えるのを防ぐ。
  */
 export function reconcileGritvibChatMessagesFromServer(
   prev: GritvibChatMessageView[],
   fetched: GritvibChatMessage[],
 ): GritvibChatMessageView[] {
+  const fetchedIds = new Set(fetched.map((m) => m.id))
+  const now = Date.now()
   const stillPending = filterPendingWithoutConfirmedMatch(
     prev.filter(isPendingGritvibChatMessage),
     fetched,
   )
   let next: GritvibChatMessageView[] = [...fetched]
+  for (const m of prev) {
+    if (isPendingGritvibChatMessage(m)) continue
+    if (fetchedIds.has(m.id)) continue
+    if (now - messageCreatedAtMs(m) > LOCAL_MESSAGE_GRACE_MS) continue
+    next = mergeGritvibChatMessage(next, m)
+  }
   for (const p of stillPending) {
     next = mergeGritvibChatMessage(next, p)
   }
@@ -128,11 +151,18 @@ export function mergeGritvibChatMessageAfterRealtime(
   prev: GritvibChatMessageView[],
   incoming: GritvibChatMessage,
 ): GritvibChatMessageView[] {
+  const matchingPending = prev.find(
+    (m) =>
+      isPendingGritvibChatMessage(m) && gritvibPendingMatchesConfirmed(m, incoming),
+  )
   const withoutMatchingPending = prev.filter(
     (m) =>
       !(isPendingGritvibChatMessage(m) && gritvibPendingMatchesConfirmed(m, incoming)),
   )
-  return mergeGritvibChatMessage(withoutMatchingPending, incoming)
+  const incomingView: GritvibChatMessageView = matchingPending?.localImageUrl
+    ? { ...incoming, localImageUrl: matchingPending.localImageUrl }
+    : incoming
+  return mergeGritvibChatMessage(withoutMatchingPending, incomingView)
 }
 
 /** Realtime / 送信直後の重複挿入を防ぎつつ時系列でマージする。 */

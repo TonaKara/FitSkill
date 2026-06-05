@@ -43,11 +43,12 @@ export function useChatScrollToBottomOnOpen(
     }
   }, [resetKey])
 
+  /** 開いた直後のみ（送信のたびに messageCount で再スクロールしない） */
   useLayoutEffect(() => {
     if (!ready) return
     scrollAnchorUntilRef.current = Date.now() + anchorMs
     return scrollElementToBottomSoon(listRef.current)
-  }, [ready, messageCount, resetKey, listRef, anchorMs])
+  }, [ready, resetKey, listRef, anchorMs])
 
   useLayoutEffect(() => {
     if (!ready || layoutKey === undefined) return
