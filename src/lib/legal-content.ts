@@ -10,6 +10,8 @@ export const TERMS_SECTIONS: readonly LegalSection[] = [
       "1. 本規約は、GritVib（東沙羅を中心とする運営チーム。以下、総称して「運営者」といいます）が提供する、1対1の人間による対話・チャットサービス（以下「本サービス」といいます）の利用条件を定めるものです。",
       "2. 本サービスは、AI等の自動生成ツールに頼らず、運営者のチームメンバー（生身の人間）が1対1でテキストのやり取りを行う属人的かつ実験的なサービスです。",
       "3. 利用者は、運営の効率化および持続可能性の観点から、対話を担当するメンバーが状況に応じて随時変更される（常に同一の担当者が対応するわけではない）ことをあらかじめ承諾するものとします。なお、担当者の割り当ては運営者の裁量によるものとし、利用者が特定の担当者を指定または固定することはできません。",
+      "4. 本サービスは、人間による丁寧な役務提供の品質を維持するため、登録ユーザー数に上限（定員）を設ける定員制度を採用しています。運営者は、利用者の承諾や事前の公表なく、独自の裁量によりいつでも定員数を変更（増減）できるものとします。",
+      "5. 解約による欠員の発生や定員の増枠に伴い、新規ユーザーの受付を再開する場合であっても、運営者から個別の利用者または希望者に対して、受付再開に関する案内の通知や先行予約の受付等は一切行いません。",
     ],
   },
   {
@@ -24,7 +26,7 @@ export const TERMS_SECTIONS: readonly LegalSection[] = [
   {
     title: "第3条（仕様の制限およびデータの削除）",
     body: [
-      "1. 本サービスには、プッシュ通知やバッジ表示等の通知機能はいっさい搭載されていません。利用者は、自身で本サービスにアクセスし、その時に表示されている内容のみを確認するものとします。",
+      "1. 本サービスには、プッシュ通知、バッジ表示、メール等による新規受付再開の案内を含め、あらゆる通知機能はいっさい搭載されていません。利用者は、自身で本サービスにアクセスし、その時に表示されている内容のみを確認するものとします。",
       "2. 本サービス上のメッセージは、利用者の操作によりいつでも消去できます。運営者は過去のログを永続的に保存する義務を負わず、データ消失等について一切の責任を負いません。",
     ],
   },
@@ -133,6 +135,8 @@ export const TERMS_SECTIONS_EN: readonly LegalSection[] = [
       "1. These Terms of Service (the \"Terms\") set forth the conditions for using the one-to-one human conversation and chat service (the \"Service\") provided by GritVib (an operations team centered on Sara Azuma; collectively, the \"Operator\").",
       "2. The Service is a personal and experimental offering in which team members of the Operator (real human beings) engage in one-to-one text exchanges without relying on AI or other automated generation tools.",
       "3. For operational efficiency and sustainability, Users acknowledge in advance that the team member who handles a conversation may change from time to time depending on circumstances (the same person will not always respond). Assignment of team members is at the Operator's discretion, and Users may not designate or fix a particular person in charge.",
+      "4. To maintain the quality of carefully delivered human services, the Service adopts a capacity system that sets an upper limit on the number of registered users. The Operator may increase or decrease the capacity at any time at its sole discretion without User consent or prior public notice.",
+      "5. Even when acceptance of new users resumes due to vacancies from cancellations or an increase in capacity, the Operator will not send any notice of reopening to individual Users or prospective users, nor accept advance reservations or similar arrangements.",
     ],
   },
   {
@@ -147,7 +151,7 @@ export const TERMS_SECTIONS_EN: readonly LegalSection[] = [
   {
     title: "Article 3 (Feature Limitations and Deletion of Data)",
     body: [
-      "1. The Service does not include any notification features such as push notifications or badge displays. Users shall access the Service on their own and confirm only the content displayed at that time.",
+      "1. The Service does not include any notification features whatsoever, including push notifications, badge displays, or email notices regarding the reopening of acceptance for new users. Users shall access the Service on their own and confirm only the content displayed at that time.",
       "2. Messages on the Service may be deleted at any time by User action. The Operator is not obligated to retain past logs permanently and assumes no responsibility whatsoever for loss of data or similar events.",
     ],
   },
