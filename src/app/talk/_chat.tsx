@@ -485,7 +485,7 @@ export function ChatPage({
 
   const handleDeleteMessage = async (messageId: string) => {
     if (messageId.startsWith("pending-")) return
-    if (!confirm("このメッセージを削除しますか? 相手側からも見えなくなります。")) return
+    if (!confirm("このメッセージを削除しますか？")) return
     const result = await deleteGritvibChatMessageAction(messageId)
     if (!result.ok) {
       safeClientLogError("[talk/chat] delete failed")
@@ -499,7 +499,7 @@ export function ChatPage({
   const handleHideMessage = async (messageId: string) => {
     if (
       !confirm(
-        "このメッセージを非表示にしますか? あなたの画面からだけ消え、相手には残ります。",
+        "このメッセージを非表示にしますか？",
       )
     ) {
       return

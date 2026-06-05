@@ -1072,7 +1072,7 @@ function AdminThreadConversation({
 
   const handleDeleteMessage = async (messageId: string) => {
     if (messageId.startsWith("pending-")) return
-    if (!confirm("このメッセージを削除しますか? 相手側からも見えなくなります。")) return
+    if (!confirm("このメッセージを削除しますか？")) return
     const result = await deleteGritvibAdminMessageAction(messageId)
     if (!result.ok) {
       safeClientLogError("[talk/admin] delete failed")
