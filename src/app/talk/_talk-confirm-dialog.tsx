@@ -40,10 +40,13 @@ export function TalkConfirmDialog({
       }}
     >
       <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
-        <p id="talk-confirm-message" className="text-sm leading-relaxed text-black">
+        <p
+          id="talk-confirm-message"
+          className="text-center text-sm leading-relaxed text-black"
+        >
           {message}
         </p>
-        <div className="mt-5 flex justify-end gap-2">
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
           <button
             type="button"
             onClick={onCancel}

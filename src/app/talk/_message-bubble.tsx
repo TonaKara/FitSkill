@@ -65,7 +65,7 @@ export function TalkMessageBubble({
           className={cn(
             "overflow-hidden rounded-2xl text-sm leading-relaxed",
             isMine
-              ? "bg-black text-white"
+              ? "bg-zinc-100 text-black"
               : "border border-zinc-200 bg-white text-black",
             pending ? "opacity-90" : "",
           )}
