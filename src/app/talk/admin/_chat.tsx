@@ -21,6 +21,7 @@ import {
   RotateCcw,
   X,
 } from "lucide-react"
+import { navigateAfterLogout } from "@/components/logout-success-toast"
 import { safeClientLogError } from "@/lib/safe-client-log"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import {
@@ -207,10 +208,9 @@ export function AdminChatPage({
     } catch {
       safeClientLogError("[talk/admin] signOut failed")
     } finally {
-      router.replace("/")
-      router.refresh()
+      navigateAfterLogout()
     }
-  }, [router, signingOut, supabase])
+  }, [signingOut, supabase])
 
   /** 一覧を再取得して state に反映。 */
   const refreshThreads = useCallback(async () => {

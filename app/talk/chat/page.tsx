@@ -86,6 +86,7 @@ export default async function Page() {
   return (
     <Suspense fallback={null}>
       <ChatPage
+        key={user.id}
         userId={user.id}
         nickname={member.nickname}
         accountEmail={user.email ?? ""}

@@ -21,6 +21,7 @@ import {
   ImagePlus,
   LogOut,
 } from "lucide-react"
+import { navigateAfterLogout } from "@/components/logout-success-toast"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { safeClientLogError } from "@/lib/safe-client-log"
 import {
@@ -154,10 +155,9 @@ export function ChatPage({
     } catch (err) {
       safeClientLogError("[talk/chat] signOut failed")
     } finally {
-      router.replace("/")
-      router.refresh()
+      navigateAfterLogout()
     }
-  }, [router, signingOut, supabase])
+  }, [signingOut, supabase])
 
   const visibleMessages = useMemo(
     () => messages.filter((m) => !hiddenMessageIds.has(m.id)),
