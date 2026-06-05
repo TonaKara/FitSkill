@@ -21,6 +21,8 @@ const baseClassName =
 export type TalkComposerTextareaProps = {
   value: string
   onChange: (value: string) => void
+  /** PC (md 以上): Enter で送信、Shift+Enter で改行 */
+  onSubmit?: () => void
   onKeyDown?: (event: KeyboardEvent<HTMLTextAreaElement>) => void
   disabled?: boolean
   placeholder?: string
@@ -32,7 +34,7 @@ export const TalkComposerTextarea = forwardRef<
   HTMLTextAreaElement,
   TalkComposerTextareaProps
 >(function TalkComposerTextarea(
-  { value, onChange, onKeyDown, disabled, placeholder, maxLength, className },
+  { value, onChange, onSubmit, onKeyDown, disabled, placeholder, maxLength, className },
   ref,
 ) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -63,6 +65,20 @@ export const TalkComposerTextarea = forwardRef<
     return () => observer.disconnect()
   }, [syncHeight])
 
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+      const prefersDesktopSend =
+        typeof window !== "undefined" &&
+        window.matchMedia("(min-width: 768px)").matches
+      if (prefersDesktopSend && onSubmit && !disabled) {
+        event.preventDefault()
+        onSubmit()
+        return
+      }
+    }
+    onKeyDown?.(event)
+  }
+
   return (
     <textarea
       ref={textareaRef}
@@ -74,7 +90,7 @@ export const TalkComposerTextarea = forwardRef<
       autoComplete="off"
       onChange={(event) => onChange(event.target.value)}
       onInput={syncHeight}
-      onKeyDown={onKeyDown}
+      onKeyDown={handleKeyDown}
       className={cn(baseClassName, className)}
       style={{
         height: heightPx,

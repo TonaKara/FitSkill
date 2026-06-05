@@ -960,13 +960,6 @@ function AdminThreadConversation({
     setPendingImage(null)
   }
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-      event.preventDefault()
-      void submitMessage()
-    }
-  }
-
   const submitMessage = useCallback(async () => {
     if (isSending) return
     const trimmedBody = draft.trim()
@@ -1205,7 +1198,7 @@ function AdminThreadConversation({
             <TalkComposerTextarea
               value={draft}
               onChange={setDraft}
-              onKeyDown={handleKeyDown}
+              onSubmit={() => void submitMessage()}
               placeholder={`${adminNickname} として返信`}
               maxLength={MESSAGE_BODY_MAX_LENGTH}
             />

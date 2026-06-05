@@ -380,14 +380,6 @@ export function ChatPage({
     setPendingImage(null)
   }
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    // Cmd/Ctrl + Enter で送信
-    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-      event.preventDefault()
-      void submitMessage()
-    }
-  }
-
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     await submitMessage()
@@ -760,7 +752,7 @@ export function ChatPage({
             <TalkComposerTextarea
               value={draft}
               onChange={setDraft}
-              onKeyDown={handleKeyDown}
+              onSubmit={() => void submitMessage()}
               placeholder={
                 canSend === false ? "送信できません" : "人間は、もっと自由で良いのです"
               }
