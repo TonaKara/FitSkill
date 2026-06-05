@@ -34,6 +34,7 @@ import {
 } from "@/talk/admin/_actions"
 import { TalkComposerTextarea } from "@/talk/_composer-textarea"
 import { TalkMessageBubble } from "@/talk/_message-bubble"
+import { useTalkConfirm } from "@/talk/_use-talk-confirm"
 import { useChatScrollToBottomOnOpen } from "@/lib/use-chat-scroll-to-bottom-on-open"
 import {
   useGritvibChatImageUrls,
@@ -819,6 +820,7 @@ function AdminThreadConversation({
 
   const listRef = useRef<HTMLDivElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const { confirm: askConfirm, dialog: confirmDialog } = useTalkConfirm()
 
   const imageLoadScrollKey = useMemo(
     () =>
@@ -1072,7 +1074,7 @@ function AdminThreadConversation({
 
   const handleDeleteMessage = async (messageId: string) => {
     if (messageId.startsWith("pending-")) return
-    if (!confirm("このメッセージを削除しますか？")) return
+    if (!(await askConfirm("このメッセージを削除しますか？", "削除"))) return
     const result = await deleteGritvibAdminMessageAction(messageId)
     if (!result.ok) {
       safeClientLogError("[talk/admin] delete failed")
@@ -1217,6 +1219,7 @@ function AdminThreadConversation({
           </div>
         </div>
       </form>
+      {confirmDialog}
     </div>
   )
 }

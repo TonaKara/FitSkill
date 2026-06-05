@@ -33,6 +33,7 @@ import {
 } from "@/talk/_chat-actions"
 import { TalkComposerTextarea } from "@/talk/_composer-textarea"
 import { TalkMessageBubble } from "@/talk/_message-bubble"
+import { useTalkConfirm } from "@/talk/_use-talk-confirm"
 import { useChatScrollToBottomOnOpen } from "@/lib/use-chat-scroll-to-bottom-on-open"
 import {
   useGritvibChatImageUrls,
@@ -121,6 +122,7 @@ export function ChatPage({
   /** Checkout 直後 (`?sub=ok`) の Webhook 反映待ちのみ UI に出す。 */
   const [subscriptionSyncing, setSubscriptionSyncing] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
+  const { confirm: askConfirm, dialog: confirmDialog } = useTalkConfirm()
 
   /** メニュー外クリック / Escape で閉じる。 */
   useEffect(() => {
@@ -485,7 +487,7 @@ export function ChatPage({
 
   const handleDeleteMessage = async (messageId: string) => {
     if (messageId.startsWith("pending-")) return
-    if (!confirm("このメッセージを削除しますか？")) return
+    if (!(await askConfirm("このメッセージを削除しますか？", "削除"))) return
     const result = await deleteGritvibChatMessageAction(messageId)
     if (!result.ok) {
       safeClientLogError("[talk/chat] delete failed")
@@ -497,11 +499,7 @@ export function ChatPage({
   }
 
   const handleHideMessage = async (messageId: string) => {
-    if (
-      !confirm(
-        "このメッセージを非表示にしますか？",
-      )
-    ) {
+    if (!(await askConfirm("このメッセージを非表示にしますか？", "非表示"))) {
       return
     }
     const result = await hideGritvibChatMessageAction(messageId)
@@ -774,6 +772,7 @@ export function ChatPage({
           </div>
         </div>
       </form>
+      {confirmDialog}
     </div>
   )
 }
