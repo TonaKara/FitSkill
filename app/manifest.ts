@@ -3,8 +3,8 @@ import { LAYOUT_DESCRIPTION } from "@/lib/site-seo"
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "GritVib",
-    short_name: "GritVib",
+    name: "HITO",
+    short_name: "HITO",
     description: LAYOUT_DESCRIPTION,
     start_url: "/",
     display: "standalone",

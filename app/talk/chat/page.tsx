@@ -8,11 +8,10 @@ import {
   GRITVIB_ADMIN_PATH,
   resolveGritvibPostAuthPath,
 } from "@/lib/talk/post-auth-redirect"
+import { talkPageMetadata } from "@/lib/talk/page-metadata"
 
-export const metadata: Metadata = {
-  title: { absolute: "チャット | GritVib" },
-  alternates: { canonical: "/talk/chat" },
-  robots: { index: false, follow: false },
+export async function generateMetadata(): Promise<Metadata> {
+  return talkPageMetadata("chat", "/talk/chat")
 }
 
 /**

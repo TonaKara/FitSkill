@@ -1,7 +1,7 @@
 "use client"
 
 import { FormEvent, useEffect, useMemo, useState } from "react"
-import Link from "next/link"
+import { TalkBrandHeader } from "@/talk/_brand-header"
 import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { LegalFoot } from "@/talk/_legal-foot"
@@ -17,29 +17,20 @@ import {
   validateGritvibNickname,
 } from "@/lib/talk/nickname-rules"
 import { resolveGritvibPostAuthPath } from "@/lib/talk/post-auth-redirect"
-
-/**
- * GritVib (人間チャットサービス) の初回ログイン後 onboard 画面。
- *
- * 役割:
- *   - メール確認後 (`/auth/callback?next=/talk/onboard`) または未登録の会員が初回ログインしたあとに着地する。
- *   - ここでニックネームを決め、`gritvib_chat_members` レコードを作成する。
- *   - 既に onboard 済みならチャットまたは管理画面へ直行する（管理者は管理画面）。
- *
- * 未ログイン状態でアクセスされた場合はログイン画面に誘導する。
- */
+import { useTranslations } from "@/lib/i18n/useI18n"
 
 type OnboardPhase = "loading" | "manual" | "submitting" | "redirect"
 
 export function OnboardPage() {
   const router = useRouter()
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
+  const t = useTranslations("talk.onboard")
+  const tCommon = useTranslations("talk.common")
 
   const [phase, setPhase] = useState<OnboardPhase>("loading")
   const [nickname, setNickname] = useState("")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  /** 認証状態と会員登録済みかどうかで、ニックネーム入力またはリダイレクトに分岐する。 */
   useEffect(() => {
     let cancelled = false
     void (async () => {
@@ -75,7 +66,7 @@ export function OnboardPage() {
 
     const validation = validateGritvibNickname(nickname)
     if (!validation.ok) {
-      setErrorMessage(describeNicknameReason(validation.reason))
+      setErrorMessage(describeNicknameReason(validation.reason, t))
       return
     }
 
@@ -83,12 +74,12 @@ export function OnboardPage() {
     try {
       const availability = await checkGritvibNicknameAvailabilityAction(validation.value)
       if (!availability.ok) {
-        setErrorMessage(describeNicknameReason(availability.reason))
+        setErrorMessage(describeNicknameReason(availability.reason, t))
         setPhase("manual")
         return
       }
       if (!availability.available) {
-        setErrorMessage("このニックネームはすでに使われています。")
+        setErrorMessage(t("errorNicknameTaken"))
         setPhase("manual")
         return
       }
@@ -96,7 +87,7 @@ export function OnboardPage() {
       const result = await completeGritvibOnboardingAction(validation.value)
       if (!result.ok) {
         if (result.reason === "nickname_taken") {
-          setErrorMessage("このニックネームはすでに使われています。")
+          setErrorMessage(t("errorNicknameTaken"))
         } else if (result.reason === "already_onboarded") {
           const {
             data: { user: currentUser },
@@ -111,7 +102,7 @@ export function OnboardPage() {
           router.replace("/talk/login")
           return
         } else {
-          setErrorMessage(describeNicknameReason(result.reason))
+          setErrorMessage(describeNicknameReason(result.reason, t))
         }
         setPhase("manual")
         return
@@ -126,7 +117,7 @@ export function OnboardPage() {
       }
     } catch (err) {
       safeClientLogError("[talk/onboard] submit error")
-      setErrorMessage("登録の完了に失敗しました。時間をおいて再度お試しください。")
+      setErrorMessage(t("errorCompleteFailed"))
       setPhase("manual")
     }
   }
@@ -136,7 +127,7 @@ export function OnboardPage() {
       <div className="flex min-h-[100svh] flex-col bg-white text-black">
         <main className="flex flex-1 flex-col items-center justify-center px-6 py-12 text-center">
           <Loader2 className="h-6 w-6 animate-spin text-zinc-500" aria-hidden />
-          <p className="mt-4 text-sm text-zinc-600">読み込み中…</p>
+          <p className="mt-4 text-sm text-zinc-600">{tCommon("loading")}</p>
         </main>
         <LegalFoot />
       </div>
@@ -148,17 +139,12 @@ export function OnboardPage() {
       <main className="flex flex-1 flex-col items-center justify-center px-6 py-12">
         <div className="w-full max-w-sm">
           <div className="text-center">
-            <Link
-              href="/"
-              className="text-sm font-semibold tracking-tight text-zinc-500 hover:text-zinc-900"
-            >
-              GritVib
-            </Link>
+            <TalkBrandHeader />
             <h1 className="mt-6 text-2xl font-medium tracking-tight md:text-3xl">
-              ニックネームを決める
+              {t("title")}
             </h1>
             <p className="mt-2 text-xs text-zinc-600 sm:text-sm">
-              初回ログイン後に1回だけ設定します。あとから変更はできません。
+              {t("description")}
             </p>
           </div>
 
@@ -168,7 +154,7 @@ export function OnboardPage() {
                 htmlFor="onboard-nickname"
                 className="block text-sm font-medium text-black"
               >
-                ニックネーム
+                {tCommon("nickname")}
               </label>
               <input
                 id="onboard-nickname"
@@ -178,7 +164,10 @@ export function OnboardPage() {
                 onChange={(event) => setNickname(event.target.value)}
                 disabled={phase === "submitting"}
                 maxLength={GRITVIB_NICKNAME_MAX_LENGTH}
-                placeholder={`${GRITVIB_NICKNAME_MIN_LENGTH}〜${GRITVIB_NICKNAME_MAX_LENGTH} 文字`}
+                placeholder={t("nicknamePlaceholder", {
+                  min: GRITVIB_NICKNAME_MIN_LENGTH,
+                  max: GRITVIB_NICKNAME_MAX_LENGTH,
+                })}
                 required
                 className="mt-2 block w-full rounded-md border border-zinc-300 bg-white px-3 py-2.5 text-sm text-black placeholder:text-zinc-400 focus:border-black focus:outline-none focus:ring-1 focus:ring-black disabled:cursor-not-allowed disabled:bg-zinc-50"
               />
@@ -198,10 +187,10 @@ export function OnboardPage() {
               {phase === "submitting" ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                  設定中…
+                  {t("submitting")}
                 </>
               ) : (
-                "はじめる"
+                t("getStarted")
               )}
             </button>
           </form>
@@ -222,24 +211,25 @@ function describeNicknameReason(
     | "already_onboarded"
     | "nickname_taken"
     | "unauthenticated",
+  t: (key: string, values?: Record<string, string | number>) => string,
 ): string {
   switch (reason) {
     case "empty":
-      return "ニックネームを入力してください。"
+      return t("errorEmpty")
     case "too_short":
-      return `ニックネームは ${GRITVIB_NICKNAME_MIN_LENGTH} 文字以上で設定してください。`
+      return t("errorTooShort", { min: GRITVIB_NICKNAME_MIN_LENGTH })
     case "too_long":
-      return `ニックネームは ${GRITVIB_NICKNAME_MAX_LENGTH} 文字以下で設定してください。`
+      return t("errorTooLong", { max: GRITVIB_NICKNAME_MAX_LENGTH })
     case "invalid_chars":
-      return "ニックネームは英数字・日本語・ハイフン・アンダースコアのみ使えます。"
+      return t("errorInvalidChars")
     case "nickname_taken":
-      return "このニックネームはすでに使われています。"
+      return t("errorNicknameTaken")
     case "already_onboarded":
-      return "すでに登録が完了しています。"
+      return t("errorAlreadyOnboarded")
     case "unauthenticated":
-      return "セッションが切れました。もう一度ログインしてください。"
+      return t("errorUnauthenticated")
     case "internal":
     default:
-      return "登録の完了に失敗しました。時間をおいて再度お試しください。"
+      return t("errorCompleteFailed")
   }
 }

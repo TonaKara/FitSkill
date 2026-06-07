@@ -5,11 +5,10 @@ import { cookies } from "next/headers"
 import { createServerClient } from "@supabase/ssr"
 import { LoginPage } from "@/talk/_login"
 import { resolveGritvibPostAuthPath } from "@/lib/talk/post-auth-redirect"
+import { talkPageMetadata } from "@/lib/talk/page-metadata"
 
-export const metadata: Metadata = {
-  title: { absolute: "ログイン | GritVib" },
-  alternates: { canonical: "/talk/login" },
-  robots: { index: false, follow: false },
+export async function generateMetadata(): Promise<Metadata> {
+  return talkPageMetadata("login", "/talk/login")
 }
 
 export const dynamic = "force-dynamic"

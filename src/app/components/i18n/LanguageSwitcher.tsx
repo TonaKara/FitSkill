@@ -6,8 +6,8 @@ import { useLocale, useSetLocale, useTranslations } from "@/lib/i18n/useI18n"
 import { cn } from "@/lib/utils"
 
 type LanguageSwitcherProps = {
-  /** "compact" は PC ヘッダー右、"inline" はモバイルメニュー内の横並び */
-  variant?: "compact" | "inline"
+  /** "compact" は PC ヘッダー右、"inline" はモバイルメニュー内、"landing" は GritVib トップ用 */
+  variant?: "compact" | "inline" | "landing"
   className?: string
 }
 
@@ -20,6 +20,45 @@ export function LanguageSwitcher({ variant = "compact", className }: LanguageSwi
   const locale = useLocale()
   const setLocale = useSetLocale()
   const t = useTranslations("language")
+
+  if (variant === "landing") {
+    return (
+      <div
+        role="radiogroup"
+        aria-label={t("label")}
+        className={cn(
+          "inline-flex items-center gap-0.5 rounded-full border border-zinc-200 bg-white p-0.5 text-[11px] text-zinc-600 shadow-sm",
+          className,
+        )}
+      >
+        {SUPPORTED_LOCALES.map((code) => {
+          const active = code === locale
+          return (
+            <button
+              key={code}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              title={LOCALE_LABELS[code].long}
+              onClick={() => {
+                if (!active) {
+                  setLocale(code)
+                }
+              }}
+              className={cn(
+                "min-w-[2.25rem] rounded-full px-2.5 py-1 font-medium transition-colors",
+                active
+                  ? "bg-black text-white"
+                  : "text-zinc-600 hover:text-black",
+              )}
+            >
+              {LOCALE_LABELS[code].short}
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
 
   if (variant === "inline") {
     return (

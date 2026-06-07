@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
+import { useTranslations } from "@/lib/i18n/useI18n"
 
 type TalkConfirmDialogProps = {
   message: string
@@ -16,6 +17,8 @@ export function TalkConfirmDialog({
   onConfirm,
   onCancel,
 }: TalkConfirmDialogProps) {
+  const tCommon = useTranslations("talk.common")
+
   useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.key === "Escape") onCancel()
@@ -52,7 +55,7 @@ export function TalkConfirmDialog({
             onClick={onCancel}
             className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 px-4 text-sm text-zinc-700 transition-colors hover:bg-zinc-50"
           >
-            キャンセル
+            {tCommon("cancel")}
           </button>
           <button
             type="button"

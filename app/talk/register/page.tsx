@@ -1,10 +1,9 @@
 import type { Metadata } from "next"
 import { RegisterPage } from "@/talk/_register"
+import { talkPageMetadata } from "@/lib/talk/page-metadata"
 
-export const metadata: Metadata = {
-  title: { absolute: "はじめる | GritVib" },
-  alternates: { canonical: "/talk/register" },
-  robots: { index: false, follow: false },
+export async function generateMetadata(): Promise<Metadata> {
+  return talkPageMetadata("register", "/talk/register")
 }
 
 export default function Page() {

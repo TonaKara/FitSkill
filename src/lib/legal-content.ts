@@ -7,7 +7,7 @@ export const TERMS_SECTIONS: readonly LegalSection[] = [
   {
     title: "第1条（目的および本サービスの性質）",
     body: [
-      "1. 本規約は、GritVib（東沙羅を中心とする運営チーム。以下、総称して「運営者」といいます）が提供する、1対1の人間による対話・チャットサービス（以下「本サービス」といいます）の利用条件を定めるものです。",
+      "1. 本規約は、GritVib（東沙羅を中心とする運営チーム。以下、総称して「運営者」といいます）が提供する、1対1の人間による対話・チャットサービス「HITO」（以下「本サービス」といいます）の利用条件を定めるものです。",
       "2. 本サービスは、AI等の自動生成ツールに頼らず、運営者のチームメンバー（生身の人間）が1対1でテキストのやり取りを行う属人的かつ実験的なサービスです。",
       "3. 利用者は、運営の効率化および持続可能性の観点から、対話を担当するメンバーが状況に応じて随時変更される（常に同一の担当者が対応するわけではない）ことをあらかじめ承諾するものとします。なお、担当者の割り当ては運営者の裁量によるものとし、利用者が特定の担当者を指定または固定することはできません。",
       "4. 本サービスは、人間による丁寧な役務提供の品質を維持するため、登録ユーザー数に上限（定員）を設ける定員制度を採用しています。運営者は、利用者の承諾や事前の公表なく、独自の裁量によりいつでも定員数を変更（増減）できるものとします。",
@@ -127,127 +127,143 @@ export const PRIVACY_SECTIONS: readonly LegalSection[] = [
   },
 ] as const
 
-/** GritVib（人間チャットサービス）専用の利用規約（英語版。日本語正本に準拠）。 */
+/** HITO（GritVib 運営）専用の利用規約（英語版）。 */
 export const TERMS_SECTIONS_EN: readonly LegalSection[] = [
   {
     title: "Article 1 (Purpose and Nature of the Service)",
     body: [
-      "1. These Terms of Service (the \"Terms\") set forth the conditions for using the one-to-one human conversation and chat service (the \"Service\") provided by GritVib (an operations team centered on Sara Azuma; collectively, the \"Operator\").",
-      "2. The Service is a personal and experimental offering in which team members of the Operator (real human beings) engage in one-to-one text exchanges without relying on AI or other automated generation tools.",
-      "3. For operational efficiency and sustainability, Users acknowledge in advance that the team member who handles a conversation may change from time to time depending on circumstances (the same person will not always respond). Assignment of team members is at the Operator's discretion, and Users may not designate or fix a particular person in charge.",
-      "4. To maintain the quality of carefully delivered human services, the Service adopts a capacity system that sets an upper limit on the number of registered users. The Operator may increase or decrease the capacity at any time at its sole discretion without User consent or prior public notice.",
-      "5. Even when acceptance of new users resumes due to vacancies from cancellations or an increase in capacity, the Operator will not send any notice of reopening to individual Users or prospective users, nor accept advance reservations or similar arrangements.",
+      "These Terms of Service (the \"Terms\") set forth the conditions for using \"HITO\", a one-to-one human conversation and chat service (the \"Service\") provided by GritVib (an operations team centered on Sara Azuma; collectively, the \"Operator\").",
+      "The Service is a personal and experimental offering in which team members of the Operator (real human beings) engage in one-to-one text exchanges without relying on AI or other automated generation tools.",
+      "For operational efficiency and sustainability, Users acknowledge in advance that the team member who handles a conversation may change from time to time depending on circumstances (the same person will not always respond). Assignment of team members is at the Operator's discretion, and Users may not designate or fix a particular person in charge.",
+      "To maintain the quality of carefully delivered human services, the Service adopts a capacity system that sets an upper limit on the number of registered users. The Operator may increase or decrease the capacity at any time at its sole discretion without User consent or prior public notice.",
+      "Even when acceptance of new users resumes due to vacancies from cancellations or an increase in capacity, the Operator will not send any notice of reopening to individual Users or prospective users, nor accept advance reservations or similar arrangements.",
     ],
   },
   {
     title: "Article 2 (Operational Disclaimers and Acknowledgments)",
     body: [
-      "Given that the Service consists of manually performed services by humans, Users shall use the Service only after acknowledging each of the following in advance, and may not file complaints or terminate the contract on the grounds set forth below.",
+      "Given that the Service consists of manually performed services by humans, Users shall use the Service only after acknowledging each of the following in advance, and may not file complaints, seek damages, or terminate the contract on the grounds set forth below.",
       "(1) The Operator does not assume an obligation to respond immediately 24 hours a day. Replies may take time due to the operations team's work schedule, sleep, health, or similar circumstances.",
       "(2) The Service does not guarantee omniscient correctness or the resolution of any particular problem. The Operator may, at its discretion, state that they \"do not know,\" \"do not wish to answer,\" or choose not to speak at all.",
       "(3) The Operator and the User engage in dialogue as equal human beings, and the Operator (including whichever team member responds at the time) is not obligated to use honorific language or a business-like writing style. Users also acknowledge in advance that the tone and atmosphere of dialogue may change when the person in charge changes.",
     ],
   },
   {
-    title: "Article 3 (Feature Limitations and Deletion of Data)",
+    title: "Article 3 (Disclaimer of Warranties and Limitation of Liability)",
     body: [
-      "1. The Service does not include any notification features whatsoever, including push notifications, badge displays, or email notices regarding the reopening of acceptance for new users. Users shall access the Service on their own and confirm only the content displayed at that time.",
-      "2. Messages on the Service may be deleted at any time by User action. The Operator is not obligated to retain past logs permanently and assumes no responsibility whatsoever for loss of data or similar events.",
+      "1. THE SERVICE IS PROVIDED ON AN \"AS IS\" AND \"AS AVAILABLE\" BASIS. TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE OPERATOR EXPRESSLY DISCLAIMS ALL WARRANTIES OF ANY KIND, WHETHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.",
+      "2. IN NO EVENT SHALL THE OPERATOR BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR ANY LOSS OF PROFITS OR REVENUES, WHETHER INCURRED DIRECTLY OR INDIRECTLY, OR ANY LOSS OF DATA, USE, GOODWILL, OR OTHER INTANGIBLE LOSSES.",
+      "3. THE OPERATOR'S TOTAL LIABILITY FOR ANY CLAIMS ARISING OUT OF OR RELATING TO THESE TERMS OR THE SERVICE SHALL NOT EXCEED THE TOTAL AMOUNT PAID BY THE USER TO THE OPERATOR FOR THE SERVICE IN THE ONE (1) MONTH IMMEDIATELY PRECEDING THE EVENT GIVING RISE TO LIABILITY.",
     ],
   },
   {
-    title: "Article 4 (Fees and No-Refund Policy)",
+    title: "Article 4 (Feature Limitations and Deletion of Data)",
     body: [
-      "1. The fee for the Service is JPY 3,000 per month (tax included).",
-      "2. Payment is processed through the payment system provided by Stripe, Inc.",
-      "3. Because performance of the Service (granting access to chat) begins upon completion of payment, the Service is not subject to statutory cooling-off rights. For any reason whatsoever, paid fees will not be refunded, and no prorated settlement will be made.",
-      "4. Cancellation of a subscription plan must be completed by the User by the day before the next billing date through the system (or by a method designated by the Operator).",
-      "5. Users agree to enter membership information such as the name on the credit card on Stripe's payment screen when making payment. The Operator uses such payment information only for subscription management of the Service and identity verification or responses to inquiries, and does not view or use Users' real names in day-to-day chat support.",
+      "The Service does not include any notification features whatsoever, including push notifications, badge displays, or email notices regarding the reopening of acceptance for new users. Users shall access the Service on their own and confirm only the content displayed at that time.",
+      "Messages on the Service may be deleted at any time by User action. The Operator is not obligated to retain past logs permanently and assumes no responsibility whatsoever for loss of data or similar events.",
     ],
   },
   {
-    title: "Article 5 (Prohibited Acts, Suspension, and Restriction of the Right to Speak)",
+    title: "Article 5 (Fees, No-Refund Policy, and Data Processing)",
     body: [
-      "1. Users shall not engage in harassment, defamation, threats, statements contrary to public order and morals, or any act that interferes with operation of the Service against the Operator (including individual operations team members).",
-      "2. If a User violates the preceding paragraph, or if the Operator objectively or subjectively determines that continuing human dialogue has become difficult, the Operator may, without prior notice, refuse to accept messages from that User, suspend the account, or forcibly cancel the subscription. Even in such cases, no refund will be made for amounts already paid.",
+      "The fee for the Service is USD 30 per month.",
+      "Payment is processed through the payment system provided by Stripe, Inc.",
+      "Because performance of the Service (granting access to chat) begins upon completion of payment, the Service is not subject to statutory cooling-off rights or any equivalent consumer withdrawal rights under applicable local laws. For any reason whatsoever, paid fees will not be refunded, and no prorated settlement will be made.",
+      "Cancellation of a subscription plan must be completed by the User by the day before the next billing date through the system (or by a method designated by the Operator).",
+      "Users agree to enter membership information such as the name on the credit card on Stripe's payment screen when making payment. The Operator uses such payment information only for subscription management of the Service and identity verification or responses to inquiries, and does not view or use Users' real names in day-to-day chat support. By using the Service, Users acknowledge and agree that their payment data will be processed by Stripe, Inc. and may be transferred to and stored in jurisdictions outside their country of residence, including Japan.",
     ],
   },
   {
-    title: "Article 6 (Termination or Discontinuation of the Service)",
+    title: "Article 6 (Prohibited Acts, Suspension, and Restriction of the Right to Speak)",
+    body: [
+      "Users shall not engage in harassment, defamation, threats, statements contrary to public order and morals, or any act that interferes with operation of the Service against the Operator (including individual operations team members).",
+      "If a User violates the preceding paragraph, or if the Operator objectively or subjectively determines that continuing human dialogue has become difficult, the Operator may, without prior notice, refuse to accept messages from that User, suspend the account, or forcibly cancel the subscription. Even in such cases, no refund will be made for amounts already paid.",
+    ],
+  },
+  {
+    title: "Article 7 (Termination or Discontinuation of the Service)",
     body: [
       "The Operator may terminate or discontinue the Service at any time due to the team's personal circumstances, illness, or a determination that continuing the business is difficult. If the Service is completely discontinued, the Operator shall stop further automatic billing thereafter and shall not be obligated to refund past payments already settled.",
     ],
   },
   {
-    title: "Article 7 (Governing Law and Jurisdiction)",
+    title: "Article 8 (Governing Law and Jurisdiction)",
     body: [
-      "1. These Terms shall be governed by the laws of Japan.",
-      "2. If any dispute arises in connection with the Service, the district court having jurisdiction over the Operator's location (the location of the representative, Sara Azuma) shall be the exclusive court of first instance by agreement.",
+      "These Terms shall be governed by and construed in accordance with the laws of Japan.",
+      "If any dispute arises in connection with the Service, the district court having jurisdiction over the Operator's location (the location of the representative, Sara Azuma) shall be the exclusive court of first instance by agreement.",
     ],
   },
 ] as const
 
-/** GritVib（人間チャットサービス）専用のプライバシーポリシー（英語版。日本語正本に準拠）。 */
+/** HITO（GritVib 運営）専用のプライバシーポリシー（英語版）。 */
 export const PRIVACY_SECTIONS_EN: readonly LegalSection[] = [
   {
     title: "1. Collection of Personal Information and Use of External Tools",
     body: [
-      "For account registration, authentication, and operation of the Service, we collect only the following minimum information. For secure storage and management of data, we use the backend platform Supabase provided by Supabase, Inc. (United States) and store data with encryption.",
-      "(1) Account information: email address, nickname, and password",
-      "(2) Payment-related information: name on the credit card, card information, and similar data (Note: this information is collected and managed directly by the payment processor Stripe, Inc. The Operator may view names and email addresses through Stripe's dashboard, but it is not stored on the Service's servers or in Supabase)",
-      "(3) Service usage information: chat messages and inquiry content",
+      "For account registration, authentication, and the operation of \"HITO\" (the \"Service\"), we collect only the minimum necessary information. For the secure storage and management of data, we utilize external platform services and store data with industry-standard encryption.",
+      "Account Information: Email address, nickname, and password. (Processed and secured via Supabase, Inc.)",
+      "Payment-Related Information: Name on the credit card, card information, and billing details. Note: This information is collected, processed, and managed directly by our third-party payment processor, Stripe, Inc. The Operator (GritVib, represented by Sara Azuma; collectively, the \"Operator\") may view registered names and email addresses through Stripe's dashboard for management purposes, but this data is never stored on the Service's primary servers or within Supabase.",
+      "Service Usage Information: Chat messages and inquiry content.",
     ],
   },
   {
     title: "2. Separation of Payment Information and Chat Accounts (Maintaining Anonymity)",
     body: [
-      "1. The Service is a place for real human beings to converse while preserving anonymity. In day-to-day chat support, only the User's nickname is shown on screens used by the Operator (including team members in charge); payment information on Stripe (real names, names on credit cards, etc.) is not displayed.",
-      "2. Except where operationally necessary—such as subscription management, identity verification, or when the Operator receives an inquiry regarding payment—the Operator does not cross-reference or view payment information together with chat accounts.",
-      "3. Users must not include personally identifiable information in chat messages, including real names, addresses, phone numbers, employers, or social media account names. If such information is posted, the Operator may delete the relevant message without prior notice.",
+      "The Service is a platform designed for real human beings to converse while preserving anonymity. In day-to-day chat support, only the User's chosen nickname is displayed on screens used by the Operator (including team members in charge); payment information on Stripe (such as real names or credit card billing names) is not visible during regular chat operations.",
+      "Except where operationally necessary—such as subscription management, identity verification, or when responding to a direct inquiry regarding payments—the Operator does not cross-reference or view payment information together with chat accounts.",
+      "Users must not include personally identifiable information (PII) in chat messages, including real names, physical addresses, phone numbers, employers, or social media account names. If such information is posted, the Operator reserves the right to delete the relevant message without prior notice to protect User privacy.",
     ],
   },
   {
     title: "3. Purpose of Use",
     body: [
-      "Collected information is used only for the following purposes.",
-      "(1) Provision and operation of the Service (account management and login authentication)",
-      "(2) Processing and management of subscription payments, and identity verification",
-      "(3) Responding to inquiries regarding payments and sending important notices",
+      "Collected information is used strictly for the following limited purposes:",
+      "Provision and operation of the Service (account management and secure login authentication).",
+      "Processing and management of subscription payments, and identity verification.",
+      "Responding to inquiries regarding payments and sending critical operational notices.",
     ],
   },
   {
-    title: "4. Provision to Third Parties and Outsourcing",
+    title: "4. Provision to Third Parties, Outsourcing, and International Data Transfers",
     body: [
-      "Except as required by law, the Service does not provide personal information to third parties without the User's consent. However, to ensure smooth operation of the Service and payment processing, we entrust or share information processing with the following trusted external services.",
-      "(1) Payment processing: Stripe, Inc. (for monthly subscription billing)",
-      "(2) Data storage and authentication: Supabase, Inc. (for account authentication and secure storage of chat data)",
+      "Except as required by applicable law, the Service does not provide personal information to third parties without the User's explicit consent. To ensure smooth operation and payment processing, we entrust information processing to the following trusted external services:",
+      "Payment Processing: Stripe, Inc. (United States) – For monthly subscription billing management.",
+      "Data Storage and Authentication: Supabase, Inc. (United States) – For account authentication and secure storage of encrypted chat data.",
+      "International Data Transfers: By using the Service, Users acknowledge and agree that their personal information may be transferred to, stored, and processed in jurisdictions outside their country of residence, including Japan and the United States. The Operator ensures that all such transfers comply with applicable data protection laws through secure transfer mechanisms.",
     ],
   },
   {
-    title: "5. \"Learning by Humans\" Regarding Data",
+    title: "5. Cookies and Technical Data",
     body: [
-      "Chat information obtained through the Service is not used for AI (artificial intelligence) learning in any form. However, it is learned more deeply by the Operator as a human being.",
+      "The Service may use cookies, local storage, or similar technologies solely for essential technical functions, such as maintaining User login sessions and authentication states. We do not use these technologies for behavioral advertising or third-party tracking.",
     ],
   },
   {
-    title: "6. Storage and Deletion of Data",
+    title: "6. \"Learning by Humans\" Regarding Data",
     body: [
-      "1. Chat messages may be completely deleted at any time by User action. The Operator does not permanently back up or retain past logs.",
-      "2. When an account is canceled or deleted, registered information such as the email address is promptly discarded.",
+      "Chat information obtained through the Service is strictly NOT used for AI (artificial intelligence) or machine learning in any form. However, to deliver deeper and more empathetic communication, it is learned and understood more deeply by the Operator as a human being.",
     ],
   },
   {
-    title: "7. Contact",
+    title: "7. Storage, Deletion, and User Rights",
     body: [
-      "For inquiries regarding the handling of personal information, please contact the Operator via the inquiry form within the Service.",
+      "Data Deletion: Chat messages may be completely and permanently deleted at any time by the User's own action within the interface. The Operator does not permanently back up or retain past chat logs once deleted.",
+      "Account Termination: When an account is canceled or deleted, registered information such as the email address is promptly and securely discarded from active databases.",
+      "Your Legal Rights: Depending on your jurisdiction (such as the EU/EEA under GDPR or various US state laws), you may have the right to access, correct, restrict, or request the deletion of your personal data. To exercise any of these rights, please contact us using the information provided below.",
+    ],
+  },
+  {
+    title: "8. Contact",
+    body: [
+      "For inquiries regarding this Privacy Policy or the handling of personal information, please contact the Operator via the inquiry form within the Service.",
       "Operator Name: GritVib (Representative: Sara Azuma)",
       "Address: 2F-C Shibuya Dogenzaka Tokyu Bldg., 1-10-8 Dogenzaka, Shibuya-ku, Tokyo, 150-0043, Japan",
     ],
   },
   {
-    title: "8. Revisions",
+    title: "9. Revisions",
     body: [
-      "This policy may be revised as needed. Revised content becomes effective once posted on the Service.",
+      "This Privacy Policy may be revised as needed to reflect changes in legal requirements or operational practices. Revised content becomes effective immediately upon being posted on the Service.",
     ],
   },
 ] as const

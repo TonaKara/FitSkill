@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { Loader2 } from "lucide-react"
 import { TalkAuthShell } from "@/talk/_auth-shell"
+import { TalkBrandHeader } from "@/talk/_brand-header"
 import { TalkPasswordField } from "@/talk/_password-field"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { safeClientLogError } from "@/lib/safe-client-log"
@@ -15,16 +16,7 @@ import {
   markSignupVerificationResent,
   persistSignupPendingVerificationEmail,
 } from "@/lib/auth-email-flow"
-
-/**
- * GritVib (人間チャットサービス) の新規登録画面。
- *
- * フロー:
- *   1. メールアドレス / パスワードのみ入力
- *   2. Supabase Auth `signUp` のあと Resend 経由で確認メールを送信 (`/auth/callback?next=/talk/onboard`)
- *   3. メール確認後の初回ログインで `/talk/onboard` へ誘導し、そこでニックネームを決める
- *   4. signUp 完了後はメール確認待ち panel を表示
- */
+import { useTranslations } from "@/lib/i18n/useI18n"
 
 const PASSWORD_MIN_LENGTH = 8
 
@@ -38,6 +30,9 @@ export function RegisterPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
+  const t = useTranslations("talk.auth.register")
+  const tLogin = useTranslations("talk.auth.login")
+  const tCommon = useTranslations("talk.common")
 
   const isSubmitting = phase === "submitting"
 
@@ -50,15 +45,15 @@ export function RegisterPage() {
 
     const trimmedEmail = email.trim().toLowerCase()
     if (!isValidEmailLike(trimmedEmail)) {
-      setErrorMessage("メールアドレスの形式が正しくありません。")
+      setErrorMessage(t("errorInvalidEmail"))
       return
     }
     if (password.length < PASSWORD_MIN_LENGTH) {
-      setErrorMessage(`パスワードは ${PASSWORD_MIN_LENGTH} 文字以上で設定してください。`)
+      setErrorMessage(t("errorPasswordTooShort", { min: PASSWORD_MIN_LENGTH }))
       return
     }
     if (password !== passwordConfirm) {
-      setErrorMessage("確認用パスワードが一致しません。")
+      setErrorMessage(t("errorPasswordMismatch"))
       return
     }
 
@@ -75,7 +70,7 @@ export function RegisterPage() {
 
       if (error) {
         safeClientLogError("[talk/register] signUp failed")
-        setErrorMessage(translateSignUpError(error.message))
+        setErrorMessage(translateSignUpError(error.message, t, tLogin))
         setPhase("input")
         return
       }
@@ -87,14 +82,19 @@ export function RegisterPage() {
       persistSignupPendingVerificationEmail(trimmedEmail)
       clearSignupVerificationResent()
 
-      const mailResult = await requestSignupConfirmationEmail(trimmedEmail, trimmedEmail)
+      const mailResult = await requestSignupConfirmationEmail(
+        trimmedEmail,
+        trimmedEmail,
+        t("confirmationSent"),
+        t("confirmationFailed"),
+      )
       setPhase("verification_sent")
       if (!mailResult.delivered) {
         setErrorMessage(mailResult.message)
       }
     } catch (err) {
       safeClientLogError("[talk/register] unexpected error")
-      setErrorMessage("登録に失敗しました。時間をおいて再度お試しください。")
+      setErrorMessage(t("errorRegisterFailed"))
       setPhase("input")
     }
   }
@@ -113,22 +113,15 @@ export function RegisterPage() {
     <TalkAuthShell>
       <div className="w-full max-w-sm">
         <div className="text-center">
-          <Link
-            href="/"
-            className="text-sm font-semibold tracking-tight text-zinc-500 hover:text-zinc-900"
-          >
-            GritVib
-          </Link>
-          <h1 className="mt-6 text-2xl font-medium tracking-tight md:text-3xl">はじめる</h1>
-          <p className="mt-2 text-xs text-zinc-600 sm:text-sm">
-            メールアドレスとパスワードでアカウントを作成します。ニックネームは初回ログイン後に決めます。
-          </p>
+          <TalkBrandHeader />
+          <h1 className="mt-6 text-2xl font-medium tracking-tight md:text-3xl">{t("title")}</h1>
+          <p className="mt-2 text-xs text-zinc-600 sm:text-sm">{t("description")}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-4" noValidate>
           <Field
             id="register-email"
-            label="メールアドレス"
+            label={tCommon("email")}
             type="email"
             value={email}
             onChange={setEmail}
@@ -139,17 +132,17 @@ export function RegisterPage() {
           />
           <TalkPasswordField
             id="register-password"
-            label="パスワード"
+            label={tCommon("password")}
             value={password}
             onChange={setPassword}
             autoComplete="new-password"
-            placeholder={`${PASSWORD_MIN_LENGTH} 文字以上`}
+            placeholder={t("passwordMinPlaceholder", { min: PASSWORD_MIN_LENGTH })}
             disabled={isSubmitting}
             required
           />
           <TalkPasswordField
             id="register-password-confirm"
-            label="パスワード (確認)"
+            label={tCommon("passwordConfirm")}
             value={passwordConfirm}
             onChange={setPasswordConfirm}
             autoComplete="new-password"
@@ -171,19 +164,19 @@ export function RegisterPage() {
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                送信中…
+                {tCommon("submitting")}
               </>
             ) : (
-              "アカウントを作成"
+              t("createAccount")
             )}
           </button>
           <p className="text-center text-sm text-zinc-600">
-            アカウントをお持ちですか？{" "}
+            {t("hasAccount")}{" "}
             <Link
               href="/talk/login"
               className="text-black underline-offset-4 hover:underline"
             >
-              ログイン
+              {t("login")}
             </Link>
           </p>
         </form>
@@ -195,6 +188,8 @@ export function RegisterPage() {
 async function requestSignupConfirmationEmail(
   email: string,
   previousEmail: string,
+  successFallback: string,
+  failureFallback: string,
 ): Promise<{ delivered: boolean; message: string }> {
   try {
     const response = await fetch("/api/auth/resend-signup-confirmation", {
@@ -212,16 +207,12 @@ async function requestSignupConfirmationEmail(
     } | null
     return {
       delivered: response.ok && body?.delivered === true,
-      message:
-        body?.message ??
-        (response.ok
-          ? "確認メールを送信しました。受信ボックスをご確認ください。"
-          : "確認メールの送信に失敗しました。時間をおいて再度お試しください。"),
+      message: body?.message ?? (response.ok ? successFallback : failureFallback),
     }
   } catch {
     return {
       delivered: false,
-      message: "確認メールの送信に失敗しました。時間をおいて再度お試しください。",
+      message: failureFallback,
     }
   }
 }
@@ -235,7 +226,14 @@ function VerificationSentPanel({
   initialDeliveryError: string | null
   onClearInitialError: () => void
 }) {
+  const t = useTranslations("talk.auth.register")
+  const tLogin = useTranslations("talk.auth.login")
+  const tCommon = useTranslations("talk.common")
+
   const [notice, setNotice] = useState<string | null>(initialDeliveryError)
+  const [noticeKind, setNoticeKind] = useState<"success" | "error" | null>(
+    initialDeliveryError ? "error" : null,
+  )
   const [isResending, setIsResending] = useState(false)
   const [hasResent, setHasResent] = useState(() => hasSignupVerificationBeenResent())
   const [emailInput, setEmailInput] = useState(registeredEmail)
@@ -243,6 +241,7 @@ function VerificationSentPanel({
 
   useEffect(() => {
     setNotice(initialDeliveryError)
+    setNoticeKind(initialDeliveryError ? "error" : null)
   }, [initialDeliveryError])
 
   const normalizedInput = emailInput.trim().toLowerCase()
@@ -256,14 +255,18 @@ function VerificationSentPanel({
     if (!canResend) return
     onClearInitialError()
     setNotice(null)
+    setNoticeKind(null)
     setIsResending(true)
     try {
       const result = await requestSignupConfirmationEmail(
         normalizedInput,
         registeredEmail.trim().toLowerCase(),
+        t("confirmationSent"),
+        t("confirmationFailed"),
       )
       if (!result.delivered) {
         setNotice(result.message)
+        setNoticeKind("error")
         return
       }
       persistSignupPendingVerificationEmail(normalizedInput)
@@ -273,11 +276,8 @@ function VerificationSentPanel({
       }
       markSignupVerificationResent()
       setHasResent(true)
-      setNotice(
-        emailChanged
-          ? "メールアドレスを更新し、確認メールを送信しました。受信ボックスをご確認ください。"
-          : "確認メールを再送しました。受信ボックスをご確認ください。",
-      )
+      setNotice(emailChanged ? t("verificationEmailUpdated") : t("verificationResent"))
+      setNoticeKind("success")
     } finally {
       setIsResending(false)
     }
@@ -286,30 +286,32 @@ function VerificationSentPanel({
   return (
     <TalkAuthShell>
       <div className="w-full max-w-md text-center">
-        <p className="text-sm font-semibold tracking-tight text-zinc-500">GritVib</p>
+        <TalkBrandHeader />
         <h1 className="mt-6 text-2xl font-medium tracking-tight md:text-3xl">
-          {initialDeliveryError && !hasResent ? "確認メールを送信できませんでした" : "メールを送信しました"}
+          {initialDeliveryError && !hasResent
+            ? t("verificationTitleFailed")
+            : t("verificationTitleSent")}
         </h1>
         <p className="mt-4 text-sm leading-relaxed text-zinc-700 md:text-base">
-          登録時に入力したメールアドレス宛に確認メールを送りました。
+          {t("verificationBody1")}
         </p>
         <p className="mt-2 text-sm leading-relaxed text-zinc-700 md:text-base">
-          メール内のリンクから登録を完了し、初回ログイン後にニックネームを設定してください。
+          {t("verificationBody2")}
         </p>
         {notice ? (
           <p
-            className={`mt-4 text-sm ${notice.includes("送信しました") ? "text-green-700" : "text-red-600"}`}
+            className={`mt-4 text-sm ${noticeKind === "success" ? "text-green-700" : "text-red-600"}`}
             role="alert"
           >
             {notice}
           </p>
         ) : null}
         <p className="mt-6 text-xs leading-relaxed text-zinc-500">
-          数分待ってもメールが届かない場合は、迷惑メールフォルダもご確認ください。
+          {t("verificationSpamHint")}
         </p>
         <div className="mx-auto mt-6 max-w-xs text-left">
           <label htmlFor="verification-resend-email" className="block text-sm font-medium text-black">
-            登録したメールアドレス
+            {t("verificationEmailLabel")}
           </label>
           <input
             id="verification-resend-email"
@@ -322,11 +324,9 @@ function VerificationSentPanel({
             className="mt-2 block w-full rounded-md border border-zinc-300 bg-white px-3 py-2.5 text-sm text-black placeholder:text-zinc-400 focus:border-black focus:outline-none focus:ring-1 focus:ring-black disabled:cursor-not-allowed disabled:bg-zinc-50"
           />
           {emailInput.length > 0 && !emailValid ? (
-            <p className="mt-1.5 text-xs text-red-600">メールアドレスの形式が正しくありません。</p>
+            <p className="mt-1.5 text-xs text-red-600">{t("errorInvalidEmail")}</p>
           ) : emailChanged ? (
-            <p className="mt-1.5 text-xs text-zinc-500">
-              入力を修正して「確認メールを再送する」を押すと、新しいアドレスに送ります。
-            </p>
+            <p className="mt-1.5 text-xs text-zinc-500">{t("verificationEmailChangedHint")}</p>
           ) : null}
         </div>
         <button
@@ -338,19 +338,19 @@ function VerificationSentPanel({
           {isResending ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-              送信中…
+              {tCommon("submitting")}
             </>
           ) : hasResent && normalizedInput === lastSentEmail ? (
-            "再送済み"
+            t("verificationResentDone")
           ) : (
-            "確認メールを再送する"
+            t("verificationResend")
           )}
         </button>
         <Link
           href="/talk/login"
           className="mt-4 inline-flex h-12 w-full max-w-xs items-center justify-center rounded-full border border-zinc-300 bg-white text-sm font-medium text-black transition-colors hover:bg-zinc-50"
         >
-          ログイン画面へ
+          {t("goToLogin")}
         </Link>
       </div>
     </TalkAuthShell>
@@ -404,16 +404,20 @@ function isValidEmailLike(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 }
 
-function translateSignUpError(message: string): string {
+function translateSignUpError(
+  message: string,
+  t: (key: string) => string,
+  tLogin: (key: string) => string,
+): string {
   const normalized = message.toLowerCase()
   if (normalized.includes("already registered") || normalized.includes("user already")) {
-    return "このメールアドレスはすでに登録されています。ログイン画面からお試しください。"
+    return t("errorAlreadyRegistered")
   }
   if (normalized.includes("password")) {
-    return "パスワードの要件を満たしていません。8 文字以上で設定してください。"
+    return t("errorPasswordWeak")
   }
   if (normalized.includes("rate") || normalized.includes("limit")) {
-    return "リクエストが集中しています。少し時間をおいて再度お試しください。"
+    return tLogin("errorRateLimit")
   }
-  return "登録に失敗しました。入力内容をご確認のうえ、再度お試しください。"
+  return t("errorRegisterGeneric")
 }

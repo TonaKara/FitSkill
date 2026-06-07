@@ -5,40 +5,33 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { TalkAuthShell } from "@/talk/_auth-shell"
+import { TalkBrandHeader } from "@/talk/_brand-header"
 import { TalkPasswordField } from "@/talk/_password-field"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { readSignupPendingVerificationEmail } from "@/lib/auth-email-flow"
 import { resolveGritvibPostAuthPath } from "@/lib/talk/post-auth-redirect"
 import { safeClientLogError } from "@/lib/safe-client-log"
+import { useTranslations } from "@/lib/i18n/useI18n"
 
 type LoginMode = "login" | "reset"
 
-const PASSWORD_RESET_SENT_MESSAGE =
-  "メールを送信しました。受信ボックスをご確認ください。"
-
 /**
  * GritVib (人間チャットサービス) のログイン画面。
- *
- * 認証は Supabase の `signInWithPassword`。成功後は会員状態に応じて遷移する。
- *   - 管理者 → `/talk/admin`
- *   - 会員未登録 → `/talk/onboard`
- *   - それ以外 → `/talk/chat`
- *   - パスワード再設定は `/api/auth/password-reset`（PKCE 非依存の recovery リンク）を利用。
  */
 export function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
+  const t = useTranslations("talk.auth.login")
+  const tCommon = useTranslations("talk.common")
 
   useEffect(() => {
     if (searchParams.get("signup_verified") !== "1") return
     const pending = readSignupPendingVerificationEmail()
     if (pending) setEmail(pending)
-    setSuccessMessage(
-      "メールアドレスの確認が完了しました。パスワードを入力してログインしてください。",
-    )
+    setSuccessMessage(t("signupVerified"))
     router.replace("/talk/login", { scroll: false })
-  }, [router, searchParams])
+  }, [router, searchParams, t])
 
   const [mode, setMode] = useState<LoginMode>("login")
   const [email, setEmail] = useState("")
@@ -59,7 +52,7 @@ export function LoginPage() {
 
     const trimmedEmail = email.trim().toLowerCase()
     if (!isValidEmailLike(trimmedEmail)) {
-      setErrorMessage("メールアドレスの形式が正しくありません。")
+      setErrorMessage(t("errorInvalidEmail"))
       return
     }
 
@@ -75,10 +68,10 @@ export function LoginPage() {
           throw new Error("password reset request failed")
         }
         const body = (await response.json().catch(() => null)) as { message?: string } | null
-        setSuccessMessage(body?.message ?? PASSWORD_RESET_SENT_MESSAGE)
+        setSuccessMessage(body?.message ?? t("passwordResetSent"))
       } catch (err) {
         safeClientLogError("[talk/login] password reset failed")
-        setErrorMessage("送信に失敗しました。時間をおいて再度お試しください。")
+        setErrorMessage(t("errorSendFailed"))
       } finally {
         setIsSubmitting(false)
       }
@@ -86,7 +79,7 @@ export function LoginPage() {
     }
 
     if (password.length === 0) {
-      setErrorMessage("パスワードを入力してください。")
+      setErrorMessage(t("errorPasswordRequired"))
       return
     }
 
@@ -99,7 +92,7 @@ export function LoginPage() {
 
       if (error) {
         safeClientLogError("[talk/login] signIn failed")
-        setErrorMessage(translateSignInError(error.message))
+        setErrorMessage(translateSignInError(error.message, t))
         return
       }
 
@@ -113,7 +106,7 @@ export function LoginPage() {
       router.refresh()
     } catch (err) {
       safeClientLogError("[talk/login] unexpected error")
-      setErrorMessage("ログインに失敗しました。時間をおいて再度お試しください。")
+      setErrorMessage(t("errorLoginFailed"))
     } finally {
       setIsSubmitting(false)
     }
@@ -132,18 +125,13 @@ export function LoginPage() {
     <TalkAuthShell>
         <div className="w-full max-w-sm">
           <div className="text-center">
-            <Link
-              href="/"
-              className="text-sm font-semibold tracking-tight text-zinc-500 hover:text-zinc-900"
-            >
-              GritVib
-            </Link>
+            <TalkBrandHeader />
             <h1 className="mt-6 text-2xl font-medium tracking-tight md:text-3xl">
-              {isReset ? "パスワードの再設定" : "ログイン"}
+              {isReset ? t("resetTitle") : t("title")}
             </h1>
             {isReset ? (
               <p className="mt-3 text-sm leading-relaxed text-zinc-600">
-                登録したメールアドレスを入力してください。再設定用のリンクをお送りします。
+                {t("resetDescription")}
               </p>
             ) : null}
           </div>
@@ -154,7 +142,7 @@ export function LoginPage() {
                 htmlFor="login-email"
                 className="block text-sm font-medium text-black"
               >
-                メールアドレス
+                {tCommon("email")}
               </label>
               <input
                 id="login-email"
@@ -170,7 +158,7 @@ export function LoginPage() {
             {!isReset ? (
               <TalkPasswordField
                 id="login-password"
-                label="パスワード"
+                label={tCommon("password")}
                 autoComplete="current-password"
                 value={password}
                 onChange={setPassword}
@@ -199,12 +187,12 @@ export function LoginPage() {
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                  {isReset ? "送信中…" : "ログイン中…"}
+                  {isReset ? tCommon("submitting") : t("submittingLogin")}
                 </>
               ) : isReset ? (
-                "再設定メールを送る"
+                t("submitReset")
               ) : (
-                "ログイン"
+                t("title")
               )}
             </button>
 
@@ -215,7 +203,7 @@ export function LoginPage() {
                 disabled={isSubmitting}
                 className="block w-full text-center text-sm text-zinc-600 underline-offset-4 transition-colors hover:text-black hover:underline disabled:cursor-not-allowed disabled:opacity-60"
               >
-                パスワードをお忘れですか？
+                {t("forgotPassword")}
               </button>
             ) : (
               <button
@@ -224,18 +212,18 @@ export function LoginPage() {
                 disabled={isSubmitting}
                 className="block w-full text-center text-sm text-zinc-600 underline-offset-4 transition-colors hover:text-black hover:underline disabled:cursor-not-allowed disabled:opacity-60"
               >
-                ログインに戻る
+                {t("backToLogin")}
               </button>
             )}
 
             {!isReset ? (
               <p className="text-center text-sm text-zinc-600">
-                アカウントをお持ちでないですか？{" "}
+                {t("noAccount")}{" "}
                 <Link
                   href="/talk/register"
                   className="text-black underline-offset-4 hover:underline"
                 >
-                  はじめる
+                  {t("getStarted")}
                 </Link>
               </p>
             ) : null}
@@ -249,16 +237,19 @@ function isValidEmailLike(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 }
 
-function translateSignInError(message: string): string {
+function translateSignInError(
+  message: string,
+  t: (key: string) => string,
+): string {
   const normalized = message.toLowerCase()
   if (normalized.includes("email not confirmed")) {
-    return "メールアドレスがまだ確認されていません。確認メールのリンクから登録を完了してください。"
+    return t("errorEmailNotConfirmed")
   }
   if (normalized.includes("invalid login credentials") || normalized.includes("invalid")) {
-    return "メールアドレスまたはパスワードが正しくありません。"
+    return t("errorInvalidCredentials")
   }
   if (normalized.includes("rate") || normalized.includes("limit")) {
-    return "リクエストが集中しています。少し時間をおいて再度お試しください。"
+    return t("errorRateLimit")
   }
-  return "ログインに失敗しました。時間をおいて再度お試しください。"
+  return t("errorLoginFailed")
 }

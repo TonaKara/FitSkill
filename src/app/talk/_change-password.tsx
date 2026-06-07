@@ -10,22 +10,20 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { safeClientLogError } from "@/lib/safe-client-log"
 import {
   AUTH_PASSWORD_MIN_LENGTH,
-  describeAuthPasswordPolicyError,
   getPasswordRuleState,
-  translatePasswordUpdateError,
 } from "@/lib/auth/password-policy"
+import { useTranslations } from "@/lib/i18n/useI18n"
+
 type ChangePasswordPageProps = {
   isAdmin: boolean
   returnPath: string
 }
 
-/**
- * ログイン中の本人のみパスワード変更可能。
- * 現在のパスワードで再認証してから `updateUser` する（セッション乗っ取りのみでは変更不可）。
- */
 export function ChangePasswordPage({ isAdmin, returnPath }: ChangePasswordPageProps) {
   const router = useRouter()
   const supabase = useMemo(() => getSupabaseBrowserClient(), [])
+  const t = useTranslations("talk.changePassword")
+  const tCommon = useTranslations("talk.common")
 
   const [currentPassword, setCurrentPassword] = useState("")
   const [password, setPassword] = useState("")
@@ -59,15 +57,15 @@ export function ChangePasswordPage({ isAdmin, returnPath }: ChangePasswordPagePr
     setSuccessMessage(null)
 
     if (currentPassword.length === 0) {
-      setErrorMessage("現在のパスワードを入力してください。")
+      setErrorMessage(t("errorCurrentRequired"))
       return
     }
     if (!passwordRuleState.isValid) {
-      setErrorMessage(describeAuthPasswordPolicyError())
+      setErrorMessage(t("errorPolicy"))
       return
     }
     if (!isConfirmMatched) {
-      setErrorMessage("確認用パスワードが一致しません。")
+      setErrorMessage(t("errorMismatch"))
       return
     }
 
@@ -79,7 +77,7 @@ export function ChangePasswordPage({ isAdmin, returnPath }: ChangePasswordPagePr
       } = await supabase.auth.getUser()
       const email = user?.email?.trim().toLowerCase() ?? ""
       if (userError || !email) {
-        setErrorMessage("セッションが切れました。再度ログインしてください。")
+        setErrorMessage(t("errorSessionExpired"))
         return
       }
 
@@ -89,18 +87,18 @@ export function ChangePasswordPage({ isAdmin, returnPath }: ChangePasswordPagePr
       })
       if (reauthError) {
         safeClientLogError("[talk/change-password] reauth failed")
-        setErrorMessage(translatePasswordUpdateError(reauthError.message))
+        setErrorMessage(translatePasswordUpdateError(reauthError.message, t))
         return
       }
 
       const { error: updateError } = await supabase.auth.updateUser({ password })
       if (updateError) {
         safeClientLogError("[talk/change-password] update failed")
-        setErrorMessage(translatePasswordUpdateError(updateError.message))
+        setErrorMessage(translatePasswordUpdateError(updateError.message, t))
         return
       }
 
-      setSuccessMessage("パスワードを変更しました。")
+      setSuccessMessage(t("success"))
       setCurrentPassword("")
       setPassword("")
       setPasswordConfirm("")
@@ -110,7 +108,7 @@ export function ChangePasswordPage({ isAdmin, returnPath }: ChangePasswordPagePr
       }, 1200)
     } catch {
       safeClientLogError("[talk/change-password] unexpected error")
-      setErrorMessage("パスワードの変更に失敗しました。時間をおいて再度お試しください。")
+      setErrorMessage(t("errorFailed"))
     } finally {
       setIsSubmitting(false)
     }
@@ -124,24 +122,21 @@ export function ChangePasswordPage({ isAdmin, returnPath }: ChangePasswordPagePr
           className="mb-6 inline-flex items-center gap-1.5 text-sm text-zinc-600 transition-colors hover:text-black"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
-          戻る
+          {tCommon("back")}
         </Link>
 
-        <h1 className="text-xl font-semibold tracking-tight text-black">パスワードを変更</h1>
-        <p className="mt-2 text-sm text-zinc-600">
-          ログイン中のアカウント本人のみ変更できます。現在のパスワードの入力が必要です。
-        </p>
+        <h1 className="text-xl font-semibold tracking-tight text-black">{t("title")}</h1>
+        <p className="mt-2 text-sm text-zinc-600">{t("description")}</p>
         {isAdmin ? (
           <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
-            管理者アカウントも同じ手順です。他人のパスワードを変更する機能はありません。MFA
-            の設定をあわせておすすめします。
+            {t("adminNote")}
           </p>
         ) : null}
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-5">
           <TalkPasswordField
             id="current-password"
-            label="現在のパスワード"
+            label={t("currentPassword")}
             autoComplete="current-password"
             value={currentPassword}
             onChange={setCurrentPassword}
@@ -151,9 +146,9 @@ export function ChangePasswordPage({ isAdmin, returnPath }: ChangePasswordPagePr
 
           <TalkPasswordField
             id="new-password"
-            label="新しいパスワード"
+            label={t("newPassword")}
             autoComplete="new-password"
-            placeholder={`${AUTH_PASSWORD_MIN_LENGTH} 文字以上・英大小・数字`}
+            placeholder={t("newPasswordPlaceholder", { min: AUTH_PASSWORD_MIN_LENGTH })}
             value={password}
             onChange={setPassword}
             disabled={isSubmitting}
@@ -161,22 +156,22 @@ export function ChangePasswordPage({ isAdmin, returnPath }: ChangePasswordPagePr
           />
           <div className="space-y-1 text-xs text-zinc-500">
             {!passwordRuleState.hasMinLength && password.length > 0 ? (
-              <p>8 文字以上にしてください。</p>
+              <p>{t("ruleMinLength")}</p>
             ) : null}
             {!passwordRuleState.hasUppercase && password.length > 0 ? (
-              <p>英大文字を含めてください。</p>
+              <p>{t("ruleUppercase")}</p>
             ) : null}
             {!passwordRuleState.hasLowercase && password.length > 0 ? (
-              <p>英小文字を含めてください。</p>
+              <p>{t("ruleLowercase")}</p>
             ) : null}
             {!passwordRuleState.hasNumber && password.length > 0 ? (
-              <p>数字を含めてください。</p>
+              <p>{t("ruleNumber")}</p>
             ) : null}
           </div>
 
           <TalkPasswordField
             id="confirm-password"
-            label="新しいパスワード（確認）"
+            label={t("newPasswordConfirm")}
             autoComplete="new-password"
             value={passwordConfirm}
             onChange={setPasswordConfirm}
@@ -184,7 +179,7 @@ export function ChangePasswordPage({ isAdmin, returnPath }: ChangePasswordPagePr
             required
           />
           {passwordConfirm.length > 0 && !isConfirmMatched ? (
-            <p className="text-xs text-red-600">確認用パスワードが一致しません。</p>
+            <p className="text-xs text-red-600">{t("errorMismatch")}</p>
           ) : null}
 
           {errorMessage ? (
@@ -206,27 +201,56 @@ export function ChangePasswordPage({ isAdmin, returnPath }: ChangePasswordPagePr
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                変更中…
+                {t("submitting")}
               </>
             ) : (
-              "パスワードを変更"
+              t("submit")
             )}
           </button>
         </form>
 
         <p className="mt-6 text-center text-xs text-zinc-500">
-          現在のパスワードがわからない場合は{" "}
+          {t("forgotCurrentPrefix")}{" "}
           <button
             type="button"
             onClick={() => void handleLoginForPasswordReset()}
             disabled={isSubmitting || signingOutForLogin}
             className="text-black underline underline-offset-2 transition-colors hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {signingOutForLogin ? "ログアウト中…" : "ログイン画面"}
+            {signingOutForLogin ? t("signingOut") : t("forgotCurrentLink")}
           </button>
-          から再設定メールを送信してください。
+          {t("forgotCurrentSuffix")}
         </p>
       </div>
     </TalkAuthShell>
   )
+}
+
+function translatePasswordUpdateError(
+  message: string,
+  t: (key: string) => string,
+): string {
+  const lower = message.toLowerCase()
+  if (lower.includes("same") && lower.includes("password")) {
+    return t("errorSamePassword")
+  }
+  if (lower.includes("weak") || lower.includes("at least")) {
+    return t("errorWeakPassword")
+  }
+  if (lower.includes("invalid login credentials")) {
+    return t("errorWrongCurrent")
+  }
+  if (lower.includes("rate") || lower.includes("too many")) {
+    return t("errorRateLimit")
+  }
+  if (lower.includes("session") || lower.includes("not authenticated")) {
+    return t("errorSessionExpired")
+  }
+  if (
+    lower.includes("invalid") &&
+    (lower.includes("credential") || lower.includes("login"))
+  ) {
+    return t("errorWrongCurrent")
+  }
+  return t("errorFailed")
 }

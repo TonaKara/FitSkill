@@ -8,19 +8,20 @@ import {
   motion,
   type Variants,
 } from "motion/react"
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher"
+import { useTranslations } from "@/lib/i18n/useI18n"
 import { LegalFoot } from "@/talk/_legal-foot"
+
+const titleServiceNameClassName =
+  "whitespace-nowrap break-keep text-[clamp(5rem,min(24vw,28vh),12rem)] font-medium leading-none tracking-tight text-zinc-600"
 
 /**
  * GritVib (人間チャットサービス) の公開トップ (`/`)。
  *
  * シーケンス (1 セクション内で完結):
  *   Phase 0: 何も無い真っ白な舞台。
- *   Phase 1: 「GritVib」が奥から立ち上がる。
- *   Phase 2: 「人として、」が奥から立ち上がる。
- *   Phase 3: 「生きるということ。」が奥から立ち上がる。
- *   Phase 4: 3 行の文字がふっと手前に拡大しながら消える。
- *   Phase 5: 入れ替わりで 4 行のコピーが順に立ち上がる。
- *   Phase 6: CTA を 5 ブロック（導入→3行→締め→ボタン→注釈）で順に立ち上げる。
+ *   Phase 1: 運営名 GritVib（常時）＋サービス名 HITO が立ち上がる。
+ *   Phase 2: オープニングが消え、CTA コピーが順に立ち上がる。
  *
  * デザイン要件:
  *   - 色は白と黒だけ。アイコン画像なし。
@@ -31,15 +32,7 @@ import { LegalFoot } from "@/talk/_legal-foot"
 
 const EASE_OUT_EXPO = [0.22, 1, 0.36, 1] as const
 
-/**
- * タイトル: 3 行を順番に立ち上げる。
- *
- * 元々は親側で `staggerChildren` を使っていたが、PC で「人として、」「生きるということ。」を
- * 1 行に並べる都合上、両者を中間ラッパー <div> で囲む必要が出てきた。
- * stagger は親 motion の "直接の motion 子" にのみ効くため、ラッパーを挟むと
- * 子に伝播しなくなる。そこで、stagger をやめて各行へ個別の `delay` を持たせる
- * factory に切り替えた。
- */
+/** オープニングのサービス名（人 / HITO）用。個別 `delay` で立ち上げる。 */
 const titleContainerVariants: Variants = {
   hidden: {},
   show: {},
@@ -82,15 +75,11 @@ const makeTitleLineVariants = (delay: number): Variants => ({
 })
 
 /**
- * 表示順:
- *   1. "GritVib"           — 0.35s
- *   2. "人として、"          — 0.35 + 0.9 = 1.25s
- *   3. "生きるということ。"  — 0.35 + 0.9 * 2 = 2.15s
- * 値は元の `delayChildren: 0.35, staggerChildren: 0.9` を保つようにしている。
+ * 表示順（オープニング）:
+ *   - 運営名 GritVib は常時表示
+ *   - サービス名 HITO — 0.35s から立ち上がり
  */
-const titleLineGritVibVariants = makeTitleLineVariants(0.35)
-const titleLineFirstVariants = makeTitleLineVariants(1.25)
-const titleLineSecondVariants = makeTitleLineVariants(2.15)
+const titleServiceNameVariants = makeTitleLineVariants(0.35)
 
 /** CTA: 5 ブロックを順に立ち上げる（ブロック内の行は同時に表示） */
 const ctaContainerVariants: Variants = {
@@ -122,14 +111,12 @@ const ctaBlockVariants: Variants = {
 }
 
 /**
- * タイトル 3 行表示が落ち着くまでの合計時間 (ms)。
- *   - 行 1 start: 350ms
- *   - 行 2 start: 350 + 900 = 1250ms
- *   - 行 3 start: 1250 + 900 = 2150ms
- *   - 行 3 end:   2150 + 1350 = 3500ms
- *   - 余韻 ~1200ms 置いて切り替え → 4700ms
+ * オープニング（GritVib + サービス名）が落ち着くまでの合計時間 (ms)。
+ *   - サービス名 start: 350ms
+ *   - サービス名 end:   350 + 1350 = 1700ms
+ *   - 余韻 ~1200ms 置いて CTA へ → 2900ms
  */
-const PHASE_SWITCH_MS = 4700
+const PHASE_SWITCH_MS = 2900
 
 /** トップのアニメーション ON/OFF を localStorage に保存するキー。 */
 const ANIMATION_STORAGE_KEY = "gritvib.landing.animation"
@@ -162,13 +149,15 @@ const instantVariants: Variants = {
 function LandingAnimationToggle({
   enabled,
   onToggle,
+  label,
 }: {
   enabled: boolean
   onToggle: (next: boolean) => void
+  label: string
 }) {
   return (
     <div className="flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-2.5 py-1.5 text-[11px] text-zinc-600 shadow-sm">
-      <span id="gritvib-landing-animation-label">アニメーション</span>
+      <span id="gritvib-landing-animation-label">{label}</span>
       <button
         type="button"
         role="switch"
@@ -205,7 +194,7 @@ export function TalkLandingPage({
   /** 初回は ON 扱い。マウント後に localStorage を読み、OFF なら CTA を即表示。 */
   const [animationsEnabled, setAnimationsEnabled] = useState(true)
   const [preferenceReady, setPreferenceReady] = useState(false)
-
+  const t = useTranslations("talk.landing")
   useEffect(() => {
     const enabled = readAnimationEnabled()
     setAnimationsEnabled(enabled)
@@ -230,17 +219,9 @@ export function TalkLandingPage({
     }
   }
 
-  const titleLineVariants = animationsEnabled
-    ? {
-        gritVib: titleLineGritVibVariants,
-        first: titleLineFirstVariants,
-        second: titleLineSecondVariants,
-      }
-    : {
-        gritVib: instantVariants,
-        first: instantVariants,
-        second: instantVariants,
-      }
+  const titleServiceNameMotion = animationsEnabled
+    ? titleServiceNameVariants
+    : instantVariants
 
   const ctaVariants = animationsEnabled ? ctaBlockVariants : instantVariants
   const showTitlePhase = animationsEnabled && phase === "title"
@@ -271,36 +252,16 @@ export function TalkLandingPage({
                   initial="hidden"
                   animate="show"
                   exit="exit"
-                  className="mx-auto flex w-full max-w-[21rem] flex-col items-center gap-5 sm:max-w-md md:max-w-4xl md:gap-7"
+                  className="mx-auto flex w-full flex-col items-center gap-6 sm:gap-8 md:gap-10"
                 >
-                  <motion.p
-                    variants={titleLineVariants.gritVib}
-                    className="text-base font-semibold tracking-tight text-zinc-500 md:text-lg"
+                  <p className="text-base font-semibold tracking-tight text-zinc-500 md:text-lg">
+                    {t("titleBrand")}
+                  </p>
+                  <motion.h1
+                    variants={titleServiceNameMotion}
+                    className={titleServiceNameClassName}
                   >
-                    GritVib
-                  </motion.p>
-
-                  {/*
-                    スマホ (< md):
-                      - 縦並び。「人として、」を左寄せ・「生きるということ。」を右寄せ。
-                      - 各行は whitespace-nowrap で句の途中改行を禁止（「と。」だけ落ちるのを防ぐ）。
-                    PC (md 以上):
-                      - 横並びにして「人として、生きるということ。」を 1 行で見せる。
-                      - self-start / self-end / nowrap はリセット。
-                  */}
-                  <motion.h1 className="flex w-full flex-col items-stretch gap-5 md:flex-row md:items-baseline md:justify-center md:gap-3">
-                    <motion.span
-                      variants={titleLineVariants.first}
-                      className="max-md:whitespace-nowrap max-md:break-keep self-start text-left text-4xl font-medium leading-[1.2] tracking-tight md:self-auto md:whitespace-normal md:text-center md:text-6xl"
-                    >
-                      人として、
-                    </motion.span>
-                    <motion.span
-                      variants={titleLineVariants.second}
-                      className="max-md:whitespace-nowrap max-md:break-keep self-end text-right text-4xl font-medium leading-[1.2] tracking-tight md:self-auto md:whitespace-normal md:text-center md:text-6xl"
-                    >
-                      生きるということ。
-                    </motion.span>
+                    {t("titleServiceName")}
                   </motion.h1>
                 </motion.div>
               ) : (
@@ -317,19 +278,17 @@ export function TalkLandingPage({
                    */
                   className="mx-auto flex w-full max-w-md flex-col items-center gap-5 pt-4 sm:max-w-lg sm:gap-5 sm:pt-16 md:max-w-5xl md:gap-6 md:pt-20"
                 >
-                  <h1 className="sr-only">人として、生きるということ。| GritVib</h1>
+                  <h1 className="sr-only">{t("srOnlyTitle")}</h1>
 
                   <motion.div
                     variants={ctaVariants}
                     className="flex w-full flex-col items-center gap-4"
                   >
                     <p className="text-center text-xl font-semibold leading-snug text-black sm:text-2xl md:text-3xl">
-                      現代に生きる私たちが目指すべき場所は、
-                      <br className="md:hidden" />
-                      本当に時代の最先端なのか。
+                      {t("headline")}
                     </p>
                     <p className="text-balance text-center text-sm leading-relaxed text-zinc-700 sm:text-base md:text-lg">
-                      ここは、ChatGPTの代わりに、人間がチャットの相手をする場所です。
+                      {t("intro")}
                     </p>
                   </motion.div>
 
@@ -338,13 +297,13 @@ export function TalkLandingPage({
                     className="flex w-full flex-col items-center gap-4"
                   >
                     <p className="text-balance text-center text-sm leading-relaxed text-zinc-700 sm:text-base md:text-lg">
-                      24時間即レスはしません。
+                      {t("point1")}
                     </p>
                     <p className="text-balance text-center text-sm leading-relaxed text-zinc-700 sm:text-base md:text-lg">
-                      完璧な回答はしません。
+                      {t("point2")}
                     </p>
                     <p className="text-balance text-center text-sm leading-relaxed text-zinc-700 sm:text-base md:text-lg">
-                      対等な立場で話します。
+                      {t("point3")}
                     </p>
                   </motion.div>
 
@@ -352,7 +311,7 @@ export function TalkLandingPage({
                     variants={ctaVariants}
                     className="text-center text-lg font-medium leading-snug text-black sm:text-xl md:text-2xl"
                   >
-                    人間だからです。
+                    {t("closing")}
                   </motion.p>
 
                   <motion.div
@@ -363,7 +322,7 @@ export function TalkLandingPage({
                       href={startHref}
                       className="inline-flex h-12 w-64 items-center justify-center rounded-full bg-black text-base font-medium text-white transition-colors hover:bg-zinc-800 sm:h-14 sm:w-72"
                     >
-                      はじめる
+                      {t("ctaStart")}
                     </Link>
                     {isLoggedIn ? (
                       <button
@@ -372,14 +331,14 @@ export function TalkLandingPage({
                         aria-disabled="true"
                         className="inline-flex h-12 w-64 cursor-not-allowed items-center justify-center rounded-full border border-zinc-200 bg-zinc-50 text-base font-medium text-zinc-400 sm:h-14 sm:w-72"
                       >
-                        ログイン済み
+                        {t("ctaLoggedIn")}
                       </button>
                     ) : (
                       <Link
                         href="/talk/login"
                         className="text-base text-zinc-700 underline-offset-4 hover:text-black hover:underline"
                       >
-                        ログイン
+                        {t("ctaLogin")}
                       </Link>
                     )}
                   </motion.div>
@@ -388,7 +347,7 @@ export function TalkLandingPage({
                     variants={ctaVariants}
                     className="text-center text-[11px] leading-relaxed text-zinc-500 sm:text-xs"
                   >
-                    ※月額 ¥3,000（税込）のサブスクリプションサービスです。
+                    {t("priceNote")}
                   </motion.p>
                 </motion.div>
               )}
@@ -404,10 +363,12 @@ export function TalkLandingPage({
         */}
         <footer className="relative z-10 shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <LegalFoot className="pt-6 pb-2 sm:pt-12 sm:pb-4" />
-          <div className="flex justify-end px-3 sm:px-5">
+          <div className="flex flex-wrap items-center justify-end gap-2 px-3 sm:px-5">
+            <LanguageSwitcher variant="landing" />
             <LandingAnimationToggle
               enabled={animationsEnabled}
               onToggle={handleAnimationToggle}
+              label={t("animation")}
             />
           </div>
         </footer>

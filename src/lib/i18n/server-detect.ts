@@ -16,11 +16,11 @@ import {
  * Server Component / `generateMetadata` 用の locale 解決。
  *
  * 優先順:
- *   1. `gv_locale` Cookie
- *   2. `Accept-Language` ヘッダ
- *   3. {@link DEFAULT_LOCALE}（"ja"）
+ *   1. `gv_locale` Cookie（手動切り替えを含む）
+ *   2. `Accept-Language` ヘッダ（国・地域が日本 → "ja"、それ以外 → "en"）
+ *   3. 自動検出フォールバック（"en"）
  *
- * 失敗時も throw せず "ja" を返す（既存ユーザー＝全員日本人にとって完全互換）。
+ * 失敗時も throw せず {@link DEFAULT_LOCALE} を返す。
  */
 export async function getServerLocale(): Promise<Locale> {
   try {

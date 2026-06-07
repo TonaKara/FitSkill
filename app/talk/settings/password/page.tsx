@@ -8,11 +8,10 @@ import {
   GRITVIB_ONBOARD_PATH,
   resolveTalkPasswordChangeReturnPath,
 } from "@/lib/talk/post-auth-redirect"
+import { talkPageMetadata } from "@/lib/talk/page-metadata"
 
-export const metadata: Metadata = {
-  title: { absolute: "パスワードを変更 | GritVib" },
-  alternates: { canonical: "/talk/settings/password" },
-  robots: { index: false, follow: false },
+export async function generateMetadata(): Promise<Metadata> {
+  return talkPageMetadata("changePassword", "/talk/settings/password")
 }
 
 export const dynamic = "force-dynamic"

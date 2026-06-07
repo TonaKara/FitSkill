@@ -52,8 +52,8 @@ export function LocaleProvider({ initialLocale, children }: LocaleProviderProps)
   const pathname = usePathname()
 
   useEffect(() => {
-    // server で Cookie が無かったが、navigator にユーザー言語が乗っているケースで
-    // 自動同期する。Cookie が既にあればそれを優先。
+    // server で Cookie が無かったが、端末の国・地域設定（navigator）で
+    // 自動同期する。Cookie（手動切り替え含む）が既にあればそれを優先。
     const fromCookie = readLocaleCookieFromDocument()
     if (fromCookie) {
       if (fromCookie !== locale) {

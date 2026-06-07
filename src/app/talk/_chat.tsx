@@ -11,6 +11,7 @@ import {
   useState,
 } from "react"
 import Link from "next/link"
+import { TalkBrandHeader } from "@/talk/_brand-header"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
   ExternalLink,
@@ -22,6 +23,7 @@ import {
   LogOut,
 } from "lucide-react"
 import { navigateAfterLogout } from "@/components/logout-success-toast"
+import { useTranslations } from "@/lib/i18n/useI18n"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { safeClientLogError } from "@/lib/safe-client-log"
 import {
@@ -124,6 +126,9 @@ export function ChatPage({
   const [subscriptionSyncing, setSubscriptionSyncing] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
   const { confirm: askConfirm, dialog: confirmDialog } = useTalkConfirm()
+  const tChat = useTranslations("talk.chat")
+  const tSubscribe = useTranslations("talk.subscribe")
+  const tConfirm = useTranslations("talk.confirm")
 
   /** メニュー外クリック / Escape で閉じる。 */
   useEffect(() => {
@@ -367,11 +372,11 @@ export function ChatPage({
     event.target.value = ""
     if (!file) return
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-      setErrorMessage("画像形式は JPEG / PNG / WebP / GIF にしてください。")
+      setErrorMessage(tChat("errorImageType"))
       return
     }
     if (file.size > IMAGE_MAX_BYTES) {
-      setErrorMessage("画像は 5MB までです。")
+      setErrorMessage(tChat("errorImageSize"))
       return
     }
     setErrorMessage(null)
@@ -393,11 +398,11 @@ export function ChatPage({
     const imageFile = pendingImage
     if (trimmedBody.length === 0 && !imageFile) return
     if (trimmedBody.length > MESSAGE_BODY_MAX_LENGTH) {
-      setErrorMessage(`メッセージは ${MESSAGE_BODY_MAX_LENGTH} 文字以内で入力してください。`)
+      setErrorMessage(tChat("errorMessageTooLong", { max: MESSAGE_BODY_MAX_LENGTH }))
       return
     }
     if (canSend === false) {
-      setErrorMessage("サブスクリプションが有効ではないため送信できません。")
+      setErrorMessage(tChat("errorSubscriptionInactive"))
       return
     }
 
@@ -439,7 +444,7 @@ export function ChatPage({
           safeClientLogError("[talk/chat] upload failed")
           setMessages((prev) => removeOptimisticGritvibMessage(prev, optimisticId))
           if (localImageUrl) URL.revokeObjectURL(localImageUrl)
-          setErrorMessage("画像のアップロードに失敗しました。")
+          setErrorMessage(tChat("errorImageUpload"))
           return
         }
       }
@@ -457,15 +462,15 @@ export function ChatPage({
         }
         if (result.reason === "subscription_required") {
           setCanSend(false)
-          setErrorMessage("サブスクリプションが有効ではないため送信できません。")
+          setErrorMessage(tChat("errorSubscriptionInactive"))
         } else if (result.reason === "unauthenticated") {
-          setErrorMessage("セッションが切れました。再ログインしてください。")
+          setErrorMessage(tChat("errorSessionExpired"))
         } else if (result.reason === "body_too_long") {
-          setErrorMessage(`メッセージは ${MESSAGE_BODY_MAX_LENGTH} 文字以内にしてください。`)
+          setErrorMessage(tChat("errorMessageTooLong", { max: MESSAGE_BODY_MAX_LENGTH }))
         } else if (result.reason === "empty_payload") {
-          setErrorMessage("メッセージを入力してください。")
+          setErrorMessage(tChat("errorMessageEmpty"))
         } else {
-          setErrorMessage("送信に失敗しました。時間をおいて再度お試しください。")
+          setErrorMessage(tChat("errorSendFailed"))
         }
         return
       }
@@ -479,19 +484,19 @@ export function ChatPage({
       if (plannedImagePath) {
         await supabase.storage.from(STORAGE_BUCKET).remove([plannedImagePath])
       }
-      setErrorMessage("送信に失敗しました。時間をおいて再度お試しください。")
+      setErrorMessage(tChat("errorSendFailed"))
     } finally {
       setIsSending(false)
     }
-  }, [canSend, draft, isSending, pendingImage, scrollToBottom, supabase, userId])
+  }, [canSend, draft, isSending, pendingImage, scrollToBottom, supabase, tChat, userId])
 
   const handleDeleteMessage = async (messageId: string) => {
     if (messageId.startsWith("pending-")) return
-    if (!(await askConfirm("このメッセージを削除しますか？", "削除"))) return
+    if (!(await askConfirm(tConfirm("deleteMessage"), tConfirm("delete")))) return
     const result = await deleteGritvibChatMessageAction(messageId)
     if (!result.ok) {
       safeClientLogError("[talk/chat] delete failed")
-      setErrorMessage("削除に失敗しました。時間をおいて再度お試しください。")
+      setErrorMessage(tChat("errorDeleteFailed"))
       return
     }
     // Realtime DELETE で消えるはずだが、UI の即時反映のためローカルでも除去しておく。
@@ -499,7 +504,7 @@ export function ChatPage({
   }
 
   const handleHideMessage = async (messageId: string) => {
-    if (!(await askConfirm("このメッセージを非表示にしますか？", "非表示"))) {
+    if (!(await askConfirm(tConfirm("hideMessage"), tConfirm("hide")))) {
       return
     }
     const result = await hideGritvibChatMessageAction(messageId)
@@ -509,7 +514,7 @@ export function ChatPage({
         return
       }
       safeClientLogError("[talk/chat] hide failed")
-      setErrorMessage("非表示に失敗しました。時間をおいて再度お試しください。")
+      setErrorMessage(tChat("errorHideFailed"))
       return
     }
     setHiddenMessageIds((prev) => new Set(prev).add(messageId))
@@ -523,19 +528,14 @@ export function ChatPage({
   return (
     <div className="flex h-[100svh] flex-col bg-white text-black">
       <header className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 text-sm">
-        <Link
-          href="/"
-          className="text-[11px] uppercase tracking-[0.2em] text-zinc-400 transition-colors hover:text-black"
-        >
-          GritVib
-        </Link>
+        <TalkBrandHeader variant="header" />
         <div ref={menuRef} className="relative">
           <button
             type="button"
             onClick={() => setMenuOpen((prev) => !prev)}
             aria-haspopup="menu"
             aria-expanded={menuOpen}
-            aria-label="メニュー"
+            aria-label={tChat("menu")}
             disabled={signingOut}
             className="inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-black focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
           >
@@ -549,12 +549,12 @@ export function ChatPage({
           {menuOpen ? (
             <div
               role="menu"
-              aria-label="メニュー"
+              aria-label={tChat("menu")}
               className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-lg"
             >
               <div className="border-b border-zinc-100 px-3 py-2.5">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-400">
-                  ニックネーム
+                  {tChat("nicknameLabel")}
                 </p>
                 <p className="mt-0.5 truncate text-sm font-medium text-black">
                   {nickname}
@@ -568,7 +568,7 @@ export function ChatPage({
                     onClick={() => setMenuOpen(false)}
                     className="flex w-full items-center px-3 py-2 hover:bg-zinc-50"
                   >
-                    トップへ
+                    {tChat("topLink")}
                   </Link>
                 </li>
                 <li>
@@ -580,7 +580,7 @@ export function ChatPage({
                     onClick={() => setMenuOpen(false)}
                     className="flex w-full items-center justify-between px-3 py-2 hover:bg-zinc-50"
                   >
-                    <span>サブスクを管理</span>
+                    <span>{tChat("manageSubscription")}</span>
                     <ExternalLink className="h-3.5 w-3.5 text-zinc-400" aria-hidden />
                   </a>
                 </li>
@@ -591,7 +591,7 @@ export function ChatPage({
                     onClick={() => setMenuOpen(false)}
                     className="flex w-full items-center px-3 py-2 hover:bg-zinc-50"
                   >
-                    パスワードを変更
+                    {tChat("changePassword")}
                   </Link>
                 </li>
                 {isAdmin ? (
@@ -603,7 +603,7 @@ export function ChatPage({
                       className="flex w-full items-center gap-2 px-3 py-2 hover:bg-zinc-50"
                     >
                       <Shield className="h-3.5 w-3.5 text-zinc-500" aria-hidden />
-                      <span>管理画面</span>
+                      <span>{tChat("adminPanel")}</span>
                     </Link>
                   </li>
                 ) : null}
@@ -619,7 +619,7 @@ export function ChatPage({
                     className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <LogOut className="h-3.5 w-3.5 text-zinc-500" aria-hidden />
-                    <span>ログアウト</span>
+                    <span>{tChat("signOut")}</span>
                   </button>
                 </li>
               </ul>
@@ -636,13 +636,13 @@ export function ChatPage({
           {loadingHistory && visibleMessages.length === 0 ? (
             <div className="flex items-center justify-center py-10 text-zinc-500">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-              読み込み中…
+              {tChat("loading")}
             </div>
           ) : visibleMessages.length === 0 ? (
             <p className="py-10 text-center text-sm text-zinc-500">
               {messages.length === 0
-                ? "まだメッセージはありません。"
-                : "表示できるメッセージはありません。"}
+                ? tChat("empty")
+                : tChat("emptyHidden")}
             </p>
           ) : (
             visibleMessages.map((message) => (
@@ -676,13 +676,11 @@ export function ChatPage({
         justSubscribed && subscriptionSyncing ? (
           <div className="flex items-center justify-center gap-2 border-t border-zinc-200 bg-zinc-50 px-4 py-3 text-center text-xs text-zinc-600">
             <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-            <span>接続の準備をしています…</span>
+            <span>{tChat("preparingConnection")}</span>
           </div>
         ) : (
           <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 border-t border-zinc-200 bg-zinc-50 px-4 py-3 text-center text-xs text-zinc-600">
-            <span>
-              サブスクリプションが有効ではないため、メッセージは送信できません。
-            </span>
+            <span>{tChat("subscriptionInactive")}</span>
             <GritvibSubscribeButton
               accountEmail={accountEmail}
               disabled={
@@ -690,8 +688,8 @@ export function ChatPage({
               }
               label={
                 subscriptionCapacity != null && !subscriptionCapacity.acceptingNew
-                  ? "満員"
-                  : "有効にする"
+                  ? tSubscribe("full")
+                  : undefined
               }
             />
           </div>
@@ -714,13 +712,13 @@ export function ChatPage({
               {/* eslint-disable-next-line @next/next/no-img-element -- ローカル preview */}
               <img
                 src={pendingImagePreview}
-                alt="送信予定の画像"
+                alt={tChat("pendingImageAlt")}
                 className="max-h-32 max-w-[12rem] rounded-md border border-zinc-200 object-contain"
               />
               <button
                 type="button"
                 onClick={handleClearPendingImage}
-                aria-label="画像を取り消す"
+                aria-label={tChat("cancelPendingImage")}
                 className="absolute -right-2 -top-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-black text-white shadow"
               >
                 <X className="h-3.5 w-3.5" aria-hidden />
@@ -741,7 +739,7 @@ export function ChatPage({
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isSending || canSend === false}
-              aria-label="画像を添付"
+              aria-label={tChat("attachImage")}
               className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-700 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <ImagePlus className="h-5 w-5" aria-hidden />
@@ -752,7 +750,9 @@ export function ChatPage({
               onChange={setDraft}
               onSubmit={() => void submitMessage()}
               placeholder={
-                canSend === false ? "送信できません" : "人間は、もっと自由で良いのです"
+                canSend === false
+                  ? tChat("composerDisabledPlaceholder")
+                  : tChat("composerPlaceholder")
               }
               maxLength={MESSAGE_BODY_MAX_LENGTH}
               disabled={canSend === false}
@@ -766,7 +766,7 @@ export function ChatPage({
               {isSending ? (
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
               ) : (
-                "送る"
+                tChat("send")
               )}
             </button>
           </div>

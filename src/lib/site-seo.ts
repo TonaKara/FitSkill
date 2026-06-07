@@ -103,13 +103,13 @@ export function getAppBaseUrl(): string {
 }
 
 /** ルートレイアウトのデフォルト（子ページが title を上書きしない場合） */
-export const LAYOUT_TITLE_DEFAULT = "人として、生きるということ。| GritVib"
+export const LAYOUT_TITLE_DEFAULT = "人として、生きるということ。| HITO"
 
 export const LAYOUT_DESCRIPTION =
   "ChatGPTの代わりに、人間がチャットの相手になります。完璧ではありません。人間だからです。"
 
 /** 現行トップ (`/`) — 人間チャットサービスの検索・OG テキスト */
-export const GRITVIB_LANDING_TITLE_ABSOLUTE = "人として、生きるということ。| GritVib"
+export const GRITVIB_LANDING_TITLE_ABSOLUTE = "人として、生きるということ。| HITO"
 
 export const GRITVIB_LANDING_DESCRIPTION =
   "ChatGPTの代わりに、人間がチャットの相手になります。完璧ではありません。人間だからです。"

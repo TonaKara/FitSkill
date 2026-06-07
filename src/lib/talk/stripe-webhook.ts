@@ -1,5 +1,6 @@
 import type Stripe from "stripe"
 import type { SupabaseClient } from "@supabase/supabase-js"
+import { TALK_STRIPE_GRITVIB_PAYMENT_LINK_IDS } from "@/talk/_stripe-links"
 import { tryNotifyGritvibSubscriptionPurchaseDiscord } from "@/lib/purchase-notification"
 import { resolveGritvibSubscriptionPeriodEndIso } from "@/lib/talk/stripe-subscription-period"
 import { logTalkServerError } from "@/lib/talk/server-safe-log"
@@ -33,14 +34,20 @@ export function isGritvibServiceMetadata(
 /**
  * GritVib サブスクの Checkout Session か。
  * Payment Link の metadata に `service=gritvib` が無い場合の保険として、
- * 環境変数 `STRIPE_GRITVIB_PAYMENT_LINK_ID`（Stripe の `plink_...`）とも照合する。
+ * 環境変数 `STRIPE_GRITVIB_PAYMENT_LINK_ID` / `STRIPE_GRITVIB_PAYMENT_LINK_ID_USD`
+ * （Stripe の `plink_...`）とも照合する。
  */
 export function isGritvibCheckoutSession(session: Stripe.Checkout.Session): boolean {
   if (isGritvibServiceMetadata(session.metadata)) {
     return true
   }
-  const configured = process.env.STRIPE_GRITVIB_PAYMENT_LINK_ID?.trim()
-  if (!configured) {
+  const configuredIds = [
+    process.env.STRIPE_GRITVIB_PAYMENT_LINK_ID?.trim(),
+    process.env.STRIPE_GRITVIB_PAYMENT_LINK_ID_USD?.trim(),
+    TALK_STRIPE_GRITVIB_PAYMENT_LINK_IDS.jpy,
+    TALK_STRIPE_GRITVIB_PAYMENT_LINK_IDS.usd,
+  ].filter((id): id is string => Boolean(id))
+  if (configuredIds.length === 0) {
     return false
   }
   const paymentLink = session.payment_link
@@ -48,7 +55,7 @@ export function isGritvibCheckoutSession(session: Stripe.Checkout.Session): bool
     return false
   }
   const linkId = typeof paymentLink === "string" ? paymentLink : paymentLink.id
-  return linkId === configured
+  return configuredIds.includes(linkId)
 }
 
 function normalizeRpcUuid(value: unknown): string | null {
