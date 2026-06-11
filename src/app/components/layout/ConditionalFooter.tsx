@@ -21,6 +21,9 @@ export function ConditionalFooter() {
   if (pathname === "/landing-preview" || pathname.startsWith("/landing-preview/")) {
     return null
   }
+  if (pathname === "/japan-entry" || pathname.startsWith("/japan-entry/")) {
+    return null
+  }
   /**
    * /legal/* は GritVib に揃えた専用シェル (LegalPageShell) を採用しているため、
    * 共通フッターは表示しない。

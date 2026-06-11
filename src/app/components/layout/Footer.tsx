@@ -45,6 +45,9 @@ export function Footer() {
                 <Link href="/contact" className={baseLinkClass}>
                   {t("contact")}
                 </Link>
+                <Link href="/japan-entry" prefetch={false} className={baseLinkClass}>
+                  {t("japanEntry")}
+                </Link>
               </nav>
             </section>
           </div>

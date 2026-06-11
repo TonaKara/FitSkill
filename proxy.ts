@@ -35,12 +35,45 @@ function withVercelNoIndex(request: NextRequest, response: NextResponse): NextRe
   return response
 }
 
+function isJapanEntryPath(pathname: string): boolean {
+  return pathname === "/japan-entry" || pathname.startsWith("/japan-entry/")
+}
+
+/**
+ * /japan-entry 配下は英語専用ランディングのため、同一リクエスト内の RSC も "en" で描画できるよう
+ * request.cookies を上書きする。
+ */
+function applyJapanEntryLocaleOverride(request: NextRequest): void {
+  if (!isJapanEntryPath(request.nextUrl.pathname)) {
+    return
+  }
+  request.cookies.set(LOCALE_COOKIE_NAME, "en")
+}
+
+function setEnglishLocaleCookieIfJapanEntry(
+  request: NextRequest,
+  response: NextResponse,
+): NextResponse {
+  if (!isJapanEntryPath(request.nextUrl.pathname)) {
+    return response
+  }
+  response.cookies.set(LOCALE_COOKIE_NAME, "en", {
+    path: "/",
+    maxAge: LOCALE_COOKIE_MAX_AGE,
+    sameSite: "lax",
+  })
+  return response
+}
+
 /**
  * Cookie に locale が無いリクエストでは Accept-Language から推定し、
  * レスポンスに Set-Cookie する。
- * Cookie の有無を変えるだけで再描画は行わない（既存セッション処理に影響なし）。
+ * /japan-entry は常に "en" を Set-Cookie する。
  */
 function ensureLocaleCookie(request: NextRequest, response: NextResponse): NextResponse {
+  if (isJapanEntryPath(request.nextUrl.pathname)) {
+    return setEnglishLocaleCookieIfJapanEntry(request, response)
+  }
   const existing = request.cookies.get(LOCALE_COOKIE_NAME)?.value
   if (existing && isSupportedLocale(existing)) {
     return response
@@ -159,6 +192,8 @@ export async function proxy(request: NextRequest) {
   if (!supabaseUrl || !supabaseAnonKey) {
     return ensureLocaleCookie(request, withVercelNoIndex(request, NextResponse.next()))
   }
+
+  applyJapanEntryLocaleOverride(request)
 
   const supabaseResponse = NextResponse.next({
     request,

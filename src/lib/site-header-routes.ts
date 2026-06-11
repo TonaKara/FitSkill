@@ -18,6 +18,9 @@ export function shouldShowSiteHeader(pathname: string): boolean {
   if (pathname === "/landing-preview" || pathname.startsWith("/landing-preview/")) {
     return false
   }
+  if (pathname === "/japan-entry" || pathname.startsWith("/japan-entry/")) {
+    return false
+  }
   /**
    * /legal/* は GritVib に合わせた白黒の専用シェル (LegalPageShell) を採用しているため、
    * 共通ヘッダーは表示しない。上部に最小の「トップへ」リンクのみを置く。

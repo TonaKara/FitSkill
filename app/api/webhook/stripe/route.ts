@@ -14,6 +14,12 @@ import {
   propagateGritvibMetadataToSubscription,
   shouldSyncGritvibSubscription,
 } from "@/lib/talk/stripe-webhook"
+import {
+  isJapanEntryServiceMetadata,
+  notifyJapanEntryPurchaseToDiscord,
+  notifyJapanEntrySubscriptionCanceledToDiscord,
+  propagateJapanEntryMetadataToSubscription,
+} from "@/lib/japan-entry/purchase-discord"
 import { ensureSellerPurchaseNotification, notifyBuyerCheckoutRefunded } from "@/lib/purchase-notification"
 
 function getEnv(name: string): string {
@@ -239,6 +245,18 @@ export async function POST(req: Request) {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session
+        if (isJapanEntryServiceMetadata(session.metadata)) {
+          try {
+            await propagateJapanEntryMetadataToSubscription(session, stripe)
+            await notifyJapanEntryPurchaseToDiscord(session)
+          } catch (jesError) {
+            console.error("[stripe webhook] japan-entry purchase handling failed", {
+              sessionId: session.id,
+              error: jesError instanceof Error ? jesError.message : String(jesError),
+            })
+          }
+          break
+        }
         if (await isGritvibCheckoutSessionForWebhook(session, stripe, supabase)) {
           /**
            * GritVib (人間チャットサービス) のサブスク開始。
@@ -263,6 +281,18 @@ export async function POST(req: Request) {
       }
       case "checkout.session.async_payment_succeeded": {
         const session = event.data.object as Stripe.Checkout.Session
+        if (isJapanEntryServiceMetadata(session.metadata)) {
+          try {
+            await propagateJapanEntryMetadataToSubscription(session, stripe)
+            await notifyJapanEntryPurchaseToDiscord(session)
+          } catch (jesError) {
+            console.error("[stripe webhook] japan-entry async-success handling failed", {
+              sessionId: session.id,
+              error: jesError instanceof Error ? jesError.message : String(jesError),
+            })
+          }
+          break
+        }
         if (await isGritvibCheckoutSessionForWebhook(session, stripe, supabase)) {
           try {
             await propagateGritvibMetadataToSubscription(session, stripe)
@@ -280,6 +310,9 @@ export async function POST(req: Request) {
       }
       case "checkout.session.expired": {
         const session = event.data.object as Stripe.Checkout.Session
+        if (isJapanEntryServiceMetadata(session.metadata)) {
+          break
+        }
         if (await isGritvibCheckoutSessionForWebhook(session, stripe, supabase)) {
           /** GritVib は予約ロジックを持たないため expire は何もしない */
           break
@@ -303,6 +336,16 @@ export async function POST(req: Request) {
       }
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription
+        if (isJapanEntryServiceMetadata(subscription.metadata)) {
+          try {
+            await notifyJapanEntrySubscriptionCanceledToDiscord(subscription, stripe)
+          } catch (jesError) {
+            console.error("[stripe webhook] japan-entry cancel handling failed", {
+              subscriptionId: subscription.id,
+              error: jesError instanceof Error ? jesError.message : String(jesError),
+            })
+          }
+        }
         if (await shouldSyncGritvibSubscription(subscription, stripe, supabase)) {
           try {
             await applyGritvibSubscriptionSync(subscription, stripe, supabase)
